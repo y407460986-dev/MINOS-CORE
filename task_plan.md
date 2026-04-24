@@ -65,3 +65,51 @@
 - adapter worker 会暴露 `convert_legacy_workbook(workbook_path, fixture_dir)`。
 - `convert_legacy_workbook` 返回值可以是 fixture 路径、包含 `fixture_dir` 的对象/dict，或 `None`；测试会以传入的 `fixture_dir` 作为默认结果目录。
 - 当前 core 已暴露 `load_apqp_chain`、`validate_chain`、`export_fixture`。
+
+## 第三阶段：质量审计
+本阶段目标不是再增加硬校验，而是在 validation 已能确认结构闭环之后，继续识别内容可靠性风险。换句话说：
+
+- validation 回答“PFD、PFMEA、CP 是否闭环，必控项是否有控制计划覆盖”。
+- quality audit 回答“闭环内容是否可信，是否存在机械逻辑薄弱、控制方法太弱、需要人工复核的问题”。
+- audit 发现问题不等同于 validate 失败；它应输出审计报告和人工复核项，帮助区分“结构闭环”和“内容可靠”。
+
+## 第三阶段当前职责
+本轮只负责质量审计的测试和文档，不写 `minos_core/audit.py`，不写 CLI，不删除文件，不回退其他 worker 的改动。
+
+允许写入范围：
+- `tests/test_quality_audit.py`
+- `task_plan.md`
+- `progress.md`
+- `findings.md`
+- `rebuild_manifest.md`
+
+## 第三阶段目标
+新增 unittest，约束 audit worker 的公开契约：
+
+- `audit_chain` 能对 `tests/fixtures/apqp_chain`、`door_hinge`、`stamping`、`limiter` 运行。
+- audit report 必须包含 `counts`。
+- audit report 必须包含 `manual_review_items`。
+- 构造最小弱链接样本，验证 audit 能发现 mechanical / weak / manual review 问题。
+- 同一个最小弱链接样本仍应通过 `validate_chain`，证明 audit 是质量审计，不是硬校验替代品。
+
+## 第三阶段执行流程
+/// 1. 只读扫描现有 fixture、validation、domain、CLI 和当前 audit 状态。
+/// 2. 新增 `tests/test_quality_audit.py`，只依赖未来 audit worker 的公开 `audit_chain` 契约。
+/// 3. 对四套标准 fixture 执行 audit smoke contract，检查报告包含 `counts` 和 `manual_review_items`。
+/// 4. 构造最小弱链接链路：PFD/PFMEA/CP 仍闭环，但控制规格、方法、频次、反应计划明显不足。
+/// 5. 同时运行 `validate_chain` 与 `audit_chain`：validate 必须通过，audit 必须提出 manual review。
+/// 6. 更新 `task_plan.md`、`progress.md`、`findings.md`、`rebuild_manifest.md`。
+/// 7. 审核写入范围，确认未触碰 `minos_core/audit.py`、CLI 或其他 worker 文件。
+
+## 第三阶段 OpenSpec 四步闭环
+1. Define：第三阶段验收对象是质量审计报告，不是结构硬校验。
+2. Specify：用 unittest 固定 `audit_chain` 的报告字段和弱链接识别行为。
+3. Implement：本轮只新增测试和文档；audit/CLI 实现由另一个 worker 完成。
+4. Verify：audit worker 就绪后运行 `python -m unittest tests.test_quality_audit -v`。
+
+## 第三阶段非目标
+- 不实现 `minos_core/audit.py`。
+- 不实现或修改 CLI audit 命令。
+- 不改变 `validation.py` 的硬校验语义。
+- 不把 audit 问题伪装成 validate 失败。
+- 不更新 `project_flow.mmd`，因为本轮用户限定的写入范围不包含该文件。

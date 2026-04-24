@@ -30,6 +30,11 @@ def main(argv: list[str] | None = None) -> int:
     export_parser.add_argument("--output", required=True, help="Output workbook path")
     export_parser.add_argument("--label", default="", help="Optional export label")
 
+    audit_parser = subparsers.add_parser("audit", help="Audit APQP fixture quality without blocking export")
+    audit_parser.add_argument("--fixture", help="Fixture JSON file or fixture directory")
+    audit_parser.add_argument("--input", help="Fixture JSON file or fixture directory")
+    audit_parser.add_argument("--json", action="store_true", help="Print machine-readable JSON")
+
     convert_parser = subparsers.add_parser("convert-legacy", help="Convert a legacy Excel seed workbook")
     convert_parser.add_argument("--sample-id", required=True, help="Sample identifier for the generated fixtures")
     convert_parser.add_argument("--display-name", required=True, help="Display name for the generated fixtures")
@@ -44,6 +49,8 @@ def main(argv: list[str] | None = None) -> int:
         return _validate(args.fixture or args.input)
     if args.command == "export":
         return _export(args.fixture or args.input, args.output, args.label)
+    if args.command == "audit":
+        return _audit(args.fixture or args.input, args.json)
     if args.command == "convert-legacy":
         return _convert_legacy(args.input, args.output_dir, args.sample_id, args.display_name, args.profile)
     parser.error(f"unknown command: {args.command}")
@@ -89,6 +96,16 @@ def _export(fixture: str, output: str, label: str) -> int:
         payload["label"] = label
     result = export_fixture(payload, output)
     print(f"Exported: {result}")
+    return 0
+
+
+def _audit(fixture: str, as_json: bool) -> int:
+    if not fixture:
+        raise ValueError("--fixture or --input is required")
+    from .audit import audit_chain, audit_report_json
+
+    report = audit_chain(load_fixture_payload(fixture))
+    print(audit_report_json(report) if as_json else report.to_text())
     return 0
 
 

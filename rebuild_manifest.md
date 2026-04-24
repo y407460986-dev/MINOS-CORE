@@ -77,3 +77,40 @@ fixture 表达一条最小但完整的 APQP 链：
 ## 注意
 如果核心代码尚未提供 `minos_core.domain`、`minos_core.validation`、`minos_core.exporters`、`minos_core.cli`，完整测试会失败。这不是 fixture/测试任务的绕行点，而是重建契约尚未被实现的明确信号。
 如果 legacy Excel adapter 尚未提供 `convert_legacy_workbook`，第二阶段真实样本测试会失败；这代表 adapter 契约未完成，不应通过测试绕行。
+
+## 第三阶段新增
+本阶段新增质量审计验收，不实现 audit/CLI，只用测试约束 audit 输出必须区分“结构闭环”和“内容可靠”。
+
+新增文件：
+- `tests/test_quality_audit.py`
+
+更新文档：
+- `task_plan.md`
+- `progress.md`
+- `findings.md`
+- `rebuild_manifest.md`
+
+第三阶段测试契约：
+- `audit_chain(chain)` 能对四套 fixture 运行：
+  - `tests/fixtures/apqp_chain`
+  - `tests/fixtures/door_hinge`
+  - `tests/fixtures/stamping`
+  - `tests/fixtures/limiter`
+- audit report 必须包含 `counts`。
+- audit report 必须包含 `manual_review_items`。
+- 最小弱链接样本仍应通过 `validate_chain`。
+- 同一个最小弱链接样本必须被 audit 标记为 mechanical / weak / manual review 风险。
+
+## 第三阶段文档结论
+第三阶段是质量审计，不是硬校验。它的目的不是替代 validation，而是在结构闭环之后继续判断内容是否可靠：
+
+- `validate_chain`：判断 APQP 链路是否完整、必控项是否覆盖。
+- `audit_chain`：判断控制内容是否薄弱、机械逻辑是否可疑、哪些项需要人工复核。
+
+## 第三阶段验收命令
+/// 1. audit worker 完成后运行：`python -m unittest tests.test_quality_audit -v`。
+/// 2. 完整回归时运行：`python -m unittest discover -s tests -v`。
+/// 3. 若 `tests.test_quality_audit` 因 `minos_core.audit` 缺失失败，代表 audit worker 尚未完成，不应在测试侧绕行。
+
+## 第三阶段范围说明
+本轮没有写入 `minos_core/audit.py`，没有修改 CLI，也没有更新 `project_flow.mmd`。`project_flow.mmd` 未更新的原因是用户本轮明确限定写入范围，且该文件不在允许列表内。

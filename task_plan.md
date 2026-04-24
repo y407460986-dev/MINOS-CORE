@@ -113,3 +113,32 @@
 - 不改变 `validation.py` 的硬校验语义。
 - 不把 audit 问题伪装成 validate 失败。
 - 不更新 `project_flow.mmd`，因为本轮用户限定的写入范围不包含该文件。
+
+## 第四阶段：限位器 legacy 链接质量收口
+本阶段目标是只针对 `limiter` 真实样本降低机械挂接和弱链接数量，不扩大到 `door_hinge`、`stamping`，也不改变 core 的硬校验语义。
+
+## 第四阶段目标
+- 读取并对照 `tests/fixtures/limiter/pfmea.json`、`tests/fixtures/limiter/control_plan.json` 与 `audit --input tests\fixtures\limiter` 输出。
+- 改进 legacy 转换器的 PFMEA/CP 匹配规则，减少只靠 `linked_control_plan_id` 的机械覆盖。
+- 只重新生成 `tests/fixtures/limiter`。
+- 补 limiter 审计回归门槛：`mechanical_links <= 3`、`weak_links <= 10`、`manual_review_items <= 18`。
+
+## 第四阶段执行流程
+/// 1. 只读定位 limiter 的 mechanical links、weak links 和反向 `pfmea_id` 错挂模式。
+/// 2. 在 legacy adapter 中加入质量工程业务词、特殊特性优先、同工序多 CP 分配和必要的一对多派生控制行。
+/// 3. 在 audit 文本判定中使用相同的质量工程业务词，避免“同义但字面不同”的有效控制被误判为 weak。
+/// 4. 只运行 `convert-legacy --profile limiter` 重建 `tests/fixtures/limiter`。
+/// 5. 运行 limiter validate、limiter audit 和完整 unittest。
+/// 6. 更新流程图和重建文档，提交第四阶段改动。
+
+## 第四阶段 OpenSpec 四步闭环
+1. Define：第四阶段验收对象是 limiter 的 PFMEA/CP 链接质量，不是全样本重构。
+2. Specify：用 `tests/test_quality_audit.py` 固定 limiter 阶段性审计门槛。
+3. Implement：改 legacy 链接规则、audit 业务词判定，并只重建 limiter fixture。
+4. Verify：运行 `python -m minos_core.cli validate --input tests\fixtures\limiter`、`python -m minos_core.cli audit --input tests\fixtures\limiter`、`python -m unittest discover -s tests -v`。
+
+## 第四阶段非目标
+- 不重建 `door_hinge` 和 `stamping` fixture。
+- 不把质量审计问题变成 validation 硬失败。
+- 不接入 OCR/LLM。
+- 不追求 limiter 审计零问题，本阶段只要求明显变好并守住回归门槛。

@@ -15,6 +15,21 @@ from typing import Any
 from .domain import APQPChain, ControlItem, FailureMode
 
 
+QUALITY_KEYWORD_GROUPS = {
+    "pressure": ["压力", "压入", "mpa", "bar"],
+    "position": ["位置", "距离", "高度", "开始位", "结束位", "对焦", "mm", "卡板"],
+    "grease": ["油脂", "牌号", "型号", "m21", "epk"],
+    "oil_amount": ["注油量", "涂油量", "油量", "注油", "涂油", "g"],
+    "torque": ["力矩", "扭矩", "扭力", "nm"],
+    "appearance": ["外观", "损伤", "开裂", "锈蚀", "标识", "标签", "漏装", "错装"],
+    "poka_yoke": ["防错", "有无检测", "正反", "自动监控", "设备监控"],
+    "restricted_substance": ["禁用物质", "elv", "gb/t", "30512", "第三方"],
+    "fifo_material": ["先进先出", "fifo", "批次", "投放", "入库", "物料", "零件识别"],
+    "marking": ["打标", "标记", "生产日期", "追溯"],
+    "riveting": ["铆接", "铆钉", "销轴", "壳体", "支架"],
+}
+
+
 @dataclass(frozen=True)
 class AuditItem:
     item_id: str
@@ -81,7 +96,9 @@ def audit_chain(chain: APQPChain | dict[str, Any]) -> AuditReport:
         chain = APQPChain(**chain)
 
     controls_by_id = {item.control_plan_id: item for item in chain.controls}
-    controls_by_pfmea = {item.pfmea_id: item for item in chain.controls if item.pfmea_id}
+    controls_by_pfmea = {
+        item.pfmea_id: item for item in chain.controls if item.pfmea_id
+    }
     manual_review_items: list[AuditItem] = []
     mechanical_links: list[dict[str, str]] = []
     weak_links: list[dict[str, str]] = []
@@ -139,7 +156,9 @@ def audit_chain(chain: APQPChain | dict[str, Any]) -> AuditReport:
         "process_steps": len(chain.process_steps),
         "failure_modes": len(chain.failure_modes),
         "controls": len(chain.controls),
-        "mandatory_failures": sum(1 for item in chain.failure_modes if item.is_mandatory_control),
+        "mandatory_failures": sum(
+            1 for item in chain.failure_modes if item.is_mandatory_control
+        ),
         "mechanical_links": len(mechanical_links),
         "weak_links": len(weak_links),
         "manual_review_items": len(manual_review_items),
@@ -175,7 +194,9 @@ def _audit_failure_fields(failure: FailureMode, items: list[AuditItem]) -> None:
     for field_name, value in required_text.items():
         if not value.strip():
             items.append(
-                AuditItem(failure.pfmea_id, "pfmea_incomplete", f"PFMEA 缺少 {field_name}")
+                AuditItem(
+                    failure.pfmea_id, "pfmea_incomplete", f"PFMEA 缺少 {field_name}"
+                )
             )
     for field_name, value in {
         "severity": failure.severity,
@@ -184,7 +205,9 @@ def _audit_failure_fields(failure: FailureMode, items: list[AuditItem]) -> None:
     }.items():
         if int(value or 0) <= 0:
             items.append(
-                AuditItem(failure.pfmea_id, "pfmea_incomplete", f"PFMEA 缺少 {field_name}")
+                AuditItem(
+                    failure.pfmea_id, "pfmea_incomplete", f"PFMEA 缺少 {field_name}"
+                )
             )
 
 
@@ -198,7 +221,11 @@ def _audit_control_fields(control: ControlItem, items: list[AuditItem]) -> None:
     for field_name, value in required.items():
         if not value.strip():
             items.append(
-                AuditItem(control.control_plan_id, "cp_incomplete", f"控制计划缺少 {field_name}")
+                AuditItem(
+                    control.control_plan_id,
+                    "cp_incomplete",
+                    f"控制计划缺少 {field_name}",
+                )
             )
 
 
@@ -239,7 +266,15 @@ def _control_text(control: ControlItem) -> set[str]:
 
 def _tokens(*values: str) -> set[str]:
     text = " ".join(value for value in values if value).lower()
-    return set(re.findall(r"[a-z0-9]+|[\u4e00-\u9fff]{1,4}", text))
+    tokens = set(re.findall(r"[a-z0-9]+|[\u4e00-\u9fff]{1,4}", text))
+    chinese = "".join(re.findall(r"[\u4e00-\u9fff]+", text))
+    tokens.update(
+        chinese[index : index + 2] for index in range(max(len(chinese) - 1, 0))
+    )
+    for canonical, aliases in QUALITY_KEYWORD_GROUPS.items():
+        if any(alias.lower() in text for alias in aliases):
+            tokens.add(canonical)
+    return {token for token in tokens if token}
 
 
 def _overlap_score(left: set[str], right: set[str]) -> int:

@@ -17,7 +17,9 @@ def _import_first(*module_names):
             return importlib.import_module(module_name)
         except ModuleNotFoundError as exc:
             errors.append(f"{module_name}: {exc}")
-    raise AssertionError("Cannot import expected MINOS-CORE module:\n" + "\n".join(errors))
+    raise AssertionError(
+        "Cannot import expected MINOS-CORE module:\n" + "\n".join(errors)
+    )
 
 
 def _get_first(module, *names):
@@ -31,9 +33,13 @@ def _get_first(module, *names):
 def _load_fixture(name):
     fixture_dir = FIXTURES_DIR / name
     return {
-        "process_flow": json.loads((fixture_dir / "process_flow.json").read_text(encoding="utf-8")),
+        "process_flow": json.loads(
+            (fixture_dir / "process_flow.json").read_text(encoding="utf-8")
+        ),
         "pfmea": json.loads((fixture_dir / "pfmea.json").read_text(encoding="utf-8")),
-        "control_plan": json.loads((fixture_dir / "control_plan.json").read_text(encoding="utf-8")),
+        "control_plan": json.loads(
+            (fixture_dir / "control_plan.json").read_text(encoding="utf-8")
+        ),
     }
 
 
@@ -67,12 +73,19 @@ def _validation_ok(result):
 
 def _audit_chain():
     audit_module = _import_first("minos_core.audit", "minos_core.quality_audit")
-    return _get_first(audit_module, "audit_chain", "audit_apqp_chain", "run_quality_audit")
+    return _get_first(
+        audit_module, "audit_chain", "audit_apqp_chain", "run_quality_audit"
+    )
 
 
 def _validate_chain():
     validation_module = _import_first("minos_core.validation")
-    return _get_first(validation_module, "validate_chain", "validate_apqp_chain", "validate_domain_bundle")
+    return _get_first(
+        validation_module,
+        "validate_chain",
+        "validate_apqp_chain",
+        "validate_domain_bundle",
+    )
 
 
 def _report_counts(report):
@@ -165,6 +178,16 @@ class QualityAuditContractTests(unittest.TestCase):
         self.assertIn("weak", text)
         self.assertIn("manual", text)
         self.assertGreaterEqual(len(_manual_review_items(report)), 1)
+
+    def test_limiter_audit_stays_within_phase_four_quality_gate(self):
+        audit_chain = _audit_chain()
+
+        report = audit_chain(_load_fixture("limiter"))
+        counts = _report_counts(report)
+
+        self.assertLessEqual(counts["mechanical_links"], 3)
+        self.assertLessEqual(counts["weak_links"], 10)
+        self.assertLessEqual(counts["manual_review_items"], 18)
 
 
 if __name__ == "__main__":

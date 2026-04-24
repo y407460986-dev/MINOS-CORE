@@ -23,7 +23,7 @@
       "detection": 3,
       "action_priority": "L",
       "classification": "",
-      "linked_control_plan_id": "",
+      "linked_control_plan_id": "CP-P00-001",
       "source_row": 10
     },
     {
@@ -40,7 +40,7 @@
       "detection": 3,
       "action_priority": "L",
       "classification": "",
-      "linked_control_plan_id": "",
+      "linked_control_plan_id": "CP-P00-002",
       "source_row": 11
     },
     {
@@ -57,7 +57,7 @@
       "detection": 3,
       "action_priority": "M",
       "classification": "",
-      "linked_control_plan_id": "CP-P00-001",
+      "linked_control_plan_id": "CP-P00-001-P00-003",
       "source_row": 12
     },
     {
@@ -74,7 +74,7 @@
       "detection": 3,
       "action_priority": "M",
       "classification": "CC",
-      "linked_control_plan_id": "CP-P00-001",
+      "linked_control_plan_id": "CP-P70-009",
       "source_row": 13
     },
     {
@@ -91,7 +91,7 @@
       "detection": 6,
       "action_priority": "M",
       "classification": "",
-      "linked_control_plan_id": "CP-P01-001",
+      "linked_control_plan_id": "CP-P01-002",
       "source_row": 14
     },
     {
@@ -108,7 +108,7 @@
       "detection": 6,
       "action_priority": "M",
       "classification": "",
-      "linked_control_plan_id": "CP-P01-001",
+      "linked_control_plan_id": "CP-P01-001-P01-002",
       "source_row": 15
     },
     {
@@ -142,7 +142,7 @@
       "detection": 6,
       "action_priority": "M",
       "classification": "",
-      "linked_control_plan_id": "CP-P01-001",
+      "linked_control_plan_id": "CP-P01-001-P01-004",
       "source_row": 17
     },
     {
@@ -176,7 +176,7 @@
       "detection": 6,
       "action_priority": "M",
       "classification": "",
-      "linked_control_plan_id": "CP-P02-001",
+      "linked_control_plan_id": "CP-P02-001-P02-002",
       "source_row": 19
     },
     {
@@ -193,7 +193,7 @@
       "detection": 5,
       "action_priority": "M",
       "classification": "",
-      "linked_control_plan_id": "CP-P02-001",
+      "linked_control_plan_id": "CP-P02-001-P02-003",
       "source_row": 20
     },
     {
@@ -210,7 +210,7 @@
       "detection": 5,
       "action_priority": "M",
       "classification": "",
-      "linked_control_plan_id": "CP-P02-001",
+      "linked_control_plan_id": "CP-P02-001-P02-004",
       "source_row": 21
     },
     {
@@ -244,7 +244,7 @@
       "detection": 7,
       "action_priority": "H",
       "classification": "",
-      "linked_control_plan_id": "CP-P02-001",
+      "linked_control_plan_id": "CP-P02-001-P02-006",
       "source_row": 23
     },
     {
@@ -261,7 +261,7 @@
       "detection": 5,
       "action_priority": "M",
       "classification": "",
-      "linked_control_plan_id": "CP-P02-001",
+      "linked_control_plan_id": "CP-P02-001-P02-007",
       "source_row": 24
     },
     {
@@ -278,7 +278,7 @@
       "detection": 5,
       "action_priority": "M",
       "classification": "",
-      "linked_control_plan_id": "CP-P02-001",
+      "linked_control_plan_id": "CP-P02-001-P02-008",
       "source_row": 25
     },
     {
@@ -295,7 +295,7 @@
       "detection": 5,
       "action_priority": "M",
       "classification": "",
-      "linked_control_plan_id": "CP-P10-005",
+      "linked_control_plan_id": "CP-P10-007",
       "source_row": 26
     },
     {
@@ -329,7 +329,7 @@
       "detection": 5,
       "action_priority": "M",
       "classification": "",
-      "linked_control_plan_id": "CP-P10-001",
+      "linked_control_plan_id": "CP-P10-003",
       "source_row": 28
     },
     {
@@ -346,7 +346,7 @@
       "detection": 5,
       "action_priority": "M",
       "classification": "",
-      "linked_control_plan_id": "CP-P10-001",
+      "linked_control_plan_id": "CP-P10-002",
       "source_row": 29
     },
     {
@@ -380,7 +380,7 @@
       "detection": 5,
       "action_priority": "M",
       "classification": "",
-      "linked_control_plan_id": "CP-P10-001",
+      "linked_control_plan_id": "CP-P10-004",
       "source_row": 31
     },
     {
@@ -397,7 +397,7 @@
       "detection": 6,
       "action_priority": "L",
       "classification": "",
-      "linked_control_plan_id": "",
+      "linked_control_plan_id": "CP-P20-004",
       "source_row": 32
     },
     {
@@ -414,7 +414,7 @@
       "detection": 6,
       "action_priority": "L",
       "classification": "",
-      "linked_control_plan_id": "",
+      "linked_control_plan_id": "CP-P20-005",
       "source_row": 33
     },
     {
@@ -431,7 +431,7 @@
       "detection": 5,
       "action_priority": "L",
       "classification": "",
-      "linked_control_plan_id": "",
+      "linked_control_plan_id": "CP-P20-001",
       "source_row": 34
     },
     {
@@ -448,7 +448,7 @@
       "detection": 6,
       "action_priority": "M",
       "classification": "",
-      "linked_control_plan_id": "CP-P20-002",
+      "linked_control_plan_id": "CP-P20-007",
       "source_row": 35
     },
     {
@@ -499,7 +499,7 @@
       "detection": 6,
       "action_priority": "L",
       "classification": "",
-      "linked_control_plan_id": "",
+      "linked_control_plan_id": "CP-P30-006",
       "source_row": 38
     },
     {
@@ -516,7 +516,7 @@
       "detection": 6,
       "action_priority": "L",
       "classification": "",
-      "linked_control_plan_id": "",
+      "linked_control_plan_id": "CP-P30-004",
       "source_row": 39
     },
     {
@@ -533,7 +533,7 @@
       "detection": 6,
       "action_priority": "L",
       "classification": "",
-      "linked_control_plan_id": "",
+      "linked_control_plan_id": "CP-P30-007",
       "source_row": 40
     },
     {
@@ -550,7 +550,7 @@
       "detection": 5,
       "action_priority": "L",
       "classification": "",
-      "linked_control_plan_id": "",
+      "linked_control_plan_id": "CP-P30-008",
       "source_row": 41
     },
     {
@@ -567,7 +567,7 @@
       "detection": 5,
       "action_priority": "L",
       "classification": "",
-      "linked_control_plan_id": "",
+      "linked_control_plan_id": "CP-P30-001",
       "source_row": 42
     },
     {
@@ -584,7 +584,7 @@
       "detection": 5,
       "action_priority": "L",
       "classification": "",
-      "linked_control_plan_id": "",
+      "linked_control_plan_id": "CP-P30-003",
       "source_row": 43
     },
     {
@@ -601,7 +601,7 @@
       "detection": 5,
       "action_priority": "L",
       "classification": "",
-      "linked_control_plan_id": "",
+      "linked_control_plan_id": "CP-P30-002",
       "source_row": 44
     },
     {
@@ -618,7 +618,7 @@
       "detection": 6,
       "action_priority": "L",
       "classification": "",
-      "linked_control_plan_id": "",
+      "linked_control_plan_id": "CP-P40-003",
       "source_row": 45
     },
     {
@@ -635,7 +635,7 @@
       "detection": 6,
       "action_priority": "L",
       "classification": "",
-      "linked_control_plan_id": "",
+      "linked_control_plan_id": "CP-P40-004",
       "source_row": 46
     },
     {
@@ -652,7 +652,7 @@
       "detection": 6,
       "action_priority": "L",
       "classification": "",
-      "linked_control_plan_id": "",
+      "linked_control_plan_id": "CP-P40-001",
       "source_row": 47
     },
     {
@@ -669,7 +669,7 @@
       "detection": 6,
       "action_priority": "L",
       "classification": "",
-      "linked_control_plan_id": "",
+      "linked_control_plan_id": "CP-P40-002",
       "source_row": 48
     },
     {
@@ -686,7 +686,7 @@
       "detection": 3,
       "action_priority": "L",
       "classification": "",
-      "linked_control_plan_id": "",
+      "linked_control_plan_id": "CP-P50-007",
       "source_row": 49
     },
     {
@@ -703,7 +703,7 @@
       "detection": 3,
       "action_priority": "L",
       "classification": "",
-      "linked_control_plan_id": "",
+      "linked_control_plan_id": "CP-P50-008",
       "source_row": 50
     },
     {
@@ -720,7 +720,7 @@
       "detection": 3,
       "action_priority": "L",
       "classification": "",
-      "linked_control_plan_id": "",
+      "linked_control_plan_id": "CP-P50-009",
       "source_row": 51
     },
     {
@@ -771,7 +771,7 @@
       "detection": 6,
       "action_priority": "M",
       "classification": "",
-      "linked_control_plan_id": "CP-P50-001",
+      "linked_control_plan_id": "CP-P50-012",
       "source_row": 54
     },
     {
@@ -788,7 +788,7 @@
       "detection": 6,
       "action_priority": "M",
       "classification": "",
-      "linked_control_plan_id": "CP-P50-001",
+      "linked_control_plan_id": "CP-P50-003",
       "source_row": 55
     },
     {
@@ -822,7 +822,7 @@
       "detection": 6,
       "action_priority": "H",
       "classification": "",
-      "linked_control_plan_id": "CP-P50-001",
+      "linked_control_plan_id": "CP-P50-004",
       "source_row": 57
     },
     {
@@ -839,7 +839,7 @@
       "detection": 5,
       "action_priority": "M",
       "classification": "",
-      "linked_control_plan_id": "CP-P50-001",
+      "linked_control_plan_id": "CP-P50-005",
       "source_row": 58
     },
     {
@@ -856,7 +856,7 @@
       "detection": 6,
       "action_priority": "M",
       "classification": "",
-      "linked_control_plan_id": "CP-P60-004",
+      "linked_control_plan_id": "CP-P60-006",
       "source_row": 59
     },
     {
@@ -873,7 +873,7 @@
       "detection": 6,
       "action_priority": "M",
       "classification": "",
-      "linked_control_plan_id": "CP-P60-001",
+      "linked_control_plan_id": "CP-P60-005",
       "source_row": 60
     },
     {
@@ -907,7 +907,7 @@
       "detection": 2,
       "action_priority": "L",
       "classification": "SC",
-      "linked_control_plan_id": "CP-P60-001",
+      "linked_control_plan_id": "CP-P60-004",
       "source_row": 62
     },
     {
@@ -924,7 +924,7 @@
       "detection": 6,
       "action_priority": "L",
       "classification": "",
-      "linked_control_plan_id": "",
+      "linked_control_plan_id": "CP-P60-008",
       "source_row": 63
     },
     {
@@ -975,7 +975,7 @@
       "detection": 6,
       "action_priority": "H",
       "classification": "SC",
-      "linked_control_plan_id": "CP-P70-003",
+      "linked_control_plan_id": "CP-P70-004",
       "source_row": 66
     },
     {
@@ -992,7 +992,7 @@
       "detection": 6,
       "action_priority": "L",
       "classification": "",
-      "linked_control_plan_id": "",
+      "linked_control_plan_id": "CP-P70-005",
       "source_row": 67
     },
     {
@@ -1009,7 +1009,7 @@
       "detection": 6,
       "action_priority": "L",
       "classification": "",
-      "linked_control_plan_id": "",
+      "linked_control_plan_id": "CP-P70-001",
       "source_row": 68
     },
     {
@@ -1026,7 +1026,7 @@
       "detection": 6,
       "action_priority": "L",
       "classification": "",
-      "linked_control_plan_id": "",
+      "linked_control_plan_id": "CP-P70-006",
       "source_row": 69
     },
     {
@@ -1043,7 +1043,7 @@
       "detection": 6,
       "action_priority": "L",
       "classification": "",
-      "linked_control_plan_id": "",
+      "linked_control_plan_id": "CP-P80-001",
       "source_row": 70
     },
     {
@@ -1060,7 +1060,7 @@
       "detection": 6,
       "action_priority": "L",
       "classification": "",
-      "linked_control_plan_id": "",
+      "linked_control_plan_id": "CP-P90-001",
       "source_row": 71
     }
   ]

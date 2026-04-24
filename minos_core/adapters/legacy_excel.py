@@ -183,6 +183,21 @@ PROFILE_ALIASES = {
 }
 
 
+QUALITY_KEYWORD_GROUPS = {
+    "pressure": ["压力", "压入", "mpa", "bar"],
+    "position": ["位置", "距离", "高度", "开始位", "结束位", "对焦", "mm", "卡板"],
+    "grease": ["油脂", "牌号", "型号", "m21", "epk"],
+    "oil_amount": ["注油量", "涂油量", "油量", "注油", "涂油", "g"],
+    "torque": ["力矩", "扭矩", "扭力", "nm"],
+    "appearance": ["外观", "损伤", "开裂", "锈蚀", "标识", "标签", "漏装", "错装"],
+    "poka_yoke": ["防错", "有无检测", "正反", "自动监控", "设备监控"],
+    "restricted_substance": ["禁用物质", "elv", "gb/t", "30512", "第三方"],
+    "fifo_material": ["先进先出", "fifo", "批次", "投放", "入库", "物料", "零件识别"],
+    "marking": ["打标", "标记", "生产日期", "追溯"],
+    "riveting": ["铆接", "铆钉", "销轴", "壳体", "支架"],
+}
+
+
 def convert_legacy_workbook(
     xlsx_path: str | Path,
     output_dir: str | Path,
@@ -262,7 +277,9 @@ def _read_shared_strings(archive: zipfile.ZipFile) -> list[str]:
     root = ET.fromstring(archive.read("xl/sharedStrings.xml"))
     values: list[str] = []
     for item in root:
-        texts = [node.text or "" for node in item.iter() if _local_name(node.tag) == "t"]
+        texts = [
+            node.text or "" for node in item.iter() if _local_name(node.tag) == "t"
+        ]
         values.append(_clean("".join(texts)))
     return values
 
@@ -279,7 +296,9 @@ def _read_sheet_targets(archive: zipfile.ZipFile) -> list[tuple[str, str]]:
     for sheet in workbook.iter():
         if _local_name(sheet.tag) != "sheet":
             continue
-        rel_id = sheet.attrib.get("{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id")
+        rel_id = sheet.attrib.get(
+            "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id"
+        )
         if rel_id and rel_id in rel_targets:
             sheets.append((sheet.attrib.get("name", ""), rel_targets[rel_id]))
     return sheets
@@ -323,7 +342,11 @@ def _read_sheet_rows(
 def _cell_value(cell: ET.Element, shared_strings: list[str]) -> str:
     cell_type = cell.attrib.get("t", "")
     if cell_type == "inlineStr":
-        return _clean("".join(node.text or "" for node in cell.iter() if _local_name(node.tag) == "t"))
+        return _clean(
+            "".join(
+                node.text or "" for node in cell.iter() if _local_name(node.tag) == "t"
+            )
+        )
 
     raw = ""
     for child in cell:
@@ -346,7 +369,9 @@ def _merge_refs(root: ET.Element) -> list[str]:
     return refs
 
 
-def _parse_process_flow(workbook: Workbook, spec: dict[str, Any]) -> list[dict[str, Any]]:
+def _parse_process_flow(
+    workbook: Workbook, spec: dict[str, Any]
+) -> list[dict[str, Any]]:
     sheet = _select_sheet(workbook, spec["sheets"], "process_flow")
     steps: list[dict[str, Any]] = []
     generated_index = 1
@@ -371,7 +396,9 @@ def _parse_process_flow(workbook: Workbook, spec: dict[str, Any]) -> list[dict[s
                 "owner": "",
                 "input_refs": [],
                 "output_refs": [],
-                "special_characteristics": _unique(_values(row, spec.get("special", []))),
+                "special_characteristics": _unique(
+                    _values(row, spec.get("special", []))
+                ),
                 "source_row": row_index,
             }
         )
@@ -401,7 +428,9 @@ def _parse_pfmea(workbook: Workbook, spec: dict[str, Any]) -> list[dict[str, Any
         item = {
             "pfmea_id": _make_id("PFMEA", step_id, counters[step_id]),
             "process_step_id": step_id,
-            "process_function": _combine_with_state(row, state, spec.get("function", [])),
+            "process_function": _combine_with_state(
+                row, state, spec.get("function", [])
+            ),
             "failure_mode": failure_mode,
             "failure_effect": _value(row, spec["effect"]),
             "severity": severity,
@@ -420,7 +449,9 @@ def _parse_pfmea(workbook: Workbook, spec: dict[str, Any]) -> list[dict[str, Any
     return rows
 
 
-def _parse_control_plan(workbook: Workbook, spec: dict[str, Any]) -> list[dict[str, Any]]:
+def _parse_control_plan(
+    workbook: Workbook, spec: dict[str, Any]
+) -> list[dict[str, Any]]:
     sheet = _select_sheet(workbook, spec["sheets"], "control_plan")
     state: dict[str, str] = {}
     counters: dict[str, int] = defaultdict(int)
@@ -429,7 +460,9 @@ def _parse_control_plan(workbook: Workbook, spec: dict[str, Any]) -> list[dict[s
     for row_index, row in _data_rows(sheet, spec):
         _update_state(state, row, spec.get("inherit", []))
         characteristic = _combine(row, spec.get("characteristic", []))
-        if not _is_data_text(characteristic) and not _has_any(row, spec, ["specification", "measurement", "control_method"]):
+        if not _is_data_text(characteristic) and not _has_any(
+            row, spec, ["specification", "measurement", "control_method"]
+        ):
             continue
         step_text = state.get(spec["step"], "") or _value(row, spec["step"])
         step_id = _step_id(step_text, generated_index)
@@ -454,35 +487,51 @@ def _parse_control_plan(workbook: Workbook, spec: dict[str, Any]) -> list[dict[s
     return rows
 
 
-def _reconcile_process_steps(steps: list[dict[str, Any]], failures: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _reconcile_process_steps(
+    steps: list[dict[str, Any]], failures: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
     if not failures:
         return steps
     steps_by_id = {step["process_step_id"]: step for step in steps}
-    ordered_failure_steps = _unique([failure["process_step_id"] for failure in failures])
+    ordered_failure_steps = _unique(
+        [failure["process_step_id"] for failure in failures]
+    )
     reconciled: list[dict[str, Any]] = []
     for index, step_id in enumerate(ordered_failure_steps, start=1):
         if step_id in steps_by_id:
             reconciled.append(steps_by_id[step_id])
             continue
-        first_failure = next(item for item in failures if item["process_step_id"] == step_id)
+        first_failure = next(
+            item for item in failures if item["process_step_id"] == step_id
+        )
         reconciled.append(
             {
                 "process_step_id": step_id,
                 "sequence": _sequence_from_id(step_id, index * 10),
-                "operation": first_failure.get("process_function") or f"Legacy process step {step_id}",
+                "operation": first_failure.get("process_function")
+                or f"Legacy process step {step_id}",
                 "process_function": first_failure.get("process_function", ""),
                 "owner": "",
                 "input_refs": [],
                 "output_refs": [],
                 "special_characteristics": _unique(
-                    [item.get("classification", "") for item in failures if item["process_step_id"] == step_id]
+                    [
+                        item.get("classification", "")
+                        for item in failures
+                        if item["process_step_id"] == step_id
+                    ]
                 ),
             }
         )
-    return sorted(reconciled, key=lambda item: (int(item.get("sequence", 0) or 0), item["process_step_id"]))
+    return sorted(
+        reconciled,
+        key=lambda item: (int(item.get("sequence", 0) or 0), item["process_step_id"]),
+    )
 
 
-def _link_controls(failures: list[dict[str, Any]], controls: list[dict[str, Any]]) -> None:
+def _link_controls(
+    failures: list[dict[str, Any]], controls: list[dict[str, Any]]
+) -> None:
     controls_by_step: dict[str, list[dict[str, Any]]] = defaultdict(list)
     failures_by_step: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for control in controls:
@@ -493,21 +542,42 @@ def _link_controls(failures: list[dict[str, Any]], controls: list[dict[str, Any]
     for step_id, step_controls in controls_by_step.items():
         step_failures = failures_by_step.get(step_id, [])
         used: set[str] = set()
-        for control in step_controls:
-            match = _best_failure_match(control, step_failures, used)
-            if match:
-                control["pfmea_id"] = match["pfmea_id"]
-                used.add(match["pfmea_id"])
+        linked_controls: set[str] = set()
+        scored_pairs = sorted(
+            (
+                (_link_score(failure, control), failure, control)
+                for failure in step_failures
+                for control in step_controls
+            ),
+            key=lambda item: item[0],
+            reverse=True,
+        )
+        for score, failure, control in scored_pairs:
+            if score <= 0:
+                break
+            if (
+                failure["pfmea_id"] in used
+                or control["control_plan_id"] in linked_controls
+            ):
+                continue
+            control["pfmea_id"] = failure["pfmea_id"]
+            failure["linked_control_plan_id"] = control["control_plan_id"]
+            used.add(failure["pfmea_id"])
+            linked_controls.add(control["control_plan_id"])
 
     all_controls = controls[:]
     for failure in failures:
         if not _is_mandatory_failure(failure):
             continue
-        if failure.get("linked_control_plan_id"):
-            continue
-        candidates = controls_by_step.get(failure["process_step_id"], []) or all_controls
+        candidates = _candidate_controls_for_failure(
+            failure, controls_by_step, all_controls
+        )
         if candidates:
-            failure["linked_control_plan_id"] = _best_control_match(failure, candidates)["control_plan_id"]
+            matched_control = _preferred_existing_control(
+                failure, candidates
+            ) or _best_control_match(failure, candidates)
+            failure["linked_control_plan_id"] = matched_control["control_plan_id"]
+            _ensure_reverse_pfmea_link(failure, matched_control, controls)
 
 
 def _best_failure_match(
@@ -518,46 +588,128 @@ def _best_failure_match(
     available = [failure for failure in failures if failure["pfmea_id"] not in used]
     if not available:
         return None
-    control_text = _search_text(
-        control.get("classification", ""),
-        control.get("product_process_characteristic", ""),
-        control.get("specification", ""),
-    )
     scored = sorted(
-        available,
-        key=lambda failure: _overlap_score(
-            control_text,
-            _search_text(
-                failure.get("classification", ""),
-                failure.get("process_function", ""),
-                failure.get("failure_mode", ""),
-                failure.get("failure_cause", ""),
-            ),
+        available, key=lambda failure: _link_score(failure, control), reverse=True
+    )
+    return scored[0] if _link_score(scored[0], control) > 0 else None
+
+
+def _best_control_match(
+    failure: dict[str, Any], controls: list[dict[str, Any]]
+) -> dict[str, Any]:
+    return sorted(
+        controls,
+        key=lambda control: (
+            _link_score(failure, control),
+            not bool(control.get("pfmea_id")),
         ),
         reverse=True,
+    )[0]
+
+
+def _preferred_existing_control(
+    failure: dict[str, Any], controls: list[dict[str, Any]]
+) -> dict[str, Any] | None:
+    linked_control_id = failure.get("linked_control_plan_id", "")
+    if not linked_control_id:
+        return None
+    return next(
+        (
+            control
+            for control in controls
+            if control["control_plan_id"] == linked_control_id
+        ),
+        None,
     )
-    return scored[0]
 
 
-def _best_control_match(failure: dict[str, Any], controls: list[dict[str, Any]]) -> dict[str, Any]:
-    failure_text = _search_text(
+def _candidate_controls_for_failure(
+    failure: dict[str, Any],
+    controls_by_step: dict[str, list[dict[str, Any]]],
+    all_controls: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    same_step = controls_by_step.get(failure["process_step_id"], [])
+    if _can_match_across_steps(failure):
+        cross_step = [
+            control for control in all_controls if _link_score(failure, control) >= 4
+        ]
+        return cross_step or same_step or all_controls
+    return same_step or all_controls
+
+
+def _can_match_across_steps(failure: dict[str, Any]) -> bool:
+    classification = str(failure.get("classification", "")).upper()
+    if classification in {"SC", "CC"}:
+        return True
+    terms = _search_text(
+        failure.get("process_function", ""),
+        failure.get("failure_mode", ""),
+        failure.get("failure_effect", ""),
+        failure.get("failure_cause", ""),
+    )
+    return bool({"restricted_substance", "torque"} & terms)
+
+
+def _ensure_reverse_pfmea_link(
+    failure: dict[str, Any],
+    control: dict[str, Any],
+    controls: list[dict[str, Any]],
+) -> None:
+    pfmea_id = failure["pfmea_id"]
+    if any(item.get("pfmea_id") == pfmea_id for item in controls):
+        return
+    if not control.get("pfmea_id"):
+        control["pfmea_id"] = pfmea_id
+        return
+    duplicate = dict(control)
+    duplicate["control_plan_id"] = _derived_control_id(
+        control["control_plan_id"], pfmea_id, controls
+    )
+    duplicate["pfmea_id"] = pfmea_id
+    duplicate["derived_from_control_plan_id"] = control["control_plan_id"]
+    controls.append(duplicate)
+    failure["linked_control_plan_id"] = duplicate["control_plan_id"]
+
+
+def _derived_control_id(
+    base_id: str, pfmea_id: str, controls: list[dict[str, Any]]
+) -> str:
+    suffix = pfmea_id.replace("PFMEA-", "")
+    candidate = f"{base_id}-{suffix}"
+    existing = {control.get("control_plan_id", "") for control in controls}
+    if candidate not in existing:
+        return candidate
+    index = 2
+    while f"{candidate}-{index}" in existing:
+        index += 1
+    return f"{candidate}-{index}"
+
+
+def _link_score(failure: dict[str, Any], control: dict[str, Any]) -> int:
+    failure_terms = _search_text(
         failure.get("classification", ""),
         failure.get("process_function", ""),
         failure.get("failure_mode", ""),
         failure.get("failure_cause", ""),
+        failure.get("detection_control", ""),
     )
-    return sorted(
-        controls,
-        key=lambda control: _overlap_score(
-            failure_text,
-            _search_text(
-                control.get("classification", ""),
-                control.get("product_process_characteristic", ""),
-                control.get("specification", ""),
-            ),
-        ),
-        reverse=True,
-    )[0]
+    control_terms = _search_text(
+        control.get("classification", ""),
+        control.get("product_process_characteristic", ""),
+        control.get("specification", ""),
+        control.get("measurement_method", ""),
+        control.get("control_method", ""),
+    )
+    score = _overlap_score(failure_terms, control_terms)
+    failure_class = str(failure.get("classification", "")).upper()
+    control_class = str(control.get("classification", "")).upper()
+    if failure_class and failure_class == control_class:
+        score += 20
+    elif failure_class and control_class and failure_class != control_class:
+        score -= 4
+    if failure.get("process_step_id") == control.get("process_step_id"):
+        score += 2
+    return score
 
 
 def _resolve_profile(workbook: Workbook, sample_id: str, profile: str | None) -> str:
@@ -616,25 +768,35 @@ def _select_sheet(workbook: Workbook, names: list[str], kind: str) -> Worksheet:
             return sheet
         if kind == "pfmea" and "pfmea" in compact:
             return sheet
-        if kind == "control_plan" and ("控制计划" in compact or "controlplan" in compact):
+        if kind == "control_plan" and (
+            "控制计划" in compact or "controlplan" in compact
+        ):
             return sheet
-    raise ValueError(f"cannot find {kind} sheet; available sheets: {', '.join(workbook.sheets)}")
+    raise ValueError(
+        f"cannot find {kind} sheet; available sheets: {', '.join(workbook.sheets)}"
+    )
 
 
-def _data_rows(sheet: Worksheet, spec: dict[str, Any]) -> list[tuple[int, dict[str, str]]]:
+def _data_rows(
+    sheet: Worksheet, spec: dict[str, Any]
+) -> list[tuple[int, dict[str, str]]]:
     start = int(spec.get("start", 1))
     end = int(spec.get("end") or max(sheet.rows or {0: {}}))
     return [(index, sheet.rows.get(index, {})) for index in range(start, end + 1)]
 
 
-def _update_state(state: dict[str, str], row: dict[str, str], columns: list[str]) -> None:
+def _update_state(
+    state: dict[str, str], row: dict[str, str], columns: list[str]
+) -> None:
     for column in columns:
         value = _value(row, column)
         if value:
             state[column] = value
 
 
-def _combine_with_state(row: dict[str, str], state: dict[str, str], columns: list[str]) -> str:
+def _combine_with_state(
+    row: dict[str, str], state: dict[str, str], columns: list[str]
+) -> str:
     values = []
     for column in columns:
         values.append(_value(row, column) or state.get(column, ""))
@@ -744,7 +906,15 @@ def _first_nonempty(*values: str) -> str:
 
 def _search_text(*values: str) -> set[str]:
     text = " ".join(value for value in values if value).lower()
-    return set(re.findall(r"[a-z0-9]+|[\u4e00-\u9fff]{1,4}", text))
+    tokens = set(re.findall(r"[a-z0-9]+|[\u4e00-\u9fff]{1,4}", text))
+    chinese = "".join(re.findall(r"[\u4e00-\u9fff]+", text))
+    tokens.update(
+        chinese[index : index + 2] for index in range(max(len(chinese) - 1, 0))
+    )
+    for canonical, aliases in QUALITY_KEYWORD_GROUPS.items():
+        if any(alias.lower() in text for alias in aliases):
+            tokens.add(canonical)
+    return {token for token in tokens if token}
 
 
 def _overlap_score(left: set[str], right: set[str]) -> int:
@@ -822,4 +992,6 @@ def _column_name(index: int) -> str:
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )

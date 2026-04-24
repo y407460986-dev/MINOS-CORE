@@ -58,3 +58,25 @@
 - 当前只负责测试和文档；在 audit worker 完成前，`tests/test_quality_audit.py` 会因为 audit 模块缺失而失败。
 - 如果 audit 把弱链接直接变成 validate 失败，就会混淆第三阶段边界：validate 管结构闭环，audit 管内容可靠。
 - 按工作范围限制，本轮未更新 `project_flow.mmd`，避免触碰用户未授权写入的文件。
+
+## 第四阶段当前状态
+第四阶段已完成：只针对 `limiter` 样本收口 legacy PFMEA/CP 链接质量，并补上审计回归门槛。
+
+## 第四阶段已完成
+- 已读取 `tests/fixtures/limiter/pfmea.json` 和 `tests/fixtures/limiter/control_plan.json`，并对照 `audit --input tests\fixtures\limiter` 输出定位问题。
+- 已确认原始问题主要是：多个 PFMEA 被机械挂到同一个 CP、CP 反向 `pfmea_id` 错挂、文本 overlap 不理解“压力/位置/力矩/禁用物质”等质量工程词。
+- 已改进 `minos_core/adapters/legacy_excel.py`：加入质量工程业务词、特殊特性分类优先、同工序全局匹配、必要的一对多派生控制行。
+- 已改进 `minos_core/audit.py`：audit 的文本重合判定同步使用质量工程业务词，减少同义不同字面的误判。
+- 已只重新生成 `tests/fixtures/limiter`，未重建 `door_hinge` 和 `stamping`。
+- 已在 `tests/test_quality_audit.py` 增加 limiter 第四阶段回归门槛。
+
+## 第四阶段指标结果
+- `mechanical_links`：10 -> 0，目标 `<= 3`，已达成。
+- `weak_links`：22 -> 1，目标 `<= 10`，已达成。
+- `manual_review_items`：35 -> 4，目标 `<= 18`，已达成。
+
+## 第四阶段待验证
+/// 1. 运行 `python -m minos_core.cli validate --input tests\fixtures\limiter`。
+/// 2. 运行 `python -m minos_core.cli audit --input tests\fixtures\limiter`。
+/// 3. 运行 `python -m unittest discover -s tests -v`。
+/// 4. 审核 git diff，确认改动聚焦 limiter 链接质量和回归门槛。

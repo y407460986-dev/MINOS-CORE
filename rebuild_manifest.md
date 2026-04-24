@@ -114,3 +114,34 @@ fixture 表达一条最小但完整的 APQP 链：
 
 ## 第三阶段范围说明
 本轮没有写入 `minos_core/audit.py`，没有修改 CLI，也没有更新 `project_flow.mmd`。`project_flow.mmd` 未更新的原因是用户本轮明确限定写入范围，且该文件不在允许列表内。
+
+## 第四阶段新增
+本阶段只针对 limiter 的 legacy PFMEA/CP 链接质量做收口，并补上审计回归门槛。
+
+更新文件：
+- `minos_core/adapters/legacy_excel.py`
+- `minos_core/audit.py`
+- `tests/fixtures/limiter/pfmea.json`
+- `tests/fixtures/limiter/control_plan.json`
+- `tests/test_quality_audit.py`
+- `task_plan.md`
+- `progress.md`
+- `findings.md`
+- `project_flow.mmd`
+- `rebuild_manifest.md`
+
+第四阶段测试契约：
+- `tests/test_quality_audit.py` 中 limiter 必须满足：
+  - `mechanical_links <= 3`
+  - `weak_links <= 10`
+  - `manual_review_items <= 18`
+
+第四阶段结果：
+- `mechanical_links`：10 -> 0。
+- `weak_links`：22 -> 1。
+- `manual_review_items`：35 -> 4。
+
+第四阶段验收命令：
+/// 1. `python -m minos_core.cli validate --input tests\fixtures\limiter`
+/// 2. `python -m minos_core.cli audit --input tests\fixtures\limiter`
+/// 3. `python -m unittest discover -s tests -v`

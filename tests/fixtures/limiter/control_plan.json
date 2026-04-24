@@ -40,7 +40,7 @@
     {
       "control_plan_id": "CP-P01-001",
       "process_step_id": "P01",
-      "pfmea_id": "PFMEA-P01-001",
+      "pfmea_id": "PFMEA-P01-003",
       "product_process_characteristic": "零件识别",
       "specification": "来料检验合格零件",
       "classification": "",
@@ -54,7 +54,7 @@
     {
       "control_plan_id": "CP-P01-002",
       "process_step_id": "P01",
-      "pfmea_id": "PFMEA-P01-002",
+      "pfmea_id": "PFMEA-P01-001",
       "product_process_characteristic": "合理存储",
       "specification": "先入先出，无锈蚀，打标正确",
       "classification": "",
@@ -82,7 +82,7 @@
     {
       "control_plan_id": "CP-P10-001",
       "process_step_id": "P10",
-      "pfmea_id": "PFMEA-P10-003",
+      "pfmea_id": "PFMEA-P10-005",
       "product_process_characteristic": "油脂使用正确性",
       "specification": "油脂牌号是否正确\nM21 EPK-A",
       "classification": "",
@@ -96,7 +96,7 @@
     {
       "control_plan_id": "CP-P10-002",
       "process_step_id": "P10",
-      "pfmea_id": "PFMEA-P10-001",
+      "pfmea_id": "PFMEA-P10-004",
       "product_process_characteristic": "注油量",
       "specification": "单壳体内涂油量0.1-0.15g",
       "classification": "",
@@ -110,7 +110,7 @@
     {
       "control_plan_id": "CP-P10-003",
       "process_step_id": "P10",
-      "pfmea_id": "PFMEA-P10-002",
+      "pfmea_id": "PFMEA-P10-003",
       "product_process_characteristic": "装配正确性",
       "specification": "壳体无漏装",
       "classification": "",
@@ -124,7 +124,7 @@
     {
       "control_plan_id": "CP-P10-004",
       "process_step_id": "P10",
-      "pfmea_id": "PFMEA-P10-004",
+      "pfmea_id": "PFMEA-P10-006",
       "product_process_characteristic": "装配正确性",
       "specification": "涂油部位无拖拽拉延现象",
       "classification": "",
@@ -138,7 +138,7 @@
     {
       "control_plan_id": "CP-P10-005",
       "process_step_id": "P10",
-      "pfmea_id": "PFMEA-P10-005",
+      "pfmea_id": "",
       "product_process_characteristic": "壳体涂油",
       "specification": "壳体位置正确",
       "classification": "",
@@ -152,7 +152,7 @@
     {
       "control_plan_id": "CP-P10-006",
       "process_step_id": "P10",
-      "pfmea_id": "PFMEA-P10-006",
+      "pfmea_id": "",
       "product_process_characteristic": "壳体涂油",
       "specification": "壳体有无防错",
       "classification": "",
@@ -166,7 +166,7 @@
     {
       "control_plan_id": "CP-P10-007",
       "process_step_id": "P10",
-      "pfmea_id": "",
+      "pfmea_id": "PFMEA-P10-001",
       "product_process_characteristic": "注油压力",
       "specification": "5-10Mpa",
       "classification": "",
@@ -180,7 +180,7 @@
     {
       "control_plan_id": "CP-P10-008",
       "process_step_id": "P10",
-      "pfmea_id": "",
+      "pfmea_id": "PFMEA-P10-002",
       "product_process_characteristic": "注油泵位置",
       "specification": "5.9±0.5mm",
       "classification": "",
@@ -264,7 +264,7 @@
     {
       "control_plan_id": "CP-P20-006",
       "process_step_id": "P20",
-      "pfmea_id": "PFMEA-P20-004",
+      "pfmea_id": "",
       "product_process_characteristic": "限位器涂油",
       "specification": "工件有无检测",
       "classification": "",
@@ -278,7 +278,7 @@
     {
       "control_plan_id": "CP-P20-007",
       "process_step_id": "P20",
-      "pfmea_id": "",
+      "pfmea_id": "PFMEA-P20-004",
       "product_process_characteristic": "限位器涂油",
       "specification": "限位臂正确",
       "classification": "",
@@ -292,7 +292,7 @@
     {
       "control_plan_id": "CP-P30-001",
       "process_step_id": "P30",
-      "pfmea_id": "PFMEA-P30-001",
+      "pfmea_id": "PFMEA-P30-005",
       "product_process_characteristic": "装配正确性",
       "specification": "铆钉翻边无裂纹，壳体无损伤",
       "classification": "",
@@ -306,7 +306,7 @@
     {
       "control_plan_id": "CP-P30-002",
       "process_step_id": "P30",
-      "pfmea_id": "PFMEA-P30-002",
+      "pfmea_id": "PFMEA-P30-007",
       "product_process_characteristic": "",
       "specification": "弹簧滑块无漏装",
       "classification": "",
@@ -334,7 +334,7 @@
     {
       "control_plan_id": "CP-P30-004",
       "process_step_id": "P30",
-      "pfmea_id": "PFMEA-P30-003",
+      "pfmea_id": "PFMEA-P30-002",
       "product_process_characteristic": "",
       "specification": "限位臂放置方向正确",
       "classification": "",
@@ -348,7 +348,7 @@
     {
       "control_plan_id": "CP-P30-005",
       "process_step_id": "P30",
-      "pfmea_id": "PFMEA-P30-004",
+      "pfmea_id": "",
       "product_process_characteristic": "",
       "specification": "壳体放置方向正确",
       "classification": "",
@@ -362,7 +362,7 @@
     {
       "control_plan_id": "CP-P30-006",
       "process_step_id": "P30",
-      "pfmea_id": "PFMEA-P30-005",
+      "pfmea_id": "PFMEA-P30-001",
       "product_process_characteristic": "压入压力",
       "specification": "0.2-0.4Mpa",
       "classification": "",
@@ -376,7 +376,7 @@
     {
       "control_plan_id": "CP-P30-007",
       "process_step_id": "P30",
-      "pfmea_id": "PFMEA-P30-007",
+      "pfmea_id": "PFMEA-P30-003",
       "product_process_characteristic": "限位块距离",
       "specification": "24±0.5mm",
       "classification": "",
@@ -390,7 +390,7 @@
     {
       "control_plan_id": "CP-P30-008",
       "process_step_id": "P30",
-      "pfmea_id": "",
+      "pfmea_id": "PFMEA-P30-004",
       "product_process_characteristic": "壳体铆接",
       "specification": "限位臂正确",
       "classification": "",
@@ -502,7 +502,7 @@
     {
       "control_plan_id": "CP-P50-002",
       "process_step_id": "P50",
-      "pfmea_id": "PFMEA-P50-001",
+      "pfmea_id": "",
       "product_process_characteristic": "",
       "specification": "",
       "classification": "",
@@ -558,7 +558,7 @@
     {
       "control_plan_id": "CP-P50-006",
       "process_step_id": "P50",
-      "pfmea_id": "PFMEA-P50-002",
+      "pfmea_id": "",
       "product_process_characteristic": "外观",
       "specification": "标记清晰、正确",
       "classification": "",
@@ -572,7 +572,7 @@
     {
       "control_plan_id": "CP-P50-007",
       "process_step_id": "P50",
-      "pfmea_id": "PFMEA-P50-003",
+      "pfmea_id": "PFMEA-P50-001",
       "product_process_characteristic": "接触高度",
       "specification": "30.6±0.3mm",
       "classification": "",
@@ -586,7 +586,7 @@
     {
       "control_plan_id": "CP-P50-008",
       "process_step_id": "P50",
-      "pfmea_id": "PFMEA-P50-006",
+      "pfmea_id": "PFMEA-P50-002",
       "product_process_characteristic": "变形高度",
       "specification": "1.5±0.2mm",
       "classification": "",
@@ -600,7 +600,7 @@
     {
       "control_plan_id": "CP-P50-009",
       "process_step_id": "P50",
-      "pfmea_id": "PFMEA-P50-004",
+      "pfmea_id": "PFMEA-P50-003",
       "product_process_characteristic": "铆接时间",
       "specification": "2.0±0.3s",
       "classification": "",
@@ -614,7 +614,7 @@
     {
       "control_plan_id": "CP-P50-010",
       "process_step_id": "P50",
-      "pfmea_id": "PFMEA-P50-005",
+      "pfmea_id": "PFMEA-P50-004",
       "product_process_characteristic": "铆接压力",
       "specification": "1.8±0.3Bar",
       "classification": "",
@@ -628,7 +628,7 @@
     {
       "control_plan_id": "CP-P50-011",
       "process_step_id": "P50",
-      "pfmea_id": "",
+      "pfmea_id": "PFMEA-P50-005",
       "product_process_characteristic": "对焦高度",
       "specification": "17.5±2mm",
       "classification": "",
@@ -642,7 +642,7 @@
     {
       "control_plan_id": "CP-P50-012",
       "process_step_id": "P50",
-      "pfmea_id": "",
+      "pfmea_id": "PFMEA-P50-006",
       "product_process_characteristic": "打标速度",
       "specification": "900-1000mm/s",
       "classification": "",
@@ -726,7 +726,7 @@
     {
       "control_plan_id": "CP-P60-002",
       "process_step_id": "P60",
-      "pfmea_id": "PFMEA-P60-001",
+      "pfmea_id": "",
       "product_process_characteristic": "",
       "specification": "",
       "classification": "",
@@ -740,7 +740,7 @@
     {
       "control_plan_id": "CP-P60-003",
       "process_step_id": "P60",
-      "pfmea_id": "PFMEA-P60-002",
+      "pfmea_id": "",
       "product_process_characteristic": "",
       "specification": "",
       "classification": "",
@@ -768,7 +768,7 @@
     {
       "control_plan_id": "CP-P60-005",
       "process_step_id": "P60",
-      "pfmea_id": "PFMEA-P60-005",
+      "pfmea_id": "PFMEA-P60-002",
       "product_process_characteristic": "电机检测开始位",
       "specification": "15°",
       "classification": "",
@@ -782,7 +782,7 @@
     {
       "control_plan_id": "CP-P60-006",
       "process_step_id": "P60",
-      "pfmea_id": "",
+      "pfmea_id": "PFMEA-P60-001",
       "product_process_characteristic": "电机检测结束位",
       "specification": "-75°",
       "classification": "",
@@ -810,7 +810,7 @@
     {
       "control_plan_id": "CP-P60-008",
       "process_step_id": "P60",
-      "pfmea_id": "",
+      "pfmea_id": "PFMEA-P60-005",
       "product_process_characteristic": "扭力检测",
       "specification": "工件有无防错",
       "classification": "",
@@ -838,7 +838,7 @@
     {
       "control_plan_id": "CP-P70-001",
       "process_step_id": "P70",
-      "pfmea_id": "PFMEA-P70-001",
+      "pfmea_id": "PFMEA-P70-005",
       "product_process_characteristic": "包装正确性",
       "specification": "实物，数量与标签一一对应",
       "classification": "",
@@ -852,7 +852,7 @@
     {
       "control_plan_id": "CP-P70-002",
       "process_step_id": "P70",
-      "pfmea_id": "PFMEA-P70-004",
+      "pfmea_id": "PFMEA-P70-001",
       "product_process_characteristic": "产品外观",
       "specification": "检查零件外观无损伤、无漏装、无错装，表面无明显磨损、标识正确，清晰",
       "classification": "",
@@ -894,7 +894,7 @@
     {
       "control_plan_id": "CP-P70-005",
       "process_step_id": "P70",
-      "pfmea_id": "PFMEA-P70-005",
+      "pfmea_id": "PFMEA-P70-004",
       "product_process_characteristic": "限位器功能力矩",
       "specification": "开三档 44±5",
       "classification": "SC",
@@ -950,7 +950,7 @@
     {
       "control_plan_id": "CP-P70-009",
       "process_step_id": "P70",
-      "pfmea_id": "",
+      "pfmea_id": "PFMEA-P00-004",
       "product_process_characteristic": "汽车禁用物质",
       "specification": "ELV Test GB/T 30512",
       "classification": "CC",
@@ -988,6 +988,141 @@
       "control_method": "自检",
       "reaction_plan": "隔离，调整",
       "source_row": 81
+    },
+    {
+      "control_plan_id": "CP-P00-001-P00-003",
+      "process_step_id": "P00",
+      "pfmea_id": "PFMEA-P00-003",
+      "product_process_characteristic": "尺寸",
+      "specification": "入厂检验作业指导书",
+      "classification": "",
+      "measurement_method": "测量器具/工具",
+      "sample_size": "5",
+      "sample_frequency": "每批次",
+      "control_method": "检验记录",
+      "reaction_plan": "隔离，调整",
+      "source_row": 12,
+      "derived_from_control_plan_id": "CP-P00-001"
+    },
+    {
+      "control_plan_id": "CP-P01-001-P01-002",
+      "process_step_id": "P01",
+      "pfmea_id": "PFMEA-P01-002",
+      "product_process_characteristic": "零件识别",
+      "specification": "来料检验合格零件",
+      "classification": "",
+      "measurement_method": "目视",
+      "sample_size": "5",
+      "sample_frequency": "每批次",
+      "control_method": "物料标签",
+      "reaction_plan": "隔离，调整",
+      "source_row": 14,
+      "derived_from_control_plan_id": "CP-P01-001"
+    },
+    {
+      "control_plan_id": "CP-P01-001-P01-004",
+      "process_step_id": "P01",
+      "pfmea_id": "PFMEA-P01-004",
+      "product_process_characteristic": "零件识别",
+      "specification": "来料检验合格零件",
+      "classification": "",
+      "measurement_method": "目视",
+      "sample_size": "5",
+      "sample_frequency": "每批次",
+      "control_method": "物料标签",
+      "reaction_plan": "隔离，调整",
+      "source_row": 14,
+      "derived_from_control_plan_id": "CP-P01-001"
+    },
+    {
+      "control_plan_id": "CP-P02-001-P02-002",
+      "process_step_id": "P02",
+      "pfmea_id": "PFMEA-P02-002",
+      "product_process_characteristic": "零件识别",
+      "specification": "按生产计划投料",
+      "classification": "",
+      "measurement_method": "目视",
+      "sample_size": "5",
+      "sample_frequency": "每批次",
+      "control_method": "物料标签",
+      "reaction_plan": "隔离，调整",
+      "source_row": 16,
+      "derived_from_control_plan_id": "CP-P02-001"
+    },
+    {
+      "control_plan_id": "CP-P02-001-P02-003",
+      "process_step_id": "P02",
+      "pfmea_id": "PFMEA-P02-003",
+      "product_process_characteristic": "零件识别",
+      "specification": "按生产计划投料",
+      "classification": "",
+      "measurement_method": "目视",
+      "sample_size": "5",
+      "sample_frequency": "每批次",
+      "control_method": "物料标签",
+      "reaction_plan": "隔离，调整",
+      "source_row": 16,
+      "derived_from_control_plan_id": "CP-P02-001"
+    },
+    {
+      "control_plan_id": "CP-P02-001-P02-004",
+      "process_step_id": "P02",
+      "pfmea_id": "PFMEA-P02-004",
+      "product_process_characteristic": "零件识别",
+      "specification": "按生产计划投料",
+      "classification": "",
+      "measurement_method": "目视",
+      "sample_size": "5",
+      "sample_frequency": "每批次",
+      "control_method": "物料标签",
+      "reaction_plan": "隔离，调整",
+      "source_row": 16,
+      "derived_from_control_plan_id": "CP-P02-001"
+    },
+    {
+      "control_plan_id": "CP-P02-001-P02-006",
+      "process_step_id": "P02",
+      "pfmea_id": "PFMEA-P02-006",
+      "product_process_characteristic": "零件识别",
+      "specification": "按生产计划投料",
+      "classification": "",
+      "measurement_method": "目视",
+      "sample_size": "5",
+      "sample_frequency": "每批次",
+      "control_method": "物料标签",
+      "reaction_plan": "隔离，调整",
+      "source_row": 16,
+      "derived_from_control_plan_id": "CP-P02-001"
+    },
+    {
+      "control_plan_id": "CP-P02-001-P02-007",
+      "process_step_id": "P02",
+      "pfmea_id": "PFMEA-P02-007",
+      "product_process_characteristic": "零件识别",
+      "specification": "按生产计划投料",
+      "classification": "",
+      "measurement_method": "目视",
+      "sample_size": "5",
+      "sample_frequency": "每批次",
+      "control_method": "物料标签",
+      "reaction_plan": "隔离，调整",
+      "source_row": 16,
+      "derived_from_control_plan_id": "CP-P02-001"
+    },
+    {
+      "control_plan_id": "CP-P02-001-P02-008",
+      "process_step_id": "P02",
+      "pfmea_id": "PFMEA-P02-008",
+      "product_process_characteristic": "零件识别",
+      "specification": "按生产计划投料",
+      "classification": "",
+      "measurement_method": "目视",
+      "sample_size": "5",
+      "sample_frequency": "每批次",
+      "control_method": "物料标签",
+      "reaction_plan": "隔离，调整",
+      "source_row": 16,
+      "derived_from_control_plan_id": "CP-P02-001"
     }
   ]
 }

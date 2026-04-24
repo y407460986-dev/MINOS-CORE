@@ -23,6 +23,7 @@ flowchart TD
     D --> D5[XLSX zip structure]
     D --> D6[APQP workbook 5 sheets]
     D --> D7[CLI list validate export]
+    D --> D8[Limiter audit quality gate]
 
     E --> E1[task_plan.md]
     E --> E2[progress.md]
@@ -33,6 +34,7 @@ flowchart TD
     D2 --> G[minos_core.validation contract]
     D4 --> H[minos_core exporter contract]
     D7 --> I[minos_core.cli contract]
+    D8 --> N[Phase 4 limiter link quality]
 
     F --> J[Core worker implements]
     G --> J
@@ -41,4 +43,5 @@ flowchart TD
 
     J --> L[Run full unittest suite]
     K --> L
+    N --> L
     L --> M[MINOS-CORE rebuild gate]

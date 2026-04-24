@@ -4,6 +4,8 @@ import json
 import unittest
 from pathlib import Path
 
+from minos_core.adapters.fixture_json import load_fixture_payload
+
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES_DIR = ROOT / "tests" / "fixtures"
@@ -31,16 +33,7 @@ def _get_first(module, *names):
 
 
 def _load_fixture(name):
-    fixture_dir = FIXTURES_DIR / name
-    return {
-        "process_flow": json.loads(
-            (fixture_dir / "process_flow.json").read_text(encoding="utf-8")
-        ),
-        "pfmea": json.loads((fixture_dir / "pfmea.json").read_text(encoding="utf-8")),
-        "control_plan": json.loads(
-            (fixture_dir / "control_plan.json").read_text(encoding="utf-8")
-        ),
-    }
+    return load_fixture_payload(FIXTURES_DIR / name)
 
 
 def _as_mapping(value):
@@ -199,7 +192,45 @@ class QualityAuditContractTests(unittest.TestCase):
         self.assertTrue(gate.allow_user_export)
         self.assertTrue(gate.evidence_sufficient)
         self.assertEqual(gate.pending_fields, [])
+        self.assertEqual(gate.missing_evidence_refs, [])
+        self.assertEqual(gate.uncovered_evidence_items, [])
+        self.assertTrue(gate.model_dump()["evidence_coverage"]["ok"])
         self.assertIn("process_steps", gate.audit.counts)
+
+    def test_stage_quality_gate_blocks_missing_evidence_ref(self):
+        gates_module = _import_first("minos_core.quality_gates")
+        evaluate_stage_gate = _get_first(gates_module, "evaluate_stage_gate")
+        chain = copy.deepcopy(_load_fixture("apqp_chain"))
+        chain["pfmea"]["rows"][0]["evidence_refs"] = ["EV-NOT-FOUND"]
+
+        gate = evaluate_stage_gate(chain, stage="validate")
+
+        self.assertFalse(gate.evidence_sufficient)
+        self.assertFalse(gate.can_continue)
+        self.assertTrue(
+            any("EV-NOT-FOUND" in item for item in gate.missing_evidence_refs)
+        )
+
+    def test_stage_quality_gate_blocks_ai_inferred_evidence_ref(self):
+        gates_module = _import_first("minos_core.quality_gates")
+        evaluate_stage_gate = _get_first(gates_module, "evaluate_stage_gate")
+        chain = copy.deepcopy(_load_fixture("apqp_chain"))
+        chain["evidence"].append(
+            {
+                "evidence_id": "EV-AI-001",
+                "source": "llm",
+                "content": "AI inferred control basis",
+                "ai_inferred": True,
+            }
+        )
+        chain["control_plan"]["rows"][0]["evidence_refs"] = ["EV-AI-001"]
+
+        gate = evaluate_stage_gate(chain, stage="validate")
+
+        self.assertFalse(gate.evidence_sufficient)
+        self.assertFalse(gate.can_continue)
+        self.assertIn("EV-AI-001", gate.ai_inferred_items)
+        self.assertTrue(gate.model_dump()["evidence_coverage"]["ai_inferred_refs"])
 
 
 if __name__ == "__main__":

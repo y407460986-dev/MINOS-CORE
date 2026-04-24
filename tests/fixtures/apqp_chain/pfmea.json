@@ -23,7 +23,8 @@
       "detection": 4,
       "action_priority": "M",
       "classification": "SC-THICKNESS",
-      "linked_control_plan_id": "CP-P10-001"
+      "linked_control_plan_id": "CP-P10-001",
+      "evidence_refs": ["EV-ENG-REQ-001", "EV-IQC-LOT-001"]
     },
     {
       "pfmea_id": "PFMEA-P20-001",
@@ -39,7 +40,8 @@
       "detection": 3,
       "action_priority": "H",
       "classification": "SC-RIVET-HEIGHT",
-      "linked_control_plan_id": "CP-P20-001"
+      "linked_control_plan_id": "CP-P20-001",
+      "evidence_refs": ["EV-ENG-REQ-001", "EV-RIVET-SETUP-001"]
     },
     {
       "pfmea_id": "PFMEA-P20-002",
@@ -55,7 +57,8 @@
       "detection": 4,
       "action_priority": "H",
       "classification": "SC-PUSHOUT-FORCE",
-      "linked_control_plan_id": "CP-P20-002"
+      "linked_control_plan_id": "CP-P20-002",
+      "evidence_refs": ["EV-ENG-REQ-001", "EV-PUSHOUT-TEST-001"]
     },
     {
       "pfmea_id": "PFMEA-P30-001",
@@ -71,7 +74,8 @@
       "detection": 3,
       "action_priority": "M",
       "classification": "",
-      "linked_control_plan_id": "CP-P30-001"
+      "linked_control_plan_id": "CP-P30-001",
+      "evidence_refs": ["EV-PACK-SCAN-001"]
     }
   ]
 }

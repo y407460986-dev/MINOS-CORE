@@ -203,3 +203,31 @@ fixture 表达一条最小但完整的 APQP 链：
 - `ProcessStep`、`FailureMode`、`ControlItem`、`TraceLink` 必须保留 `evidence_refs`。
 - APQP workbook 必须包含 7 张 sheet：`摘要`、`质量门状态`、`过程流程图`、`PFMEA`、`控制计划`、`三表追溯矩阵`、`人工复核清单`。
 - OCR/LLM adapter 只允许 fake 和 not-configured 占位，不允许接真实外部服务。
+
+## 第七阶段新增
+本阶段新增 Evidence 文件化和证据覆盖质量门。
+
+新增文件：
+- `tests/fixtures/apqp_chain/evidence.json`
+
+更新文件：
+- `minos_core/adapters/fixture_json.py`
+- `minos_core/quality_gates.py`
+- `minos_core/exporters/apqp_workbook.py`
+- `tests/fixtures/apqp_chain/process_flow.json`
+- `tests/fixtures/apqp_chain/pfmea.json`
+- `tests/fixtures/apqp_chain/control_plan.json`
+- `tests/test_apqp_rebuild_contract.py`
+- `tests/test_quality_audit.py`
+- `tests/test_stage_result.py`
+- `task_plan.md`
+- `progress.md`
+- `findings.md`
+- `project_flow.mmd`
+- `rebuild_manifest.md`
+
+第七阶段测试契约：
+- `fixture_json` 必须能读取可选 `evidence.json`。
+- 没有 `evidence.json` 的旧 fixture 目录必须继续可读。
+- 有 evidence 池时，缺失 `evidence_refs`、引用不存在的 evidence、引用 AI 推断证据或待确认证据都不能通过阶段质量门。
+- Excel `质量门状态` sheet 必须显示证据覆盖率、缺失证据引用数和待确认证据数。

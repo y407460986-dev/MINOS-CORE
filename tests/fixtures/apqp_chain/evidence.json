@@ -1,0 +1,54 @@
+{
+  "document_type": "evidence",
+  "schema_version": "minos-core.fixture.v1",
+  "evidence": [
+    {
+      "evidence_id": "EV-PFD-ROUTE-001",
+      "source": "process routing",
+      "content": "Released process routing defines P10 incoming material verification, P20 rivet assembly, P30 final inspection and pack, including sequence P10 -> P20 -> P30.",
+      "confidence": 1.0,
+      "ai_inferred": false,
+      "needs_confirmation": false
+    },
+    {
+      "evidence_id": "EV-ENG-REQ-001",
+      "source": "drawing and engineering requirements",
+      "content": "Drawing and engineering requirements define material thickness 2.00 +/- 0.10 mm, rivet height 1.50 +0.50/-0.00 mm, and push-out force >= 10 kN.",
+      "confidence": 1.0,
+      "ai_inferred": false,
+      "needs_confirmation": false
+    },
+    {
+      "evidence_id": "EV-IQC-LOT-001",
+      "source": "incoming quality record",
+      "content": "Incoming quality uses supplier CoC, drawing revision check, and digital thickness gauge measurement per lot for purchased bracket and pin verification.",
+      "confidence": 1.0,
+      "ai_inferred": false,
+      "needs_confirmation": false
+    },
+    {
+      "evidence_id": "EV-RIVET-SETUP-001",
+      "source": "work instruction and first-off record",
+      "content": "Rivet assembly setup uses press setup verification, first-off approval, locked press adjustment, and go/no-go rivet height gauge every 30 minutes.",
+      "confidence": 1.0,
+      "ai_inferred": false,
+      "needs_confirmation": false
+    },
+    {
+      "evidence_id": "EV-PUSHOUT-TEST-001",
+      "source": "shift destructive test record",
+      "content": "Push-out force is verified by destructive push-out test once per shift with traceable record and containment reaction when force is below requirement.",
+      "confidence": 1.0,
+      "ai_inferred": false,
+      "needs_confirmation": false
+    },
+    {
+      "evidence_id": "EV-PACK-SCAN-001",
+      "source": "pack specification and barcode scan record",
+      "content": "Final inspection verifies released revision, readable traceability barcode, pack quantity, and requires barcode scan before pack close.",
+      "confidence": 1.0,
+      "ai_inferred": false,
+      "needs_confirmation": false
+    }
+  ]
+}

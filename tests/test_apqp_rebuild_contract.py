@@ -6,6 +6,7 @@ import sys
 import tempfile
 import unittest
 import zipfile
+import shutil
 from pathlib import Path
 from xml.etree import ElementTree
 
@@ -141,9 +142,11 @@ class DomainAndValidationContractTests(unittest.TestCase):
         self.assertIn("process_flow", chain)
         self.assertIn("pfmea", chain)
         self.assertIn("control_plan", chain)
+        self.assertIn("evidence", chain)
         self.assertEqual(len(_as_mapping(chain["process_flow"])["steps"]), 3)
         self.assertEqual(len(_as_mapping(chain["pfmea"])["rows"]), 4)
         self.assertEqual(len(_as_mapping(chain["control_plan"])["rows"]), 4)
+        self.assertEqual(len(chain["evidence"]), 6)
 
     def test_fixture_json_adapter_owns_fixture_file_loading(self):
         fixture_adapter = _import_first("minos_core.adapters.fixture_json")
@@ -156,6 +159,26 @@ class DomainAndValidationContractTests(unittest.TestCase):
         self.assertIn("process_flow", chain)
         self.assertIn("pfmea", chain)
         self.assertIn("control_plan", chain)
+        self.assertIn("evidence", chain)
+        self.assertIsInstance(chain["evidence"], list)
+        self.assertEqual(chain["evidence"][0]["evidence_id"], "EV-PFD-ROUTE-001")
+
+    def test_fixture_json_adapter_keeps_legacy_directory_without_evidence(self):
+        fixture_adapter = _import_first("minos_core.adapters.fixture_json")
+        load_payload = _get_first(fixture_adapter, "load_fixture_payload")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture_dir = Path(tmp) / "legacy_fixture"
+            fixture_dir.mkdir()
+            for name in ("process_flow.json", "pfmea.json", "control_plan.json"):
+                shutil.copy(FIXTURE_DIR / name, fixture_dir / name)
+
+            chain = load_payload(fixture_dir)
+
+        self.assertIn("process_flow", chain)
+        self.assertIn("pfmea", chain)
+        self.assertIn("control_plan", chain)
+        self.assertNotIn("evidence", chain)
 
     def test_validation_accepts_complete_fixture(self):
         domain_module = _import_first("minos_core.domain")
@@ -358,6 +381,9 @@ class XlsxExportContractTests(unittest.TestCase):
 
         self.assertIn("允许用户导出", gate_sheet)
         self.assertIn("证据充分", gate_sheet)
+        self.assertIn("证据覆盖率", gate_sheet)
+        self.assertIn("缺失证据引用数", gate_sheet)
+        self.assertIn("待确认证据数", gate_sheet)
         self.assertIn("人工复核项数", gate_sheet)
         self.assertIn("对象ID", review_sheet)
         self.assertIn("复核说明", review_sheet)

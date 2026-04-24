@@ -44,6 +44,10 @@ flowchart TD
     QG --> QG7[audit soft gate]
     QG --> QG8[quality gate workbook sheet]
     QG --> QG9[manual review workbook sheet]
+    QG --> QG10[evidence coverage gate]
+    QG10 --> QG11[missing evidence refs]
+    QG10 --> QG12[AI inferred evidence]
+    QG10 --> QG13[needs confirmation]
 
     AD --> PL
     PL --> DC
@@ -59,6 +63,8 @@ flowchart TD
     T --> T6[StageResult contract]
     T --> T7[OCR LLM adapter boundary]
     T --> T8[Workbook 7 sheets]
+    T --> T9[Evidence fixture loading]
+    T --> T10[Evidence coverage blocking]
     T1 --> G[MINOS-CORE rebuild gate]
     T2 --> G
     T3 --> G
@@ -67,3 +73,5 @@ flowchart TD
     T6 --> G
     T7 --> G
     T8 --> G
+    T9 --> G
+    T10 --> G

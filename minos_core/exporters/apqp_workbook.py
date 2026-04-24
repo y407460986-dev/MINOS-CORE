@@ -76,12 +76,38 @@ def _quality_gate_rows(chain: Any) -> list[list[Any]]:
     from ..quality_gates import evaluate_stage_gate
 
     gate = evaluate_stage_gate(chain, stage="export")
+    coverage = gate.evidence_coverage
     return [
         ["项目", "状态/数量", "说明"],
         ["阶段", gate.stage, ""],
         ["可继续", _yes_no(gate.can_continue), "validation 通过且证据充分"],
         ["允许用户导出", _yes_no(gate.allow_user_export), "可继续且无待补字段"],
         ["证据充分", _yes_no(gate.evidence_sufficient), ""],
+        [
+            "证据覆盖率",
+            _coverage_ratio(coverage),
+            f"{coverage.get('covered_items', 0)}/{coverage.get('required_items', 0)}",
+        ],
+        [
+            "未覆盖证据对象数",
+            len(gate.uncovered_evidence_items),
+            _join(gate.uncovered_evidence_items),
+        ],
+        [
+            "缺失证据引用数",
+            len(gate.missing_evidence_refs),
+            _join(gate.missing_evidence_refs),
+        ],
+        [
+            "被引用 AI 推断证据数",
+            len(coverage.get("ai_inferred_refs", [])),
+            _join(coverage.get("ai_inferred_refs", [])),
+        ],
+        [
+            "待确认证据数",
+            len(gate.needs_confirmation_items),
+            _join(gate.needs_confirmation_items),
+        ],
         ["待补字段数", len(gate.pending_fields), _join(gate.pending_fields)],
         ["AI 推断项数", len(gate.ai_inferred_items), _join(gate.ai_inferred_items)],
         ["人工复核项数", len(gate.manual_review_items), ""],
@@ -260,3 +286,11 @@ def _join(value: Any) -> str:
 
 def _yes_no(value: Any) -> str:
     return "是" if bool(value) else "否"
+
+
+def _coverage_ratio(coverage: Mapping[str, Any]) -> str:
+    ratio = coverage.get("coverage_ratio", 0)
+    try:
+        return f"{float(ratio):.0%}"
+    except (TypeError, ValueError):
+        return "0%"

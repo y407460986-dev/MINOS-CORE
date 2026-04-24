@@ -1,8 +1,9 @@
 import copy
-import json
 import tempfile
 import unittest
 from pathlib import Path
+
+from minos_core.adapters.fixture_json import load_fixture_payload
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -10,15 +11,7 @@ FIXTURE_DIR = ROOT / "tests" / "fixtures" / "apqp_chain"
 
 
 def _load_fixture():
-    return {
-        "process_flow": json.loads(
-            (FIXTURE_DIR / "process_flow.json").read_text(encoding="utf-8")
-        ),
-        "pfmea": json.loads((FIXTURE_DIR / "pfmea.json").read_text(encoding="utf-8")),
-        "control_plan": json.loads(
-            (FIXTURE_DIR / "control_plan.json").read_text(encoding="utf-8")
-        ),
-    }
+    return load_fixture_payload(FIXTURE_DIR)
 
 
 class StageResultTests(unittest.TestCase):
@@ -41,6 +34,7 @@ class StageResultTests(unittest.TestCase):
         self.assertIn(result.status, {"ok", "blocked", "failed"})
         self.assertTrue(hasattr(result, "output"))
         self.assertIsInstance(result.evidence, list)
+        self.assertGreaterEqual(len(result.evidence), 6)
         self.assertIsInstance(result.pending_fields, list)
         self.assertIsInstance(result.ai_inferred_items, list)
         self.assertIsNotNone(result.quality_gate)
@@ -54,6 +48,7 @@ class StageResultTests(unittest.TestCase):
         self.assertEqual(result.stage, "validate")
         self.assertEqual(result.status, "ok")
         self.assertTrue(result.output)
+        self.assertTrue(result.quality_gate.evidence_sufficient)
         self.assertIsNotNone(result.quality_gate)
 
     def test_run_stage_export_returns_export_path(self):
@@ -81,6 +76,12 @@ class StageResultTests(unittest.TestCase):
                 "ai_inferred": True,
             }
         ]
+        for step in fixture["process_flow"]["steps"]:
+            step["evidence_refs"] = ["EV-AI-001"]
+        for row in fixture["pfmea"]["rows"]:
+            row["evidence_refs"] = ["EV-AI-001"]
+        for row in fixture["control_plan"]["rows"]:
+            row["evidence_refs"] = ["EV-AI-001"]
 
         result = run_stage(fixture, stage="export", output_path="blocked.xlsx")
 

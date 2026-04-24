@@ -182,3 +182,19 @@
 2. Specify：StageResult 必须包含 `stage/status/output/evidence/pending_fields/ai_inferred_items/quality_gate`。
 3. Implement：新增 `stage.py`、`adapters/ocr.py`、`adapters/llm.py`，并增强 domain/exporter。
 4. Verify：完整测试必须通过，导出 workbook 必须包含 7 张固定 sheet。
+
+## 第七阶段：Evidence 文件化与证据覆盖质量门
+本阶段目标是把证据从内存 payload 推进到标准 fixture 文件，并让 Quality Gate 真正检查证据覆盖，而不是只检查三表结构存在。
+
+## 第七阶段执行流程
+/// 1. `fixture_json` 目录加载时可选读取 `evidence.json`，旧三文件 fixture 不受影响。
+/// 2. 为 `tests/fixtures/apqp_chain` 新增 `evidence.json`，并给 PFD/PFMEA/CP 写入 `evidence_refs`。
+/// 3. `quality_gates.py` 增加 evidence coverage report，检查未覆盖对象、缺失引用、AI 推断证据、待确认证据。
+/// 4. Excel `质量门状态` sheet 增加证据覆盖率、未覆盖对象、缺失引用、AI 推断和待确认证据统计。
+/// 5. 增加回归测试，确认新 fixture 有证据覆盖、旧 fixture 兼容、缺失/AI 证据会阻断阶段流转。
+
+## 第七阶段 OpenSpec 四步闭环
+1. Define：目标是 Evidence 闭环，不是 OCR/LLM 接入。
+2. Specify：有 `evidence.json` 时，所有 PFD/PFMEA/CP 对象必须引用有效证据；AI 推断或待确认证据不能直接放行。
+3. Implement：新增 fixture 证据文件、证据引用和 coverage gate。
+4. Verify：完整 unittest、CLI validate/audit/export smoke 必须通过。

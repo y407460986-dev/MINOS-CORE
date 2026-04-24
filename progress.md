@@ -115,3 +115,21 @@
 /// 1. 运行 CLI validate/audit/export smoke。
 /// 2. 审核 git diff。
 /// 3. 提交第六阶段改动。
+
+## 第七阶段当前状态
+第七阶段已完成代码落地：Evidence 已文件化，apqp_chain fixture 已补证据引用，Quality Gate 已能检查证据覆盖。
+
+## 第七阶段已完成
+- `fixture_json` 已支持目录下可选 `evidence.json`。
+- `tests/fixtures/apqp_chain/evidence.json` 已新增 6 条证据。
+- `process_flow.json`、`pfmea.json`、`control_plan.json` 已写入 `evidence_refs`。
+- `StageQualityGate` 已新增 evidence coverage 输出：覆盖率、缺失引用、未覆盖对象、待确认证据。
+- 有 evidence 池时，质量门会阻断未覆盖对象、缺失 evidence id、被引用 AI 推断证据和待确认证据。
+- 无 evidence 池的旧 fixture 保持兼容，仍按三表结构存在判断证据充分。
+- Excel `质量门状态` sheet 已显示证据覆盖率和证据问题数量。
+- 完整 unittest 已扩展到 29 项并全部通过。
+
+## 第七阶段待验证
+/// 1. 运行 CLI validate/audit/export smoke。
+/// 2. 审核 git diff。
+/// 3. 提交第七阶段改动。

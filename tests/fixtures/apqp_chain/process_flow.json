@@ -17,7 +17,8 @@
       "owner": "Incoming Quality",
       "input_refs": ["DRAWING-001", "BOM-001"],
       "output_refs": ["PFMEA-P10", "CP-P10"],
-      "special_characteristics": ["SC-THICKNESS"]
+      "special_characteristics": ["SC-THICKNESS"],
+      "evidence_refs": ["EV-PFD-ROUTE-001", "EV-ENG-REQ-001", "EV-IQC-LOT-001"]
     },
     {
       "process_step_id": "P20",
@@ -27,7 +28,8 @@
       "owner": "Assembly",
       "input_refs": ["DRAWING-001", "WORK-INSTRUCTION-020"],
       "output_refs": ["PFMEA-P20", "CP-P20"],
-      "special_characteristics": ["SC-RIVET-HEIGHT", "SC-PUSHOUT-FORCE"]
+      "special_characteristics": ["SC-RIVET-HEIGHT", "SC-PUSHOUT-FORCE"],
+      "evidence_refs": ["EV-PFD-ROUTE-001", "EV-ENG-REQ-001", "EV-RIVET-SETUP-001", "EV-PUSHOUT-TEST-001"]
     },
     {
       "process_step_id": "P30",
@@ -37,11 +39,12 @@
       "owner": "Final Quality",
       "input_refs": ["PACK-SPEC-001"],
       "output_refs": ["PFMEA-P30", "CP-P30"],
-      "special_characteristics": []
+      "special_characteristics": [],
+      "evidence_refs": ["EV-PFD-ROUTE-001", "EV-PACK-SCAN-001"]
     }
   ],
   "links": [
-    {"from": "P10", "to": "P20"},
-    {"from": "P20", "to": "P30"}
+    {"from": "P10", "to": "P20", "evidence_refs": ["EV-PFD-ROUTE-001"]},
+    {"from": "P20", "to": "P30", "evidence_refs": ["EV-PFD-ROUTE-001"]}
   ]
 }

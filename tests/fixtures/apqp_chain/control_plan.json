@@ -20,7 +20,8 @@
       "sample_size": "5 pieces",
       "sample_frequency": "Each incoming lot",
       "control_method": "Record lot result and quarantine failures",
-      "reaction_plan": "Stop use, notify SQE, sort affected lot"
+      "reaction_plan": "Stop use, notify SQE, sort affected lot",
+      "evidence_refs": ["EV-ENG-REQ-001", "EV-IQC-LOT-001"]
     },
     {
       "control_plan_id": "CP-P20-001",
@@ -33,7 +34,8 @@
       "sample_size": "3 pieces",
       "sample_frequency": "First-off and every 30 minutes",
       "control_method": "Chart result and lock press adjustment",
-      "reaction_plan": "Stop press, segregate since last good check"
+      "reaction_plan": "Stop press, segregate since last good check",
+      "evidence_refs": ["EV-ENG-REQ-001", "EV-RIVET-SETUP-001"]
     },
     {
       "control_plan_id": "CP-P20-002",
@@ -46,7 +48,8 @@
       "sample_size": "1 piece",
       "sample_frequency": "Each shift",
       "control_method": "Destructive test with traceable record",
-      "reaction_plan": "Stop shipment and run containment back to prior pass"
+      "reaction_plan": "Stop shipment and run containment back to prior pass",
+      "evidence_refs": ["EV-ENG-REQ-001", "EV-PUSHOUT-TEST-001"]
     },
     {
       "control_plan_id": "CP-P30-001",
@@ -59,7 +62,8 @@
       "sample_size": "100%",
       "sample_frequency": "Each pack",
       "control_method": "System scan required before pack close",
-      "reaction_plan": "Hold pack, correct label, rescan lot"
+      "reaction_plan": "Hold pack, correct label, rescan lot",
+      "evidence_refs": ["EV-PACK-SCAN-001"]
     }
   ]
 }

@@ -24,6 +24,18 @@ class StageResultTests(unittest.TestCase):
         self.assertIsNotNone(context.payload)
         self.assertIsNotNone(context.chain)
 
+    def test_run_stage_ingest_returns_evidence_bundle(self):
+        from minos_core.stage import run_stage
+
+        result = run_stage(FIXTURE_DIR, stage="ingest")
+
+        self.assertEqual(result.stage, "ingest")
+        self.assertEqual(result.status, "ok")
+        self.assertEqual(result.output["document_type"], "evidence_bundle")
+        self.assertGreaterEqual(len(result.evidence), 6)
+        self.assertTrue(result.quality_gate.can_continue)
+        self.assertFalse(result.quality_gate.allow_user_export)
+
     def test_stage_result_exposes_required_fields(self):
         from minos_core.stage import build_stage_context, build_stage_result
 

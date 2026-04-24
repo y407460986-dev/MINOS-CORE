@@ -13,6 +13,7 @@ from .domain import (
     Product,
     TraceLink,
 )
+from .ingest import ingest_evidence_bundle
 from .quality_gates import StageQualityGate, evaluate_stage_gate
 from .stage import StageContext, StageResult, run_stage
 from .validation import validate_chain
@@ -35,6 +36,7 @@ __all__ = [
     "TraceLink",
     "audit_chain",
     "evaluate_stage_gate",
+    "ingest_evidence_bundle",
     "list_samples",
     "load_sample_metadata",
     "run_stage",

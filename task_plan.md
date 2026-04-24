@@ -198,3 +198,20 @@
 2. Specify：有 `evidence.json` 时，所有 PFD/PFMEA/CP 对象必须引用有效证据；AI 推断或待确认证据不能直接放行。
 3. Implement：新增 fixture 证据文件、证据引用和 coverage gate。
 4. Verify：完整 unittest、CLI validate/audit/export smoke 必须通过。
+
+## 第八阶段：ingest 阶段落地
+本阶段目标是把 `ingest` 从 pipeline 阶段名落成真实入口，让文件、manual JSON、fixture evidence 和 fake OCR 文本统一进入 Evidence bundle。
+
+## 第八阶段执行流程
+/// 1. 新增 `minos_core/ingest.py`，统一把输入资料归一化为 `evidence_bundle`。
+/// 2. `run_stage(..., stage="ingest")` 提前执行 ingest，不要求输入已经是完整 APQPChain。
+/// 3. 支持 `evidence_bundle` JSON、manual `content/text` JSON、fixture 目录 `evidence.json`、只有 `evidence.json` 的目录、fake OCR 文本和 FakeOCRAdapter。
+/// 4. `quality_gates.py` 增加 stage-aware 策略：`ingest/analyze` 使用轻量 Evidence 入口门，`validate/export` 保持三表 evidence_refs 覆盖门。
+/// 5. 增加 `tests/test_ingest_stage.py`，覆盖正向 ingest、AI-only 阻断、空 evidence 阻断、mixed AI/待确认提示。
+/// 6. 运行完整 unittest、CLI validate/audit/export smoke 后提交。
+
+## 第八阶段 OpenSpec 四步闭环
+1. Define：目标是输入资料进入 Evidence，不生成 PFD/PFMEA/CP。
+2. Specify：ingest 的 `StageResult.output` 必须是 `evidence_bundle`，`can_continue` 表示可进入 analyze。
+3. Implement：新增 ingest 模块、stage 分支和 ingest/analyze 轻量质量门。
+4. Verify：完整 unittest 必须通过，validate/export 行为不得退化。

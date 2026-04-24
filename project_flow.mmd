@@ -28,12 +28,16 @@ flowchart TD
     PL --> PL8[export]
     PL --> PL9[StageContext]
     PL --> PL10[StageResult]
+    PL1 --> PL11[evidence_bundle]
+    PL11 --> PL2
 
     AD --> AD1[OCR adapter boundary]
     AD --> AD2[LLM adapter boundary]
     AD --> AD3[legacy Excel reader]
     AD --> AD4[fixture JSON file system]
     AD --> AD5[XLSX exporter]
+    AD1 --> AD6[FakeOCR text evidence]
+    AD4 --> AD7[evidence json]
 
     QG --> QG1[evidence sufficient]
     QG --> QG2[pending fields]
@@ -48,6 +52,8 @@ flowchart TD
     QG10 --> QG11[missing evidence refs]
     QG10 --> QG12[AI inferred evidence]
     QG10 --> QG13[needs confirmation]
+    QG --> QG14[ingest evidence entry gate]
+    QG14 --> QG15[allow analyze]
 
     AD --> PL
     PL --> DC
@@ -65,6 +71,8 @@ flowchart TD
     T --> T8[Workbook 7 sheets]
     T --> T9[Evidence fixture loading]
     T --> T10[Evidence coverage blocking]
+    T --> T11[Ingest evidence bundle]
+    T --> T12[Ingest AI-only blocking]
     T1 --> G[MINOS-CORE rebuild gate]
     T2 --> G
     T3 --> G
@@ -75,3 +83,5 @@ flowchart TD
     T8 --> G
     T9 --> G
     T10 --> G
+    T11 --> G
+    T12 --> G

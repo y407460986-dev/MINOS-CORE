@@ -107,8 +107,26 @@ def run_stage(
     stage: str,
     output_path: str | Path | None = None,
 ) -> StageResult:
+    from .domain import Evidence
     from .exporters import export_apqp_workbook
+    from .ingest import ingest_evidence_bundle
     from .validation import validate_chain
+
+    if stage == "ingest":
+        bundle = ingest_evidence_bundle(fixture)
+        evidence = [Evidence.from_mapping(item) for item in bundle.get("evidence", [])]
+        gate = evaluate_stage_gate(
+            {"evidence": bundle.get("evidence", [])}, stage=stage
+        )
+        return StageResult(
+            stage=stage,
+            status="ok" if gate.can_continue else "blocked",
+            output=bundle,
+            evidence=evidence,
+            pending_fields=list(gate.pending_fields),
+            ai_inferred_items=list(gate.ai_inferred_items),
+            quality_gate=gate,
+        )
 
     context = build_stage_context(fixture, stage=stage, output_path=output_path)
     if stage == "validate":

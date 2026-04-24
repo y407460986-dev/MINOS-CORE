@@ -56,14 +56,24 @@ def evaluate_stage_gate(
 ) -> StageQualityGate:
     if isinstance(chain, dict):
         chain = APQPChain(**chain)
-    validation = validate_chain(chain)
+    validation = _stage_validation(chain, stage)
     audit = audit_chain(chain)
     pending_fields = _pending_fields(chain)
     ai_inferred_items = _ai_inferred_items(chain)
-    evidence_coverage = _evidence_coverage_report(chain)
+    evidence_coverage = (
+        _ingest_evidence_report(chain)
+        if stage in {"ingest", "analyze"}
+        else _evidence_coverage_report(chain)
+    )
     evidence_sufficient = bool(evidence_coverage["ok"])
-    can_continue = bool(validation) and evidence_sufficient
-    allow_user_export = can_continue and not pending_fields
+    can_continue = (
+        evidence_sufficient
+        if stage in {"ingest", "analyze"}
+        else bool(validation) and evidence_sufficient
+    )
+    allow_user_export = (
+        False if stage in {"ingest", "analyze"} else can_continue and not pending_fields
+    )
     manual_review_items = list(audit.manual_review_items)
     manual_review_items.extend(_evidence_manual_review_items(evidence_coverage))
     return StageQualityGate(
@@ -85,6 +95,74 @@ def evaluate_stage_gate(
 
 def _evidence_sufficient(chain: APQPChain) -> bool:
     return bool(_evidence_coverage_report(chain)["ok"])
+
+
+def _stage_validation(chain: APQPChain, stage: str) -> ChainValidationResult:
+    if stage in {"ingest", "analyze"}:
+        return ChainValidationResult(ok=True, messages=[], chain=chain)
+    return validate_chain(chain)
+
+
+def _ingest_evidence_report(chain: APQPChain) -> dict[str, Any]:
+    missing_fields: list[str] = []
+    duplicate_ids: list[str] = []
+    seen_ids: set[str] = set()
+    usable_non_ai = 0
+    usable_count = 0
+    ai_inferred_refs: list[str] = []
+    needs_confirmation_refs: list[str] = []
+
+    for index, evidence in enumerate(chain.evidence, start=1):
+        label = evidence.evidence_id or f"evidence[{index}]"
+        if not evidence.evidence_id:
+            missing_fields.append(f"{label}.evidence_id")
+        elif evidence.evidence_id in seen_ids:
+            duplicate_ids.append(evidence.evidence_id)
+        else:
+            seen_ids.add(evidence.evidence_id)
+        if not evidence.source.strip():
+            missing_fields.append(f"{label}.source")
+        if not evidence.content.strip():
+            missing_fields.append(f"{label}.content")
+        usable = bool(
+            evidence.evidence_id
+            and evidence.source.strip()
+            and evidence.content.strip()
+        )
+        if usable:
+            usable_count += 1
+            if not evidence.ai_inferred:
+                usable_non_ai += 1
+        if evidence.ai_inferred:
+            ai_inferred_refs.append(label)
+        if evidence.needs_confirmation:
+            needs_confirmation_refs.append(label)
+
+    all_ai = bool(chain.evidence) and usable_count > 0 and usable_non_ai == 0
+    uncovered_items = missing_fields + [f"duplicate:{item}" for item in duplicate_ids]
+    if all_ai:
+        uncovered_items.append("all_evidence_ai_inferred")
+
+    required_count = max(len(chain.evidence), 1)
+    ok = (
+        bool(chain.evidence)
+        and usable_count > 0
+        and usable_non_ai > 0
+        and not missing_fields
+        and not duplicate_ids
+    )
+    return {
+        "required_items": required_count,
+        "covered_items": usable_count,
+        "coverage_ratio": usable_count / required_count if required_count else 0.0,
+        "uncovered_items": uncovered_items,
+        "missing_refs": [],
+        "ai_inferred_refs": ai_inferred_refs,
+        "needs_confirmation_refs": needs_confirmation_refs,
+        "legacy_mode": False,
+        "stage_mode": "ingest",
+        "ok": ok,
+    }
 
 
 def _evidence_coverage_report(chain: APQPChain) -> dict[str, Any]:

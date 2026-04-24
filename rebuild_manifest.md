@@ -231,3 +231,28 @@ fixture 表达一条最小但完整的 APQP 链：
 - 没有 `evidence.json` 的旧 fixture 目录必须继续可读。
 - 有 evidence 池时，缺失 `evidence_refs`、引用不存在的 evidence、引用 AI 推断证据或待确认证据都不能通过阶段质量门。
 - Excel `质量门状态` sheet 必须显示证据覆盖率、缺失证据引用数和待确认证据数。
+
+## 第八阶段新增
+本阶段新增 ingest 阶段真实入口，把输入资料统一转成 Evidence bundle。
+
+新增文件：
+- `minos_core/ingest.py`
+- `tests/test_ingest_stage.py`
+
+更新文件：
+- `minos_core/stage.py`
+- `minos_core/quality_gates.py`
+- `minos_core/__init__.py`
+- `tests/test_stage_result.py`
+- `task_plan.md`
+- `progress.md`
+- `findings.md`
+- `project_flow.mmd`
+- `rebuild_manifest.md`
+
+第八阶段测试契约：
+- `run_stage(..., stage="ingest")` 必须返回 `evidence_bundle`。
+- manual JSON、OCR text、FakeOCRAdapter 和 fixture evidence 都能进入 `StageResult.evidence`。
+- ingest 阶段 `can_continue=True` 表示可进入 analyze，且永远不允许用户导出。
+- 空 evidence 和全部 AI 推断 evidence 必须阻断 ingest。
+- validate/export 仍保持原来的 APQP 三表 evidence_refs 覆盖质量门。

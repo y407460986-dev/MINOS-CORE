@@ -133,3 +133,19 @@
 /// 1. 运行 CLI validate/audit/export smoke。
 /// 2. 审核 git diff。
 /// 3. 提交第七阶段改动。
+
+## 第八阶段当前状态
+第八阶段已完成代码落地：`ingest` 已从阶段名变成可运行入口，能把多种输入统一转成 Evidence bundle。
+
+## 第八阶段已完成
+- 新增 `minos_core/ingest.py`。
+- `run_stage(..., stage="ingest")` 已支持 evidence-only 输入，不再强制构造完整 APQPChain。
+- 已支持输入类型：`evidence_bundle` JSON、manual `content/text` JSON、fixture 目录、只有 `evidence.json` 的目录、OCR text、FakeOCRAdapter。
+- `quality_gates.py` 已做 stage-aware 分流：`ingest/analyze` 使用轻量 Evidence 入口门；`validate/export` 继续使用三表 evidence_refs 覆盖门。
+- ingest 阶段规则：至少一条可用且非 AI 推断的 Evidence 才允许进入 analyze；部分 AI 推断或待确认证据只提示不阻断；全部 AI 推断会阻断。
+- 已新增 `tests/test_ingest_stage.py`，完整 unittest 已扩展到 40 项并全部通过。
+
+## 第八阶段待验证
+/// 1. 运行 CLI validate/audit/export smoke。
+/// 2. 审核 git diff。
+/// 3. 提交第八阶段改动。

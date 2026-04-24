@@ -14,6 +14,15 @@ ROOT = Path(__file__).resolve().parents[1]
 FIXTURE_DIR = ROOT / "tests" / "fixtures" / "apqp_chain"
 SAMPLES_DIR = ROOT / "configs" / "samples"
 NS = {"main": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+REQUIRED_SHEETS = [
+    "摘要",
+    "质量门状态",
+    "过程流程图",
+    "PFMEA",
+    "控制计划",
+    "三表追溯矩阵",
+    "人工复核清单",
+]
 
 
 def _load_json(name):
@@ -165,6 +174,86 @@ class DomainAndValidationContractTests(unittest.TestCase):
 
         self.assertTrue(_validation_ok(result), _validation_messages(result))
 
+    def test_domain_objects_preserve_evidence_references(self):
+        domain_module = _import_first("minos_core.domain")
+        APQPChain = _get_first(domain_module, "APQPChain")
+        payload = {
+            "process_flow": {
+                "document_type": "process_flow",
+                "steps": [
+                    {
+                        "process_step_id": "P10",
+                        "operation": "Cut",
+                        "evidence_refs": ["EV-PFD-001"],
+                    }
+                ],
+                "links": [
+                    {
+                        "from": "P10",
+                        "to": "P20",
+                        "link_type": "sequence",
+                        "evidence_refs": "EV-LINK-001",
+                    }
+                ],
+            },
+            "pfmea": {
+                "document_type": "pfmea",
+                "rows": [
+                    {
+                        "pfmea_id": "PFMEA-P10-001",
+                        "process_step_id": "P10",
+                        "failure_mode": "Burr",
+                        "evidence_refs": ["EV-FMEA-001"],
+                    }
+                ],
+            },
+            "control_plan": {
+                "document_type": "control_plan",
+                "rows": [
+                    {
+                        "control_plan_id": "CP-P10-001",
+                        "process_step_id": "P10",
+                        "pfmea_id": "PFMEA-P10-001",
+                        "evidence_refs": ["EV-CP-001"],
+                    }
+                ],
+            },
+            "evidence": [
+                {
+                    "evidence_id": "EV-PFD-001",
+                    "source": "drawing",
+                    "content": "PFD basis",
+                },
+                {
+                    "evidence_id": "EV-FMEA-001",
+                    "source": "analysis",
+                    "content": "PFMEA basis",
+                },
+                {
+                    "evidence_id": "EV-CP-001",
+                    "source": "inspection",
+                    "content": "Control basis",
+                },
+                {
+                    "evidence_id": "EV-LINK-001",
+                    "source": "trace",
+                    "content": "Trace basis",
+                },
+            ],
+        }
+
+        chain = APQPChain(**payload)
+        dumped = chain.model_dump()
+
+        self.assertEqual(chain.process_steps[0].evidence_refs, ["EV-PFD-001"])
+        self.assertEqual(chain.failure_modes[0].evidence_refs, ["EV-FMEA-001"])
+        self.assertEqual(chain.controls[0].evidence_refs, ["EV-CP-001"])
+        self.assertEqual(chain.links[0].evidence_refs, ["EV-LINK-001"])
+        self.assertEqual(dumped["process_steps"][0]["evidence_refs"], ["EV-PFD-001"])
+        self.assertEqual(dumped["failure_modes"][0]["evidence_refs"], ["EV-FMEA-001"])
+        self.assertEqual(dumped["controls"][0]["evidence_refs"], ["EV-CP-001"])
+        self.assertEqual(dumped["links"][0]["evidence_refs"], ["EV-LINK-001"])
+
     def test_validation_fails_when_mandatory_pfmea_has_no_control_plan_row(self):
         validation_module = _import_first("minos_core.validation")
         validate_chain = _get_first(
@@ -223,7 +312,7 @@ class XlsxExportContractTests(unittest.TestCase):
         self.assertTrue(all(len(name) <= 31 for name in names))
         self.assertTrue(all("/" not in name and "*" not in name for name in names))
 
-    def test_apqp_workbook_contains_five_required_sheets(self):
+    def test_apqp_workbook_contains_quality_gate_and_manual_review_sheets(self):
         exporter_module = _import_first(
             "minos_core.exporters.apqp_workbook",
             "minos_core.exporters.xlsx",
@@ -249,8 +338,29 @@ class XlsxExportContractTests(unittest.TestCase):
 
         self.assertEqual(
             names,
-            ["摘要", "过程流程图", "PFMEA", "控制计划", "三表追溯矩阵"],
+            REQUIRED_SHEETS,
         )
+
+    def test_apqp_workbook_quality_gate_sheet_contains_key_fields(self):
+        exporter_module = _import_first("minos_core.exporters.apqp_workbook")
+        export_workbook = _get_first(exporter_module, "export_apqp_workbook")
+        chain = {
+            "process_flow": _load_json("process_flow.json"),
+            "pfmea": _load_json("pfmea.json"),
+            "control_plan": _load_json("control_plan.json"),
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            xlsx_path = Path(tmp) / "apqp.xlsx"
+            export_workbook(chain, xlsx_path)
+            with zipfile.ZipFile(xlsx_path) as archive:
+                gate_sheet = archive.read("xl/worksheets/sheet2.xml").decode("utf-8")
+                review_sheet = archive.read("xl/worksheets/sheet7.xml").decode("utf-8")
+
+        self.assertIn("允许用户导出", gate_sheet)
+        self.assertIn("证据充分", gate_sheet)
+        self.assertIn("人工复核项数", gate_sheet)
+        self.assertIn("对象ID", review_sheet)
+        self.assertIn("复核说明", review_sheet)
 
 
 class CliContractTests(unittest.TestCase):
@@ -288,7 +398,7 @@ class CliContractTests(unittest.TestCase):
             )
             self.assertEqual(
                 _sheet_names(output_path),
-                ["摘要", "过程流程图", "PFMEA", "控制计划", "三表追溯矩阵"],
+                REQUIRED_SHEETS,
             )
 
 

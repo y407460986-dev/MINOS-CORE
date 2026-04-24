@@ -176,3 +176,30 @@ fixture 表达一条最小但完整的 APQP 链：
 - `minos_core.adapters.fixture_json` 负责标准 fixture 文件读取。
 - `pipeline.PIPELINE_STAGES` 固定为八阶段流程。
 - `quality_gates.evaluate_stage_gate` 返回证据、待确认字段、AI 推断、是否可继续、是否可导出的阶段门结果。
+
+## 第六阶段新增
+本阶段新增阶段流转、证据引用、导出质量门 sheet，以及 OCR/LLM adapter 占位接口。
+
+新增文件：
+- `minos_core/stage.py`
+- `minos_core/adapters/ocr.py`
+- `minos_core/adapters/llm.py`
+- `tests/test_stage_result.py`
+- `tests/test_ocr_llm_adapters.py`
+
+更新文件：
+- `minos_core/domain.py`
+- `minos_core/exporters/apqp_workbook.py`
+- `minos_core/__init__.py`
+- `tests/test_apqp_rebuild_contract.py`
+- `tests/test_legacy_excel_adapter.py`
+- `task_plan.md`
+- `progress.md`
+- `findings.md`
+- `rebuild_manifest.md`
+
+第六阶段测试契约：
+- `StageResult` 必须暴露 `stage/status/output/evidence/pending_fields/ai_inferred_items/quality_gate`。
+- `ProcessStep`、`FailureMode`、`ControlItem`、`TraceLink` 必须保留 `evidence_refs`。
+- APQP workbook 必须包含 7 张 sheet：`摘要`、`质量门状态`、`过程流程图`、`PFMEA`、`控制计划`、`三表追溯矩阵`、`人工复核清单`。
+- OCR/LLM adapter 只允许 fake 和 not-configured 占位，不允许接真实外部服务。

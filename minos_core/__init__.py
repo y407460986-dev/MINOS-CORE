@@ -14,6 +14,7 @@ from .domain import (
     TraceLink,
 )
 from .quality_gates import StageQualityGate, evaluate_stage_gate
+from .stage import StageContext, StageResult, run_stage
 from .validation import validate_chain
 
 __all__ = [
@@ -28,11 +29,14 @@ __all__ = [
     "ProcessStep",
     "Product",
     "SampleMetadata",
+    "StageContext",
     "StageQualityGate",
+    "StageResult",
     "TraceLink",
     "audit_chain",
     "evaluate_stage_gate",
     "list_samples",
     "load_sample_metadata",
+    "run_stage",
     "validate_chain",
 ]

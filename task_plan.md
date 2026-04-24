@@ -165,3 +165,20 @@
 2. Specify：用测试约束 Domain Core 无文件 IO、Pipeline 阶段顺序、Adapter 负责 fixture IO、Quality Gate 暴露阶段准入。
 3. Implement：新增 `fixture_json.py`、`quality_matching.py`、`quality_gates.py`，并最小调整现有导入。
 4. Verify：运行完整 unittest，确认 legacy 转换、limiter gate、CLI、导出均保持可用。
+
+## 第六阶段：阶段流转、证据追溯与交付增强
+本阶段目标是在四层边界稳定后，把 pipeline 从普通函数调用升级为可追踪的阶段结果，同时让证据引用进入核心对象，并让导出的 Excel 带上质量门状态和人工复核清单。
+
+## 第六阶段执行流程
+/// 1. 新增 `StageContext` / `StageResult`，保留旧 `validate_fixture` / `export_fixture` 返回契约不变。
+/// 2. 给 `ProcessStep`、`FailureMode`、`ControlItem`、`TraceLink` 增加 `evidence_refs`，兼容旧 fixture 缺省为空列表。
+/// 3. APQP workbook 从 5 张 sheet 扩展为 7 张，新增 `质量门状态` 和 `人工复核清单`。
+/// 4. 新增 OCR / LLM adapter 占位协议、fake adapter 和 not-configured adapter，不接真实外部服务。
+/// 5. 增加回归测试，覆盖阶段结果、证据引用、导出 sheet、adapter 边界。
+/// 6. 运行完整 unittest、CLI validate/audit/export smoke 后提交。
+
+## 第六阶段 OpenSpec 四步闭环
+1. Define：目标是可追溯阶段流转和可复核交付，不是接入真实 AI 服务。
+2. Specify：StageResult 必须包含 `stage/status/output/evidence/pending_fields/ai_inferred_items/quality_gate`。
+3. Implement：新增 `stage.py`、`adapters/ocr.py`、`adapters/llm.py`，并增强 domain/exporter。
+4. Verify：完整测试必须通过，导出 workbook 必须包含 7 张固定 sheet。

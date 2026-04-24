@@ -13,6 +13,10 @@ flowchart TD
     DC --> DC7[Evidence]
     DC --> DC8[TraceLink]
     DC --> DC9[No file IO]
+    DC4 --> DC10[evidence_refs]
+    DC5 --> DC10
+    DC6 --> DC10
+    DC8 --> DC10
 
     PL --> PL1[ingest]
     PL --> PL2[analyze]
@@ -22,9 +26,11 @@ flowchart TD
     PL --> PL6[generate_control_plan]
     PL --> PL7[validate]
     PL --> PL8[export]
+    PL --> PL9[StageContext]
+    PL --> PL10[StageResult]
 
-    AD --> AD1[OCR adapter future]
-    AD --> AD2[LLM adapter future]
+    AD --> AD1[OCR adapter boundary]
+    AD --> AD2[LLM adapter boundary]
     AD --> AD3[legacy Excel reader]
     AD --> AD4[fixture JSON file system]
     AD --> AD5[XLSX exporter]
@@ -36,6 +42,8 @@ flowchart TD
     QG --> QG5[allow user export]
     QG --> QG6[validation hard gate]
     QG --> QG7[audit soft gate]
+    QG --> QG8[quality gate workbook sheet]
+    QG --> QG9[manual review workbook sheet]
 
     AD --> PL
     PL --> DC
@@ -48,8 +56,14 @@ flowchart TD
     T --> T3[Pipeline stage order]
     T --> T4[Limiter audit quality gate]
     T --> T5[CLI validate export]
+    T --> T6[StageResult contract]
+    T --> T7[OCR LLM adapter boundary]
+    T --> T8[Workbook 7 sheets]
     T1 --> G[MINOS-CORE rebuild gate]
     T2 --> G
     T3 --> G
     T4 --> G
     T5 --> G
+    T6 --> G
+    T7 --> G
+    T8 --> G

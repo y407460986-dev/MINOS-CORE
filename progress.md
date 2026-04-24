@@ -98,3 +98,20 @@
 /// 1. 运行 `python -m unittest discover -s tests -v`。
 /// 2. 运行 CLI validate/export/audit smoke，确认旧入口仍可用。
 /// 3. 审核 git diff，确认没有把 OCR/LLM 接进 Domain Core。
+
+## 第六阶段当前状态
+第六阶段已完成代码落地：阶段流转、证据引用、导出质量门 sheet、OCR/LLM adapter 占位接口均已实现。
+
+## 第六阶段已完成
+- 新增 `minos_core/stage.py`，提供 `StageContext`、`StageResult`、`build_stage_context`、`build_stage_result`、`run_stage`。
+- `StageResult` 已包含 `stage/status/output/evidence/pending_fields/ai_inferred_items/quality_gate`。
+- `ProcessStep`、`FailureMode`、`ControlItem`、`TraceLink` 已新增 `evidence_refs`，旧 fixture 默认 `[]`。
+- APQP workbook 已从 5 张 sheet 扩展为 7 张：新增 `质量门状态` 与 `人工复核清单`。
+- 新增 `minos_core/adapters/ocr.py` 和 `minos_core/adapters/llm.py`，只定义协议、结果对象、fake adapter 和 not-configured adapter。
+- 已新增 `tests/test_stage_result.py` 和 `tests/test_ocr_llm_adapters.py`。
+- 完整 unittest 已扩展到 26 项并全部通过。
+
+## 第六阶段待验证
+/// 1. 运行 CLI validate/audit/export smoke。
+/// 2. 审核 git diff。
+/// 3. 提交第六阶段改动。

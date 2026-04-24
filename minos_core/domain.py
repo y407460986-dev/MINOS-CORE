@@ -39,6 +39,7 @@ class ProcessStep:
     input_refs: list[str] = field(default_factory=list)
     output_refs: list[str] = field(default_factory=list)
     special_characteristics: list[str] = field(default_factory=list)
+    evidence_refs: list[str] = field(default_factory=list)
 
     @property
     def id(self) -> str:
@@ -73,6 +74,7 @@ class ProcessStep:
             special_characteristics=_string_list(
                 data.get("special_characteristics", [])
             ),
+            evidence_refs=_string_list(data.get("evidence_refs", [])),
         )
 
 
@@ -136,6 +138,7 @@ class FailureMode:
     action_priority: str = ""
     classification: str = ""
     linked_control_plan_id: str = ""
+    evidence_refs: list[str] = field(default_factory=list)
 
     @property
     def step_no(self) -> str:
@@ -184,6 +187,7 @@ class FailureMode:
             action_priority=str(data.get("action_priority", "")),
             classification=str(data.get("classification", "")),
             linked_control_plan_id=str(data.get("linked_control_plan_id", "")),
+            evidence_refs=_string_list(data.get("evidence_refs", [])),
         )
 
 
@@ -200,6 +204,7 @@ class ControlItem:
     sample_frequency: str = ""
     control_method: str = ""
     reaction_plan: str = ""
+    evidence_refs: list[str] = field(default_factory=list)
 
     @property
     def step_no(self) -> str:
@@ -235,6 +240,7 @@ class ControlItem:
             sample_frequency=str(data.get("sample_frequency", "")),
             control_method=str(data.get("control_method", "")),
             reaction_plan=str(data.get("reaction_plan", "")),
+            evidence_refs=_string_list(data.get("evidence_refs", [])),
         )
 
 
@@ -273,6 +279,7 @@ class TraceLink:
     from_id: str
     to_id: str
     link_type: str = ""
+    evidence_refs: list[str] = field(default_factory=list)
 
     @classmethod
     def from_mapping(cls, data: Any) -> "TraceLink":
@@ -282,6 +289,7 @@ class TraceLink:
             from_id=str(data.get("from", data.get("from_id", ""))),
             to_id=str(data.get("to", data.get("to_id", ""))),
             link_type=str(data.get("link_type", "")),
+            evidence_refs=_string_list(data.get("evidence_refs", [])),
         )
 
 

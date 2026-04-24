@@ -13,12 +13,24 @@ from minos_core.validation import validate_chain
 
 ROOT = Path(__file__).resolve().parents[1]
 NS = {"main": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
-REQUIRED_SHEETS = ["摘要", "过程流程图", "PFMEA", "控制计划", "三表追溯矩阵"]
+REQUIRED_SHEETS = [
+    "摘要",
+    "质量门状态",
+    "过程流程图",
+    "PFMEA",
+    "控制计划",
+    "三表追溯矩阵",
+    "人工复核清单",
+]
 
 LEGACY_WORKBOOKS = {
-    "door_hinge": Path(r"C:\Users\fgtan\Desktop\知识库种子\门铰链\JLH01000300-门铰链.xlsx"),
+    "door_hinge": Path(
+        r"C:\Users\fgtan\Desktop\知识库种子\门铰链\JLH01000300-门铰链.xlsx"
+    ),
     "stamping": Path(r"C:\Users\fgtan\Desktop\知识库种子\冲压件\1004258-冲压件.xlsx"),
-    "limiter": Path(r"C:\Users\fgtan\Desktop\知识库种子\限位器\XWQ01000100-限位器.xlsx"),
+    "limiter": Path(
+        r"C:\Users\fgtan\Desktop\知识库种子\限位器\XWQ01000100-限位器.xlsx"
+    ),
 }
 
 
@@ -58,9 +70,13 @@ def _resolve_fixture_dir(result, expected_dir):
 
 def _read_fixture(fixture_dir):
     return {
-        "process_flow": json.loads((fixture_dir / "process_flow.json").read_text(encoding="utf-8")),
+        "process_flow": json.loads(
+            (fixture_dir / "process_flow.json").read_text(encoding="utf-8")
+        ),
         "pfmea": json.loads((fixture_dir / "pfmea.json").read_text(encoding="utf-8")),
-        "control_plan": json.loads((fixture_dir / "control_plan.json").read_text(encoding="utf-8")),
+        "control_plan": json.loads(
+            (fixture_dir / "control_plan.json").read_text(encoding="utf-8")
+        ),
     }
 
 
@@ -82,7 +98,9 @@ def _validation_messages(result):
 def _sheet_names(xlsx_path):
     with zipfile.ZipFile(xlsx_path) as archive:
         workbook = ElementTree.fromstring(archive.read("xl/workbook.xml"))
-    return [item.attrib["name"] for item in workbook.findall("main:sheets/main:sheet", NS)]
+    return [
+        item.attrib["name"] for item in workbook.findall("main:sheets/main:sheet", NS)
+    ]
 
 
 def _assert_basic_xlsx_structure(testcase, xlsx_path):
@@ -101,7 +119,9 @@ class LegacyExcelAdapterTests(unittest.TestCase):
 
         for sample_id, workbook_path in LEGACY_WORKBOOKS.items():
             with self.subTest(sample=sample_id):
-                self.assertTrue(workbook_path.exists(), f"missing legacy workbook: {workbook_path}")
+                self.assertTrue(
+                    workbook_path.exists(), f"missing legacy workbook: {workbook_path}"
+                )
                 with tempfile.TemporaryDirectory() as tmp:
                     fixture_dir = Path(tmp) / sample_id
                     result = convert_legacy_workbook(workbook_path, fixture_dir)
@@ -114,7 +134,9 @@ class LegacyExcelAdapterTests(unittest.TestCase):
 
                     chain = load_apqp_chain(fixture_dir)
                     validation_result = validate_chain(chain)
-                    self.assertTrue(validation_result, _validation_messages(validation_result))
+                    self.assertTrue(
+                        validation_result, _validation_messages(validation_result)
+                    )
 
                     workbook_output = Path(tmp) / f"{sample_id}-apqp.xlsx"
                     export_fixture(fixture_dir, workbook_output)

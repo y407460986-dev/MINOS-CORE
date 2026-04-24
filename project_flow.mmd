@@ -30,6 +30,8 @@ flowchart TD
     PL --> PL10[StageResult]
     PL1 --> PL11[evidence_bundle]
     PL11 --> PL2
+    PL2 --> PL12[analysis_bundle]
+    PL12 --> PL3
 
     AD --> AD1[OCR adapter boundary]
     AD --> AD2[LLM adapter boundary]
@@ -54,6 +56,8 @@ flowchart TD
     QG10 --> QG13[needs confirmation]
     QG --> QG14[ingest evidence entry gate]
     QG14 --> QG15[allow analyze]
+    QG --> QG16[analysis bundle gate]
+    QG16 --> QG17[allow generate_pfd]
 
     AD --> PL
     PL --> DC
@@ -73,6 +77,8 @@ flowchart TD
     T --> T10[Evidence coverage blocking]
     T --> T11[Ingest evidence bundle]
     T --> T12[Ingest AI-only blocking]
+    T --> T13[Analyze bundle extraction]
+    T --> T14[Analyze gate to generate_pfd]
     T1 --> G[MINOS-CORE rebuild gate]
     T2 --> G
     T3 --> G
@@ -85,3 +91,5 @@ flowchart TD
     T10 --> G
     T11 --> G
     T12 --> G
+    T13 --> G
+    T14 --> G

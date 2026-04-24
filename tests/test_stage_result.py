@@ -36,6 +36,20 @@ class StageResultTests(unittest.TestCase):
         self.assertTrue(result.quality_gate.can_continue)
         self.assertFalse(result.quality_gate.allow_user_export)
 
+    def test_run_stage_analyze_returns_analysis_bundle(self):
+        from minos_core.stage import run_stage
+
+        result = run_stage(FIXTURE_DIR, stage="analyze")
+
+        self.assertEqual(result.stage, "analyze")
+        self.assertEqual(result.status, "ok")
+        self.assertEqual(result.output["document_type"], "analysis_bundle")
+        self.assertIn("drawings", result.output)
+        self.assertIn("characteristics", result.output)
+        self.assertIn("process_clues", result.output)
+        self.assertTrue(result.quality_gate.can_continue)
+        self.assertFalse(result.quality_gate.allow_user_export)
+
     def test_stage_result_exposes_required_fields(self):
         from minos_core.stage import build_stage_context, build_stage_result
 

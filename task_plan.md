@@ -215,3 +215,20 @@
 2. Specify：ingest 的 `StageResult.output` 必须是 `evidence_bundle`，`can_continue` 表示可进入 analyze。
 3. Implement：新增 ingest 模块、stage 分支和 ingest/analyze 轻量质量门。
 4. Verify：完整 unittest 必须通过，validate/export 行为不得退化。
+
+## 第九阶段：analyze 阶段落地
+本阶段目标是把 Evidence bundle 转成结构化分析结果，为后续 `generate_pfd` 提供输入线索，但不生成正式 PFD/PFMEA/CP。
+
+## 第九阶段执行流程
+/// 1. 新增 `minos_core/analyze.py`，用稳定关键词规则抽取 drawing、characteristic、process_clue、pending field 和 AI/待确认项。
+/// 2. `run_stage(..., stage="analyze")` 支持 evidence_bundle、fixture dir、manual JSON、OCR text，必要时先执行 ingest。
+/// 3. 新增 `evaluate_analysis_bundle_gate`，判断 analysis bundle 是否可进入 `generate_pfd`。
+/// 4. analyze 质量门不允许用户导出，只表达是否可进入下一阶段。
+/// 5. 增加 `tests/test_analyze_stage.py`，覆盖 fixture、manual JSON、OCR text、AI/待确认项、pending fields、validate/export 不退化。
+/// 6. 运行完整 unittest、CLI validate/audit/export smoke 后提交。
+
+## 第九阶段 OpenSpec 四步闭环
+1. Define：目标是证据理解层，不是三表生成层。
+2. Specify：analysis bundle 必须包含 `drawings`、`characteristics`、`process_clues`、`pending_fields`、`ai_inferred_items`。
+3. Implement：只用规则抽取，不接 LLM，不猜 PFMEA/CP。
+4. Verify：完整 unittest 必须通过，apqp_chain 可抽出至少 1 个 drawing、2 个 characteristic、2 个 process clue。

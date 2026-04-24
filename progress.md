@@ -149,3 +149,20 @@
 /// 1. 运行 CLI validate/audit/export smoke。
 /// 2. 审核 git diff。
 /// 3. 提交第八阶段改动。
+
+## 第九阶段当前状态
+第九阶段已完成代码落地：`analyze` 已能把 Evidence bundle 转成结构化 analysis bundle。
+
+## 第九阶段已完成
+- 新增 `minos_core/analyze.py`。
+- `run_stage(..., stage="analyze")` 已支持 fixture dir、evidence bundle、manual JSON、OCR text。
+- analysis bundle 输出包含：`evidence`、`drawings`、`characteristics`、`process_clues`、`pending_fields`、`ai_inferred_items`、`metadata`。
+- 已实现关键词规则：drawing/revision 线索、material thickness、rivet height、push-out force、barcode、pack quantity、P10/P20/P30 工序线索等。
+- 新增 `evaluate_analysis_bundle_gate`，判断 analysis bundle 是否可进入 `generate_pfd`。
+- analyze 阶段 `allow_user_export=False`，只允许进入下一阶段，不允许直接导出给用户。
+- 已新增 `tests/test_analyze_stage.py`，完整 unittest 已扩展到 51 项并全部通过。
+
+## 第九阶段待验证
+/// 1. 运行 CLI validate/audit/export smoke。
+/// 2. 审核 git diff。
+/// 3. 提交第九阶段改动。

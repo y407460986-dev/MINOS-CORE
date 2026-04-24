@@ -93,6 +93,176 @@ def evaluate_stage_gate(
     )
 
 
+def evaluate_analysis_bundle_gate(
+    analysis_bundle: dict[str, Any],
+    stage: str = "analyze",
+) -> StageQualityGate:
+    validation = ChainValidationResult(ok=True, messages=[], chain=APQPChain())
+    audit = audit_chain(APQPChain())
+    report = _analysis_bundle_report(analysis_bundle)
+    manual_review_items = _analysis_manual_review_items(report, analysis_bundle)
+    can_continue = bool(report["ok"])
+    return StageQualityGate(
+        stage=stage,
+        can_continue=can_continue,
+        allow_user_export=False,
+        validation=validation,
+        audit=audit,
+        evidence_sufficient=bool(report["evidence_sufficient"]),
+        pending_fields=list(report["pending_fields"]),
+        ai_inferred_items=list(report["ai_inferred_refs"]),
+        manual_review_items=manual_review_items,
+        evidence_coverage=report,
+        missing_evidence_refs=list(report["missing_refs"]),
+        uncovered_evidence_items=list(report["uncovered_items"]),
+        needs_confirmation_items=list(report["needs_confirmation_refs"]),
+    )
+
+
+def _analysis_bundle_report(analysis_bundle: dict[str, Any]) -> dict[str, Any]:
+    required_blocks = [
+        "evidence",
+        "drawings",
+        "characteristics",
+        "process_clues",
+        "pending_fields",
+        "ai_inferred_items",
+    ]
+    missing_blocks = [name for name in required_blocks if name not in analysis_bundle]
+    evidence = analysis_bundle.get("evidence", [])
+    drawings = analysis_bundle.get("drawings", [])
+    characteristics = analysis_bundle.get("characteristics", [])
+    process_clues = analysis_bundle.get("process_clues", [])
+    pending_fields = _pending_field_paths(analysis_bundle.get("pending_fields", []))
+    ai_inferred = analysis_bundle.get("ai_inferred_items", [])
+    uncovered_items: list[str] = []
+    if missing_blocks:
+        uncovered_items.extend(f"missing_block:{name}" for name in missing_blocks)
+    if not drawings:
+        uncovered_items.append("drawings")
+    if not characteristics:
+        uncovered_items.append("characteristics")
+    if not process_clues:
+        uncovered_items.append("process_clues")
+
+    evidence_ids = [
+        str(item.get("evidence_id", "")) for item in evidence if isinstance(item, dict)
+    ]
+    non_ai_evidence = [
+        item
+        for item in evidence
+        if isinstance(item, dict)
+        and item.get("evidence_id")
+        and item.get("content")
+        and not item.get("ai_inferred", False)
+    ]
+    needs_confirmation_refs = [
+        str(item.get("evidence_id"))
+        for item in evidence
+        if isinstance(item, dict)
+        and item.get("needs_confirmation")
+        and item.get("evidence_id")
+    ]
+    ai_inferred_refs = [
+        str(item.get("evidence_id"))
+        for item in ai_inferred
+        if isinstance(item, dict) and item.get("evidence_id")
+    ]
+    all_ai = bool(evidence) and not non_ai_evidence
+    if all_ai:
+        uncovered_items.append("all_evidence_ai_inferred")
+
+    required_count = len(required_blocks)
+    covered_count = required_count - len(missing_blocks)
+    evidence_sufficient = bool(evidence and non_ai_evidence)
+    ok = bool(
+        not missing_blocks
+        and drawings
+        and characteristics
+        and process_clues
+        and evidence_sufficient
+        and not all_ai
+    )
+    return {
+        "stage_mode": "analyze",
+        "next_stage": "generate_pfd",
+        "required_items": required_count,
+        "covered_items": covered_count,
+        "coverage_ratio": covered_count / required_count if required_count else 0.0,
+        "required_blocks": required_blocks,
+        "missing_blocks": missing_blocks,
+        "route_candidate_count": len(process_clues),
+        "usable_route_candidate_count": len(process_clues),
+        "drawing_count": len(drawings),
+        "characteristic_count": len(characteristics),
+        "evidence_count": len(evidence),
+        "non_inferred_evidence_count": len(non_ai_evidence),
+        "pending_fields": pending_fields,
+        "uncovered_items": uncovered_items,
+        "missing_refs": [],
+        "ai_inferred_refs": ai_inferred_refs,
+        "needs_confirmation_refs": needs_confirmation_refs,
+        "evidence_ids": evidence_ids,
+        "legacy_mode": False,
+        "evidence_sufficient": evidence_sufficient,
+        "ok": ok,
+    }
+
+
+def _pending_field_paths(items: Any) -> list[str]:
+    if not isinstance(items, list):
+        return ["pending_fields"]
+    return [
+        f"{item.get('source_ref', '')}.{item.get('field', '')}".strip(".")
+        for item in items
+        if isinstance(item, dict) and item.get("field")
+    ]
+
+
+def _analysis_manual_review_items(
+    report: dict[str, Any], analysis_bundle: dict[str, Any]
+) -> list[AuditItem]:
+    items: list[AuditItem] = []
+    for value in report["uncovered_items"]:
+        items.append(
+            AuditItem(
+                value,
+                "analysis_incomplete",
+                "分析结果缺少进入 generate_pfd 的必要内容",
+                "blocker",
+            )
+        )
+    for value in report["pending_fields"]:
+        items.append(
+            AuditItem(
+                value, "analysis_pending_field", "分析结果存在待确认字段", "review"
+            )
+        )
+    for value in report["ai_inferred_refs"]:
+        items.append(
+            AuditItem(
+                value, "analysis_ai_inferred", "分析输入包含 AI 推断证据", "review"
+            )
+        )
+    for value in report["needs_confirmation_refs"]:
+        items.append(
+            AuditItem(
+                value, "analysis_needs_confirmation", "分析输入包含待确认证据", "review"
+            )
+        )
+    for index, item in enumerate(analysis_bundle.get("risksAndUncertainties", [])):
+        if isinstance(item, dict):
+            items.append(
+                AuditItem(
+                    f"risksAndUncertainties[{index}]",
+                    str(item.get("type", "risk")),
+                    str(item.get("description", item)),
+                    "review",
+                )
+            )
+    return items
+
+
 def _evidence_sufficient(chain: APQPChain) -> bool:
     return bool(_evidence_coverage_report(chain)["ok"])
 

@@ -96,3 +96,10 @@
 - `run_stage(stage="ingest")` 必须在构造 APQPChain 前提前返回，否则 manual JSON、OCR text、evidence-only bundle 会被错误当成 APQP 三表。
 - 在 ingest 阶段，部分 AI 推断证据和待确认证据可以作为提示进入后续分析；但如果全部证据都是 AI 推断，就不能进入 analyze。
 - FakeOCRAdapter 的价值是先验证 OCR 边界和 Evidence 落点，不引入真实 OCR 依赖。
+
+## 第九阶段发现
+- analyze 阶段必须保持“宁可少抽，不乱猜”：它只整理 drawing、characteristic、process clues，不推断 PFMEA/CP。
+- `analysis_bundle` 不是 APQPChain；因此需要专用 `evaluate_analysis_bundle_gate`，不能把分析结果硬塞进现有三表质量门。
+- 当前规则抽取能覆盖 fixture 中的 material thickness、rivet height、push-out force、barcode、pack quantity 和 P10/P20/P30 工序线索。
+- 如果证据中明确写了 `Rev A/B/C`，系统可以抽出 revision；这种情况下不应再把 revision 标为 pending。
+- analyze 阶段仍不允许用户导出，只能表示是否可以进入 `generate_pfd`。

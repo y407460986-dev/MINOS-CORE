@@ -256,3 +256,29 @@ fixture 表达一条最小但完整的 APQP 链：
 - ingest 阶段 `can_continue=True` 表示可进入 analyze，且永远不允许用户导出。
 - 空 evidence 和全部 AI 推断 evidence 必须阻断 ingest。
 - validate/export 仍保持原来的 APQP 三表 evidence_refs 覆盖质量门。
+
+## 第九阶段新增
+本阶段新增 analyze 阶段，把 Evidence bundle 转成结构化分析结果。
+
+新增文件：
+- `minos_core/analyze.py`
+- `tests/test_analyze_stage.py`
+
+更新文件：
+- `minos_core/stage.py`
+- `minos_core/quality_gates.py`
+- `minos_core/__init__.py`
+- `tests/test_stage_result.py`
+- `task_plan.md`
+- `progress.md`
+- `findings.md`
+- `project_flow.mmd`
+- `rebuild_manifest.md`
+
+第九阶段测试契约：
+- `run_stage(..., stage="analyze")` 必须返回 `analysis_bundle`。
+- analysis bundle 必须包含 `evidence`、`drawings`、`characteristics`、`process_clues`、`pending_fields`、`ai_inferred_items`。
+- `tests/fixtures/apqp_chain` 至少能抽出 1 个 drawing、2 个 characteristic、2 个 process clue。
+- manual JSON 和 OCR text 可以直接进入 analyze。
+- analyze 阶段不允许用户导出，但可在质量门通过时进入 `generate_pfd`。
+- validate/export 旧链路不退化。

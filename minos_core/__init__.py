@@ -1,6 +1,7 @@
 """MINOS Core public API."""
 
 from .audit import AuditItem, AuditReport, audit_chain
+from .analyze import analyze_evidence_bundle
 from .config import SampleMetadata, list_samples, load_sample_metadata
 from .domain import (
     APQPChain,
@@ -14,7 +15,11 @@ from .domain import (
     TraceLink,
 )
 from .ingest import ingest_evidence_bundle
-from .quality_gates import StageQualityGate, evaluate_stage_gate
+from .quality_gates import (
+    StageQualityGate,
+    evaluate_analysis_bundle_gate,
+    evaluate_stage_gate,
+)
 from .stage import StageContext, StageResult, run_stage
 from .validation import validate_chain
 
@@ -34,7 +39,9 @@ __all__ = [
     "StageQualityGate",
     "StageResult",
     "TraceLink",
+    "analyze_evidence_bundle",
     "audit_chain",
+    "evaluate_analysis_bundle_gate",
     "evaluate_stage_gate",
     "ingest_evidence_bundle",
     "list_samples",

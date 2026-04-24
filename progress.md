@@ -80,3 +80,21 @@
 /// 2. 运行 `python -m minos_core.cli audit --input tests\fixtures\limiter`。
 /// 3. 运行 `python -m unittest discover -s tests -v`。
 /// 4. 审核 git diff，确认改动聚焦 limiter 链接质量和回归门槛。
+
+## 第五阶段当前状态
+第五阶段已完成代码落地：MINOS-CORE 已按 Domain Core、Pipeline、Adapters、Quality Gates 四层拆清依赖方向。
+
+## 第五阶段已完成
+- Domain Core 已补齐业务对象：`Drawing`、`Characteristic`、`Evidence`，并保留原有 `Product`、`ProcessStep`、`FailureMode`、`ControlItem`、`TraceLink`。
+- Domain Core 不再拥有 `_read_json` 文件读取；旧的 `load_apqp_chain` 仅作为兼容 wrapper 转发到 Adapter。
+- 新增 `minos_core/adapters/fixture_json.py`，统一负责标准 fixture JSON / 目录读取。
+- `pipeline.py` 新增固定 `PIPELINE_STAGES`，并统一调用 fixture adapter。
+- `cli.py` 删除重复 fixture loader，改用 fixture adapter。
+- 新增 `minos_core/quality_matching.py`，让 legacy adapter 与 audit 共用同一套质量工程文本匹配规则。
+- 新增 `minos_core/quality_gates.py`，暴露阶段质量门 `evaluate_stage_gate` 和 `StageQualityGate`。
+- 已补测试锁住：Domain Core 无文件 IO、fixture adapter 负责读取、Pipeline 阶段顺序、Quality Gate 阶段准入。
+
+## 第五阶段待验证
+/// 1. 运行 `python -m unittest discover -s tests -v`。
+/// 2. 运行 CLI validate/export/audit smoke，确认旧入口仍可用。
+/// 3. 审核 git diff，确认没有把 OCR/LLM 接进 Domain Core。

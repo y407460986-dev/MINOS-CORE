@@ -189,6 +189,18 @@ class QualityAuditContractTests(unittest.TestCase):
         self.assertLessEqual(counts["weak_links"], 10)
         self.assertLessEqual(counts["manual_review_items"], 18)
 
+    def test_stage_quality_gate_reports_next_stage_and_export_readiness(self):
+        gates_module = _import_first("minos_core.quality_gates")
+        evaluate_stage_gate = _get_first(gates_module, "evaluate_stage_gate")
+
+        gate = evaluate_stage_gate(_load_fixture("apqp_chain"), stage="validate")
+
+        self.assertTrue(gate.can_continue)
+        self.assertTrue(gate.allow_user_export)
+        self.assertTrue(gate.evidence_sufficient)
+        self.assertEqual(gate.pending_fields, [])
+        self.assertIn("process_steps", gate.audit.counts)
+
 
 if __name__ == "__main__":
     unittest.main()

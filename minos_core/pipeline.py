@@ -1,18 +1,30 @@
-"""Pipeline entry points for APQP fixture validation and export."""
+"""Pipeline entry points for APQP workflow orchestration."""
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any
 
+from .adapters.fixture_json import load_fixture_payload
 from .exporters import export_apqp_workbook
+
+
+PIPELINE_STAGES = (
+    "ingest",
+    "analyze",
+    "generate_pfd",
+    "brainstorm_failure_modes",
+    "generate_pfmea",
+    "generate_control_plan",
+    "validate",
+    "export",
+)
 
 
 def validate_fixture(fixture: str | Path | dict[str, Any]) -> Any:
     """Load an APQP fixture, build the domain chain, and validate it."""
 
-    payload = _load_fixture(fixture)
+    payload = load_fixture_payload(fixture)
     chain = _build_chain(payload)
     result = _validate_chain(chain)
     if not result:
@@ -20,33 +32,26 @@ def validate_fixture(fixture: str | Path | dict[str, Any]) -> Any:
     return result
 
 
-def export_fixture(fixture: str | Path | dict[str, Any], output_path: str | Path | None = None) -> Path:
+def export_fixture(
+    fixture: str | Path | dict[str, Any], output_path: str | Path | None = None
+) -> Path:
     """Validate an APQP fixture and export the fixed Chinese workbook."""
 
-    payload = _load_fixture(fixture)
+    payload = load_fixture_payload(fixture)
     chain = _build_chain(payload)
     result = _validate_chain(chain)
     if not result:
         raise ValueError("APQP chain validation failed:\n" + "\n".join(result.messages))
-    destination = Path(output_path) if output_path is not None else _default_output_path(fixture, chain)
+    destination = (
+        Path(output_path)
+        if output_path is not None
+        else _default_output_path(fixture, chain)
+    )
     return export_apqp_workbook(chain, destination)
 
 
 def _load_fixture(fixture: str | Path | dict[str, Any]) -> dict[str, Any]:
-    if isinstance(fixture, dict):
-        return fixture
-    path = Path(fixture)
-    if path.is_dir():
-        return {
-            "process_flow": _load_fixture(path / "process_flow.json"),
-            "pfmea": _load_fixture(path / "pfmea.json"),
-            "control_plan": _load_fixture(path / "control_plan.json"),
-        }
-    with path.open("r", encoding="utf-8") as handle:
-        data = json.load(handle)
-    if not isinstance(data, dict):
-        raise ValueError("fixture must be a JSON object")
-    return data
+    return load_fixture_payload(fixture)
 
 
 def _build_chain(payload: dict[str, Any]) -> Any:

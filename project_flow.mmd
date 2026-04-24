@@ -1,47 +1,55 @@
 flowchart TD
-    A[MINOS-CORE rebuild scope] --> B[Sample configs]
-    A --> C[APQP chain fixtures]
-    A --> D[Unittest contract tests]
-    A --> E[Rebuild docs]
+    A[MINOS-CORE four layer architecture] --> DC[Domain Core]
+    A --> PL[Pipeline]
+    A --> AD[Adapters]
+    A --> QG[Quality Gates]
 
-    B --> B1[Pure metadata only]
-    B1 --> B2[No local paths]
-    B1 --> B3[No process rules]
-    B1 --> B4[No specs or characteristics]
+    DC --> DC1[Product]
+    DC --> DC2[Drawing]
+    DC --> DC3[Characteristic]
+    DC --> DC4[ProcessStep]
+    DC --> DC5[FailureMode]
+    DC --> DC6[ControlItem]
+    DC --> DC7[Evidence]
+    DC --> DC8[TraceLink]
+    DC --> DC9[No file IO]
 
-    C --> C1[process_flow.json]
-    C --> C2[pfmea.json]
-    C --> C3[control_plan.json]
-    C1 --> C4[PFD to PFMEA trace]
-    C2 --> C5[PFMEA to CP trace]
-    C3 --> C6[Reaction plan and control method]
+    PL --> PL1[ingest]
+    PL --> PL2[analyze]
+    PL --> PL3[generate_pfd]
+    PL --> PL4[brainstorm_failure_modes]
+    PL --> PL5[generate_pfmea]
+    PL --> PL6[generate_control_plan]
+    PL --> PL7[validate]
+    PL --> PL8[export]
 
-    D --> D1[Domain loading]
-    D --> D2[Validation success]
-    D --> D3[Mandatory PFMEA missing CP failure]
-    D --> D4[XLSX sheet name dedupe]
-    D --> D5[XLSX zip structure]
-    D --> D6[APQP workbook 5 sheets]
-    D --> D7[CLI list validate export]
-    D --> D8[Limiter audit quality gate]
+    AD --> AD1[OCR adapter future]
+    AD --> AD2[LLM adapter future]
+    AD --> AD3[legacy Excel reader]
+    AD --> AD4[fixture JSON file system]
+    AD --> AD5[XLSX exporter]
 
-    E --> E1[task_plan.md]
-    E --> E2[progress.md]
-    E --> E3[findings.md]
-    E --> E4[rebuild_manifest.md]
+    QG --> QG1[evidence sufficient]
+    QG --> QG2[pending fields]
+    QG --> QG3[AI inferred content]
+    QG --> QG4[can enter next stage]
+    QG --> QG5[allow user export]
+    QG --> QG6[validation hard gate]
+    QG --> QG7[audit soft gate]
 
-    D1 --> F[minos_core.domain contract]
-    D2 --> G[minos_core.validation contract]
-    D4 --> H[minos_core exporter contract]
-    D7 --> I[minos_core.cli contract]
-    D8 --> N[Phase 4 limiter link quality]
+    AD --> PL
+    PL --> DC
+    QG --> DC
+    PL --> QG
+    PL --> AD
 
-    F --> J[Core worker implements]
-    G --> J
-    H --> K[Exporter worker implements]
-    I --> J
-
-    J --> L[Run full unittest suite]
-    K --> L
-    N --> L
-    L --> M[MINOS-CORE rebuild gate]
+    T[Unittest regression gates] --> T1[Domain object contract]
+    T --> T2[Fixture adapter loading]
+    T --> T3[Pipeline stage order]
+    T --> T4[Limiter audit quality gate]
+    T --> T5[CLI validate export]
+    T1 --> G[MINOS-CORE rebuild gate]
+    T2 --> G
+    T3 --> G
+    T4 --> G
+    T5 --> G

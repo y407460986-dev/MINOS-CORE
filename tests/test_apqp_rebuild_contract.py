@@ -27,7 +27,9 @@ def _import_first(*module_names):
             return importlib.import_module(module_name)
         except ModuleNotFoundError as exc:
             errors.append(f"{module_name}: {exc}")
-    raise AssertionError("Cannot import expected MINOS-CORE module:\n" + "\n".join(errors))
+    raise AssertionError(
+        "Cannot import expected MINOS-CORE module:\n" + "\n".join(errors)
+    )
 
 
 def _get_first(module, *names):
@@ -78,8 +80,7 @@ def _sheet_names(xlsx_path):
     with zipfile.ZipFile(xlsx_path) as archive:
         workbook = ElementTree.fromstring(archive.read("xl/workbook.xml"))
     return [
-        item.attrib["name"]
-        for item in workbook.findall("main:sheets/main:sheet", NS)
+        item.attrib["name"] for item in workbook.findall("main:sheets/main:sheet", NS)
     ]
 
 
@@ -97,6 +98,26 @@ def _assert_basic_xlsx_structure(testcase, xlsx_path):
 
 
 class DomainAndValidationContractTests(unittest.TestCase):
+    def test_domain_core_exposes_business_objects_without_file_io(self):
+        domain_module = _import_first("minos_core.domain")
+        for name in (
+            "Product",
+            "Drawing",
+            "Characteristic",
+            "ProcessStep",
+            "FailureMode",
+            "ControlItem",
+            "Evidence",
+            "TraceLink",
+        ):
+            self.assertTrue(
+                hasattr(domain_module, name), f"missing domain object: {name}"
+            )
+        self.assertFalse(
+            hasattr(domain_module, "_read_json"),
+            "Domain Core must not own fixture file IO",
+        )
+
     def test_domain_loader_reads_complete_apqp_fixture(self):
         domain_module = _import_first("minos_core.domain")
         load_chain = _get_first(
@@ -115,10 +136,24 @@ class DomainAndValidationContractTests(unittest.TestCase):
         self.assertEqual(len(_as_mapping(chain["pfmea"])["rows"]), 4)
         self.assertEqual(len(_as_mapping(chain["control_plan"])["rows"]), 4)
 
+    def test_fixture_json_adapter_owns_fixture_file_loading(self):
+        fixture_adapter = _import_first("minos_core.adapters.fixture_json")
+        load_payload = _get_first(
+            fixture_adapter, "load_fixture_payload", "load_apqp_chain"
+        )
+
+        chain = load_payload(FIXTURE_DIR)
+
+        self.assertIn("process_flow", chain)
+        self.assertIn("pfmea", chain)
+        self.assertIn("control_plan", chain)
+
     def test_validation_accepts_complete_fixture(self):
         domain_module = _import_first("minos_core.domain")
         validation_module = _import_first("minos_core.validation")
-        load_chain = _get_first(domain_module, "load_apqp_chain", "load_domain_bundle", "load_chain")
+        load_chain = _get_first(
+            domain_module, "load_apqp_chain", "load_domain_bundle", "load_chain"
+        )
         validate_chain = _get_first(
             validation_module,
             "validate_apqp_chain",
@@ -145,13 +180,16 @@ class DomainAndValidationContractTests(unittest.TestCase):
         }
         chain["control_plan"] = copy.deepcopy(chain["control_plan"])
         chain["control_plan"]["rows"] = [
-            row for row in chain["control_plan"]["rows"]
+            row
+            for row in chain["control_plan"]["rows"]
             if row["pfmea_id"] != "PFMEA-P20-002"
         ]
 
         result = validate_chain(chain)
 
-        self.assertFalse(_validation_ok(result), "mandatory PFMEA row without CP coverage must fail")
+        self.assertFalse(
+            _validation_ok(result), "mandatory PFMEA row without CP coverage must fail"
+        )
         self.assertIn("PFMEA-P20-002", _validation_messages(result))
 
 
@@ -166,7 +204,11 @@ class XlsxExportContractTests(unittest.TestCase):
         long_name = "Duplicate/Sheet*Name That Is Longer Than Thirty One Characters"
         sheets = [
             {"name": long_name, "headers": ["id", "value"], "rows": [["1", "alpha"]]},
-            {"name": long_name.lower(), "headers": ["id", "value"], "rows": [["2", "beta"]]},
+            {
+                "name": long_name.lower(),
+                "headers": ["id", "value"],
+                "rows": [["2", "beta"]],
+            },
             {"name": long_name, "headers": ["id", "value"], "rows": [["3", "gamma"]]},
         ]
         with tempfile.TemporaryDirectory() as tmp:
@@ -241,11 +283,32 @@ class CliContractTests(unittest.TestCase):
                 str(output_path),
             )
             self.assertEqual(export_result.returncode, 0, export_result.stderr)
-            self.assertTrue(output_path.exists(), export_result.stdout + export_result.stderr)
+            self.assertTrue(
+                output_path.exists(), export_result.stdout + export_result.stderr
+            )
             self.assertEqual(
                 _sheet_names(output_path),
                 ["摘要", "过程流程图", "PFMEA", "控制计划", "三表追溯矩阵"],
             )
+
+
+class PipelineArchitectureTests(unittest.TestCase):
+    def test_pipeline_declares_fixed_stage_order(self):
+        pipeline_module = _import_first("minos_core.pipeline")
+
+        self.assertEqual(
+            pipeline_module.PIPELINE_STAGES,
+            (
+                "ingest",
+                "analyze",
+                "generate_pfd",
+                "brainstorm_failure_modes",
+                "generate_pfmea",
+                "generate_control_plan",
+                "validate",
+                "export",
+            ),
+        )
 
 
 if __name__ == "__main__":

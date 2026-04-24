@@ -145,3 +145,34 @@ fixture 表达一条最小但完整的 APQP 链：
 /// 1. `python -m minos_core.cli validate --input tests\fixtures\limiter`
 /// 2. `python -m minos_core.cli audit --input tests\fixtures\limiter`
 /// 3. `python -m unittest discover -s tests -v`
+
+## 第五阶段新增
+本阶段将 MINOS-CORE 的架构边界落为四层：Domain Core、Pipeline、Adapters、Quality Gates。
+
+新增文件：
+- `minos_core/adapters/fixture_json.py`
+- `minos_core/quality_matching.py`
+- `minos_core/quality_gates.py`
+
+更新文件：
+- `minos_core/domain.py`
+- `minos_core/pipeline.py`
+- `minos_core/cli.py`
+- `minos_core/audit.py`
+- `minos_core/adapters/legacy_excel.py`
+- `minos_core/adapters/__init__.py`
+- `minos_core/__init__.py`
+- `tests/test_apqp_rebuild_contract.py`
+- `tests/test_quality_audit.py`
+- `task_plan.md`
+- `progress.md`
+- `findings.md`
+- `project_flow.mmd`
+- `rebuild_manifest.md`
+
+第五阶段测试契约：
+- Domain Core 暴露 `Product`、`Drawing`、`Characteristic`、`ProcessStep`、`FailureMode`、`ControlItem`、`Evidence`、`TraceLink`。
+- Domain Core 不拥有 `_read_json` 文件 IO。
+- `minos_core.adapters.fixture_json` 负责标准 fixture 文件读取。
+- `pipeline.PIPELINE_STAGES` 固定为八阶段流程。
+- `quality_gates.evaluate_stage_gate` 返回证据、待确认字段、AI 推断、是否可继续、是否可导出的阶段门结果。

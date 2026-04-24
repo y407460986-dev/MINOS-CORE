@@ -1,0 +1,214 @@
+{
+  "document_type": "process_flow",
+  "schema_version": "minos-core.fixture.v1",
+  "product": {
+    "sample_id": "limiter",
+    "part_number": "LIMITER",
+    "part_name": "限位器",
+    "revision": "",
+    "phase": "legacy-converted"
+  },
+  "steps": [
+    {
+      "process_step_id": "P00",
+      "sequence": 0,
+      "operation": "来料检验",
+      "process_function": "外购件检验",
+      "owner": "",
+      "input_refs": [],
+      "output_refs": [],
+      "special_characteristics": [],
+      "source_row": 10
+    },
+    {
+      "process_step_id": "P01",
+      "sequence": 1,
+      "operation": "入库",
+      "process_function": "合格入库",
+      "owner": "",
+      "input_refs": [],
+      "output_refs": [],
+      "special_characteristics": [],
+      "source_row": 11
+    },
+    {
+      "process_step_id": "P02",
+      "sequence": 2,
+      "operation": "投料",
+      "process_function": "发料进行生产",
+      "owner": "",
+      "input_refs": [],
+      "output_refs": [],
+      "special_characteristics": [],
+      "source_row": 12
+    },
+    {
+      "process_step_id": "P10",
+      "sequence": 10,
+      "operation": "壳体涂油",
+      "process_function": "将壳体放入设备进行涂油",
+      "owner": "",
+      "input_refs": [],
+      "output_refs": [],
+      "special_characteristics": [
+        "涂油量",
+        "注油压力\n柱塞距离"
+      ],
+      "source_row": 13
+    },
+    {
+      "process_step_id": "P20",
+      "sequence": 20,
+      "operation": "限位臂注油",
+      "process_function": "将限位臂放入设备进行涂油",
+      "owner": "",
+      "input_refs": [],
+      "output_refs": [],
+      "special_characteristics": [
+        "涂油量",
+        "注油压力\n柱塞距离"
+      ],
+      "source_row": 16
+    },
+    {
+      "process_step_id": "P30",
+      "sequence": 30,
+      "operation": "壳体铆接",
+      "process_function": "将滑块弹簧放入壳体，完成后将壳体小总成放入夹具定位体，将另一半壳体小总成插入铆钉并放入夹具的上定位块，将限位臂放入夹具中，启动按钮",
+      "owner": "",
+      "input_refs": [],
+      "output_refs": [],
+      "special_characteristics": [
+        "无裂纹，壳体无损伤",
+        "壳体合装压力/限位块行程"
+      ],
+      "source_row": 19
+    },
+    {
+      "process_step_id": "P40",
+      "sequence": 40,
+      "operation": "压入销轴",
+      "process_function": "将销轴压入支架及限位臂孔内",
+      "owner": "",
+      "input_refs": [],
+      "output_refs": [],
+      "special_characteristics": [
+        "无间隙",
+        "压入压力/限位块行程"
+      ],
+      "source_row": 22
+    },
+    {
+      "process_step_id": "P50",
+      "sequence": 50,
+      "operation": "铆接并打标",
+      "process_function": "铆接并激光打标",
+      "owner": "",
+      "input_refs": [],
+      "output_refs": [],
+      "special_characteristics": [
+        "铆接高度/打标内容",
+        "铆接时间/铆接压力"
+      ],
+      "source_row": 25
+    },
+    {
+      "process_step_id": "P60",
+      "sequence": 60,
+      "operation": "扭力检测",
+      "process_function": "限位臂总成放入设备进行力矩检测",
+      "owner": "",
+      "input_refs": [],
+      "output_refs": [],
+      "special_characteristics": [
+        "支架力矩",
+        "SC",
+        "检测速度"
+      ],
+      "source_row": 28
+    },
+    {
+      "process_step_id": "P70",
+      "sequence": 70,
+      "operation": "检查+包装",
+      "process_function": "产品包装及检查",
+      "owner": "",
+      "input_refs": [],
+      "output_refs": [],
+      "special_characteristics": [],
+      "source_row": 30
+    },
+    {
+      "process_step_id": "P80",
+      "sequence": 80,
+      "operation": "入库",
+      "process_function": "入库",
+      "owner": "",
+      "input_refs": [],
+      "output_refs": [],
+      "special_characteristics": [
+        "FIFO"
+      ],
+      "source_row": 33
+    },
+    {
+      "process_step_id": "P90",
+      "sequence": 90,
+      "operation": "发运",
+      "process_function": "发运",
+      "owner": "",
+      "input_refs": [],
+      "output_refs": [],
+      "special_characteristics": [
+        "FIFO"
+      ],
+      "source_row": 34
+    }
+  ],
+  "links": [
+    {
+      "from": "P00",
+      "to": "P01"
+    },
+    {
+      "from": "P01",
+      "to": "P02"
+    },
+    {
+      "from": "P02",
+      "to": "P10"
+    },
+    {
+      "from": "P10",
+      "to": "P20"
+    },
+    {
+      "from": "P20",
+      "to": "P30"
+    },
+    {
+      "from": "P30",
+      "to": "P40"
+    },
+    {
+      "from": "P40",
+      "to": "P50"
+    },
+    {
+      "from": "P50",
+      "to": "P60"
+    },
+    {
+      "from": "P60",
+      "to": "P70"
+    },
+    {
+      "from": "P70",
+      "to": "P80"
+    },
+    {
+      "from": "P80",
+      "to": "P90"
+    }
+  ]
+}

@@ -1,38 +1,31 @@
 # MINOS-CORE 重建进度
 
 ## 当前状态
-本轮 fixture、测试和文档工作已进入收尾验证阶段。核心实现与 exporter 不在本轮写入范围内，相关行为由新增 unittest 契约测试约束。
+第二阶段已开始：真实样本迁移的测试与文档已按允许范围更新。adapter 实现由另一个 worker 负责，本轮只约束公开契约并保留验收入口。
 
 ## 已完成
 - 已确认当前工作树存在并行改动风险，未回退、未覆盖允许范围外文件。
-- 已将 `configs/samples/door_hinge.json` 清理为纯元数据。
-- 已将 `configs/samples/limiter.json` 清理为纯元数据。
-- 已将 `configs/samples/stamping.json` 清理为纯元数据。
-- 已新增 `tests/fixtures/apqp_chain/process_flow.json`。
-- 已新增 `tests/fixtures/apqp_chain/pfmea.json`。
-- 已新增 `tests/fixtures/apqp_chain/control_plan.json`。
-- 已新增 `tests/test_apqp_rebuild_contract.py`，覆盖：
-  - domain 加载完整 APQP fixture。
-  - validation 完整链路成功。
-  - mandatory PFMEA 缺 CP 覆盖失败。
-  - xlsx sheet 名清洗、截断和去重。
-  - xlsx zip 基本结构。
-  - APQP 工作簿 5 张固定 sheet。
-  - CLI `list`、`validate`、`export`。
-- 已重写 `task_plan.md`、`progress.md`、`findings.md`、`project_flow.mmd` 为 MINOS-CORE 重建口径。
-- 已新增 `rebuild_manifest.md` 记录交付清单和契约边界。
+- 已新增 `tests/test_legacy_excel_adapter.py`，覆盖三个真实 Excel 源：
+  - 门铰链：`JLH01000300-门铰链.xlsx`
+  - 冲压件：`1004258-冲压件.xlsx`
+  - 限位器：`XWQ01000100-限位器.xlsx`
+- 测试会对每个样本执行：`convert_legacy_workbook` 转 tempfile fixture、JSON 解析、`load_apqp_chain`、`validate_chain`、`export_fixture`、xlsx zip 结构检查和 5 sheet 顺序检查。
+- 已更新 `task_plan.md`，明确第二阶段目标：真实样本转标准 fixture，OCR/LLM 仍保持 adapter 外挂。
+- 已更新 `findings.md`，补充真实样本 workbook 迁移风险和验收重点。
+- 已更新 `rebuild_manifest.md`，记录新增测试和第二阶段文档变更。
 
 ## 当前待验证
-/// 1. 校验所有 JSON 文件能被 Python `json` 模块解析。
-/// 2. 使用 unittest discovery 确认测试文件可被发现。
-/// 3. 如核心代码尚未就绪，记录测试运行失败的真实原因，不把失败包装成完成。
-/// 4. 用 git status 审核修改范围是否仍在允许清单内。
+/// 1. adapter worker 暴露 `minos_core.adapters.legacy_excel.convert_legacy_workbook` 或 `minos_core.adapters.legacy.convert_legacy_workbook`。
+/// 2. 运行 `python -m unittest tests.test_legacy_excel_adapter -v`。
+/// 3. 如果测试失败，按原始错误判断是源文件缺失、adapter 接口缺失、转换字段缺失、validation 不通过还是 xlsx 打开性问题。
+/// 4. 用 git status 审核修改范围是否仅限本轮允许的 5 个文件。
 
 ## 风险
-- 当前读取到的 `minos_core` 目录尚未暴露 domain、validation、exporter、CLI Python 文件；如果其他 worker 尚未提交核心实现，契约测试会因 import 失败而失败。
-- 本轮没有写核心代码，因此不会自行修复上述失败，只记录为跨 worker 对齐事项。
+- 本轮没有写 adapter，因此在 adapter worker 完成前，真实样本测试会因 `convert_legacy_workbook` 缺失而失败。
+- 三个真实 workbook 都存在大量合并单元格和向下继承语义，adapter 若只读显式单元格值，可能丢失工序编号、PFMEA 行归属或控制计划归属。
+- validation 是硬门槛：mandatory/high-risk PFMEA 必须进入控制计划，否则不能把转换结果视为成功。
 
 ## 下一步
-- 等核心代码 worker 暴露 `minos_core.domain`、`minos_core.validation`、`minos_core.exporters.*`、`minos_core.cli` 后，运行 `python -m unittest discover -s tests -v`。
-- 若公开函数名不同，优先让核心代码对齐测试契约；只有在团队确认新命名更合理时，再更新测试适配层。
-- exporter worker 需要确保生成的 APQP 工作簿 sheet 顺序固定，并保证 sheet 名唯一化发生在底层 xlsx writer。
+- 等 adapter worker 完成后，优先跑新增真实样本测试。
+- 若三个样本中某个 validation 不通过，先修 adapter 的映射和继承规则，不把失败隐藏在 core 或 exporter 里。
+- 真实样本通过后，再考虑把转换出的 fixture 固化为回归样本；当前测试仍保持 tempfile 输出。

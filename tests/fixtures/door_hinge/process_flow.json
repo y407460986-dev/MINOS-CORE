@@ -1,0 +1,154 @@
+{
+  "document_type": "process_flow",
+  "schema_version": "minos-core.fixture.v1",
+  "product": {
+    "sample_id": "door_hinge",
+    "part_number": "DOOR_HINGE",
+    "part_name": "门铰链",
+    "revision": "",
+    "phase": "legacy-converted"
+  },
+  "steps": [
+    {
+      "process_step_id": "P00",
+      "sequence": 0,
+      "operation": "来料检验",
+      "process_function": "产品检验",
+      "owner": "",
+      "input_refs": [],
+      "output_refs": [],
+      "special_characteristics": [],
+      "source_row": 8
+    },
+    {
+      "process_step_id": "P01",
+      "sequence": 1,
+      "operation": "入库",
+      "process_function": "合格产品入库",
+      "owner": "",
+      "input_refs": [],
+      "output_refs": [],
+      "special_characteristics": [],
+      "source_row": 9
+    },
+    {
+      "process_step_id": "P02",
+      "sequence": 2,
+      "operation": "投料",
+      "process_function": "发料进行生产",
+      "owner": "",
+      "input_refs": [],
+      "output_refs": [],
+      "special_characteristics": [],
+      "source_row": 10
+    },
+    {
+      "process_step_id": "P10",
+      "sequence": 10,
+      "operation": "衬套预装并压入精整",
+      "process_function": "将衬套预穿后放入夹具中压入、精整",
+      "owner": "",
+      "input_refs": [],
+      "output_refs": [],
+      "special_characteristics": [],
+      "source_row": 11
+    },
+    {
+      "process_step_id": "P20",
+      "sequence": 20,
+      "operation": "压印",
+      "process_function": "对车门件进行标记压印打标",
+      "owner": "",
+      "input_refs": [],
+      "output_refs": [],
+      "special_characteristics": [
+        "无漏压印",
+        "限位块行程"
+      ],
+      "source_row": 14
+    },
+    {
+      "process_step_id": "P30",
+      "sequence": 30,
+      "operation": "压入销轴",
+      "process_function": "将车身件、车门件预装穿入销轴后放入工装进行滚花压入",
+      "owner": "",
+      "input_refs": [],
+      "output_refs": [],
+      "special_characteristics": [],
+      "source_row": 17
+    },
+    {
+      "process_step_id": "P40",
+      "sequence": 40,
+      "operation": "总成铆接",
+      "process_function": "将上述零件放入夹具进行销轴铆接。",
+      "owner": "",
+      "input_refs": [],
+      "output_refs": [],
+      "special_characteristics": [
+        "铆接高度",
+        "铆接时间\n铆接压力"
+      ],
+      "source_row": 20
+    },
+    {
+      "process_step_id": "P50",
+      "sequence": 50,
+      "operation": "包装",
+      "process_function": "产品包装",
+      "owner": "",
+      "input_refs": [],
+      "output_refs": [],
+      "special_characteristics": [],
+      "source_row": 23
+    },
+    {
+      "process_step_id": "P60",
+      "sequence": 60,
+      "operation": "入库",
+      "process_function": "入库",
+      "owner": "",
+      "input_refs": [],
+      "output_refs": [],
+      "special_characteristics": [
+        "FIFO"
+      ],
+      "source_row": 24
+    }
+  ],
+  "links": [
+    {
+      "from": "P00",
+      "to": "P01"
+    },
+    {
+      "from": "P01",
+      "to": "P02"
+    },
+    {
+      "from": "P02",
+      "to": "P10"
+    },
+    {
+      "from": "P10",
+      "to": "P20"
+    },
+    {
+      "from": "P20",
+      "to": "P30"
+    },
+    {
+      "from": "P30",
+      "to": "P40"
+    },
+    {
+      "from": "P40",
+      "to": "P50"
+    },
+    {
+      "from": "P50",
+      "to": "P60"
+    }
+  ]
+}

@@ -1,5 +1,30 @@
 # MINOS-CORE 重建交付清单
 
+## 第二阶段新增
+本阶段新增真实样本迁移验收，不实现 adapter，只用测试约束 adapter 输出必须进入 MINOS-CORE 标准链路。
+
+新增文件：
+- `tests/test_legacy_excel_adapter.py`
+
+更新文档：
+- `task_plan.md`
+- `progress.md`
+- `findings.md`
+- `rebuild_manifest.md`
+
+真实源路径：
+- `C:\Users\fgtan\Desktop\知识库种子\门铰链\JLH01000300-门铰链.xlsx`
+- `C:\Users\fgtan\Desktop\知识库种子\冲压件\1004258-冲压件.xlsx`
+- `C:\Users\fgtan\Desktop\知识库种子\限位器\XWQ01000100-限位器.xlsx`
+
+新增测试契约：
+- `convert_legacy_workbook(workbook_path, fixture_dir)` 将真实 workbook 转为标准 fixture 目录。
+- fixture 目录必须包含 `process_flow.json`、`pfmea.json`、`control_plan.json`。
+- 每套 fixture 必须通过 `load_apqp_chain` 和 `validate_chain`。
+- 每套 fixture 必须能用 `export_fixture` 导出中文 APQP workbook。
+- workbook 必须包含固定 5 张 sheet：摘要、过程流程图、PFMEA、控制计划、三表追溯矩阵。
+- 所有测试输出写入 `tempfile`，不写固定 `output/`。
+
 ## 本轮范围
 本轮只交付 fixture、测试和文档资产，供并行的核心代码与 exporter worker 对齐。未写入 `minos_core` 实现代码，未删除文件。
 
@@ -23,6 +48,7 @@ fixture 表达一条最小但完整的 APQP 链：
 
 ## Tests
 - `tests/test_apqp_rebuild_contract.py`
+- `tests/test_legacy_excel_adapter.py`
 
 覆盖内容：
 - domain loader 读取完整 APQP fixture。
@@ -32,6 +58,8 @@ fixture 表达一条最小但完整的 APQP 链：
 - xlsx zip 结构完整性。
 - APQP workbook 固定 5 张 sheet。
 - CLI `list` / `validate` / `export`。
+- 三个真实 legacy Excel workbook 转标准 fixture。
+- 真实转换结果通过 validation 后导出 5 sheet workbook。
 
 ## Docs
 - `task_plan.md`
@@ -44,6 +72,8 @@ fixture 表达一条最小但完整的 APQP 链：
 /// 1. JSON 解析检查：确认 fixture 和 sample configs 没有乱码或语法错误。
 /// 2. unittest discovery：确认测试文件能被发现。
 /// 3. 完整测试：核心代码和 exporter 就绪后运行 `python -m unittest discover -s tests -v`。
+/// 4. adapter 就绪后运行 `python -m unittest tests.test_legacy_excel_adapter -v`。
 
 ## 注意
 如果核心代码尚未提供 `minos_core.domain`、`minos_core.validation`、`minos_core.exporters`、`minos_core.cli`，完整测试会失败。这不是 fixture/测试任务的绕行点，而是重建契约尚未被实现的明确信号。
+如果 legacy Excel adapter 尚未提供 `convert_legacy_workbook`，第二阶段真实样本测试会失败；这代表 adapter 契约未完成，不应通过测试绕行。

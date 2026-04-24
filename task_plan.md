@@ -1,57 +1,67 @@
 # MINOS-CORE 重建任务计划
 
+## 第二阶段：真实样本迁移
+本阶段目标是把三个真实 Excel 源转换为 MINOS-CORE 标准 fixture，并用同一条核心链路验收：
+
+- legacy Excel adapter 只负责读取旧 workbook 并输出标准 `process_flow.json`、`pfmea.json`、`control_plan.json`。
+- core 仍只认标准 fixture/domain，不直接依赖 Excel、OCR、LLM 或本地知识库路径。
+- OCR/LLM 后续继续作为 adapter 外挂，输出同样的标准 fixture，不进入 `domain`、`validation`、`exporters` 的核心边界。
+- 测试输出必须写入 `tempfile`，不得恢复旧的固定 `output/` 目录。
+
+真实源：
+- `C:\Users\fgtan\Desktop\知识库种子\门铰链\JLH01000300-门铰链.xlsx`
+- `C:\Users\fgtan\Desktop\知识库种子\冲压件\1004258-冲压件.xlsx`
+- `C:\Users\fgtan\Desktop\知识库种子\限位器\XWQ01000100-限位器.xlsx`
+
 ## 当前职责
-本轮只负责 fixture、测试和文档，不写 `minos_core` 业务代码，不删除文件，不回退其他 worker 的改动。
+本轮只负责真实样本迁移的测试和文档，不写 `minos_core` adapter 或业务代码，不删除文件，不回退其他 worker 的改动。
 
 允许写入范围：
-- `tests/**`
-- `configs/samples/*.json`
+- `tests/test_legacy_excel_adapter.py`
 - `rebuild_manifest.md`
 - `task_plan.md`
 - `progress.md`
 - `findings.md`
-- `project_flow.mmd`
 
 ## 目标
-把 MINOS-CORE 重建的测试底座先立住，让核心代码和 exporter worker 后续能按同一套输入、校验和 CLI 契约对齐。
+在 clean baseline 之后增加真实样本验收门，让 adapter worker 输出的 fixture 必须能进入现有 validation 和 exporter 链路。
 
 本轮交付内容：
-- sample configs 清理为纯元数据，不再承载路径、规则、规格值或工艺知识。
-- 新增 `tests/fixtures/apqp_chain` 三表链路 fixture。
-- 新增 unittest 契约测试，覆盖 domain 加载、validation、xlsx 结构、APQP 工作簿、CLI。
-- 重写重建文档为 MINOS-CORE 口径。
+- 新增 `tests/test_legacy_excel_adapter.py`。
+- 测试 `convert_legacy_workbook(workbook_path, fixture_dir)` 能把三个真实 Excel 源转换为临时 fixture 目录。
+- 每套转换后的 fixture 必须通过 `minos_core.validation.validate_chain`。
+- 每套 fixture 必须能通过 `minos_core.pipeline.export_fixture` 导出 5 张固定 sheet 的中文 APQP workbook。
+- 更新文档说明第二阶段目标和 adapter 边界。
 
 ## 成功标准
-- `configs/samples/*.json` 只包含样本身份、产品族、阶段、语言、交付命名等元数据。
-- APQP fixture 包含 `process_flow.json`、`pfmea.json`、`control_plan.json`，并能表达 PFD -> PFMEA -> CP 的完整追溯链。
-- validation 测试必须同时覆盖：完整链路通过；mandatory PFMEA 缺少 CP 覆盖时失败。
-- xlsx 测试必须覆盖：sheet 名清洗/截断/去重；xlsx zip 基本结构完整。
-- APQP 工作簿测试必须要求 5 张 sheet：摘要、过程流程图、PFMEA、控制计划、三表追溯矩阵。
-- CLI 测试必须覆盖 `list`、`validate`、`export` 三个动作。
-- 文档和流程图能让后来 worker 明确 fixture、测试、核心代码、exporter 的边界。
+- 测试只写 `TemporaryDirectory`，不写固定输出目录。
+- 三个真实样本都生成 `process_flow.json`、`pfmea.json`、`control_plan.json`。
+- 三类 fixture JSON 都可解析，并且每类至少包含有效行。
+- `validate_chain` 对三个真实样本全部通过。
+- 导出的 workbook zip 结构完整，sheet 顺序固定为：摘要、过程流程图、PFMEA、控制计划、三表追溯矩阵。
 
 ## 执行流程
-/// 1. 只读扫描仓库状态，确认现有 tests、configs、docs 和 minos_core 暴露情况。
-/// 2. 清理 sample configs，把非元数据迁出配置口径。
-/// 3. 建立 APQP 三表 fixture，固定可追溯链路样例。
-/// 4. 编写 unittest 契约测试，不触碰核心实现。
-/// 5. 重写 `task_plan.md`、`progress.md`、`findings.md`、`rebuild_manifest.md`、`project_flow.mmd`。
-/// 6. 做 JSON 可解析性、测试发现、文档可读性和修改范围审核。
+/// 1. 只读扫描现有 unittest、domain、validation、pipeline、exporter 接口。
+/// 2. 编写真实 Excel adapter 契约测试，只依赖 `convert_legacy_workbook` 公开函数。
+/// 3. 对每个真实样本使用 tempfile 生成 fixture。
+/// 4. 对转换结果执行 JSON 解析、domain loader、validation、export 和 xlsx 打开性检查。
+/// 5. 更新 `task_plan.md`、`progress.md`、`findings.md`、`rebuild_manifest.md`。
+/// 6. 审核写入范围，确认未触碰 adapter 实现和其他 worker 文件。
 
 ## OpenSpec 四步闭环
-1. Define：以 MINOS-CORE 重建为对象，定义 fixture、测试和文档的交付边界。
-2. Specify：用 fixture JSON 和 unittest 明确 domain、validation、exporter、CLI 的公开契约。
-3. Implement：只在允许范围内新增/更新测试资产、样本元数据和文档。
-4. Verify：运行结构检查和测试发现；如核心代码尚未就绪，记录契约测试的预期失败边界。
+1. Define：第二阶段验收对象是真实 Excel 样本转标准 fixture。
+2. Specify：用 unittest 明确 adapter、validation、exporter 的公开契约。
+3. Implement：只新增测试和文档，不实现 adapter。
+4. Verify：adapter 就绪后运行真实样本测试；如 adapter 未就绪，测试应清楚暴露缺失接口。
 
 ## 非目标
-- 不实现 `minos_core` 任何核心逻辑。
-- 不实现 exporter。
-- 不迁移旧 `minos` 代码。
+- 不实现 `minos_core.adapters`。
+- 不改变 domain、validation、pipeline、exporter。
 - 不删除旧文件。
-- 不把真实本地路径、知识库路径或规格规则继续放进 sample config。
+- 不把 OCR/LLM 逻辑接进 core。
+- 不把真实样本输出写入固定 `output/`。
 
 ## 当前假设
-- 核心代码和 exporter 由其他 worker 并行实现。
-- 本轮测试按 `minos_core` 包名和 CLI `python -m minos_core.cli` 建立契约。
-- 如果核心实现尚未出现，测试可以先作为重建验收门槛存在。
+- adapter worker 会暴露 `convert_legacy_workbook(workbook_path, fixture_dir)`。
+- `convert_legacy_workbook` 返回值可以是 fixture 路径、包含 `fixture_dir` 的对象/dict，或 `None`；测试会以传入的 `fixture_dir` 作为默认结果目录。
+- 当前 core 已暴露 `load_apqp_chain`、`validate_chain`、`export_fixture`。

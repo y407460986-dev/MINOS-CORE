@@ -1,0 +1,183 @@
+{
+  "document_type": "process_flow",
+  "schema_version": "minos-core.fixture.v1",
+  "product": {
+    "sample_id": "stamping",
+    "part_number": "STAMPING",
+    "part_name": "冲压件",
+    "revision": "",
+    "phase": "legacy-converted"
+  },
+  "steps": [
+    {
+      "process_step_id": "P00",
+      "sequence": 0,
+      "operation": "素材纳入",
+      "process_function": "素材纳入",
+      "owner": "",
+      "input_refs": [],
+      "output_refs": [],
+      "special_characteristics": [
+        "CC"
+      ]
+    },
+    {
+      "process_step_id": "P01",
+      "sequence": 1,
+      "operation": "冲压顺送成形（630T)",
+      "process_function": "冲压顺送成形（630T)",
+      "owner": "",
+      "input_refs": [],
+      "output_refs": [],
+      "special_characteristics": [
+        "SC"
+      ]
+    },
+    {
+      "process_step_id": "P02",
+      "sequence": 2,
+      "operation": "入半成品仓库",
+      "process_function": "入半成品仓库",
+      "owner": "",
+      "input_refs": [],
+      "output_refs": [],
+      "special_characteristics": []
+    },
+    {
+      "process_step_id": "P03",
+      "sequence": 3,
+      "operation": "转运（出半成品仓库）",
+      "process_function": "转运（出半成品仓库）",
+      "owner": "",
+      "input_refs": [],
+      "output_refs": [],
+      "special_characteristics": []
+    },
+    {
+      "process_step_id": "P04",
+      "sequence": 4,
+      "operation": "点焊（M8焊接方螺母）",
+      "process_function": "点焊（M8焊接方螺母）",
+      "owner": "",
+      "input_refs": [],
+      "output_refs": [],
+      "special_characteristics": [
+        "SC"
+      ]
+    },
+    {
+      "process_step_id": "P05",
+      "sequence": 5,
+      "operation": "弧焊",
+      "process_function": "弧焊",
+      "owner": "",
+      "input_refs": [],
+      "output_refs": [],
+      "special_characteristics": [
+        "SC"
+      ]
+    },
+    {
+      "process_step_id": "P06",
+      "sequence": 6,
+      "operation": "检查",
+      "process_function": "检查",
+      "owner": "",
+      "input_refs": [],
+      "output_refs": [],
+      "special_characteristics": []
+    },
+    {
+      "process_step_id": "P07",
+      "sequence": 7,
+      "operation": "包装",
+      "process_function": "包装",
+      "owner": "",
+      "input_refs": [],
+      "output_refs": [],
+      "special_characteristics": []
+    },
+    {
+      "process_step_id": "P08",
+      "sequence": 8,
+      "operation": "点焊M8焊接方螺母",
+      "process_function": "点焊M8焊接方螺母",
+      "owner": "",
+      "input_refs": [],
+      "output_refs": [],
+      "special_characteristics": [
+        "无虚焊、假焊；扭力满足要求",
+        "开发前期参数验证,工艺参数",
+        "SC"
+      ],
+      "source_row": 14
+    },
+    {
+      "process_step_id": "P09",
+      "sequence": 9,
+      "operation": "出货检查",
+      "process_function": "出货检查",
+      "owner": "",
+      "input_refs": [],
+      "output_refs": [],
+      "special_characteristics": []
+    },
+    {
+      "process_step_id": "P10",
+      "sequence": 10,
+      "operation": "素材纳入",
+      "process_function": "素材纳入",
+      "owner": "",
+      "input_refs": [],
+      "output_refs": [],
+      "special_characteristics": [
+        "机械性能；化学成分",
+        "按照图纸要求检验，合格后放行\n（尺寸、外观、标识、数量、材料性能）",
+        "CC"
+      ],
+      "source_row": 9
+    }
+  ],
+  "links": [
+    {
+      "from": "P00",
+      "to": "P01"
+    },
+    {
+      "from": "P01",
+      "to": "P02"
+    },
+    {
+      "from": "P02",
+      "to": "P03"
+    },
+    {
+      "from": "P03",
+      "to": "P04"
+    },
+    {
+      "from": "P04",
+      "to": "P05"
+    },
+    {
+      "from": "P05",
+      "to": "P06"
+    },
+    {
+      "from": "P06",
+      "to": "P07"
+    },
+    {
+      "from": "P07",
+      "to": "P08"
+    },
+    {
+      "from": "P08",
+      "to": "P09"
+    },
+    {
+      "from": "P09",
+      "to": "P10"
+    }
+  ]
+}

@@ -30,6 +30,13 @@ def main(argv: list[str] | None = None) -> int:
     export_parser.add_argument("--output", required=True, help="Output workbook path")
     export_parser.add_argument("--label", default="", help="Optional export label")
 
+    convert_parser = subparsers.add_parser("convert-legacy", help="Convert a legacy Excel seed workbook")
+    convert_parser.add_argument("--sample-id", required=True, help="Sample identifier for the generated fixtures")
+    convert_parser.add_argument("--display-name", required=True, help="Display name for the generated fixtures")
+    convert_parser.add_argument("--input", required=True, help="Legacy .xlsx seed workbook path")
+    convert_parser.add_argument("--output-dir", required=True, help="Directory for process_flow/pfmea/control_plan JSON")
+    convert_parser.add_argument("--profile", default=None, help="Optional profile: door_hinge, stamping, or limiter")
+
     args = parser.parse_args(argv)
     if args.command in {"list", "list-samples"}:
         return _list_samples(getattr(args, "samples_dir", None))
@@ -37,6 +44,8 @@ def main(argv: list[str] | None = None) -> int:
         return _validate(args.fixture or args.input)
     if args.command == "export":
         return _export(args.fixture or args.input, args.output, args.label)
+    if args.command == "convert-legacy":
+        return _convert_legacy(args.input, args.output_dir, args.sample_id, args.display_name, args.profile)
     parser.error(f"unknown command: {args.command}")
     return 2
 
@@ -80,6 +89,21 @@ def _export(fixture: str, output: str, label: str) -> int:
         payload["label"] = label
     result = export_fixture(payload, output)
     print(f"Exported: {result}")
+    return 0
+
+
+def _convert_legacy(
+    workbook: str,
+    output_dir: str,
+    sample_id: str,
+    display_name: str,
+    profile: str | None,
+) -> int:
+    from .adapters.legacy_excel import convert_legacy_workbook
+
+    paths = convert_legacy_workbook(workbook, output_dir, sample_id, display_name, profile)
+    for name, path in paths.items():
+        print(f"{name}: {path}")
     return 0
 
 

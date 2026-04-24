@@ -1,0 +1,436 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "drawing_analysis_schema_v1.json",
+  "title": "MINOS-CORE 图纸分析结果结构",
+  "description": "图纸分析结果的固定 JSON 结构，涵盖 8 个信息区块",
+  "version": "1.0.0",
+  "type": "object",
+  "required": ["drawingBasicInfo", "titleBlock", "processRouteCandidates", "risksAndUncertainties", "evidenceChain"],
+  "additionalProperties": true,
+
+  "properties": {
+
+    "drawingBasicInfo": {
+      "type": "object",
+      "title": "A. 图纸基本信息",
+      "description": "图纸的核心标识信息",
+      "required": ["drawingNumber", "drawingName", "version"],
+      "properties": {
+        "drawingNumber": {
+          "type": "string",
+          "title": "图号",
+          "description": "如 BZJ01002300",
+          "examples": ["BZJ01002300"]
+        },
+        "drawingName": {
+          "type": "string",
+          "title": "图名",
+          "description": "零件或总成名",
+          "examples": ["后转向节"]
+        },
+        "version": {
+          "type": "string",
+          "title": "版本",
+          "description": "版本标识",
+          "examples": ["A", "01", "1.0"]
+        },
+        "pageCount": {
+          "type": "number",
+          "title": "页数",
+          "description": "图纸总页数",
+          "minimum": 1,
+          "examples": [1]
+        },
+        "isAssembly": {
+          "type": "boolean",
+          "title": "是否总成",
+          "description": "true=总成图 false=零件图",
+          "examples": [false]
+        },
+        "material": {
+          "type": ["string", "null"],
+          "title": "材料",
+          "description": "零件材料，null 表示未标注",
+          "examples": ["ADC12", "6061-T6", null]
+        },
+        "surfaceTreatment": {
+          "type": ["string", "null"],
+          "title": "表面处理",
+          "description": "如电镀、喷漆、热处理等，null 表示未标注",
+          "examples": ["镀锌", "喷粉", null]
+        },
+        "technicalRequirements": {
+          "type": "array",
+          "title": "技术要求文本",
+          "description": "从图纸中提取的技术要求条款",
+          "items": { "type": "string" },
+          "examples": [["未注倒角 C0.5", "未注公差按 IT14 级", "表面不得有裂纹"]]
+        }
+      }
+    },
+
+    "titleBlock": {
+      "type": "object",
+      "title": "B. 标题栏信息",
+      "description": "标题栏各栏位的标准化提取结果",
+      "properties": {
+        "customer": {
+          "type": ["string", "null"],
+          "title": "客户/项目",
+          "description": "客户名称或项目代号",
+          "examples": ["BMW", "MINOS-CORE", null]
+        },
+        "unit": {
+          "type": "string",
+          "title": "单位",
+          "description": "长度单位",
+          "enum": ["mm", "inch", "in"],
+          "examples": ["mm"]
+        },
+        "scale": {
+          "type": ["string", "null"],
+          "title": "比例",
+          "description": "图纸比例",
+          "examples": ["1:1", "2:1", null]
+        },
+        "date": {
+          "type": ["string", "null"],
+          "title": "日期",
+          "description": "制图日期",
+          "examples": ["2024-03-15", null]
+        },
+        "drawnBy": {
+          "type": ["string", "null"],
+          "title": "制图人",
+          "examples": ["张三", null]
+        },
+        "checkedBy": {
+          "type": ["string", "null"],
+          "title": "审核人",
+          "examples": ["李四", null]
+        },
+        "approvedBy": {
+          "type": ["string", "null"],
+          "title": "批准人",
+          "examples": ["王五", null]
+        },
+        "drawingIdLocation": {
+          "type": "string",
+          "title": "图纸编号位置",
+          "description": "图纸编号在标题栏中的位置描述",
+          "examples": ["右下角第三栏", "左上角标题栏"]
+        }
+      }
+    },
+
+    "subComponents": {
+      "type": "array",
+      "title": "C. 子件候选",
+      "description": "从明细表/BOM区或视图中提取的子件清单",
+      "items": {
+        "type": "object",
+        "required": ["partNumber", "partName", "quantity", "foundInDrawing"],
+        "properties": {
+          "partNumber": {
+            "type": "string",
+            "title": "子件编号",
+            "examples": ["BZJ01002301"]
+          },
+          "partName": {
+            "type": "string",
+            "title": "子件名称",
+            "examples": ["螺栓 M10x30"]
+          },
+          "quantity": {
+            "type": "number",
+            "title": "数量",
+            "minimum": 1,
+            "examples": [4]
+          },
+          "foundInDrawing": {
+            "type": "boolean",
+            "title": "是否在图中找到对应标注",
+            "description": "true=有气泡/引线标注对应 false=仅从 BOM 表中获取",
+            "examples": [true]
+          },
+          "evidence": {
+            "$ref": "#/definitions/evidence"
+          }
+        }
+      }
+    },
+
+    "dimensions": {
+      "type": "array",
+      "title": "D. 尺寸与公差",
+      "description": "从图纸中提取的所有尺寸信息",
+      "items": {
+        "type": "object",
+        "required": ["type", "value"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "尺寸类型",
+            "enum": ["normal", "key", "hole", "fit", "tolerance", "geometric"],
+            "description": "normal=普通尺寸 key=关键尺寸 hole=孔位 fit=配合公差 tolerance=一般公差 geometric=几何公差"
+          },
+          "value": {
+            "type": "string",
+            "title": "尺寸值",
+            "description": "名义尺寸值，包含螺纹等前缀后缀",
+            "examples": ["30", "M10x1.5", "R15"]
+          },
+          "tolerance": {
+            "type": ["string", "null"],
+            "title": "公差",
+            "description": "上下偏差或公差等级",
+            "examples": ["+0.02/-0.01", "IT12", null]
+          },
+          "location": {
+            "type": "string",
+            "title": "位置",
+            "description": "尺寸所在位置的文字描述",
+            "examples": ["主视图左侧轮廓", "A-A 剖面"]
+          },
+          "isKeyCandidate": {
+            "type": "boolean",
+            "title": "是否关键尺寸候选",
+            "description": "基于尺寸重要性分析是否为关键尺寸候选",
+            "examples": [false]
+          },
+          "evidence": {
+            "$ref": "#/definitions/evidence"
+          }
+        }
+      }
+    },
+
+    "specialCharacteristics": {
+      "type": "array",
+      "title": "E. 特殊特性候选",
+      "description": "识别为特殊特性（SC/CC/PTC）的候选项",
+      "items": {
+        "type": "object",
+        "required": ["candidateId", "type", "description", "reason", "confidence"],
+        "properties": {
+          "candidateId": {
+            "type": "string",
+            "title": "候选编号",
+            "description": "全局唯一标识符",
+            "examples": ["SC-001", "CC-002"]
+          },
+          "type": {
+            "type": "string",
+            "title": "特殊特性类型",
+            "enum": ["SC", "CC", "PTC"],
+            "description": "SC=特殊特性 CC=关键特性 PTC=传递特性（Process Transfer Characteristic）"
+          },
+          "grade": {
+            "type": ["string", "null"],
+            "title": "等级",
+            "description": "重要性等级",
+            "enum": ["A", "B", "C", null],
+            "examples": ["A", null]
+          },
+          "description": {
+            "type": "string",
+            "title": "描述",
+            "description": "特殊特性的文字描述",
+            "examples": ["轴承位直径 50h7"]
+          },
+          "reason": {
+            "type": "string",
+            "title": "候选理由",
+            "description": "为什么认为这是特殊特性的理由",
+            "examples": ["配合面尺寸，影响装配"]
+          },
+          "confidence": {
+            "type": "string",
+            "title": "置信度",
+            "enum": ["high", "medium", "low"],
+            "description": "AI 判断的置信程度"
+          },
+          "evidence": {
+            "$ref": "#/definitions/evidence"
+          }
+        }
+      }
+    },
+
+    "processRouteCandidates": {
+      "type": "array",
+      "title": "F. 工艺路线候选",
+      "description": "基于图纸特征推断的候选工艺路线",
+      "items": {
+        "type": "object",
+        "required": ["processName", "sequence"],
+        "properties": {
+          "processName": {
+            "type": "string",
+            "title": "工序名称",
+            "examples": ["车削", "铣削", "热处理", "磨削"]
+          },
+          "sequence": {
+            "type": "number",
+            "title": "建议顺序",
+            "minimum": 1,
+            "examples": [1]
+          },
+          "isConfirmed": {
+            "type": "boolean",
+            "title": "是否确认",
+            "description": "是否已有明确依据确认该工序",
+            "examples": [false]
+          },
+          "keyProcessCandidate": {
+            "type": "boolean",
+            "title": "是否关键工序候选",
+            "examples": [false]
+          },
+          "inspectionPointCandidate": {
+            "type": "boolean",
+            "title": "是否检验点候选",
+            "examples": [true]
+          },
+          "basis": {
+            "type": "string",
+            "title": "依据",
+            "description": "推断该工序存在的依据",
+            "examples": ["材料标注 6061-T6，推断需要热处理"]
+          }
+        }
+      }
+    },
+
+    "risksAndUncertainties": {
+      "type": "array",
+      "title": "G. 风险与不确定项",
+      "description": "识别出的信息缺失或不确定区域",
+      "items": {
+        "type": "object",
+        "required": ["type", "description"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "风险类型",
+            "enum": ["unreadable", "missing_field", "needs_bom", "manually_confirm"],
+            "description": "unreadable=无法识别 missing_field=缺失字段 needs_bom=需 BOM 核对 manually_confirm=需人工确认"
+          },
+          "location": {
+            "type": "string",
+            "title": "位置/区域",
+            "description": "风险项所在位置",
+            "examples": ["标题栏右下角", "第 2 页 BOM 表"]
+          },
+          "description": {
+            "type": "string",
+            "title": "描述",
+            "description": "风险项的具体描述",
+            "examples": ["标题栏日期模糊，无法 OCR 识别"]
+          },
+          "recommendation": {
+            "type": "string",
+            "title": "建议",
+            "description": "处理建议",
+            "examples": ["建议查阅设计文件确认日期"]
+          }
+        }
+      }
+    },
+
+    "evidenceChain": {
+      "type": "array",
+      "title": "H. 证据链",
+      "description": "所有提取内容的来源追溯",
+      "items": {
+        "type": "object",
+        "required": ["pageNumber", "rawText"],
+        "properties": {
+          "pageNumber": {
+            "type": "number",
+            "title": "来源页",
+            "minimum": 1,
+            "examples": [1]
+          },
+          "region": {
+            "type": "string",
+            "title": "来源区域",
+            "description": "在页面中的区域描述",
+            "examples": ["标题栏", "明细表第 3 行", "主视图左上"]
+          },
+          "rawText": {
+            "type": "string",
+            "title": "原始文本/OCR文本",
+            "description": "直接从图纸中获取的原始文字",
+            "examples": ["BZJ01002300"]
+          },
+          "sourceType": {
+            "type": "string",
+            "title": "证据来源类型",
+            "enum": ["drawing_direct", "excel_crosscheck", "human_inference"],
+            "description": "drawing_direct=图纸直接识别；excel_crosscheck=Excel种子对照补充；human_inference=模型推断待确认"
+          },
+          "confidence": {
+            "type": "string",
+            "title": "置信度",
+            "enum": ["high", "medium", "low"]
+          },
+          "viewOrAnnotation": {
+            "type": "string",
+            "title": "对应视图或标注",
+            "description": "该文本对应的视图编号或标注编号",
+            "examples": ["主视图", "标记 1", "A 向视图"]
+          }
+        }
+      }
+    }
+
+  },
+
+  "definitions": {
+    "evidence": {
+      "type": "object",
+      "title": "证据对象",
+      "description": "用于追溯每条分析结论的原始来源",
+      "properties": {
+        "pageNumber": {
+          "type": "number",
+          "title": "来源页码",
+          "examples": [1]
+        },
+        "region": {
+          "type": "string",
+          "title": "页面区域",
+          "examples": ["标题栏", "明细表第 2 行"]
+        },
+        "rawText": {
+          "type": "string",
+          "title": "原始 OCR 文本",
+          "examples": ["材料: ADC12"]
+        },
+        "sourceType": {
+          "type": "string",
+          "title": "证据来源类型",
+          "enum": ["drawing_direct", "excel_crosscheck", "human_inference"]
+        },
+        "confidence": {
+          "type": "string",
+          "title": "置信度",
+          "enum": ["high", "medium", "low"]
+        },
+        "boundingBox": {
+          "type": "object",
+          "title": "边界框坐标",
+          "description": "用于定位的可选坐标信息",
+          "properties": {
+            "x": { "type": "number" },
+            "y": { "type": "number" },
+            "width": { "type": "number" },
+            "height": { "type": "number" }
+          }
+        }
+      },
+      "required": ["pageNumber", "rawText", "sourceType", "confidence"]
+    }
+  }
+}

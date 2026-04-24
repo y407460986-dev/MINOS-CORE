@@ -1,0 +1,44 @@
+flowchart TD
+    A[MINOS-CORE rebuild scope] --> B[Sample configs]
+    A --> C[APQP chain fixtures]
+    A --> D[Unittest contract tests]
+    A --> E[Rebuild docs]
+
+    B --> B1[Pure metadata only]
+    B1 --> B2[No local paths]
+    B1 --> B3[No process rules]
+    B1 --> B4[No specs or characteristics]
+
+    C --> C1[process_flow.json]
+    C --> C2[pfmea.json]
+    C --> C3[control_plan.json]
+    C1 --> C4[PFD to PFMEA trace]
+    C2 --> C5[PFMEA to CP trace]
+    C3 --> C6[Reaction plan and control method]
+
+    D --> D1[Domain loading]
+    D --> D2[Validation success]
+    D --> D3[Mandatory PFMEA missing CP failure]
+    D --> D4[XLSX sheet name dedupe]
+    D --> D5[XLSX zip structure]
+    D --> D6[APQP workbook 5 sheets]
+    D --> D7[CLI list validate export]
+
+    E --> E1[task_plan.md]
+    E --> E2[progress.md]
+    E --> E3[findings.md]
+    E --> E4[rebuild_manifest.md]
+
+    D1 --> F[minos_core.domain contract]
+    D2 --> G[minos_core.validation contract]
+    D4 --> H[minos_core exporter contract]
+    D7 --> I[minos_core.cli contract]
+
+    F --> J[Core worker implements]
+    G --> J
+    H --> K[Exporter worker implements]
+    I --> J
+
+    J --> L[Run full unittest suite]
+    K --> L
+    L --> M[MINOS-CORE rebuild gate]

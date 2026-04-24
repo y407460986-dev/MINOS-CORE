@@ -1,0 +1,47 @@
+{
+  "document_type": "process_flow",
+  "schema_version": "minos-core.fixture.v1",
+  "product": {
+    "sample_id": "apqp_chain",
+    "part_number": "MINOS-APQP-001",
+    "part_name": "MINOS Core APQP Fixture",
+    "revision": "A",
+    "phase": "Pre-Launch"
+  },
+  "steps": [
+    {
+      "process_step_id": "P10",
+      "sequence": 10,
+      "operation": "Incoming material verification",
+      "process_function": "Confirm purchased bracket and pin meet drawing requirements",
+      "owner": "Incoming Quality",
+      "input_refs": ["DRAWING-001", "BOM-001"],
+      "output_refs": ["PFMEA-P10", "CP-P10"],
+      "special_characteristics": ["SC-THICKNESS"]
+    },
+    {
+      "process_step_id": "P20",
+      "sequence": 20,
+      "operation": "Rivet assembly",
+      "process_function": "Join bracket and pin to specified height and retention force",
+      "owner": "Assembly",
+      "input_refs": ["DRAWING-001", "WORK-INSTRUCTION-020"],
+      "output_refs": ["PFMEA-P20", "CP-P20"],
+      "special_characteristics": ["SC-RIVET-HEIGHT", "SC-PUSHOUT-FORCE"]
+    },
+    {
+      "process_step_id": "P30",
+      "sequence": 30,
+      "operation": "Final inspection and pack",
+      "process_function": "Verify visual condition, traceability label, and pack quantity",
+      "owner": "Final Quality",
+      "input_refs": ["PACK-SPEC-001"],
+      "output_refs": ["PFMEA-P30", "CP-P30"],
+      "special_characteristics": []
+    }
+  ],
+  "links": [
+    {"from": "P10", "to": "P20"},
+    {"from": "P20", "to": "P30"}
+  ]
+}

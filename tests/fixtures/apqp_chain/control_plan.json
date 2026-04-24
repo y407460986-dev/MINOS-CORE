@@ -1,0 +1,65 @@
+{
+  "document_type": "control_plan",
+  "schema_version": "minos-core.fixture.v1",
+  "product": {
+    "sample_id": "apqp_chain",
+    "part_number": "MINOS-APQP-001",
+    "part_name": "MINOS Core APQP Fixture",
+    "revision": "A",
+    "phase": "Pre-Launch"
+  },
+  "rows": [
+    {
+      "control_plan_id": "CP-P10-001",
+      "process_step_id": "P10",
+      "pfmea_id": "PFMEA-P10-001",
+      "product_process_characteristic": "Material thickness",
+      "specification": "2.00 +/- 0.10 mm",
+      "classification": "SC-THICKNESS",
+      "measurement_method": "Digital thickness gauge",
+      "sample_size": "5 pieces",
+      "sample_frequency": "Each incoming lot",
+      "control_method": "Record lot result and quarantine failures",
+      "reaction_plan": "Stop use, notify SQE, sort affected lot"
+    },
+    {
+      "control_plan_id": "CP-P20-001",
+      "process_step_id": "P20",
+      "pfmea_id": "PFMEA-P20-001",
+      "product_process_characteristic": "Rivet height",
+      "specification": "1.50 +0.50/-0.00 mm",
+      "classification": "SC-RIVET-HEIGHT",
+      "measurement_method": "Go/no-go height gauge",
+      "sample_size": "3 pieces",
+      "sample_frequency": "First-off and every 30 minutes",
+      "control_method": "Chart result and lock press adjustment",
+      "reaction_plan": "Stop press, segregate since last good check"
+    },
+    {
+      "control_plan_id": "CP-P20-002",
+      "process_step_id": "P20",
+      "pfmea_id": "PFMEA-P20-002",
+      "product_process_characteristic": "Push-out force",
+      "specification": ">= 10 kN",
+      "classification": "SC-PUSHOUT-FORCE",
+      "measurement_method": "Push-out tester",
+      "sample_size": "1 piece",
+      "sample_frequency": "Each shift",
+      "control_method": "Destructive test with traceable record",
+      "reaction_plan": "Stop shipment and run containment back to prior pass"
+    },
+    {
+      "control_plan_id": "CP-P30-001",
+      "process_step_id": "P30",
+      "pfmea_id": "PFMEA-P30-001",
+      "product_process_characteristic": "Revision and traceability label",
+      "specification": "Released revision and readable barcode",
+      "classification": "",
+      "measurement_method": "Barcode scan and visual check",
+      "sample_size": "100%",
+      "sample_frequency": "Each pack",
+      "control_method": "System scan required before pack close",
+      "reaction_plan": "Hold pack, correct label, rescan lot"
+    }
+  ]
+}

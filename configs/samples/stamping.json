@@ -1,0 +1,17 @@
+{
+  "schema_version": "minos-core.sample.v1",
+  "sample_id": "stamping",
+  "display_name": "冲压件",
+  "product_family": "stamped_component",
+  "apqp_phase": "Pre-Launch",
+  "language": "zh-CN",
+  "deliverable": {
+    "workbook_name": "冲压件-APQP三表联动.xlsx",
+    "default_export_format": "xlsx"
+  },
+  "metadata": {
+    "owner": "MINOS-CORE rebuild",
+    "purpose": "sample identity only",
+    "notes": "No source paths, process rules, characteristics, or specification values are stored in sample config."
+  }
+}

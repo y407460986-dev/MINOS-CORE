@@ -1,0 +1,77 @@
+{
+  "document_type": "pfmea",
+  "schema_version": "minos-core.fixture.v1",
+  "product": {
+    "sample_id": "apqp_chain",
+    "part_number": "MINOS-APQP-001",
+    "part_name": "MINOS Core APQP Fixture",
+    "revision": "A",
+    "phase": "Pre-Launch"
+  },
+  "rows": [
+    {
+      "pfmea_id": "PFMEA-P10-001",
+      "process_step_id": "P10",
+      "process_function": "Confirm purchased bracket and pin meet drawing requirements",
+      "failure_mode": "Incorrect material thickness accepted",
+      "failure_effect": "Assembly stack height out of tolerance",
+      "severity": 8,
+      "failure_cause": "Supplier lot mixed or wrong drawing revision used",
+      "occurrence": 3,
+      "prevention_control": "Supplier CoC and drawing revision check",
+      "detection_control": "Incoming thickness measurement per lot",
+      "detection": 4,
+      "action_priority": "M",
+      "classification": "SC-THICKNESS",
+      "linked_control_plan_id": "CP-P10-001"
+    },
+    {
+      "pfmea_id": "PFMEA-P20-001",
+      "process_step_id": "P20",
+      "process_function": "Join bracket and pin to specified height and retention force",
+      "failure_mode": "Rivet height below lower limit",
+      "failure_effect": "Joint looseness and customer noise complaint",
+      "severity": 9,
+      "failure_cause": "Press stroke drift",
+      "occurrence": 4,
+      "prevention_control": "Press setup verification and first-off approval",
+      "detection_control": "Rivet height gauge every 30 minutes",
+      "detection": 3,
+      "action_priority": "H",
+      "classification": "SC-RIVET-HEIGHT",
+      "linked_control_plan_id": "CP-P20-001"
+    },
+    {
+      "pfmea_id": "PFMEA-P20-002",
+      "process_step_id": "P20",
+      "process_function": "Join bracket and pin to specified height and retention force",
+      "failure_mode": "Push-out force below requirement",
+      "failure_effect": "Pin disengagement during vehicle life",
+      "severity": 10,
+      "failure_cause": "Insufficient material deformation during riveting",
+      "occurrence": 3,
+      "prevention_control": "Tool wear check and press force monitor",
+      "detection_control": "Push-out destructive test per shift",
+      "detection": 4,
+      "action_priority": "H",
+      "classification": "SC-PUSHOUT-FORCE",
+      "linked_control_plan_id": "CP-P20-002"
+    },
+    {
+      "pfmea_id": "PFMEA-P30-001",
+      "process_step_id": "P30",
+      "process_function": "Verify visual condition, traceability label, and pack quantity",
+      "failure_mode": "Mixed revision product shipped",
+      "failure_effect": "Customer line disruption and containment",
+      "severity": 7,
+      "failure_cause": "Label scan bypassed",
+      "occurrence": 2,
+      "prevention_control": "Locked revision queue and label print from released order",
+      "detection_control": "Final barcode scan before pack close",
+      "detection": 3,
+      "action_priority": "M",
+      "classification": "",
+      "linked_control_plan_id": "CP-P30-001"
+    }
+  ]
+}

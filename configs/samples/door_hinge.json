@@ -1,0 +1,17 @@
+{
+  "schema_version": "minos-core.sample.v1",
+  "sample_id": "door_hinge",
+  "display_name": "门铰链",
+  "product_family": "closure_hardware",
+  "apqp_phase": "Pre-Launch",
+  "language": "zh-CN",
+  "deliverable": {
+    "workbook_name": "门铰链-APQP三表联动.xlsx",
+    "default_export_format": "xlsx"
+  },
+  "metadata": {
+    "owner": "MINOS-CORE rebuild",
+    "purpose": "sample identity only",
+    "notes": "No source paths, process rules, characteristics, or specification values are stored in sample config."
+  }
+}

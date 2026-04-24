@@ -32,6 +32,8 @@ flowchart TD
     PL11 --> PL2
     PL2 --> PL12[analysis_bundle]
     PL12 --> PL3
+    PL3 --> PL13[process_flow]
+    PL13 --> PL4
 
     AD --> AD1[OCR adapter boundary]
     AD --> AD2[LLM adapter boundary]
@@ -58,6 +60,8 @@ flowchart TD
     QG14 --> QG15[allow analyze]
     QG --> QG16[analysis bundle gate]
     QG16 --> QG17[allow generate_pfd]
+    QG --> QG18[PFD bundle gate]
+    QG18 --> QG19[allow brainstorm_failure_modes]
 
     AD --> PL
     PL --> DC
@@ -79,6 +83,8 @@ flowchart TD
     T --> T12[Ingest AI-only blocking]
     T --> T13[Analyze bundle extraction]
     T --> T14[Analyze gate to generate_pfd]
+    T --> T15[Generate PFD process flow]
+    T --> T16[PFD gate to brainstorm]
     T1 --> G[MINOS-CORE rebuild gate]
     T2 --> G
     T3 --> G
@@ -93,3 +99,5 @@ flowchart TD
     T12 --> G
     T13 --> G
     T14 --> G
+    T15 --> G
+    T16 --> G

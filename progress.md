@@ -166,3 +166,21 @@
 /// 1. 运行 CLI validate/audit/export smoke。
 /// 2. 审核 git diff。
 /// 3. 提交第九阶段改动。
+
+## 第十阶段当前状态
+第十阶段已完成代码落地：`generate_pfd` 已能从 analysis bundle 生成正式 `process_flow`。
+
+## 第十阶段已完成
+- 新增 `minos_core/generate_pfd.py`。
+- `run_stage(..., stage="generate_pfd")` 已支持 fixture、analysis bundle、evidence bundle、manual JSON、OCR text。
+- PFD 生成规则：只接收明确 `Pxx` 工序线索；无 step id 的 process clue 进入 pending，不猜编号。
+- 已生成 `ProcessStep` 和 `TraceLink`，并保留 step/link 的 `evidence_refs`。
+- PFD 输出不包含 PFMEA、Control Plan、failure_modes 或 controls。
+- 新增 `evaluate_pfd_bundle_gate`，判断 PFD 是否可进入 `brainstorm_failure_modes`。
+- AI-only 路线会阻断；OCR 待确认证据可生成 PFD，但保留人工复核提示，且不允许导出。
+- 完整 unittest 已扩展到 67 项并全部通过。
+
+## 第十阶段待验证
+/// 1. 运行 CLI validate/audit/export smoke。
+/// 2. 审核 git diff。
+/// 3. 提交第十阶段改动。

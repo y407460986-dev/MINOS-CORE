@@ -14,10 +14,12 @@ from .domain import (
     Product,
     TraceLink,
 )
+from .generate_pfd import generate_pfd_from_analysis
 from .ingest import ingest_evidence_bundle
 from .quality_gates import (
     StageQualityGate,
     evaluate_analysis_bundle_gate,
+    evaluate_pfd_bundle_gate,
     evaluate_stage_gate,
 )
 from .stage import StageContext, StageResult, run_stage
@@ -42,7 +44,9 @@ __all__ = [
     "analyze_evidence_bundle",
     "audit_chain",
     "evaluate_analysis_bundle_gate",
+    "evaluate_pfd_bundle_gate",
     "evaluate_stage_gate",
+    "generate_pfd_from_analysis",
     "ingest_evidence_bundle",
     "list_samples",
     "load_sample_metadata",

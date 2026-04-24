@@ -119,6 +119,176 @@ def evaluate_analysis_bundle_gate(
     )
 
 
+def evaluate_pfd_bundle_gate(
+    pfd_bundle: dict[str, Any],
+    stage: str = "generate_pfd",
+) -> StageQualityGate:
+    validation = ChainValidationResult(ok=True, messages=[], chain=APQPChain())
+    audit = audit_chain(APQPChain())
+    report = _pfd_bundle_report(pfd_bundle)
+    return StageQualityGate(
+        stage=stage,
+        can_continue=bool(report["ok"]),
+        allow_user_export=False,
+        validation=validation,
+        audit=audit,
+        evidence_sufficient=bool(report["evidence_sufficient"]),
+        pending_fields=list(report["pending_fields"]),
+        ai_inferred_items=list(report["ai_inferred_refs"]),
+        manual_review_items=_pfd_manual_review_items(report),
+        evidence_coverage=report,
+        missing_evidence_refs=list(report["missing_refs"]),
+        uncovered_evidence_items=list(report["uncovered_items"]),
+        needs_confirmation_items=list(report["needs_confirmation_refs"]),
+    )
+
+
+def _pfd_bundle_report(pfd_bundle: dict[str, Any]) -> dict[str, Any]:
+    steps = pfd_bundle.get("steps", pfd_bundle.get("process_steps", []))
+    links = pfd_bundle.get("links", [])
+    pending_fields = _pending_field_paths(pfd_bundle.get("pending_fields", []))
+    pfd_blocking_fields: list[str] = []
+    ai_inferred_refs = _flagged_evidence_ids(
+        pfd_bundle.get("ai_inferred_items", []), "ai_inferred"
+    )
+    evidence = pfd_bundle.get("evidence", [])
+    evidence_by_id = {
+        str(item.get("evidence_id", "")): item
+        for item in evidence
+        if isinstance(item, dict) and item.get("evidence_id")
+    }
+    step_ids: set[str] = set()
+    uncovered_items: list[str] = []
+    needs_confirmation_refs: list[str] = []
+    if len(steps) < 2:
+        uncovered_items.append("process_steps:min_count")
+    if len(links) < 1:
+        uncovered_items.append("links:min_count")
+    if ai_inferred_refs:
+        uncovered_items.append("ai_inferred_route_evidence")
+
+    for index, step in enumerate(steps):
+        if not isinstance(step, dict):
+            pfd_blocking_fields.append(f"process_step[{index}]")
+            continue
+        step_id = str(step.get("process_step_id", step.get("id", ""))).strip()
+        operation = str(step.get("operation", step.get("name", ""))).strip()
+        evidence_refs = [
+            str(ref).strip()
+            for ref in step.get("evidence_refs", [])
+            if str(ref).strip()
+        ]
+        if not step_id:
+            pfd_blocking_fields.append(f"process_step[{index}].id")
+            continue
+        step_ids.add(step_id)
+        if not operation:
+            pfd_blocking_fields.append(f"process_step:{step_id}.operation")
+        if not evidence_refs:
+            pfd_blocking_fields.append(f"process_step:{step_id}.evidence_refs")
+        for ref in evidence_refs:
+            if evidence_by_id.get(ref, {}).get("needs_confirmation"):
+                needs_confirmation_refs.append(ref)
+
+    for index, link in enumerate(links):
+        if not isinstance(link, dict):
+            pfd_blocking_fields.append(f"trace_link[{index}]")
+            continue
+        from_id = str(link.get("from", link.get("from_id", ""))).strip()
+        to_id = str(link.get("to", link.get("to_id", ""))).strip()
+        if not from_id:
+            pfd_blocking_fields.append(f"trace_link[{index}].from")
+        elif from_id not in step_ids:
+            uncovered_items.append(f"trace_link[{index}].from_missing:{from_id}")
+        if not to_id:
+            pfd_blocking_fields.append(f"trace_link[{index}].to")
+        elif to_id not in step_ids:
+            uncovered_items.append(f"trace_link[{index}].to_missing:{to_id}")
+
+    required_count = max(len(steps) + len(links), 1)
+    pending_fields.extend(pfd_blocking_fields)
+    covered_count = required_count - len(uncovered_items) - len(pfd_blocking_fields)
+    evidence_sufficient = bool(steps) and not any(
+        item.endswith(".evidence_refs") for item in pfd_blocking_fields
+    )
+    ok = bool(
+        len(steps) >= 2
+        and len(links) >= 1
+        and not pfd_blocking_fields
+        and not uncovered_items
+    )
+    return {
+        "stage_mode": "generate_pfd",
+        "next_stage": "brainstorm_failure_modes",
+        "required_items": required_count,
+        "covered_items": max(covered_count, 0),
+        "coverage_ratio": max(covered_count, 0) / required_count
+        if required_count
+        else 0.0,
+        "step_count": len(steps),
+        "link_count": len(links),
+        "required_step_count": 2,
+        "required_link_count": 1,
+        "pending_fields": pending_fields,
+        "uncovered_items": uncovered_items,
+        "missing_refs": [],
+        "ai_inferred_refs": ai_inferred_refs,
+        "needs_confirmation_refs": sorted(set(needs_confirmation_refs)),
+        "step_ids": sorted(step_ids),
+        "evidence_sufficient": evidence_sufficient,
+        "legacy_mode": False,
+        "ok": ok,
+    }
+
+
+def _evidence_ids(items: Any) -> list[str]:
+    if not isinstance(items, list):
+        return []
+    return [
+        str(item.get("evidence_id"))
+        for item in items
+        if isinstance(item, dict) and item.get("evidence_id")
+    ]
+
+
+def _flagged_evidence_ids(items: Any, flag: str) -> list[str]:
+    if not isinstance(items, list):
+        return []
+    return [
+        str(item.get("evidence_id"))
+        for item in items
+        if isinstance(item, dict) and item.get("evidence_id") and item.get(flag)
+    ]
+
+
+def _pfd_manual_review_items(report: dict[str, Any]) -> list[AuditItem]:
+    items: list[AuditItem] = []
+    for value in report["uncovered_items"]:
+        items.append(
+            AuditItem(
+                value,
+                "pfd_incomplete",
+                "PFD 缺少进入 brainstorm_failure_modes 的必要内容",
+                "blocker",
+            )
+        )
+    for value in report["pending_fields"]:
+        items.append(
+            AuditItem(value, "pfd_pending_field", "PFD 存在待补字段", "blocker")
+        )
+    for value in report["needs_confirmation_refs"]:
+        items.append(
+            AuditItem(
+                value, "pfd_needs_confirmation", "PFD 引用内容需要人工确认", "review"
+            )
+        )
+    for value in report["ai_inferred_refs"]:
+        items.append(
+            AuditItem(value, "pfd_ai_inferred", "PFD 输入包含 AI 推断证据", "review")
+        )
+    return items
+
+
 def _analysis_bundle_report(analysis_bundle: dict[str, Any]) -> dict[str, Any]:
     required_blocks = [
         "evidence",

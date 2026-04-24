@@ -50,6 +50,19 @@ class StageResultTests(unittest.TestCase):
         self.assertTrue(result.quality_gate.can_continue)
         self.assertFalse(result.quality_gate.allow_user_export)
 
+    def test_run_stage_generate_pfd_returns_process_flow(self):
+        from minos_core.stage import run_stage
+
+        result = run_stage(FIXTURE_DIR, stage="generate_pfd")
+
+        self.assertEqual(result.stage, "generate_pfd")
+        self.assertEqual(result.status, "ok")
+        self.assertEqual(result.output["document_type"], "process_flow")
+        self.assertIn("steps", result.output)
+        self.assertIn("links", result.output)
+        self.assertTrue(result.quality_gate.can_continue)
+        self.assertFalse(result.quality_gate.allow_user_export)
+
     def test_stage_result_exposes_required_fields(self):
         from minos_core.stage import build_stage_context, build_stage_result
 

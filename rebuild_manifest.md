@@ -282,3 +282,30 @@ fixture 表达一条最小但完整的 APQP 链：
 - manual JSON 和 OCR text 可以直接进入 analyze。
 - analyze 阶段不允许用户导出，但可在质量门通过时进入 `generate_pfd`。
 - validate/export 旧链路不退化。
+
+## 第十阶段新增
+本阶段新增 `generate_pfd` 阶段，把 analysis bundle 转成正式 process flow。
+
+新增文件：
+- `minos_core/generate_pfd.py`
+- `tests/test_generate_pfd_stage.py`
+
+更新文件：
+- `minos_core/stage.py`
+- `minos_core/quality_gates.py`
+- `minos_core/__init__.py`
+- `tests/test_stage_result.py`
+- `task_plan.md`
+- `progress.md`
+- `findings.md`
+- `project_flow.mmd`
+- `rebuild_manifest.md`
+
+第十阶段测试契约：
+- `run_stage(..., stage="generate_pfd")` 必须返回 `process_flow`。
+- fixture evidence 必须能生成 P10/P20/P30 和 P10 -> P20、P20 -> P30。
+- 每个 generated step 和 link 必须包含 `evidence_refs`。
+- 无明确 `process_step_id` 的 process clue 必须进入 pending，不得猜编号。
+- generate_pfd 输出不得包含 PFMEA/CP 下游文档。
+- AI-only route evidence 必须阻断；OCR 待确认证据只提示，不阻断 PFD 生成。
+- validate/export 旧链路不退化。

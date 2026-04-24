@@ -232,3 +232,21 @@
 2. Specify：analysis bundle 必须包含 `drawings`、`characteristics`、`process_clues`、`pending_fields`、`ai_inferred_items`。
 3. Implement：只用规则抽取，不接 LLM，不猜 PFMEA/CP。
 4. Verify：完整 unittest 必须通过，apqp_chain 可抽出至少 1 个 drawing、2 个 characteristic、2 个 process clue。
+
+## 第十阶段：generate_pfd 阶段落地
+本阶段目标是把 `analysis_bundle.process_clues` 转成正式 `process_flow`，形成可追溯的 PFD 基础，但不生成 PFMEA/CP。
+
+## 第十阶段执行流程
+/// 1. 新增 `minos_core/generate_pfd.py`，从 analysis bundle 生成 `process_flow`。
+/// 2. 有明确 `Pxx` 的 process clue 才生成 `ProcessStep`，无 step id 的 clue 进入 `pending_fields`，不猜编号。
+/// 3. 按 P 后数字排序生成步骤，并按相邻步骤生成 `TraceLink`。
+/// 4. 每个 step/link 保留 `evidence_refs`，不填 PFMEA/CP output refs。
+/// 5. 新增 `evaluate_pfd_bundle_gate`，判断是否可进入 `brainstorm_failure_modes`。
+/// 6. `run_stage(..., stage="generate_pfd")` 支持 analysis bundle、evidence bundle、fixture、manual JSON、OCR text。
+/// 7. 增加 `tests/test_generate_pfd_stage.py`，覆盖 P10/P20/P30、links、evidence_refs、manual/OCR 输入、AI-only 阻断、validate/export 不退化。
+
+## 第十阶段 OpenSpec 四步闭环
+1. Define：目标是生成 PFD，不是生成 PFMEA/CP。
+2. Specify：生成结果必须是 `process_flow`，包含 `steps`、`links`、`evidence_refs`。
+3. Implement：只从明确 process clues 生成步骤和顺序，不猜工序编号。
+4. Verify：完整 unittest、CLI validate/audit/export smoke 必须通过。

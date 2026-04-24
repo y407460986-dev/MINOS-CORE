@@ -103,3 +103,10 @@
 - 当前规则抽取能覆盖 fixture 中的 material thickness、rivet height、push-out force、barcode、pack quantity 和 P10/P20/P30 工序线索。
 - 如果证据中明确写了 `Rev A/B/C`，系统可以抽出 revision；这种情况下不应再把 revision 标为 pending。
 - analyze 阶段仍不允许用户导出，只能表示是否可以进入 `generate_pfd`。
+
+## 第十阶段发现
+- PFD gate 不能把 analyze 阶段遗留的 drawing/revision 待确认字段当成 PFD 结构阻断；否则已经生成有效 P10/P20/P30 的 PFD 会被误判 blocked。
+- PFD 结构阻断应只看自身：step 数量、link 数量、step id、operation、evidence_refs、link from/to 是否有效。
+- AI-only route evidence 必须阻断；但 OCR `needs_confirmation=True` 只进入人工复核，不应阻断 PFD 进入下一阶段。
+- 生成 PFD 时不能照抄现有 fixture 的 process_flow；应从 Evidence -> Analyze 结果生成，保证路线来自证据链。
+- `output_refs` 必须保持空列表，不能提前生成 PFMEA/CP 引用。

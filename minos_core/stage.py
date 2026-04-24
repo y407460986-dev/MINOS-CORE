@@ -112,7 +112,11 @@ def run_stage(
     from .exporters import export_apqp_workbook
     from .generate_pfd import generate_pfd_from_analysis
     from .ingest import ingest_evidence_bundle
-    from .quality_gates import evaluate_analysis_bundle_gate, evaluate_pfd_bundle_gate
+    from .quality_gates import (
+        evaluate_analysis_bundle_gate,
+        evaluate_brainstorm_failure_modes_input_gate,
+        evaluate_pfd_bundle_gate,
+    )
     from .validation import validate_chain
 
     if stage == "ingest":
@@ -173,6 +177,25 @@ def run_stage(
             stage=stage,
             status="ok" if gate.can_continue else "blocked",
             output=pfd_bundle,
+            evidence=evidence,
+            pending_fields=list(gate.pending_fields),
+            ai_inferred_items=list(gate.ai_inferred_items),
+            quality_gate=gate,
+        )
+
+    if stage == "brainstorm_failure_modes":
+        if not (
+            isinstance(fixture, dict) and fixture.get("document_type") == "process_flow"
+        ):
+            raise ValueError(
+                "brainstorm_failure_modes stage requires a process_flow payload"
+            )
+        gate = evaluate_brainstorm_failure_modes_input_gate(fixture, stage=stage)
+        evidence = [Evidence.from_mapping(item) for item in fixture.get("evidence", [])]
+        return StageResult(
+            stage=stage,
+            status="ok" if gate.can_continue else "blocked",
+            output=fixture,
             evidence=evidence,
             pending_fields=list(gate.pending_fields),
             ai_inferred_items=list(gate.ai_inferred_items),

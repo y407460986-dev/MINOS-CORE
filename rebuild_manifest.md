@@ -309,3 +309,23 @@ fixture 表达一条最小但完整的 APQP 链：
 - generate_pfd 输出不得包含 PFMEA/CP 下游文档。
 - AI-only route evidence 必须阻断；OCR 待确认证据只提示，不阻断 PFD 生成。
 - validate/export 旧链路不退化。
+
+## 第十阶段下阶段前修复新增
+进入第十一阶段前补强 PFD gate 与 `brainstorm_failure_modes` 衔接。
+
+更新文件：
+- `minos_core/quality_gates.py`
+- `minos_core/stage.py`
+- `minos_core/__init__.py`
+- `tests/test_generate_pfd_stage.py`
+- `progress.md`
+- `findings.md`
+- `rebuild_manifest.md`
+- `project_flow.mmd`
+
+新增测试契约：
+- step `evidence_refs` 引用不存在 evidence 时必须 blocked。
+- link 缺少 `evidence_refs` 或引用不存在 evidence 时必须 blocked。
+- AI-only referenced evidence 必须 blocked，且 `evidence_sufficient=False`。
+- `process_function` / `special_characteristics` 为空只进入 review，不阻断。
+- `run_stage(..., stage="brainstorm_failure_modes")` 必须接受 `process_flow` 并复用 PFD gate，不能误走完整 APQPChain 校验。

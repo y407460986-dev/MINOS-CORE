@@ -110,3 +110,10 @@
 - AI-only route evidence 必须阻断；但 OCR `needs_confirmation=True` 只进入人工复核，不应阻断 PFD 进入下一阶段。
 - 生成 PFD 时不能照抄现有 fixture 的 process_flow；应从 Evidence -> Analyze 结果生成，保证路线来自证据链。
 - `output_refs` 必须保持空列表，不能提前生成 PFMEA/CP 引用。
+
+## 第十阶段前向筛查发现与修复
+- 已修复 PFD gate 不检查 step/link `evidence_refs` 是否真实存在的问题；现在缺失顶层 evidence 会阻断。
+- 已修复 link 缺少 `evidence_refs` 仍可能通过的问题；现在 link 证据链和 step 一样严格。
+- 已修复 AI-only route 时 `evidence_sufficient` 语义不一致的问题；现在 AI-only 或 missing refs 会让 `evidence_sufficient=False`。
+- 已把 `process_function` 和 `special_characteristics` 空值暴露为 review-only 项，避免伪造内容，也不阻断进入 brainstorm。
+- 已新增 `brainstorm_failure_modes` 前置分支，避免下一阶段误走完整 APQPChain 校验路径。

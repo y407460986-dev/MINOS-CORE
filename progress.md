@@ -184,3 +184,14 @@
 /// 1. 运行 CLI validate/audit/export smoke。
 /// 2. 审核 git diff。
 /// 3. 提交第十阶段改动。
+
+## 第十阶段下阶段前筛查修复
+进入第十一阶段前已完成一次前向筛查，并修复 PFD 到 `brainstorm_failure_modes` 的衔接风险。
+
+## 已修复问题
+- PFD gate 已校验 step/link 的 `evidence_refs` 是否存在且引用顶层 evidence。
+- PFD gate 已在 missing evidence refs、AI-only evidence refs 时设置 `evidence_sufficient=False`。
+- link 缺少 `evidence_refs` 或引用不存在 evidence 时会阻断。
+- `process_function` / `special_characteristics` 为空只作为 review 项，不阻断进入下一阶段。
+- 新增 `brainstorm_failure_modes` 前置分支：只接收 `process_flow`，复用 PFD gate，不再误走完整 APQPChain validate/export 路径。
+- 完整 unittest 已扩展到 75 项并全部通过。

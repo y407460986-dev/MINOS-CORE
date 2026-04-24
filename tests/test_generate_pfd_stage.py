@@ -19,6 +19,50 @@ def _link_pairs(process_flow):
     return {(item["from"], item["to"]) for item in process_flow.get("links", [])}
 
 
+def _valid_process_flow():
+    return {
+        "document_type": "process_flow",
+        "evidence": [
+            {
+                "evidence_id": "EV-ROUTE-001",
+                "source": "manual",
+                "content": "Released route",
+            },
+            {
+                "evidence_id": "EV-ROUTE-002",
+                "source": "manual",
+                "content": "Released sequence",
+            },
+        ],
+        "steps": [
+            {
+                "process_step_id": "P10",
+                "sequence": 10,
+                "operation": "incoming inspection",
+                "process_function": "verify incoming material",
+                "special_characteristics": ["SC-THICKNESS"],
+                "evidence_refs": ["EV-ROUTE-001"],
+            },
+            {
+                "process_step_id": "P20",
+                "sequence": 20,
+                "operation": "assembly",
+                "process_function": "assemble parts",
+                "special_characteristics": ["SC-HEIGHT"],
+                "evidence_refs": ["EV-ROUTE-002"],
+            },
+        ],
+        "links": [
+            {
+                "from": "P10",
+                "to": "P20",
+                "link_type": "sequence",
+                "evidence_refs": ["EV-ROUTE-001", "EV-ROUTE-002"],
+            }
+        ],
+    }
+
+
 class GeneratePfdStageTests(unittest.TestCase):
     def test_generate_pfd_stage_returns_process_flow_bundle(self):
         result = run_stage(FIXTURE_DIR, stage="generate_pfd")
@@ -177,7 +221,95 @@ class GeneratePfdStageTests(unittest.TestCase):
         self.assertEqual(result.status, "blocked")
         self.assertIn("EV-AI-ROUTE-001", result.ai_inferred_items)
         self.assertFalse(result.quality_gate.can_continue)
+        self.assertFalse(result.quality_gate.evidence_sufficient)
         self.assertFalse(result.quality_gate.allow_user_export)
+
+    def test_generate_pfd_blocks_when_step_evidence_ref_is_missing(self):
+        process_flow = _valid_process_flow()
+        process_flow["steps"][0]["evidence_refs"] = ["EV-NOT-FOUND"]
+
+        result = run_stage(process_flow, stage="generate_pfd")
+
+        self.assertEqual(result.status, "blocked")
+        self.assertFalse(result.quality_gate.can_continue)
+        self.assertFalse(result.quality_gate.evidence_sufficient)
+        self.assertTrue(
+            any(
+                "EV-NOT-FOUND" in item
+                for item in result.quality_gate.missing_evidence_refs
+            )
+        )
+
+    def test_generate_pfd_blocks_when_link_evidence_refs_are_empty(self):
+        process_flow = _valid_process_flow()
+        process_flow["links"][0]["evidence_refs"] = []
+
+        result = run_stage(process_flow, stage="generate_pfd")
+
+        self.assertEqual(result.status, "blocked")
+        self.assertFalse(result.quality_gate.can_continue)
+        self.assertFalse(result.quality_gate.evidence_sufficient)
+        self.assertIn("trace_link[0].evidence_refs", result.pending_fields)
+
+    def test_generate_pfd_blocks_when_link_evidence_ref_is_missing(self):
+        process_flow = _valid_process_flow()
+        process_flow["links"][0]["evidence_refs"] = ["EV-LINK-NOT-FOUND"]
+
+        result = run_stage(process_flow, stage="generate_pfd")
+
+        self.assertEqual(result.status, "blocked")
+        self.assertFalse(result.quality_gate.can_continue)
+        self.assertFalse(result.quality_gate.evidence_sufficient)
+        self.assertTrue(
+            any(
+                "EV-LINK-NOT-FOUND" in item
+                for item in result.quality_gate.missing_evidence_refs
+            )
+        )
+
+    def test_generate_pfd_blocks_when_all_referenced_evidence_is_ai_inferred(self):
+        process_flow = _valid_process_flow()
+        process_flow["evidence"] = [
+            {
+                "evidence_id": "EV-AI-ROUTE-001",
+                "source": "llm",
+                "content": "AI inferred route",
+                "ai_inferred": True,
+            }
+        ]
+        for step in process_flow["steps"]:
+            step["evidence_refs"] = ["EV-AI-ROUTE-001"]
+        process_flow["links"][0]["evidence_refs"] = ["EV-AI-ROUTE-001"]
+
+        result = run_stage(process_flow, stage="generate_pfd")
+
+        self.assertEqual(result.status, "blocked")
+        self.assertFalse(result.quality_gate.can_continue)
+        self.assertFalse(result.quality_gate.evidence_sufficient)
+        self.assertIn(
+            "all_referenced_evidence_ai_inferred",
+            result.quality_gate.uncovered_evidence_items,
+        )
+        self.assertIn("EV-AI-ROUTE-001", result.ai_inferred_items)
+
+    def test_generate_pfd_reviews_thin_fields_without_blocking(self):
+        process_flow = _valid_process_flow()
+        process_flow["steps"][0]["process_function"] = ""
+        process_flow["steps"][1]["special_characteristics"] = []
+
+        result = run_stage(process_flow, stage="generate_pfd")
+        review_item_ids = [
+            item.item_id
+            for item in result.quality_gate.manual_review_items
+            if item.category == "pfd_review_field"
+        ]
+
+        self.assertEqual(result.status, "ok")
+        self.assertTrue(result.quality_gate.can_continue)
+        self.assertTrue(result.quality_gate.evidence_sufficient)
+        self.assertNotIn("process_step:P10.process_function", result.pending_fields)
+        self.assertIn("process_step:P10.process_function", review_item_ids)
+        self.assertIn("process_step:P20.special_characteristics", review_item_ids)
 
     def test_generate_pfd_does_not_break_validate(self):
         generate_result = run_stage(FIXTURE_DIR, stage="generate_pfd")
@@ -200,6 +332,38 @@ class GeneratePfdStageTests(unittest.TestCase):
             self.assertEqual(generate_result.status, "ok")
             self.assertEqual(export_result.status, "ok")
             self.assertTrue(output_path.exists())
+
+    def test_brainstorm_preflight_accepts_generated_process_flow(self):
+        pfd_result = run_stage(FIXTURE_DIR, stage="generate_pfd")
+        result = run_stage(pfd_result.output, stage="brainstorm_failure_modes")
+
+        self.assertEqual(result.stage, "brainstorm_failure_modes")
+        self.assertEqual(result.status, "ok")
+        self.assertEqual(result.output["document_type"], "process_flow")
+        self.assertTrue(result.quality_gate.can_continue)
+        self.assertEqual(
+            result.quality_gate.evidence_coverage["next_stage"],
+            "brainstorm_failure_modes",
+        )
+
+    def test_brainstorm_preflight_blocks_invalid_process_flow_without_apqp_validation(
+        self,
+    ):
+        process_flow = _valid_process_flow()
+        process_flow["links"] = []
+
+        result = run_stage(process_flow, stage="brainstorm_failure_modes")
+
+        self.assertEqual(result.status, "blocked")
+        self.assertFalse(result.quality_gate.can_continue)
+        self.assertIn("links:min_count", result.quality_gate.uncovered_evidence_items)
+
+    def test_brainstorm_preflight_requires_process_flow_payload(self):
+        with self.assertRaises(ValueError):
+            run_stage(
+                {"document_type": "analysis_bundle", "process_clues": []},
+                stage="brainstorm_failure_modes",
+            )
 
     def test_generate_pfd_stage_result_model_dump_contains_process_flow_and_gate_fields(
         self,

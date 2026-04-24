@@ -34,6 +34,7 @@ flowchart TD
     PL12 --> PL3
     PL3 --> PL13[process_flow]
     PL13 --> PL4
+    PL4 --> PL14[brainstorm preflight]
 
     AD --> AD1[OCR adapter boundary]
     AD --> AD2[LLM adapter boundary]
@@ -62,6 +63,8 @@ flowchart TD
     QG16 --> QG17[allow generate_pfd]
     QG --> QG18[PFD bundle gate]
     QG18 --> QG19[allow brainstorm_failure_modes]
+    QG18 --> QG20[step link evidence refs]
+    QG18 --> QG21[thin PFD review fields]
 
     AD --> PL
     PL --> DC
@@ -85,6 +88,8 @@ flowchart TD
     T --> T14[Analyze gate to generate_pfd]
     T --> T15[Generate PFD process flow]
     T --> T16[PFD gate to brainstorm]
+    T --> T17[PFD evidence ref hardening]
+    T --> T18[Brainstorm preflight routing]
     T1 --> G[MINOS-CORE rebuild gate]
     T2 --> G
     T3 --> G
@@ -101,3 +106,5 @@ flowchart TD
     T14 --> G
     T15 --> G
     T16 --> G
+    T17 --> G
+    T18 --> G

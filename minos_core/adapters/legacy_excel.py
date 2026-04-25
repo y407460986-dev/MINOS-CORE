@@ -443,6 +443,7 @@ def _parse_control_plan(
     state: dict[str, str] = {}
     counters: dict[str, int] = defaultdict(int)
     rows: list[dict[str, Any]] = []
+    last_explicit_by_step: dict[str, dict[str, Any]] = {}
     generated_index = 1
     for row_index, row in _data_rows(sheet, spec):
         _update_state(state, row, spec.get("inherit", []))
@@ -453,23 +454,36 @@ def _parse_control_plan(
             continue
         step_text = state.get(spec["step"], "") or _value(row, spec["step"])
         step_id = _step_id(step_text, generated_index)
+        specification = _value(row, spec["specification"])
+        inherited_from = None
+        previous_explicit = last_explicit_by_step.get(step_id)
+        if not characteristic and not specification and previous_explicit:
+            characteristic = previous_explicit["product_process_characteristic"]
+            specification = previous_explicit["specification"]
+            inherited_from = previous_explicit
         counters[step_id] += 1
-        rows.append(
-            {
-                "control_plan_id": _make_id("CP", step_id, counters[step_id]),
-                "process_step_id": step_id,
-                "pfmea_id": "",
-                "product_process_characteristic": characteristic,
-                "specification": _value(row, spec["specification"]),
-                "classification": _value(row, spec["classification"]),
-                "measurement_method": _value(row, spec["measurement"]),
-                "sample_size": _value(row, spec["sample_size"]),
-                "sample_frequency": _value(row, spec["sample_frequency"]),
-                "control_method": _value(row, spec["control_method"]),
-                "reaction_plan": _value(row, spec["reaction_plan"]),
-                "source_row": row_index,
-            }
-        )
+        item = {
+            "control_plan_id": _make_id("CP", step_id, counters[step_id]),
+            "process_step_id": step_id,
+            "pfmea_id": "",
+            "product_process_characteristic": characteristic,
+            "specification": specification,
+            "classification": _value(row, spec["classification"]),
+            "measurement_method": _value(row, spec["measurement"]),
+            "sample_size": _value(row, spec["sample_size"]),
+            "sample_frequency": _value(row, spec["sample_frequency"]),
+            "control_method": _value(row, spec["control_method"]),
+            "reaction_plan": _value(row, spec["reaction_plan"]),
+            "source_row": row_index,
+        }
+        if inherited_from:
+            item["legacy_continuation_of_control_plan_id"] = inherited_from[
+                "control_plan_id"
+            ]
+            item["legacy_specification_source_row"] = inherited_from["source_row"]
+        rows.append(item)
+        if characteristic and specification and not inherited_from:
+            last_explicit_by_step[step_id] = item
         generated_index += 1
     return rows
 

@@ -1,5 +1,12 @@
 # MINOS-CORE 重建发现
 
+## 任务 2 发现
+- 草案入口应复用现有 generated pipeline，而不是新增第二套生成逻辑；否则质量门、证据追溯和人工复核口径会分裂。
+- `generate-draft` 的核心语义是“可审阅草案”，不是 `export` 的替代品；因此结果必须显式写出 `draft_is_formal_export=False` 和草案声明。
+- 对含待确认证据的 generated draft，`validate` gate 可以 `can_continue=True`，但 `allow_user_export=False`，这正是草案入口需要暴露的状态。
+- CLI 输出应是完整 JSON envelope，方便上层系统读取 quality gate、manual review 和 draft，而不是只打印路径或摘要。
+- `run-pipeline` 适合作为 `generate-draft` 的兼容别名，但正式语义仍应优先使用 `generate-draft`。
+
 ## 第十二阶段发现
 - AI analyze 的核心风险不是“抽不出来”，而是把 AI 猜测当成事实；因此 AI 只能补候选线索，不能作为正式 route 依据。
 - 规则抽取仍应优先，AI 结果只做补充，不覆盖已有确定证据。

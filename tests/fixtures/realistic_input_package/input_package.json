@@ -1,0 +1,66 @@
+{
+  "document_type": "input_package",
+  "schema_version": "minos-core.input_package.v1",
+  "package_id": "REALISTIC-INPUT-PACKAGE-001",
+  "source_ref": "customer_program:REDACTED-EV-BRACKET-2026-04",
+  "draft_requires_review": true,
+  "metadata": {
+    "fixture_style": "redacted_realistic_case",
+    "confidentiality": "synthetic_redacted_no_customer_data",
+    "program_name": "Redacted EV bracket launch",
+    "stage": "phase_4_fixture",
+    "created_for": "MINOS-CORE unittest fixture"
+  },
+  "source_documents": [
+    {
+      "source_document_id": "DOC-DWG-001",
+      "document_type": "released_engineering_drawing",
+      "title": "Bracket Assembly Drawing",
+      "revision": "C",
+      "source_location": "redacted_vault://drawings/BRK-24017-ASM/revC/pages/1-2",
+      "source_ref": "DOC-DWG-001#SHT1-CALLOUTS-A2-D5"
+    },
+    {
+      "source_document_id": "DOC-BOM-001",
+      "document_type": "engineering_bom",
+      "title": "Bracket Assembly BOM",
+      "revision": "C.2",
+      "source_location": "redacted_erp://bom/BRK-24017-ASM/revC.2",
+      "source_ref": "DOC-BOM-001#LINES-10-30"
+    },
+    {
+      "source_document_id": "DOC-FLOW-001",
+      "document_type": "process_flow_chart",
+      "title": "Prototype Process Flow",
+      "revision": "A",
+      "source_location": "redacted_qms://apqp/BRK-24017/process-flow/revA",
+      "source_ref": "DOC-FLOW-001#OPS-P10-P30"
+    },
+    {
+      "source_document_id": "DOC-INS-001",
+      "document_type": "inspection_standard",
+      "title": "Receiving and Final Inspection Specification",
+      "revision": "B",
+      "source_location": "redacted_qms://inspection/IS-BRK-24017/revB",
+      "source_ref": "DOC-INS-001#SECTIONS-3-5"
+    },
+    {
+      "source_document_id": "DOC-SC-001",
+      "document_type": "special_characteristics_matrix",
+      "title": "Special Characteristics List",
+      "revision": "A",
+      "source_location": "redacted_qms://apqp/BRK-24017/special-characteristics/revA",
+      "source_ref": "DOC-SC-001#ROWS-1-4"
+    },
+    {
+      "source_document_id": "DOC-WI-001",
+      "document_type": "work_instruction",
+      "title": "Rivet Assembly Work Instruction",
+      "revision": "D",
+      "source_location": "redacted_mes://work-instructions/WI-RIVET-22/revD",
+      "source_ref": "DOC-WI-001#STEPS-020-060"
+    }
+  ],
+  "evidence_path": "evidence.json",
+  "review_patch_path": "review_patch.json"
+}

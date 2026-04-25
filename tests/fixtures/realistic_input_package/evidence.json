@@ -1,0 +1,82 @@
+{
+  "schema_version": "minos-core.evidence_bundle.v1",
+  "evidence": [
+    {
+      "evidence_id": "EV-REAL-DWG-001",
+      "source": "DOC-DWG-001 Bracket Assembly Drawing rev C",
+      "source_document_id": "DOC-DWG-001",
+      "source_location": "redacted_vault://drawings/BRK-24017-ASM/revC/sheet-1/zones-A2-D5",
+      "source_ref": "DOC-DWG-001#SHT1-CALLOUTS-A2-D5",
+      "content": "Released drawing for redacted bracket assembly. Drawing revision C. Material thickness 2.00 +/- 0.10 mm. Rivet height 4.2 +0.3/-0.2 mm after assembly. Push-out force >= 1.8 kN. Dimensions and customer identifiers are redacted.",
+      "confidence": 0.98,
+      "ai_inferred": false,
+      "needs_confirmation": false
+    },
+    {
+      "evidence_id": "EV-REAL-BOM-001",
+      "source": "DOC-BOM-001 Engineering BOM rev C.2",
+      "source_document_id": "DOC-BOM-001",
+      "source_location": "redacted_erp://bom/BRK-24017-ASM/revC.2/lines-10-30",
+      "source_ref": "DOC-BOM-001#LINES-10-30",
+      "content": "BOM lines list redacted upper bracket, lower bracket, tubular rivet, and label stock. Part numbers and supplier names are anonymized. Released revision must match drawing revision C before production use.",
+      "confidence": 0.96,
+      "ai_inferred": false,
+      "needs_confirmation": false
+    },
+    {
+      "evidence_id": "EV-REAL-FLOW-001",
+      "source": "DOC-FLOW-001 Prototype Process Flow rev A",
+      "source_document_id": "DOC-FLOW-001",
+      "source_location": "redacted_qms://apqp/BRK-24017/process-flow/revA/page-1/swimlane-production",
+      "source_ref": "DOC-FLOW-001#OPS-P10-P30",
+      "content": "Process route: P10 incoming material verification, P20 rivet assembly, P30 final inspection and pack. Flow chart shows serial flow from receiving inspection to assembly cell to final quality gate. Operators and line identifiers are redacted.",
+      "confidence": 0.97,
+      "ai_inferred": false,
+      "needs_confirmation": false
+    },
+    {
+      "evidence_id": "EV-REAL-INS-001",
+      "source": "DOC-INS-001 Receiving and Final Inspection Specification rev B",
+      "source_document_id": "DOC-INS-001",
+      "source_location": "redacted_qms://inspection/IS-BRK-24017/revB/sections-3-5",
+      "source_ref": "DOC-INS-001#SECTIONS-3-5",
+      "content": "Inspection standard requires incoming inspection of material thickness using calibrated digital thickness gauge, revision check against released revision, final inspection, traceability barcode scan, and pack quantity verification of 24 pieces per tote.",
+      "confidence": 0.95,
+      "ai_inferred": false,
+      "needs_confirmation": false
+    },
+    {
+      "evidence_id": "EV-REAL-SC-001",
+      "source": "DOC-SC-001 Special Characteristics List rev A",
+      "source_document_id": "DOC-SC-001",
+      "source_location": "redacted_qms://apqp/BRK-24017/special-characteristics/revA/rows-1-4",
+      "source_ref": "DOC-SC-001#ROWS-1-4",
+      "content": "Special characteristics list identifies material thickness as fit characteristic, rivet height as process special characteristic, push-out force as safety-related assembly characteristic, traceability barcode as regulatory traceability characteristic, and pack quantity as shipment control characteristic.",
+      "confidence": 0.94,
+      "ai_inferred": false,
+      "needs_confirmation": false
+    },
+    {
+      "evidence_id": "EV-REAL-WI-001",
+      "source": "DOC-WI-001 Rivet Assembly Work Instruction rev D",
+      "source_document_id": "DOC-WI-001",
+      "source_location": "redacted_mes://work-instructions/WI-RIVET-22/revD/steps-020-060",
+      "source_ref": "DOC-WI-001#STEPS-020-060",
+      "content": "Work instruction defines rivet assembly setup, fixture seating check, press cycle confirmation, rivet height check, destructive push-out test at setup, and containment reaction if push-out force is below specification. Asset IDs and operator names are redacted.",
+      "confidence": 0.95,
+      "ai_inferred": false,
+      "needs_confirmation": false
+    },
+    {
+      "evidence_id": "EV-REAL-REQ-001",
+      "source": "DOC-DWG-001 customer requirement callout pending review",
+      "source_document_id": "DOC-DWG-001",
+      "source_location": "redacted_vault://drawings/BRK-24017-ASM/revC/sheet-2/zone-F4",
+      "source_ref": "DOC-DWG-001#SHT2-ZONE-F4-CUSTOMER-CALLOUT",
+      "content": "Customer-specific callout states that push-out force acceptance and final pack labeling must be confirmed by the project quality engineer before formal release. Customer identity, drawing note number, and approval signature are redacted.",
+      "confidence": 0.88,
+      "ai_inferred": false,
+      "needs_confirmation": true
+    }
+  ]
+}

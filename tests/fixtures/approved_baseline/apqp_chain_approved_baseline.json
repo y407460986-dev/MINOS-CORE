@@ -1,0 +1,227 @@
+{
+  "document_type": "apqp_chain",
+  "schema_version": "minos-core.approved-baseline.v1",
+  "metadata": {
+    "baseline_id": "APPROVED-APQP-001",
+    "approval_status": "approved",
+    "approval_date": "2025-11-23",
+    "source_description": "Synthetic redacted approved PPAP three-table baseline matching the standard APQP fixture."
+  },
+  "product": {
+    "sample_id": "approved_apqp_chain",
+    "part_number": "MINOS-APQP-001",
+    "part_name": "MINOS Core APQP Fixture",
+    "revision": "A",
+    "phase": "Approved PPAP"
+  },
+  "process_steps": [
+    {
+      "process_step_id": "P10",
+      "sequence": 10,
+      "operation": "Incoming material verification",
+      "process_function": "Confirm purchased bracket and pin meet drawing requirements",
+      "owner": "Incoming Quality",
+      "input_refs": ["DRAWING-001", "BOM-001"],
+      "output_refs": ["PFMEA-P10", "CP-P10"],
+      "special_characteristics": ["SC-THICKNESS"],
+      "evidence_refs": ["APP-PFD-001"]
+    },
+    {
+      "process_step_id": "P20",
+      "sequence": 20,
+      "operation": "Rivet assembly",
+      "process_function": "Join bracket and pin to specified height and retention force",
+      "owner": "Assembly",
+      "input_refs": ["DRAWING-001", "WORK-INSTRUCTION-020"],
+      "output_refs": ["PFMEA-P20", "CP-P20"],
+      "special_characteristics": ["SC-RIVET-HEIGHT", "SC-PUSHOUT-FORCE"],
+      "evidence_refs": ["APP-PFD-001", "APP-PFMEA-002"]
+    },
+    {
+      "process_step_id": "P30",
+      "sequence": 30,
+      "operation": "Final inspection and pack",
+      "process_function": "Verify visual condition, traceability label, and pack quantity",
+      "owner": "Final Quality",
+      "input_refs": ["PACK-SPEC-001"],
+      "output_refs": ["PFMEA-P30", "CP-P30"],
+      "special_characteristics": [],
+      "evidence_refs": ["APP-PFD-001", "APP-CP-004"]
+    }
+  ],
+  "failure_modes": [
+    {
+      "pfmea_id": "PFMEA-P10-001",
+      "process_step_id": "P10",
+      "process_function": "Confirm purchased bracket and pin meet drawing requirements",
+      "failure_mode": "Incorrect material thickness accepted",
+      "failure_effect": "Assembly stack height out of tolerance",
+      "severity": 8,
+      "failure_cause": "Supplier lot mixed or wrong drawing revision used",
+      "occurrence": 3,
+      "prevention_control": "Supplier CoC and drawing revision check",
+      "detection_control": "Incoming thickness measurement per lot",
+      "detection": 4,
+      "action_priority": "M",
+      "classification": "SC-THICKNESS",
+      "linked_control_plan_id": "CP-P10-001",
+      "evidence_refs": ["APP-PFMEA-001"]
+    },
+    {
+      "pfmea_id": "PFMEA-P20-001",
+      "process_step_id": "P20",
+      "process_function": "Join bracket and pin to specified height and retention force",
+      "failure_mode": "Rivet height below lower limit",
+      "failure_effect": "Joint looseness and customer noise complaint",
+      "severity": 9,
+      "failure_cause": "Press stroke drift",
+      "occurrence": 4,
+      "prevention_control": "Press setup verification and first-off approval",
+      "detection_control": "Rivet height gauge every 30 minutes",
+      "detection": 3,
+      "action_priority": "H",
+      "classification": "SC-RIVET-HEIGHT",
+      "linked_control_plan_id": "CP-P20-001",
+      "evidence_refs": ["APP-PFMEA-002"]
+    },
+    {
+      "pfmea_id": "PFMEA-P20-002",
+      "process_step_id": "P20",
+      "process_function": "Join bracket and pin to specified height and retention force",
+      "failure_mode": "Push-out force below requirement",
+      "failure_effect": "Pin disengagement during vehicle life",
+      "severity": 10,
+      "failure_cause": "Insufficient material deformation during riveting",
+      "occurrence": 3,
+      "prevention_control": "Tool wear check and press force monitor",
+      "detection_control": "Push-out destructive test per shift",
+      "detection": 4,
+      "action_priority": "H",
+      "classification": "SC-PUSHOUT-FORCE",
+      "linked_control_plan_id": "CP-P20-002",
+      "evidence_refs": ["APP-PFMEA-003"]
+    },
+    {
+      "pfmea_id": "PFMEA-P30-001",
+      "process_step_id": "P30",
+      "process_function": "Verify visual condition, traceability label, and pack quantity",
+      "failure_mode": "Mixed revision product shipped",
+      "failure_effect": "Customer line disruption and containment",
+      "severity": 7,
+      "failure_cause": "Label scan bypassed",
+      "occurrence": 2,
+      "prevention_control": "Locked revision queue and label print from released order",
+      "detection_control": "Final barcode scan before pack close",
+      "detection": 3,
+      "action_priority": "M",
+      "classification": "",
+      "linked_control_plan_id": "CP-P30-001",
+      "evidence_refs": ["APP-PFMEA-004"]
+    }
+  ],
+  "controls": [
+    {
+      "control_plan_id": "CP-P10-001",
+      "process_step_id": "P10",
+      "pfmea_id": "PFMEA-P10-001",
+      "product_process_characteristic": "Material thickness",
+      "specification": "2.00 +/- 0.10 mm",
+      "classification": "SC-THICKNESS",
+      "measurement_method": "Digital thickness gauge",
+      "sample_size": "5 pieces",
+      "sample_frequency": "Each incoming lot",
+      "control_method": "Record lot result and quarantine failures",
+      "reaction_plan": "Stop use, notify SQE, sort affected lot",
+      "evidence_refs": ["APP-CP-001"]
+    },
+    {
+      "control_plan_id": "CP-P20-001",
+      "process_step_id": "P20",
+      "pfmea_id": "PFMEA-P20-001",
+      "product_process_characteristic": "Rivet height",
+      "specification": "1.50 +0.50/-0.00 mm",
+      "classification": "SC-RIVET-HEIGHT",
+      "measurement_method": "Go/no-go height gauge",
+      "sample_size": "3 pieces",
+      "sample_frequency": "First-off and every 30 minutes",
+      "control_method": "Chart result and lock press adjustment",
+      "reaction_plan": "Stop press, segregate since last good check",
+      "evidence_refs": ["APP-CP-002"]
+    },
+    {
+      "control_plan_id": "CP-P20-002",
+      "process_step_id": "P20",
+      "pfmea_id": "PFMEA-P20-002",
+      "product_process_characteristic": "Push-out force",
+      "specification": ">= 10 kN",
+      "classification": "SC-PUSHOUT-FORCE",
+      "measurement_method": "Push-out tester",
+      "sample_size": "1 piece",
+      "sample_frequency": "Each shift",
+      "control_method": "Destructive test with traceable record",
+      "reaction_plan": "Stop shipment and run containment back to prior pass",
+      "evidence_refs": ["APP-CP-003"]
+    },
+    {
+      "control_plan_id": "CP-P30-001",
+      "process_step_id": "P30",
+      "pfmea_id": "PFMEA-P30-001",
+      "product_process_characteristic": "Revision and traceability label",
+      "specification": "Released revision and readable barcode",
+      "classification": "",
+      "measurement_method": "Barcode scan and visual check",
+      "sample_size": "100%",
+      "sample_frequency": "Each pack",
+      "control_method": "System scan required before pack close",
+      "reaction_plan": "Hold pack, correct label, rescan lot",
+      "evidence_refs": ["APP-CP-004"]
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "APP-PFD-001",
+      "source": "approved PPAP process flow",
+      "content": "Approved process flow confirms sequence P10 incoming material verification, P20 rivet assembly, and P30 final inspection and pack."
+    },
+    {
+      "evidence_id": "APP-PFMEA-001",
+      "source": "approved PPAP PFMEA",
+      "content": "Approved PFMEA row PFMEA-P10-001 covers incorrect material thickness accepted."
+    },
+    {
+      "evidence_id": "APP-PFMEA-002",
+      "source": "approved PPAP PFMEA",
+      "content": "Approved PFMEA row PFMEA-P20-001 covers rivet height below lower limit."
+    },
+    {
+      "evidence_id": "APP-PFMEA-003",
+      "source": "approved PPAP PFMEA",
+      "content": "Approved PFMEA row PFMEA-P20-002 covers push-out force below requirement."
+    },
+    {
+      "evidence_id": "APP-PFMEA-004",
+      "source": "approved PPAP PFMEA",
+      "content": "Approved PFMEA row PFMEA-P30-001 covers mixed revision product shipped."
+    },
+    {
+      "evidence_id": "APP-CP-001",
+      "source": "approved PPAP control plan",
+      "content": "Approved control plan item CP-P10-001 controls material thickness by digital thickness gauge."
+    },
+    {
+      "evidence_id": "APP-CP-002",
+      "source": "approved PPAP control plan",
+      "content": "Approved control plan item CP-P20-001 controls rivet height by go/no-go height gauge."
+    },
+    {
+      "evidence_id": "APP-CP-003",
+      "source": "approved PPAP control plan",
+      "content": "Approved control plan item CP-P20-002 controls push-out force by push-out tester."
+    },
+    {
+      "evidence_id": "APP-CP-004",
+      "source": "approved PPAP control plan",
+      "content": "Approved control plan item CP-P30-001 controls revision and traceability label before pack close."
+    }
+  ]
+}

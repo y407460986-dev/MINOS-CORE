@@ -44,7 +44,14 @@ flowchart TD
     PL5 --> PL16[pfmea bundle]
     PL16 --> PL6
     PL6 --> PL17[control_plan bundle]
-    PL17 --> PL7
+    PL17 --> PL18[assemble_generated_apqp_chain]
+    PL18 --> PL19[generate_draft draft envelope]
+    PL19 --> PL20[trusted delivery JSON contracts]
+    PL20 --> PL7
+    PL20 --> PL21[input_package]
+    PL20 --> PL22[run_manifest]
+    PL20 --> PL23[review_patch]
+    PL20 --> PL24[apqp_chain_review_result]
 
     AD --> AD1[OCR adapter boundary]
     AD --> AD2[LLM adapter boundary]
@@ -52,6 +59,8 @@ flowchart TD
     AD --> AD3[legacy Excel reader]
     AD --> AD4[fixture JSON file system]
     AD --> AD5[XLSX exporter]
+    AD --> AD8[pyproject package metadata]
+    AD --> AD9[gitignore local outputs]
     AD1 --> AD6[FakeOCR text evidence]
     AD4 --> AD7[evidence json]
 
@@ -106,6 +115,9 @@ flowchart TD
     T --> T19[Generate PFMEA stage]
     T --> T20[Generate control plan stage]
     T --> T21[AI analyze enhancement]
+    T --> T22[Generate draft CLI API]
+    T --> T23[Engineering infra smoke]
+    T --> T24[Trusted delivery JSON contracts]
     T1 --> G[MINOS-CORE rebuild gate]
     T2 --> G
     T3 --> G
@@ -127,3 +139,6 @@ flowchart TD
     T19 --> G
     T20 --> G
     T21 --> G
+    T22 --> G
+    T23 --> G
+    T24 --> G

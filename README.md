@@ -22,6 +22,18 @@ ingest -> analyze -> generate_pfd -> brainstorm_failure_modes -> generate_pfmea 
 - `audit`：输出证据覆盖、链路完整性、人工复核点等审计信息。
 - `export`：将核心结构导出为交付格式。
 
+## 当前交付状态
+
+- APQP workbook 当前固定导出 7 张 sheet：`摘要`、`质量门状态`、`过程流程图`、`PFMEA`、`控制计划`、`三表追溯矩阵`、`人工复核清单`。
+- 测试数量不在文档中固化；当前通过情况以本地 `python -m unittest discover -s tests -v` 或任务记录中的最新检查结果为准。
+- `generate-draft` / `run-pipeline` 入口输出草案 JSON，不等同正式导出。
+
+## 工程化基础设施
+
+- 项目提供最小 `pyproject.toml`，可被 Python 打包工具识别为 `minos-core` 包，并注册 `minos-core` CLI 入口。
+- 运行时第三方依赖保持为空；真实 LLM/OCR SDK 不进入 core。
+- `.gitignore` 已覆盖 Python 缓存、本地虚拟环境、测试缓存、常见构建/输出目录以及 `.claude/settings.local.json`，避免提交本地 Claude 配置。
+
 ## 明确非目标
 
 MINOS-CORE 当前不承诺、也不内置以下能力：
@@ -37,7 +49,7 @@ MINOS-CORE 当前不承诺、也不内置以下能力：
 
 | 阶段 | 主要输入 | 主要输出 |
 | --- | --- | --- |
-| `ingest` | fixture JSON、legacy Excel、OCR/LLM 占位输入等外部证据 | 标准化 evidence bundle |
+| `ingest` | fixture JSON、`input_package` v1、legacy Excel、OCR/LLM 占位输入等外部证据 | 标准化 evidence bundle |
 | `analyze` | evidence bundle、`keyword_rules` | `analysis_bundle`，包含证据线索、规则命中和复核标记 |
 | `generate_pfd` | `analysis_bundle` | 过程步骤、过程顺序、步骤级证据引用 |
 | `brainstorm_failure_modes` | 过程步骤、分析线索、证据引用 | 失效模式候选及其证据来源 |
@@ -46,6 +58,10 @@ MINOS-CORE 当前不承诺、也不内置以下能力：
 | `validate` | PFD、PFMEA、控制计划、证据链 | 质量门结果、阻断项、人工复核项 |
 | `audit` | 全链路产物、质量门结果 | 审计摘要、覆盖情况、可追溯性检查结果 |
 | `export` | 已验证或带复核标记的链路产物 | Excel 等交付文件 |
+
+## input_package v1 最小契约
+
+`input_package` v1 用于把外部证据包交给 `ingest`，最小必填字段为：`document_type: "input_package"`、`schema_version: "minos-core.input_package.v1"`、`package_id`、`evidence_path`、`metadata`。`review_patch_path` 可选；`source_documents` 可选，用于记录来源文件元数据。当前 fixture adapter 会先按该 schema 校验，再读取 `evidence_path` 和可选的 `review_patch_path`，最终标准化为 `evidence_bundle`。
 
 ## 质量门字段语义
 
@@ -75,6 +91,22 @@ python -m minos_core.cli validate --input tests\fixtures\apqp_chain
 python -m minos_core.cli audit --input tests\fixtures\apqp_chain
 python -m minos_core.cli export --input tests\fixtures\apqp_chain --output out.xlsx
 ```
+
+## Demo input package CLI 端到端流程
+
+以下命令把内置 demo input package 通过标准 CLI 链路跑成草案、草案导出、人工复核结果、正式导出和 manifest：
+
+```powershell
+mkdir out
+python -m minos_core.cli generate-draft --input tests\fixtures\demo_input_package --output out\demo_draft_result.json --manifest-output out\demo_draft_manifest.json
+python -m minos_core.cli export-draft --input out\demo_draft_result.json --output out\demo_draft.xlsx --manifest-output out\demo_draft_export_manifest.json
+python -m minos_core.cli apply-review --draft-result out\demo_draft_result.json --review-patch tests\fixtures\demo_input_package\review_patch.json --output out\demo_review_result.json --manifest-output out\demo_review_manifest.json
+python -m minos_core.cli export --input out\demo_review_result.json --output out\demo_final.xlsx --manifest-output out\demo_final_manifest.json
+```
+
+- `demo_draft.xlsx` 是带 `DRAFT_ONLY` 标记的工程复核草案，不是正式提交件。
+- `demo_final.xlsx` 只从 `apply-review` 后通过质量门的 review result 导出。
+- 每一步的 `--manifest-output` 会生成可审计的 run manifest。
 
 ## 测试
 

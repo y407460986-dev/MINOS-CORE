@@ -1,0 +1,252 @@
+{
+  "review_patch_version": "minos-core.review_patch.v1",
+  "confirmed_by": "redacted.quality.engineer",
+  "confirmed_at": "2026-04-25T09:30:00Z",
+  "reason": "脱敏 fixture 中的来源位置、特殊特性、过程步骤、失效模式和控制计划条目已按模拟项目资料逐项复核，可用于阶段 4 final gate 测试。",
+  "evidence_refs": [
+    "EV-REAL-DWG-001",
+    "EV-REAL-FLOW-001",
+    "EV-REAL-INS-001",
+    "EV-REAL-SC-001",
+    "EV-REAL-WI-001",
+    "EV-REAL-REQ-001"
+  ],
+  "items": [
+    {
+      "action": "confirm",
+      "target": "evidence:EV-REAL-REQ-001",
+      "reason": "质量工程师确认脱敏客户特殊要求可作为最终放行前的人工确认记录。"
+    },
+    {
+      "action": "correct",
+      "target": "process_step:P10",
+      "field": "process_function",
+      "value": "Verify incoming material thickness, released revision, and BOM alignment before assembly use.",
+      "reason": "根据 DOC-FLOW-001 和 DOC-INS-001 补齐 P10 过程功能。"
+    },
+    {
+      "action": "correct",
+      "target": "process_step:P20",
+      "field": "process_function",
+      "value": "Assemble riveted joint and verify rivet height and push-out readiness at setup.",
+      "reason": "根据 DOC-WI-001 补齐 P20 过程功能。"
+    },
+    {
+      "action": "correct",
+      "target": "process_step:P30",
+      "field": "process_function",
+      "value": "Verify released revision, traceability barcode, final inspection status, and pack quantity before shipment.",
+      "reason": "根据 DOC-INS-001 补齐 P30 过程功能。"
+    },
+    {
+      "action": "confirm",
+      "target": "failure_mode_candidate:FMC-P10-001",
+      "reason": "P10 候选失效模式已按模拟来料检验资料复核。"
+    },
+    {
+      "action": "confirm",
+      "target": "failure_mode_candidate:FMC-P10-002",
+      "reason": "P10 过程功能类候选已按模拟过程流程资料复核。"
+    },
+    {
+      "action": "confirm",
+      "target": "failure_mode_candidate:FMC-P10-003",
+      "reason": "P10 特殊特性候选已按模拟特殊特性清单复核。"
+    },
+    {
+      "action": "confirm",
+      "target": "failure_mode_candidate:FMC-P20-001",
+      "reason": "P20 铆接装配候选失效模式已按模拟作业指导书复核。"
+    },
+    {
+      "action": "confirm",
+      "target": "failure_mode_candidate:FMC-P20-002",
+      "reason": "P20 过程功能类候选已按模拟作业指导书复核。"
+    },
+    {
+      "action": "confirm",
+      "target": "failure_mode_candidate:FMC-P20-003",
+      "reason": "P20 铆钉高度特殊特性候选已按模拟图纸和作业指导书复核。"
+    },
+    {
+      "action": "confirm",
+      "target": "failure_mode_candidate:FMC-P20-004",
+      "reason": "P20 推出力特殊特性候选已按模拟特殊特性清单复核。"
+    },
+    {
+      "action": "confirm",
+      "target": "failure_mode_candidate:FMC-P30-001",
+      "reason": "P30 终检包装候选失效模式已按模拟检验规范复核。"
+    },
+    {
+      "action": "confirm",
+      "target": "failure_mode_candidate:FMC-P30-002",
+      "reason": "P30 过程功能类候选已按模拟检验规范复核。"
+    },
+    {
+      "action": "confirm",
+      "target": "failure_mode_candidate:FMC-P30-003",
+      "reason": "P30 版本追溯候选已按模拟 BOM 和检验规范复核。"
+    },
+    {
+      "action": "confirm",
+      "target": "failure_mode_candidate:FMC-P30-004",
+      "reason": "P30 条码追溯候选已按模拟检验规范复核。"
+    },
+    {
+      "action": "confirm",
+      "target": "failure_mode_candidate:FMC-P30-005",
+      "reason": "P30 包装数量候选已按模拟检验规范复核。"
+    },
+    {
+      "action": "confirm",
+      "target": "failure_mode:PFMEA-P10-001",
+      "reason": "P10 PFMEA 行已按模拟证据复核。"
+    },
+    {
+      "action": "confirm",
+      "target": "failure_mode:PFMEA-P10-002",
+      "reason": "P10 PFMEA 行已按模拟证据复核。"
+    },
+    {
+      "action": "confirm",
+      "target": "failure_mode:PFMEA-P10-003",
+      "reason": "P10 特殊特性 PFMEA 行已按模拟证据复核。"
+    },
+    {
+      "action": "confirm",
+      "target": "failure_mode:PFMEA-P20-001",
+      "reason": "P20 PFMEA 行已按模拟证据复核。"
+    },
+    {
+      "action": "confirm",
+      "target": "failure_mode:PFMEA-P20-002",
+      "reason": "P20 PFMEA 行已按模拟证据复核。"
+    },
+    {
+      "action": "confirm",
+      "target": "failure_mode:PFMEA-P20-003",
+      "reason": "P20 铆钉高度 PFMEA 行已按模拟证据复核。"
+    },
+    {
+      "action": "confirm",
+      "target": "failure_mode:PFMEA-P20-004",
+      "reason": "P20 推出力 PFMEA 行已按模拟证据复核。"
+    },
+    {
+      "action": "confirm",
+      "target": "failure_mode:PFMEA-P30-001",
+      "reason": "P30 PFMEA 行已按模拟证据复核。"
+    },
+    {
+      "action": "confirm",
+      "target": "failure_mode:PFMEA-P30-002",
+      "reason": "P30 PFMEA 行已按模拟证据复核。"
+    },
+    {
+      "action": "confirm",
+      "target": "failure_mode:PFMEA-P30-003",
+      "reason": "P30 版本追溯 PFMEA 行已按模拟证据复核。"
+    },
+    {
+      "action": "confirm",
+      "target": "failure_mode:PFMEA-P30-004",
+      "reason": "P30 条码追溯 PFMEA 行已按模拟证据复核。"
+    },
+    {
+      "action": "confirm",
+      "target": "failure_mode:PFMEA-P30-005",
+      "reason": "P30 包装数量 PFMEA 行已按模拟证据复核。"
+    },
+    {
+      "action": "confirm",
+      "target": "control_item:CP-PFMEA-P10-001",
+      "reason": "P10 控制计划条目已按模拟检验规范复核。"
+    },
+    {
+      "action": "confirm",
+      "target": "control_item:CP-PFMEA-P10-002",
+      "reason": "P10 控制计划条目已按模拟检验规范复核。"
+    },
+    {
+      "action": "confirm",
+      "target": "control_item:CP-PFMEA-P10-003",
+      "reason": "P10 特殊特性控制条目已按模拟特殊特性清单复核。"
+    },
+    {
+      "action": "confirm",
+      "target": "control_item:CP-PFMEA-P20-001",
+      "reason": "P20 控制计划条目已按模拟作业指导书复核。"
+    },
+    {
+      "action": "confirm",
+      "target": "control_item:CP-PFMEA-P20-002",
+      "reason": "P20 控制计划条目已按模拟作业指导书复核。"
+    },
+    {
+      "action": "confirm",
+      "target": "control_item:CP-PFMEA-P20-003",
+      "reason": "P20 铆钉高度控制条目已按模拟图纸和作业指导书复核。"
+    },
+    {
+      "action": "confirm",
+      "target": "control_item:CP-PFMEA-P20-004",
+      "reason": "P20 推出力控制条目已按模拟特殊特性清单复核。"
+    },
+    {
+      "action": "confirm",
+      "target": "control_item:CP-PFMEA-P30-001",
+      "reason": "P30 控制计划条目已按模拟检验规范复核。"
+    },
+    {
+      "action": "confirm",
+      "target": "control_item:CP-PFMEA-P30-002",
+      "reason": "P30 控制计划条目已按模拟检验规范复核。"
+    },
+    {
+      "action": "confirm",
+      "target": "control_item:CP-PFMEA-P30-003",
+      "reason": "P30 版本追溯控制条目已按模拟 BOM 和检验规范复核。"
+    },
+    {
+      "action": "confirm",
+      "target": "control_item:CP-PFMEA-P30-004",
+      "reason": "P30 条码追溯控制条目已按模拟检验规范复核。"
+    },
+    {
+      "action": "confirm",
+      "target": "control_item:CP-PFMEA-P30-005",
+      "reason": "P30 包装数量控制条目已按模拟检验规范复核。"
+    },
+    {
+      "action": "confirm",
+      "target": "pending_field:EV-REAL-DWG-001.drawing_id",
+      "reason": "图纸来源 DOC-DWG-001 已复核，脱敏 drawing_id 待确认项可放行。"
+    },
+    {
+      "action": "confirm",
+      "target": "pending_field:EV-REAL-BOM-001.drawing_id",
+      "reason": "BOM 来源 DOC-BOM-001 与图纸修订关系已复核，脱敏 drawing_id 待确认项可放行。"
+    },
+    {
+      "action": "confirm",
+      "target": "pending_field:EV-REAL-INS-001.drawing_id",
+      "reason": "检验规范来源 DOC-INS-001 已复核，脱敏 drawing_id 待确认项可放行。"
+    },
+    {
+      "action": "confirm",
+      "target": "pending_field:EV-REAL-REQ-001.drawing_id",
+      "reason": "客户特殊要求来源 DOC-DWG-001 已复核，脱敏 drawing_id 待确认项可放行。"
+    },
+    {
+      "action": "confirm",
+      "target": "pending_field:EV-REAL-INS-001.process_step_id",
+      "reason": "检验规范与 P10/P30 过程步骤关联已复核，脱敏 process_step_id 待确认项可放行。"
+    },
+    {
+      "action": "confirm",
+      "target": "pending_field:EV-REAL-WI-001.process_step_id",
+      "reason": "作业指导书与 P20 过程步骤关联已复核，脱敏 process_step_id 待确认项可放行。"
+    }
+  ]
+}

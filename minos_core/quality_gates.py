@@ -8,6 +8,8 @@ from typing import Any
 
 from .audit import AuditItem, AuditReport, audit_chain
 from .domain import APQPChain
+from .review_patch import REVIEW_CONFIRMATIONS_KEY
+from .schemas import validate_bundle_schema
 from .validation import ChainValidationResult, validate_chain
 
 
@@ -71,6 +73,53 @@ class StageQualityGate:
         }
 
 
+class ExportGateError(ValueError):
+    """Raised when a user-facing export is blocked by the export gate."""
+
+    def __init__(self, gate: StageQualityGate) -> None:
+        self.gate = gate
+        super().__init__(_export_gate_failure_message(gate))
+
+
+def evaluate_export_gate(chain: APQPChain | dict[str, Any]) -> StageQualityGate:
+    """Evaluate the single quality gate used by every export path."""
+
+    return evaluate_stage_gate(chain, stage="export")
+
+
+def require_export_gate(chain: APQPChain | dict[str, Any]) -> StageQualityGate:
+    """Return the export gate or raise before any workbook is written."""
+
+    gate = evaluate_export_gate(chain)
+    if not gate.allow_user_export:
+        raise ExportGateError(gate)
+    return gate
+
+
+def _export_gate_failure_message(gate: StageQualityGate) -> str:
+    if not gate.validation:
+        lines = ["APQP chain validation failed:"]
+        lines.extend(gate.validation.messages)
+        return "\n".join(lines)
+
+    lines = ["APQP export blocked by export gate."]
+    lines.append(f"can_continue: {gate.can_continue}")
+    lines.append(f"evidence_sufficient: {gate.evidence_sufficient}")
+    _append_gate_detail(lines, "pending_fields", gate.pending_fields)
+    _append_gate_detail(lines, "needs_confirmation_items", gate.needs_confirmation_items)
+    _append_gate_detail(lines, "ai_inferred_items", gate.ai_inferred_items)
+    _append_gate_detail(lines, "missing_evidence_refs", gate.missing_evidence_refs)
+    _append_gate_detail(lines, "uncovered_evidence_items", gate.uncovered_evidence_items)
+    if gate.validation.messages:
+        _append_gate_detail(lines, "validation_messages", gate.validation.messages)
+    return "\n".join(lines)
+
+
+def _append_gate_detail(lines: list[str], label: str, values: list[Any]) -> None:
+    if values:
+        lines.append(f"{label}: " + ", ".join(str(value) for value in values))
+
+
 def evaluate_stage_gate(
     chain: APQPChain | dict[str, Any], stage: str = "validate"
 ) -> StageQualityGate:
@@ -78,7 +127,9 @@ def evaluate_stage_gate(
         chain = APQPChain(**chain)
     validation = _stage_validation(chain, stage)
     audit = audit_chain(chain)
-    pending_fields = _pending_fields(chain)
+    confirmed_targets = _confirmed_targets(chain)
+    confirmed_field_paths = _confirmed_field_paths(chain)
+    pending_fields = _without_confirmed(_pending_fields(chain), confirmed_field_paths)
     ai_inferred_items = _ai_inferred_items(chain)
     evidence_coverage = (
         _ingest_evidence_report(chain)
@@ -86,11 +137,17 @@ def evaluate_stage_gate(
         else _evidence_coverage_report(chain)
     )
     row_needs_confirmation_items = _row_needs_confirmation_items(chain)
-    needs_confirmation_items = _dedupe_preserve_order(
-        list(evidence_coverage["needs_confirmation_refs"])
-        + row_needs_confirmation_items
+    needs_confirmation_items = _without_confirmed(
+        _dedupe_preserve_order(
+            list(evidence_coverage["needs_confirmation_refs"])
+            + row_needs_confirmation_items
+        ),
+        confirmed_targets | confirmed_field_paths,
     )
-    evidence_coverage["needs_confirmation_refs"] = needs_confirmation_items
+    evidence_coverage["needs_confirmation_refs"] = _without_confirmed(
+        list(evidence_coverage["needs_confirmation_refs"]),
+        confirmed_targets | confirmed_field_paths,
+    )
     evidence_sufficient = bool(evidence_coverage["ok"])
     can_continue = (
         evidence_sufficient
@@ -102,11 +159,16 @@ def evaluate_stage_gate(
         and can_continue
         and not pending_fields
         and not needs_confirmation_items
+        and not ai_inferred_items
     )
     manual_review_items = list(audit.manual_review_items)
     manual_review_items.extend(_evidence_manual_review_items(evidence_coverage))
     manual_review_items.extend(
-        _row_needs_confirmation_manual_review_items(row_needs_confirmation_items)
+        _row_needs_confirmation_manual_review_items(
+            _without_confirmed(
+                row_needs_confirmation_items, confirmed_targets | confirmed_field_paths
+            )
+        )
     )
     return StageQualityGate(
         stage=stage,
@@ -125,10 +187,19 @@ def evaluate_stage_gate(
     )
 
 
+def _validate_versioned_bundle_schema(
+    payload: dict[str, Any], document_type: str
+) -> None:
+    if isinstance(payload, dict) and "schema_version" not in payload:
+        return
+    validate_bundle_schema(payload, document_type)
+
+
 def evaluate_analysis_bundle_gate(
     analysis_bundle: dict[str, Any],
     stage: str = "analyze",
 ) -> StageQualityGate:
+    _validate_versioned_bundle_schema(analysis_bundle, "analysis_bundle")
     validation = ChainValidationResult(ok=True, messages=[], chain=APQPChain())
     audit = audit_chain(APQPChain())
     report = _analysis_bundle_report(analysis_bundle)
@@ -155,6 +226,7 @@ def evaluate_pfd_bundle_gate(
     pfd_bundle: dict[str, Any],
     stage: str = "generate_pfd",
 ) -> StageQualityGate:
+    _validate_versioned_bundle_schema(pfd_bundle, "process_flow")
     validation = ChainValidationResult(ok=True, messages=[], chain=APQPChain())
     audit = audit_chain(APQPChain())
     report = _pfd_bundle_report(
@@ -183,6 +255,7 @@ def evaluate_brainstorm_failure_modes_input_gate(
     process_flow: dict[str, Any],
     stage: str = "brainstorm_failure_modes",
 ) -> StageQualityGate:
+    _validate_versioned_bundle_schema(process_flow, "process_flow")
     validation = ChainValidationResult(ok=True, messages=[], chain=APQPChain())
     audit = audit_chain(APQPChain())
     report = _pfd_bundle_report(
@@ -212,6 +285,7 @@ def evaluate_failure_mode_candidates_gate(
     candidates_bundle: dict[str, Any],
     stage: str = "brainstorm_failure_modes",
 ) -> StageQualityGate:
+    _validate_versioned_bundle_schema(candidates_bundle, "failure_mode_candidates")
     validation = ChainValidationResult(ok=True, messages=[], chain=APQPChain())
     audit = audit_chain(APQPChain())
     report = _failure_mode_candidates_report(candidates_bundle)
@@ -236,6 +310,7 @@ def evaluate_pfmea_bundle_gate(
     pfmea_bundle: dict[str, Any],
     stage: str = "generate_pfmea",
 ) -> StageQualityGate:
+    _validate_versioned_bundle_schema(pfmea_bundle, "pfmea")
     validation = ChainValidationResult(ok=True, messages=[], chain=APQPChain())
     audit = audit_chain(APQPChain())
     report = _pfmea_bundle_report(pfmea_bundle)
@@ -260,6 +335,7 @@ def evaluate_control_plan_bundle_gate(
     control_plan_bundle: dict[str, Any],
     stage: str = "generate_control_plan",
 ) -> StageQualityGate:
+    _validate_versioned_bundle_schema(control_plan_bundle, "control_plan")
     validation = ChainValidationResult(ok=True, messages=[], chain=APQPChain())
     audit = audit_chain(APQPChain())
     report = _control_plan_bundle_report(control_plan_bundle)
@@ -1502,6 +1578,80 @@ def _dedupe_preserve_order(values: list[str]) -> list[str]:
         result.append(normalized)
         seen.add(normalized)
     return result
+
+
+def _confirmed_targets(chain: APQPChain) -> set[str]:
+    return {
+        str(item.get("target", "")).strip()
+        for item in _review_confirmations(chain)
+        if isinstance(item, dict) and str(item.get("target", "")).strip()
+    }
+
+
+def _confirmed_field_paths(chain: APQPChain) -> set[str]:
+    field_paths: set[str] = set()
+    for item in _review_confirmations(chain):
+        if not isinstance(item, dict):
+            continue
+        field_path = str(item.get("field_path", "")).strip()
+        if field_path:
+            field_paths.add(field_path)
+        target = str(item.get("target", "")).strip()
+        field = str(item.get("field", "")).strip()
+        if target.startswith("pending_field:"):
+            field_paths.add(target.split(":", 1)[1].strip())
+        if target and field:
+            target_id = target.split(":", 1)[1] if ":" in target else target
+            field_paths.add(f"{target_id}.{field}")
+            field_paths.add(f"{target}.{field}")
+    return field_paths
+
+
+def _review_confirmations(chain: APQPChain) -> list[Any]:
+    confirmations = chain.metadata.get(REVIEW_CONFIRMATIONS_KEY, [])
+    return confirmations if isinstance(confirmations, list) else []
+
+
+def _without_confirmed(values: list[str], confirmed: set[str]) -> list[str]:
+    return [value for value in values if not _is_confirmed(value, confirmed)]
+
+
+def _is_confirmed(value: str, confirmed: set[str]) -> bool:
+    text = str(value).strip()
+    if not text:
+        return False
+    if text in confirmed:
+        return True
+    for item in confirmed:
+        if _confirmation_matches_value(item, text):
+            return True
+    return False
+
+
+def _confirmation_matches_value(confirmed: str, value: str) -> bool:
+    if confirmed == value:
+        return True
+    if " -> " in value:
+        _, ref = value.rsplit(" -> ", 1)
+        if confirmed == ref.strip():
+            return True
+        if confirmed == f"evidence:{ref.strip()}":
+            return True
+    if ":" in confirmed:
+        confirmed_type, confirmed_id = confirmed.split(":", 1)
+        if value == confirmed_id:
+            return True
+        if value.endswith(f":{confirmed_id}"):
+            return True
+        if value.startswith(f"{confirmed_id}."):
+            return True
+        if value.startswith(f"{confirmed}."):
+            return True
+        if value.endswith(f" -> {confirmed_id}"):
+            return True
+        if confirmed_type == "evidence" and value.endswith(f" -> {confirmed_id}"):
+            return True
+    return False
 
 
 def _pending_fields(chain: APQPChain) -> list[str]:

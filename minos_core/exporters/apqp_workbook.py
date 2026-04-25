@@ -9,13 +9,48 @@ from typing import Any
 from .xlsx import WorkbookWriter
 
 
-def export_apqp_workbook(chain: Any, path: str | Path) -> Path:
-    """Export an APQP chain into the fixed Chinese workbook."""
+def export_apqp_workbook(
+    chain: Any,
+    path: str | Path,
+    *,
+    require_gate: bool = True,
+    export_mode: str = "final",
+    quality_gate: Any | None = None,
+) -> Path:
+    """Export an APQP chain into the fixed Chinese workbook.
 
+    ``export_mode='final'`` is the customer-submission path and is protected by
+    ``require_export_gate`` by default. ``export_mode='draft'`` writes an explicit
+    draft-only workbook for engineering review without pretending to be released.
+    """
+
+    if export_mode not in {"final", "draft"}:
+        raise ValueError(f"unsupported export_mode: {export_mode!r}")
+    if export_mode == "final" and require_gate:
+        from ..quality_gates import require_export_gate
+
+        quality_gate = require_export_gate(chain)
+    elif quality_gate is None:
+        from ..quality_gates import evaluate_stage_gate
+
+        quality_gate = evaluate_stage_gate(chain, stage="export")
     workbook = WorkbookWriter()
-    workbook.add_sheet("摘要", _summary_rows(chain), column_widths={1: 18, 2: 42})
+    if export_mode == "draft":
+        workbook.add_sheet(
+            "DRAFT_ONLY",
+            _draft_notice_rows(quality_gate),
+            column_widths={1: 30, 2: 90},
+            auto_filter=False,
+        )
     workbook.add_sheet(
-        "质量门状态", _quality_gate_rows(chain), column_widths={1: 18, 2: 18, 3: 60}
+        "摘要",
+        _summary_rows(chain, export_mode),
+        column_widths={1: 24, 2: 70},
+    )
+    workbook.add_sheet(
+        "质量门状态",
+        _quality_gate_rows(chain, quality_gate, export_mode),
+        column_widths={1: 24, 2: 18, 3: 80},
     )
     workbook.add_sheet(
         "过程流程图", _process_flow_rows(chain), column_widths={1: 12, 2: 28, 3: 42}
@@ -37,87 +72,162 @@ def export_apqp_workbook(chain: Any, path: str | Path) -> Path:
     )
     workbook.add_sheet(
         "人工复核清单",
-        _manual_review_rows(chain),
+        _manual_review_rows(chain, quality_gate, export_mode),
         column_widths={1: 8, 2: 24, 3: 20, 4: 14, 5: 80},
     )
     return workbook.save(path)
 
 
-def _summary_rows(chain: Any) -> list[list[Any]]:
+def _draft_notice_rows(quality_gate: Any) -> list[list[Any]]:
     return [
         ["项目", "内容"],
+        ["export_mode", "draft"],
+        ["draft_only", "true"],
+        ["requires_engineering_review", "true"],
+        ["not for customer submission", "true"],
+        ["中文提示", "仅限草案：需要工程/质量人工复核，不能提交客户"],
+        ["quality_gate_stage", _first_value(quality_gate, "stage", default="export")],
         [
-            "产品",
-            _first_value(
-                chain,
-                "display_name",
-                "primary_analysis_name",
-                "product_name",
-                "name",
-                default="",
-            ),
+            "quality_gate_can_continue",
+            _yes_no(_first_value(quality_gate, "can_continue", default=False)),
         ],
-        ["标识", _first_value(chain, "slug", "id", "part_number", default="")],
-        ["阶段", _first_value(chain, "process_stage", "stage", default="")],
         [
-            "关键特性",
-            _join(_first_value(chain, "critical_characteristics", default=[])),
+            "quality_gate_allow_final_export",
+            _yes_no(_first_value(quality_gate, "allow_user_export", default=False)),
         ],
-        ["过程数量", len(_process_steps(chain))],
-        ["PFMEA 项数", len(_items(chain, "pfmea", "pfmea_items", "failure_modes"))],
         [
-            "控制计划项数",
-            len(_items(chain, "control_plan", "control_plan_items", "controls")),
+            "manual_review_required",
+            _yes_no(_first_value(quality_gate, "needs_human_review", default=False)),
+        ],
+        [
+            "needs_confirmation_items",
+            _join(_first_value(quality_gate, "needs_confirmation_items", default=[])),
+        ],
+        ["pending_fields", _join(_first_value(quality_gate, "pending_fields", default=[]))],
+        [
+            "ai_inferred_items",
+            _join(_first_value(quality_gate, "ai_inferred_items", default=[])),
         ],
     ]
 
 
-def _quality_gate_rows(chain: Any) -> list[list[Any]]:
-    from ..quality_gates import evaluate_stage_gate
+def _summary_rows(chain: Any, export_mode: str = "final") -> list[list[Any]]:
+    rows = [
+        ["项目", "内容"],
+    ]
+    if export_mode == "draft":
+        rows.extend(
+            [
+                ["export_mode", "draft"],
+                ["draft_only", "true"],
+                ["requires_engineering_review", "true"],
+                ["not for customer submission", "true"],
+                ["状态说明", "仅限草案：需要工程/质量人工复核，不能提交客户"],
+            ]
+        )
+    else:
+        rows.append(["export_mode", "final"])
+    rows.extend(
+        [
+            [
+                "产品",
+                _first_value(
+                    chain,
+                    "display_name",
+                    "primary_analysis_name",
+                    "product_name",
+                    "name",
+                    default="",
+                ),
+            ],
+            ["标识", _first_value(chain, "slug", "id", "part_number", default="")],
+            ["阶段", _first_value(chain, "process_stage", "stage", default="")],
+            [
+                "关键特性",
+                _join(_first_value(chain, "critical_characteristics", default=[])),
+            ],
+            ["过程数量", len(_process_steps(chain))],
+            ["PFMEA 项数", len(_items(chain, "pfmea", "pfmea_items", "failure_modes"))],
+            [
+                "控制计划项数",
+                len(_items(chain, "control_plan", "control_plan_items", "controls")),
+            ],
+        ]
+    )
+    return rows
 
-    gate = evaluate_stage_gate(chain, stage="export")
+
+def _quality_gate_rows(
+    chain: Any,
+    quality_gate: Any | None = None,
+    export_mode: str = "final",
+) -> list[list[Any]]:
+    if quality_gate is None:
+        from ..quality_gates import evaluate_stage_gate
+
+        gate = evaluate_stage_gate(chain, stage="export")
+    else:
+        gate = quality_gate
     coverage = gate.evidence_coverage
-    return [
+    rows = [
         ["项目", "状态/数量", "说明"],
-        ["阶段", gate.stage, ""],
-        ["可继续", _yes_no(gate.can_continue), "validation 通过且证据充分"],
-        ["允许用户导出", _yes_no(gate.allow_user_export), "可继续且无待补字段"],
-        ["证据充分", _yes_no(gate.evidence_sufficient), ""],
-        [
-            "证据覆盖率",
-            _coverage_ratio(coverage),
-            f"{coverage.get('covered_items', 0)}/{coverage.get('required_items', 0)}",
-        ],
-        [
-            "未覆盖证据对象数",
-            len(gate.uncovered_evidence_items),
-            _join(gate.uncovered_evidence_items),
-        ],
-        [
-            "缺失证据引用数",
-            len(gate.missing_evidence_refs),
-            _join(gate.missing_evidence_refs),
-        ],
-        [
-            "被引用 AI 推断证据数",
-            len(coverage.get("ai_inferred_refs", [])),
-            _join(coverage.get("ai_inferred_refs", [])),
-        ],
-        [
-            "待确认证据数",
-            len(gate.needs_confirmation_items),
-            _join(gate.needs_confirmation_items),
-        ],
-        ["待补字段数", len(gate.pending_fields), _join(gate.pending_fields)],
-        ["AI 推断项数", len(gate.ai_inferred_items), _join(gate.ai_inferred_items)],
-        ["人工复核项数", len(gate.manual_review_items), ""],
-        ["校验消息数", len(gate.validation.messages), _join(gate.validation.messages)],
-        ["工序数", gate.audit.counts.get("process_steps", 0), ""],
-        ["PFMEA 数", gate.audit.counts.get("failure_modes", 0), ""],
-        ["控制计划数", gate.audit.counts.get("controls", 0), ""],
-        ["机械链接数", gate.audit.counts.get("mechanical_links", 0), ""],
-        ["弱链接数", gate.audit.counts.get("weak_links", 0), ""],
     ]
+    if export_mode == "draft":
+        rows.extend(
+            [
+                [
+                    "export_mode",
+                    "draft",
+                    "draft_only；requires_engineering_review；not for customer submission",
+                ],
+                ["draft_only", "true", "仅限草案，不可提交客户"],
+                ["requires_engineering_review", "true", "需要工程/质量人工复核"],
+                ["not for customer submission", "true", "不能作为正式 PPAP/APQP 客户提交件"],
+            ]
+        )
+    rows.extend(
+        [
+            ["阶段", gate.stage, ""],
+            ["可继续", _yes_no(gate.can_continue), "validation 通过且证据充分"],
+            ["允许用户导出", _yes_no(gate.allow_user_export), "可继续且无待补、待确认或 AI-only 项"],
+            ["证据充分", _yes_no(gate.evidence_sufficient), ""],
+            [
+                "证据覆盖率",
+                _coverage_ratio(coverage),
+                f"{coverage.get('covered_items', 0)}/{coverage.get('required_items', 0)}",
+            ],
+            [
+                "未覆盖证据对象数",
+                len(gate.uncovered_evidence_items),
+                _join(gate.uncovered_evidence_items),
+            ],
+            [
+                "缺失证据引用数",
+                len(gate.missing_evidence_refs),
+                _join(gate.missing_evidence_refs),
+            ],
+            [
+                "被引用 AI 推断证据数",
+                len(coverage.get("ai_inferred_refs", [])),
+                _join(coverage.get("ai_inferred_refs", [])),
+            ],
+            [
+                "待确认证据数",
+                len(gate.needs_confirmation_items),
+                _join(gate.needs_confirmation_items),
+            ],
+            ["待补字段数", len(gate.pending_fields), _join(gate.pending_fields)],
+            ["AI 推断项数", len(gate.ai_inferred_items), _join(gate.ai_inferred_items)],
+            ["人工复核项数", len(gate.manual_review_items), ""],
+            ["校验消息数", len(gate.validation.messages), _join(gate.validation.messages)],
+            ["工序数", gate.audit.counts.get("process_steps", 0), ""],
+            ["PFMEA 数", gate.audit.counts.get("failure_modes", 0), ""],
+            ["控制计划数", gate.audit.counts.get("controls", 0), ""],
+            ["机械链接数", gate.audit.counts.get("mechanical_links", 0), ""],
+            ["弱链接数", gate.audit.counts.get("weak_links", 0), ""],
+        ]
+    )
+    return rows
 
 
 def _process_flow_rows(chain: Any) -> list[list[Any]]:
@@ -219,11 +329,28 @@ def _traceability_rows(chain: Any) -> list[list[Any]]:
     return rows
 
 
-def _manual_review_rows(chain: Any) -> list[list[Any]]:
-    from ..quality_gates import evaluate_stage_gate
+def _manual_review_rows(
+    chain: Any,
+    quality_gate: Any | None = None,
+    export_mode: str = "final",
+) -> list[list[Any]]:
+    if quality_gate is None:
+        from ..quality_gates import evaluate_stage_gate
 
-    gate = evaluate_stage_gate(chain, stage="export")
+        gate = evaluate_stage_gate(chain, stage="export")
+    else:
+        gate = quality_gate
     rows = [["序号", "对象ID", "类别", "严重度", "复核说明"]]
+    if export_mode == "draft":
+        rows.append(
+            [
+                0,
+                "draft_only",
+                "export_mode",
+                "review",
+                "requires_engineering_review；not for customer submission；仅限草案，不能提交客户",
+            ]
+        )
     for index, item in enumerate(gate.manual_review_items, start=1):
         rows.append(
             [

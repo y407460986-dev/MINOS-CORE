@@ -26,6 +26,9 @@ def ingest_evidence_bundle(
             _normalize_evidence_rows(payload["evidence"]),
             ingest_mode=_detect_mode(payload),
             source_ref=str(source_ref or payload.get("source_ref", "")),
+            metadata=payload.get("metadata")
+            if isinstance(payload.get("metadata"), dict)
+            else None,
         )
     if "content" in payload or "text" in payload:
         return _evidence_bundle(
@@ -38,8 +41,11 @@ def ingest_evidence_bundle(
 
 def _load_ingest_payload(source: str | Path | dict[str, Any]) -> dict[str, Any]:
     if isinstance(source, dict):
-        return source
+        payload = load_fixture_payload(source)
+        return _input_package_ingest_payload(payload)
     path = Path(source)
+    if path.is_dir() and (path / "input_package.json").exists():
+        return _input_package_ingest_payload(load_fixture_payload(path))
     if (
         path.is_dir()
         and (path / "evidence.json").exists()
@@ -47,7 +53,20 @@ def _load_ingest_payload(source: str | Path | dict[str, Any]) -> dict[str, Any]:
     ):
         payload = read_json_object(path / "evidence.json")
         return {"evidence": payload.get("evidence", []), "source_ref": str(path)}
-    return load_fixture_payload(source)
+    payload = load_fixture_payload(source)
+    return _input_package_ingest_payload(payload)
+
+
+def _input_package_ingest_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    if payload.get("document_type") != "evidence_bundle":
+        return payload
+    metadata = payload.get("metadata", {})
+    if not isinstance(metadata, dict) or metadata.get("ingest_mode") != "input_package":
+        return payload
+    return {
+        **payload,
+        "source_ref": str(metadata.get("source_ref", "input_package")),
+    }
 
 
 def _looks_like_ocr_text(payload: dict[str, Any]) -> bool:
@@ -120,19 +139,26 @@ def _evidence_bundle(
     *,
     ingest_mode: str,
     source_ref: str = "",
+    metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    bundle_metadata = {
+        "ingest_mode": ingest_mode,
+        "source_ref": source_ref,
+    }
+    if metadata:
+        bundle_metadata.update(metadata)
     return {
         "document_type": "evidence_bundle",
         "schema_version": "0.1",
         "evidence": evidence,
-        "metadata": {
-            "ingest_mode": ingest_mode,
-            "source_ref": source_ref,
-        },
+        "metadata": bundle_metadata,
     }
 
 
 def _detect_mode(payload: dict[str, Any]) -> str:
+    metadata = payload.get("metadata", {})
+    if isinstance(metadata, dict) and metadata.get("ingest_mode") == "input_package":
+        return "input_package"
     if payload.get("document_type") == "evidence_bundle":
         return "evidence"
     if "process_flow" in payload or "pfmea" in payload or "control_plan" in payload:

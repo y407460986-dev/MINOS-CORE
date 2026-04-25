@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .domain import APQPChain
-from .quality_gates import StageQualityGate, evaluate_stage_gate
+from .quality_gates import StageQualityGate, evaluate_export_gate, evaluate_stage_gate
 
 
 @dataclass(frozen=True)
@@ -387,6 +387,24 @@ def run_stage(
             quality_gate=gate,
         )
 
+    if stage in {"generate_draft", "run_pipeline"}:
+        from .pipeline import generate_draft
+
+        envelope = generate_draft(fixture, output_path)
+        gate_payload = envelope.get("quality_gate")
+        gate = _gate_from_dump(gate_payload) if isinstance(gate_payload, dict) else None
+        draft = envelope.get("draft")
+        evidence = [Evidence.from_mapping(item) for item in (draft or {}).get("evidence", [])]
+        return StageResult(
+            stage=stage,
+            status="ok" if envelope.get("status") == "draft_ready" else "blocked",
+            output=envelope,
+            evidence=evidence,
+            pending_fields=list((gate_payload or {}).get("pending_fields", [])),
+            ai_inferred_items=list((gate_payload or {}).get("ai_inferred_items", [])),
+            quality_gate=gate,
+        )
+
     context = build_stage_context(fixture, stage=stage, output_path=output_path)
     if stage == "validate":
         result = validate_chain(context.chain)
@@ -394,7 +412,7 @@ def run_stage(
             context, output=result, status="ok" if result else "failed"
         )
     if stage == "export":
-        gate = evaluate_stage_gate(context.chain, stage=stage)
+        gate = evaluate_export_gate(context.chain)
         if not gate.allow_user_export:
             return StageResult(
                 stage=stage,
@@ -406,8 +424,22 @@ def run_stage(
             )
         if context.output_path is None:
             raise ValueError("output_path is required for export stage")
-        exported = export_apqp_workbook(context.chain, context.output_path)
-        return build_stage_result(context, output=exported, status="ok")
+        exported = export_apqp_workbook(
+            context.chain,
+            context.output_path,
+            require_gate=False,
+            export_mode="final",
+            quality_gate=gate,
+        )
+        return StageResult(
+            stage=stage,
+            status="ok",
+            output=exported,
+            evidence=list(context.chain.evidence),
+            pending_fields=list(gate.pending_fields),
+            ai_inferred_items=list(gate.ai_inferred_items),
+            quality_gate=gate,
+        )
     return build_stage_result(context)
 
 
@@ -770,6 +802,35 @@ def _list_value(row: dict[str, Any], field_name: str) -> list[Any]:
         return list(value)
     text = str(value).strip()
     return [text] if text else []
+
+
+def _gate_from_dump(payload: dict[str, Any]):
+    from .audit import audit_chain
+    from .quality_gates import StageQualityGate
+    from .validation import ChainValidationResult
+
+    chain = APQPChain()
+    validation = ChainValidationResult(
+        ok=not bool(payload.get("validation_messages", [])),
+        messages=list(payload.get("validation_messages", [])),
+        chain=chain,
+    )
+    audit = audit_chain(chain)
+    return StageQualityGate(
+        stage=str(payload.get("stage", "validate")),
+        can_continue=bool(payload.get("can_continue", False)),
+        allow_user_export=bool(payload.get("allow_user_export", False)),
+        validation=validation,
+        audit=audit,
+        evidence_sufficient=bool(payload.get("evidence_sufficient", False)),
+        pending_fields=list(payload.get("pending_fields", [])),
+        ai_inferred_items=list(payload.get("ai_inferred_items", [])),
+        manual_review_items=list(payload.get("manual_review_items", [])),
+        evidence_coverage=dict(payload.get("evidence_coverage", {})),
+        missing_evidence_refs=list(payload.get("missing_evidence_refs", [])),
+        uncovered_evidence_items=list(payload.get("uncovered_evidence_items", [])),
+        needs_confirmation_items=list(payload.get("needs_confirmation_items", [])),
+    )
 
 
 def _dump_value(value: Any) -> Any:

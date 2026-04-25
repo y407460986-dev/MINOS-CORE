@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 from typing import Any
 
@@ -30,13 +31,32 @@ def main(argv: list[str] | None = None) -> int:
         "--input", help="Fixture JSON file or fixture directory"
     )
 
-    export_parser = subparsers.add_parser("export", help="Export an APQP fixture")
+    export_parser = subparsers.add_parser("export", help="Export a formally released APQP fixture")
     export_parser.add_argument(
         "--fixture", help="Fixture JSON file or fixture directory"
     )
     export_parser.add_argument("--input", help="Fixture JSON file or fixture directory")
     export_parser.add_argument("--output", required=True, help="Output workbook path")
     export_parser.add_argument("--label", default="", help="Optional export label")
+    export_parser.add_argument(
+        "--manifest-output",
+        help="Optional path to save the run manifest JSON",
+    )
+
+    export_draft_parser = subparsers.add_parser(
+        "export-draft",
+        help="Export a draft-only APQP workbook for engineering review",
+    )
+    export_draft_parser.add_argument(
+        "--fixture", help="Fixture JSON file or fixture directory"
+    )
+    export_draft_parser.add_argument("--input", help="Fixture JSON file or fixture directory")
+    export_draft_parser.add_argument("--output", required=True, help="Output workbook path")
+    export_draft_parser.add_argument("--label", default="", help="Optional export label")
+    export_draft_parser.add_argument(
+        "--manifest-output",
+        help="Optional path to save the run manifest JSON",
+    )
 
     audit_parser = subparsers.add_parser(
         "audit", help="Audit APQP fixture quality without blocking export"
@@ -47,6 +67,54 @@ def main(argv: list[str] | None = None) -> int:
     audit_parser.add_argument("--input", help="Fixture JSON file or fixture directory")
     audit_parser.add_argument(
         "--json", action="store_true", help="Print machine-readable JSON"
+    )
+
+    draft_parser = subparsers.add_parser(
+        "generate-draft",
+        aliases=["run-pipeline"],
+        help="Run generated stages from evidence and emit a draft APQPChain JSON",
+    )
+    draft_parser.add_argument(
+        "--input", required=True, help="Evidence bundle JSON file or evidence directory"
+    )
+    draft_parser.add_argument(
+        "--output", help="Optional path to save the draft result JSON"
+    )
+    draft_parser.add_argument(
+        "--manifest-output",
+        help="Optional path to save the run manifest JSON",
+    )
+
+    apply_review_parser = subparsers.add_parser(
+        "apply-review",
+        help="Apply a review patch to an APQPChain draft/result and re-run the export gate",
+    )
+    apply_review_parser.add_argument(
+        "--input",
+        help="Draft result JSON, APQPChain JSON, or fixture directory",
+    )
+    apply_review_parser.add_argument(
+        "--draft-result",
+        dest="draft_result",
+        help="Alias for --input when passing a draft result JSON",
+    )
+    apply_review_parser.add_argument(
+        "--apqp-chain",
+        dest="apqp_chain",
+        help="Alias for --input when passing an APQPChain JSON or fixture directory",
+    )
+    apply_review_parser.add_argument(
+        "--review-patch",
+        required=True,
+        help="Review patch JSON file",
+    )
+    apply_review_parser.add_argument(
+        "--output",
+        help="Optional path to save the reviewed result JSON envelope",
+    )
+    apply_review_parser.add_argument(
+        "--manifest-output",
+        help="Optional path to save the run manifest JSON",
     )
 
     convert_parser = subparsers.add_parser(
@@ -80,9 +148,22 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "validate":
         return _validate(args.fixture or args.input)
     if args.command == "export":
-        return _export(args.fixture or args.input, args.output, args.label)
+        return _export(args.fixture or args.input, args.output, args.label, args.manifest_output)
+    if args.command == "export-draft":
+        return _export_draft(
+            args.fixture or args.input, args.output, args.label, args.manifest_output
+        )
     if args.command == "audit":
         return _audit(args.fixture or args.input, args.json)
+    if args.command in {"generate-draft", "run-pipeline"}:
+        return _generate_draft(args.input, args.output, args.manifest_output)
+    if args.command == "apply-review":
+        return _apply_review(
+            args.input or args.draft_result or args.apqp_chain,
+            args.review_patch,
+            args.output,
+            args.manifest_output,
+        )
     if args.command == "convert-legacy":
         return _convert_legacy(
             args.input, args.output_dir, args.sample_id, args.display_name, args.profile
@@ -120,16 +201,40 @@ def _validate(fixture: str) -> int:
     return 0
 
 
-def _export(fixture: str, output: str, label: str) -> int:
+def _export(fixture: str, output: str, label: str, manifest_output: str | None) -> int:
     if not fixture:
         raise ValueError("--fixture or --input is required")
     from .pipeline import export_fixture
+    from .quality_gates import ExportGateError
 
     payload = load_fixture_payload(fixture)
+    if payload.get("document_type") == "apqp_chain_review_result":
+        payload = payload.get("patched_chain")
     if label:
         payload["label"] = label
-    result = export_fixture(payload, output)
+    try:
+        result = export_fixture(payload, output, manifest_output)
+    except ExportGateError as exc:
+        print(str(exc))
+        return 2
     print(f"Exported: {result}")
+    return 0
+
+
+def _export_draft(
+    fixture: str, output: str, label: str, manifest_output: str | None
+) -> int:
+    if not fixture:
+        raise ValueError("--fixture or --input is required")
+    from .pipeline import export_draft_fixture
+
+    payload = load_fixture_payload(fixture)
+    if payload.get("document_type") == "apqp_chain_draft_result":
+        payload = payload.get("draft")
+    if label:
+        payload["label"] = label
+    result = export_draft_fixture(payload, output, manifest_output)
+    print(f"Draft exported: {result}")
     return 0
 
 
@@ -140,6 +245,36 @@ def _audit(fixture: str, as_json: bool) -> int:
 
     report = audit_chain(load_fixture_payload(fixture))
     print(audit_report_json(report) if as_json else report.to_text())
+    return 0
+
+
+def _generate_draft(
+    evidence_input: str, output: str | None, manifest_output: str | None
+) -> int:
+    from .pipeline import generate_draft
+
+    result = generate_draft(evidence_input, output, manifest_output)
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0 if result.get("status") == "draft_ready" else 2
+
+
+def _apply_review(
+    review_input: str | None,
+    review_patch: str,
+    output: str | None,
+    manifest_output: str | None,
+) -> int:
+    if not review_input:
+        raise ValueError("--input, --draft-result, or --apqp-chain is required")
+    from .pipeline import apply_review
+    from .review_patch import ReviewPatchError
+
+    try:
+        result = apply_review(review_input, review_patch, output, manifest_output)
+    except (ReviewPatchError, TypeError, ValueError) as exc:
+        print(f"apply-review failed: {exc}")
+        return 2
+    print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0
 
 

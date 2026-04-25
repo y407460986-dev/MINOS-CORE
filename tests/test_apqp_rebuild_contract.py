@@ -10,6 +10,8 @@ import shutil
 from pathlib import Path
 from xml.etree import ElementTree
 
+from minos_core.adapters.fixture_json import load_fixture_payload
+
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE_DIR = ROOT / "tests" / "fixtures" / "apqp_chain"
@@ -427,6 +429,30 @@ class CliContractTests(unittest.TestCase):
                 REQUIRED_SHEETS,
             )
 
+    def test_cli_export_blocks_quality_gate_bypass(self):
+        fixture = load_fixture_payload(FIXTURE_DIR)
+        fixture["evidence"][0]["needs_confirmation"] = True
+
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture_path = Path(tmp) / "fixture.json"
+            output_path = Path(tmp) / "blocked.xlsx"
+            fixture_path.write_text(json.dumps(fixture), encoding="utf-8")
+
+            export_result = self._run_cli(
+                "export",
+                "--input",
+                str(fixture_path),
+                "--output",
+                str(output_path),
+            )
+
+            self.assertNotEqual(export_result.returncode, 0)
+            self.assertFalse(output_path.exists())
+            self.assertIn(
+                "APQP export blocked by export gate",
+                export_result.stdout + export_result.stderr,
+            )
+
 
 class PipelineArchitectureTests(unittest.TestCase):
     def test_pipeline_declares_fixed_stage_order(self):
@@ -442,6 +468,7 @@ class PipelineArchitectureTests(unittest.TestCase):
                 "generate_pfmea",
                 "generate_control_plan",
                 "assemble_generated_apqp_chain",
+                "generate_draft",
                 "validate",
                 "export",
             ),

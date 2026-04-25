@@ -101,6 +101,93 @@ class StageResultTests(unittest.TestCase):
             self.assertEqual(result.output, output_path)
             self.assertTrue(output_path.exists())
 
+    def test_pipeline_export_blocks_quality_gate_bypass(self):
+        from minos_core.pipeline import export_fixture
+        from minos_core.quality_gates import ExportGateError
+
+        fixture = _load_fixture()
+        fixture["evidence"][0]["needs_confirmation"] = True
+
+        with tempfile.TemporaryDirectory() as tmp:
+            output_path = Path(tmp) / "blocked.xlsx"
+
+            with self.assertRaises(ExportGateError):
+                export_fixture(fixture, output_path)
+
+            self.assertFalse(output_path.exists())
+
+    def test_raw_workbook_export_also_uses_export_gate(self):
+        from minos_core.exporters.apqp_workbook import export_apqp_workbook
+        from minos_core.quality_gates import ExportGateError
+
+        fixture = _load_fixture()
+        fixture["evidence"][0]["needs_confirmation"] = True
+
+        with tempfile.TemporaryDirectory() as tmp:
+            output_path = Path(tmp) / "blocked.xlsx"
+
+            with self.assertRaises(ExportGateError):
+                export_apqp_workbook(fixture, output_path)
+
+            self.assertFalse(output_path.exists())
+
+    def test_run_stage_export_blocks_needs_confirmation_without_writing(self):
+        from minos_core.stage import run_stage
+
+        fixture = _load_fixture()
+        fixture["process_flow"]["steps"][0]["needs_confirmation"] = True
+
+        with tempfile.TemporaryDirectory() as tmp:
+            output_path = Path(tmp) / "blocked.xlsx"
+            result = run_stage(fixture, stage="export", output_path=output_path)
+
+            self.assertEqual(result.status, "blocked")
+            self.assertFalse(result.quality_gate.allow_user_export)
+            self.assertIn("process_step:P10", result.quality_gate.needs_confirmation_items)
+            self.assertFalse(output_path.exists())
+
+    def test_pipeline_export_blocks_ai_only_item_without_writing(self):
+        from minos_core.pipeline import export_fixture
+        from minos_core.quality_gates import ExportGateError, evaluate_export_gate
+
+        fixture = _load_fixture()
+        fixture["ai_inferred_items"] = [
+            {"item_id": "AI-ONLY-P10", "ai_inferred": True}
+        ]
+
+        gate = evaluate_export_gate(fixture)
+        self.assertTrue(gate.can_continue)
+        self.assertFalse(gate.allow_user_export)
+        self.assertIn("AI-ONLY-P10", gate.ai_inferred_items)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            output_path = Path(tmp) / "blocked.xlsx"
+
+            with self.assertRaises(ExportGateError):
+                export_fixture(fixture, output_path)
+
+            self.assertFalse(output_path.exists())
+
+    def test_pipeline_export_preserves_validation_hard_failure(self):
+        from minos_core.pipeline import export_fixture
+        from minos_core.quality_gates import ExportGateError
+
+        fixture = _load_fixture()
+        fixture["control_plan"]["rows"] = [
+            row
+            for row in fixture["control_plan"]["rows"]
+            if row["pfmea_id"] != "PFMEA-P20-002"
+        ]
+
+        with tempfile.TemporaryDirectory() as tmp:
+            output_path = Path(tmp) / "blocked.xlsx"
+
+            with self.assertRaises(ExportGateError) as context:
+                export_fixture(fixture, output_path)
+
+            self.assertIn("APQP chain validation failed", str(context.exception))
+            self.assertFalse(output_path.exists())
+
     def test_stage_result_blocks_pending_fields_and_reports_ai_evidence(self):
         from minos_core.stage import run_stage
 

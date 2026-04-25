@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "minos-core"
+version = "0.0.0"
+description = "Evidence-driven APQP linkage core for PFD, PFMEA, and control plan workflows."
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = []
+
+[project.scripts]
+minos-core = "minos_core.cli:main"
+
+[tool.setuptools]
+packages = ["minos_core", "minos_core.adapters", "minos_core.exporters"]
+
+[tool.unittest]
+discover_start_dir = "tests"
+discover_pattern = "test*.py"
+
+test_command = "python -m unittest discover -s tests -v"

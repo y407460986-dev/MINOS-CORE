@@ -1,0 +1,54 @@
+{
+  "document_type": "evidence",
+  "schema_version": "minos-core.fixture.v1",
+  "evidence": [
+    {
+      "evidence_id": "EV-DEMO-ROUTE-001",
+      "source": "demo routing record",
+      "content": "Released process routing defines P10 incoming material verification, P20 rivet assembly, P30 final inspection and pack, including sequence P10 -> P20 -> P30.",
+      "confidence": 1.0,
+      "ai_inferred": false,
+      "needs_confirmation": false
+    },
+    {
+      "evidence_id": "EV-DEMO-REQ-001",
+      "source": "demo drawing requirements awaiting reviewer sign-off",
+      "content": "Drawing DRW-DEMO-001 Rev A and engineering requirements define material thickness 2.00 +/- 0.10 mm, rivet height 1.50 +0.50/-0.00 mm, and push-out force >= 10 kN.",
+      "confidence": 0.95,
+      "ai_inferred": false,
+      "needs_confirmation": true
+    },
+    {
+      "evidence_id": "EV-DEMO-IQC-001",
+      "source": "demo incoming quality record",
+      "content": "P10 incoming material verification uses supplier CoC and lot thickness measurement for purchased bracket and pin verification.",
+      "confidence": 1.0,
+      "ai_inferred": false,
+      "needs_confirmation": false
+    },
+    {
+      "evidence_id": "EV-DEMO-RIVET-001",
+      "source": "demo work instruction and first-off record",
+      "content": "P20 rivet assembly process setup uses setup check, first piece approval, locked press adjustment, and go/no-go rivet height gauge every 30 minutes.",
+      "confidence": 1.0,
+      "ai_inferred": false,
+      "needs_confirmation": false
+    },
+    {
+      "evidence_id": "EV-DEMO-PUSHOUT-001",
+      "source": "demo shift destructive test record",
+      "content": "P20 rivet assembly process push-out force is verified by destructive push-out verification once per shift with traceable record and containment reaction when force is below requirement.",
+      "confidence": 1.0,
+      "ai_inferred": false,
+      "needs_confirmation": false
+    },
+    {
+      "evidence_id": "EV-DEMO-PACK-001",
+      "source": "demo pack specification and barcode verification record",
+      "content": "P30 final inspection and pack process verifies released product revision A, readable traceability barcode, pack quantity, and requires barcode verification before pack close.",
+      "confidence": 1.0,
+      "ai_inferred": false,
+      "needs_confirmation": false
+    }
+  ]
+}

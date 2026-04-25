@@ -1,0 +1,13 @@
+{
+  "document_type": "input_package",
+  "schema_version": "minos-core.input_package.v1",
+  "package_id": "DEMO-INPUT-PACKAGE-001",
+  "source_ref": "demo_input_package",
+  "draft_requires_review": true,
+  "evidence_path": "evidence.json",
+  "review_patch_path": "review_patch.json",
+  "metadata": {
+    "fixture_purpose": "Offline demo input package; no local files, network, AI, or OCR required.",
+    "product_family": "demo door hinge bracket"
+  }
+}

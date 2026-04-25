@@ -1,5 +1,28 @@
 # MINOS-CORE 重建交付清单
 
+## 任务 5 新增
+本阶段补齐工程化基础设施，不引入第三方运行时依赖，不提交本地 Claude 配置。
+
+新增文件：
+- `.gitignore`
+- `pyproject.toml`
+
+更新文件：
+- `README.md`
+- `progress.md`
+- `rebuild_manifest.md`
+
+任务 5 交付内容：
+- `.gitignore` 忽略 Python 缓存、字节码、本地虚拟环境、构建/测试缓存、常见输出目录和 `.claude/settings.local.json`。
+- `pyproject.toml` 声明最小可识别 Python 包：`minos-core`、Python `>=3.9`、空第三方依赖、`minos-core` CLI 入口。
+- README / progress / rebuild_manifest 已补当前状态说明，避免把旧阶段的 89 项测试或 5 sheet 契约误读为当前状态。
+- 当前 APQP workbook 交付形态为 7 张 sheet：`摘要`、`质量门状态`、`过程流程图`、`PFMEA`、`控制计划`、`三表追溯矩阵`、`人工复核清单`。
+
+任务 5 验收命令：
+/// 1. `python -m py_compile minos_core/*.py minos_core/adapters/*.py minos_core/exporters/*.py`
+/// 2. Python 文本/TOML 检查 `pyproject.toml` 必要字段。
+/// 3. Python 文本检查 `.gitignore` 必要忽略项。
+
 ## 第十二阶段新增
 本阶段新增 AI analyze 增强入口。AI 只参与 `analysis_bundle` 候选增强，不生成 PFD/PFMEA/控制计划，不接真实外部服务。
 
@@ -85,7 +108,7 @@
 - fixture 目录必须包含 `process_flow.json`、`pfmea.json`、`control_plan.json`。
 - 每套 fixture 必须通过 `load_apqp_chain` 和 `validate_chain`。
 - 每套 fixture 必须能用 `export_fixture` 导出中文 APQP workbook。
-- workbook 必须包含固定 5 张 sheet：摘要、过程流程图、PFMEA、控制计划、三表追溯矩阵。
+- workbook 当时要求固定 5 张 sheet：摘要、过程流程图、PFMEA、控制计划、三表追溯矩阵；当前交付已扩展为 7 张 sheet。
 - 所有测试输出写入 `tempfile`，不写固定 `output/`。
 
 ## 本轮范围
@@ -119,10 +142,10 @@ fixture 表达一条最小但完整的 APQP 链：
 - validation 拒绝 mandatory PFMEA 缺少 CP 覆盖。
 - xlsx writer sheet 名清洗、截断、去重。
 - xlsx zip 结构完整性。
-- APQP workbook 固定 5 张 sheet。
+- APQP workbook 当时固定 5 张 sheet；当前交付已扩展为 7 张 sheet。
 - CLI `list` / `validate` / `export`。
 - 三个真实 legacy Excel workbook 转标准 fixture。
-- 真实转换结果通过 validation 后导出 5 sheet workbook。
+- 真实转换结果通过 validation 后导出 workbook；当前交付 workbook 为 7 张 sheet。
 
 ## Docs
 - `task_plan.md`

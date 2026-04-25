@@ -1,4 +1,36 @@
-# MINOS-CORE 重建进度
+## 任务 5 当前状态
+工程化基础设施已补齐：项目现在包含最小 `pyproject.toml`、仓库级 `.gitignore`，并已同步 README / progress / rebuild_manifest 中的当前状态说明。
+
+## 任务 5 已完成
+- 已新增 `.gitignore`，忽略 `__pycache__/`、`*.pyc`、`.claude/settings.local.json`、虚拟环境、构建目录、测试缓存和常见临时/输出目录。
+- 已新增最小 `pyproject.toml`，声明 `minos-core` 包、Python `>=3.9`、空第三方依赖、`minos-core` CLI 入口和 unittest 发现信息。
+- 已更新 `README.md`，明确当前 workbook 为 7 张 sheet、测试数量不再固化、draft 入口不是正式导出。
+- 已更新 `progress.md` 和 `rebuild_manifest.md`，避免继续把旧的 89 项测试或 5 sheet 说法当作当前状态。
+- 未修改、未提交本地 `.claude` 配置。
+
+## 任务 5 验证结果
+/// 1. 待运行：`python -m py_compile minos_core/*.py minos_core/adapters/*.py minos_core/exporters/*.py`。
+/// 2. 待运行：使用 Python 基本文本检查解析 `pyproject.toml` 必要字段；若当前 Python 提供 `tomllib`，同时做 TOML 解析。
+/// 3. 待运行：检查 `.gitignore` 是否包含 `.claude/settings.local.json`、`__pycache__/` 和 `*.pyc`。
+
+## 任务 2 当前状态
+`generate-draft` CLI/API 入口已完成，用于从 Evidence/fixture 输入运行 generated pipeline 并输出 APQPChain draft JSON。该入口只生成草案结果，不等同正式导出。
+
+## 任务 2 已完成
+- 已在 `minos_core/pipeline.py` 新增 `generate_draft(evidence, output_path=None)` API。
+- 已新增 draft envelope 语义：`apqp_chain_draft_result`、`draft_notice`、`draft_is_formal_export=False`、`draft`、`quality_gate`、`manual_review`、`stage_results`。
+- 已在 `minos_core/cli.py` 新增 `generate-draft` 子命令，并提供 `run-pipeline` 别名。
+- 已在 `minos_core/stage.py` 增加 `generate_draft` / `run_pipeline` stage 外壳入口。
+- 已补 `tests/test_generated_chain_stage.py` 针对 API、保存文件、stage wrapper、CLI 子命令和别名的测试。
+- 已更新 `tests/test_apqp_rebuild_contract.py` 的固定 stage 顺序契约。
+- 已更新 `project_flow.mmd`，补入 assemble draft 与 generate draft 草案入口。
+
+## 任务 2 验证结果
+/// 1. `PYTHONPATH="D:/MINOS-CORE" python "D:/MINOS-CORE/tests/test_generated_chain_stage.py" -v`：6 项通过。
+/// 2. `PYTHONPATH="D:/MINOS-CORE" python "D:/MINOS-CORE/tests/test_apqp_rebuild_contract.py" -v`：13 项通过。
+/// 3. 旧 CLI smoke：`list`、`validate`、`audit --json` 均返回 0。
+/// 4. `generate-draft` CLI smoke 返回 0，stdout 与保存 JSON 一致，`draft_is_formal_export=False`，`allow_user_export=False`，`manual_review.required=True`。
+/// 5. 额外运行完整 unittest 时，`test_legacy_excel_adapter` 的 limiter export 因 export gate 阻断失败；该失败与任务 2 的 targeted 测试无关，需后续决定是补 limiter 规格字段还是调整 legacy 测试预期。
 
 ## 第十二阶段当前状态
 AI analyze 增强已接入 FakeLLM 契约，默认 keyword-only 路径保持不变。
@@ -23,7 +55,7 @@ PFMEA 与控制计划生成闭环已接通，未搬目录，未接入 LLM。
 - 已新增 `tests/test_generate_pfmea_stage.py` 和 `tests/test_generate_control_plan_stage.py`，覆盖正常生成、证据引用、AI-only 阻断、缺证据阻断和旧链路不退化。
 - 已新增 `README.md`，记录当前 pipeline、运行命令、测试命令和核心边界。
 - 已更新 `project_flow.mmd`，补入 failure mode candidates、PFMEA bundle、control plan bundle 与新测试门。
-- 已运行完整回归 `python -m unittest discover -s tests -v`，当前 114 项全部通过。
+- 第十一阶段完成时完整回归曾显示 114 项全部通过；当前测试数量已继续变化，不再把 114 项作为当前状态。
 - 已运行 CLI smoke：`validate`、`audit`、`export` 均通过。
 
 ## 当前状态
@@ -35,7 +67,7 @@ PFMEA 与控制计划生成闭环已接通，未搬目录，未接入 LLM。
   - 门铰链：`JLH01000300-门铰链.xlsx`
   - 冲压件：`1004258-冲压件.xlsx`
   - 限位器：`XWQ01000100-限位器.xlsx`
-- 测试会对每个样本执行：`convert_legacy_workbook` 转 tempfile fixture、JSON 解析、`load_apqp_chain`、`validate_chain`、`export_fixture`、xlsx zip 结构检查和 5 sheet 顺序检查。
+- 测试会对每个样本执行：`convert_legacy_workbook` 转 tempfile fixture、JSON 解析、`load_apqp_chain`、`validate_chain`、`export_fixture`、xlsx zip 结构检查和 workbook sheet 顺序检查。历史第二阶段契约当时要求 5 张 sheet；当前交付已扩展为 7 张 sheet。
 - 已更新 `task_plan.md`，明确第二阶段目标：真实样本转标准 fixture，OCR/LLM 仍保持 adapter 外挂。
 - 已更新 `findings.md`，补充真实样本 workbook 迁移风险和验收重点。
 - 已更新 `rebuild_manifest.md`，记录新增测试和第二阶段文档变更。
@@ -230,4 +262,4 @@ PFMEA 与控制计划生成闭环已接通，未搬目录，未接入 LLM。
 - PFD/brainstorm gate 已支持字符串形式 `pending_fields`。
 - PFD/brainstorm gate 已检查 `link_type`，缺失、空值或非法值会阻断。
 - brainstorm preflight 的报告语义已修正为 `stage_mode=brainstorm_failure_modes_preflight`。
-- 完整 unittest 已扩展到 89 项并全部通过。
+- 第十阶段二次前向筛查时完整 unittest 曾扩展到 89 项并全部通过；当前测试数量已继续变化，不再把 89 项作为当前状态。

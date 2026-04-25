@@ -1,9 +1,17 @@
+import json
+import subprocess
+import sys
+import tempfile
 import unittest
+from pathlib import Path
 
 from minos_core.audit import audit_chain
 from minos_core.domain import APQPChain
 from minos_core.stage import run_stage
 from minos_core.validation import validate_chain
+
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 EVIDENCE_INPUT = {
@@ -158,6 +166,112 @@ class GeneratedChainStageTests(unittest.TestCase):
         self.assertEqual(audit_report.counts["process_steps"], len(draft["process_steps"]))
         self.assertEqual(audit_report.counts["failure_modes"], len(draft["failure_modes"]))
         self.assertEqual(audit_report.counts["controls"], len(draft["controls"]))
+
+    def test_generate_draft_pipeline_api_returns_draft_envelope(self):
+        from minos_core.pipeline import DRAFT_WARNING, generate_draft
+
+        result = generate_draft(EVIDENCE_INPUT)
+
+        self.assertEqual(result["document_type"], "apqp_chain_draft_result")
+        self.assertEqual(result["status"], "draft_ready")
+        self.assertFalse(result["draft_is_formal_export"])
+        self.assertEqual(result["draft_notice"], DRAFT_WARNING)
+        self.assertEqual(result["draft"]["document_type"], "apqp_chain")
+        self.assertEqual(result["draft"]["metadata"]["generated"], True)
+        self.assertEqual(result["quality_gate"]["stage"], "validate")
+        self.assertTrue(result["quality_gate"]["can_continue"])
+        self.assertFalse(result["quality_gate"]["allow_user_export"])
+        self.assertTrue(result["quality_gate"]["draft_only"])
+        self.assertTrue(result["manual_review"]["required"])
+        self.assertTrue(result["manual_review"]["items"])
+        self.assertTrue(
+            any(
+                item["stage"] == "assemble_generated_apqp_chain"
+                for item in result["stage_results"]
+            )
+        )
+
+    def test_generate_draft_pipeline_api_can_save_json(self):
+        from minos_core.pipeline import generate_draft
+
+        with tempfile.TemporaryDirectory() as tmp:
+            output_path = Path(tmp) / "draft-result.json"
+            result = generate_draft(EVIDENCE_INPUT, output_path)
+            saved = json.loads(output_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(saved, result)
+        self.assertEqual(saved["draft"]["document_type"], "apqp_chain")
+        self.assertFalse(saved["draft_is_formal_export"])
+
+    def test_run_stage_generate_draft_alias_returns_stage_result(self):
+        result = run_stage(EVIDENCE_INPUT, stage="generate_draft")
+
+        self.assertEqual(result.stage, "generate_draft")
+        self.assertEqual(result.status, "ok")
+        self.assertEqual(result.output["status"], "draft_ready")
+        self.assertEqual(result.output["draft"]["document_type"], "apqp_chain")
+        self.assertFalse(result.quality_gate.allow_user_export)
+        self.assertTrue(result.quality_gate.needs_human_review)
+
+    def test_cli_generate_draft_prints_and_saves_draft_json(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            input_path = Path(tmp) / "evidence.json"
+            output_path = Path(tmp) / "draft-result.json"
+            input_path.write_text(
+                json.dumps(EVIDENCE_INPUT, ensure_ascii=False), encoding="utf-8"
+            )
+            cli_result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "minos_core.cli",
+                    "generate-draft",
+                    "--input",
+                    str(input_path),
+                    "--output",
+                    str(output_path),
+                ],
+                cwd=ROOT,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            stdout_payload = json.loads(cli_result.stdout)
+            saved_payload = json.loads(output_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(cli_result.returncode, 0, cli_result.stderr)
+        self.assertEqual(stdout_payload, saved_payload)
+        self.assertEqual(stdout_payload["status"], "draft_ready")
+        self.assertEqual(stdout_payload["draft"]["document_type"], "apqp_chain")
+        self.assertFalse(stdout_payload["draft_is_formal_export"])
+        self.assertFalse(stdout_payload["quality_gate"]["allow_user_export"])
+        self.assertTrue(stdout_payload["manual_review"]["required"])
+
+    def test_cli_run_pipeline_alias_remains_available(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            input_path = Path(tmp) / "evidence.json"
+            input_path.write_text(
+                json.dumps(EVIDENCE_INPUT, ensure_ascii=False), encoding="utf-8"
+            )
+            cli_result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "minos_core.cli",
+                    "run-pipeline",
+                    "--input",
+                    str(input_path),
+                ],
+                cwd=ROOT,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+        self.assertEqual(cli_result.returncode, 0, cli_result.stderr)
+        payload = json.loads(cli_result.stdout)
+        self.assertEqual(payload["status"], "draft_ready")
+        self.assertEqual(payload["draft"]["document_type"], "apqp_chain")
 
 
 if __name__ == "__main__":

@@ -1,5 +1,68 @@
 # MINOS-CORE 重建交付清单
 
+## 第十二阶段新增
+本阶段新增 AI analyze 增强入口。AI 只参与 `analysis_bundle` 候选增强，不生成 PFD/PFMEA/控制计划，不接真实外部服务。
+
+更新文件：
+- `README.md`
+- `minos_core/analyze.py`
+- `minos_core/quality_gates.py`
+- `minos_core/__init__.py`
+- `tests/test_analyze_stage.py`
+- `task_plan.md`
+- `progress.md`
+- `findings.md`
+- `project_flow.mmd`
+- `rebuild_manifest.md`
+
+第十二阶段测试契约：
+- keyword-only analyze 路径不退化。
+- `analyze_evidence_bundle_with_ai` 输出合法 `analysis_bundle`。
+- AI 结果必须进入 `ai_inferred_items`，并标记 `needs_confirmation`。
+- AI 输出非法 JSON、未知块、缺失 `source_ref`、引用不存在 evidence 时直接失败。
+- AI process clue 不能单独满足 analyze gate 的有效 Pxx route clue。
+- validate/export 旧链路不退化。
+
+第十二阶段验收命令：
+/// 1. `python -m unittest tests.test_analyze_stage -v`
+/// 2. `python -m unittest discover -s tests -v`
+/// 3. `python -m minos_core.cli validate --input tests\fixtures\apqp_chain`
+/// 4. `python -m minos_core.cli audit --input tests\fixtures\apqp_chain`
+
+## 第十一阶段新增
+本阶段接通 `brainstorm_failure_modes -> generate_pfmea -> generate_control_plan`，继续保持当前平铺结构，不做目录迁移，不接真实 LLM/OCR 服务。
+
+新增文件：
+- `README.md`
+- `minos_core/generate_pfmea.py`
+- `minos_core/generate_control_plan.py`
+- `tests/test_generate_pfmea_stage.py`
+- `tests/test_generate_control_plan_stage.py`
+
+更新文件：
+- `minos_core/stage.py`
+- `minos_core/quality_gates.py`
+- `minos_core/__init__.py`
+- `task_plan.md`
+- `progress.md`
+- `findings.md`
+- `project_flow.mmd`
+- `rebuild_manifest.md`
+
+第十一阶段测试契约：
+- `run_stage(..., stage="generate_pfmea")` 必须返回 `pfmea` bundle。
+- `run_stage(..., stage="generate_control_plan")` 必须返回 `control_plan` bundle。
+- PFMEA row 和控制计划 row 必须保留 `evidence_refs`。
+- 缺失 evidence ref、AI-only evidence、缺本阶段关键字段必须 blocked。
+- 上游 pending 字段只作为待复核信息保留，不阻断下游草案生成。
+- `brainstorm_failure_modes` 预检不能提前吞掉“某工序无候选项”的本阶段错误。
+
+第十一阶段验收命令：
+/// 1. `python -m unittest discover -s tests -v`
+/// 2. `python -m minos_core.cli validate --input tests\fixtures\apqp_chain`
+/// 3. `python -m minos_core.cli audit --input tests\fixtures\apqp_chain`
+/// 4. `python -m minos_core.cli export --input tests\fixtures\apqp_chain --output <temp>\minos-core-smoke-apqp.xlsx`
+
 ## 第二阶段新增
 本阶段新增真实样本迁移验收，不实现 adapter，只用测试约束 adapter 输出必须进入 MINOS-CORE 标准链路。
 

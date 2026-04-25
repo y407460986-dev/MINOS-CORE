@@ -441,6 +441,7 @@ class PipelineArchitectureTests(unittest.TestCase):
                 "brainstorm_failure_modes",
                 "generate_pfmea",
                 "generate_control_plan",
+                "assemble_generated_apqp_chain",
                 "validate",
                 "export",
             ),

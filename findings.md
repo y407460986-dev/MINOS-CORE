@@ -1,5 +1,18 @@
 # MINOS-CORE 重建发现
 
+## 第十二阶段发现
+- AI analyze 的核心风险不是“抽不出来”，而是把 AI 猜测当成事实；因此 AI 只能补候选线索，不能作为正式 route 依据。
+- 规则抽取仍应优先，AI 结果只做补充，不覆盖已有确定证据。
+- 所有 AI 线索必须能追溯到已有 Evidence，不能凭空生成 `process_step_id` 或 source。
+- `needs_confirmation` 和 `ai_inferred` 必须分开表达：前者是人工复核状态，后者是来源属性。
+- analyze 阶段仍不允许用户导出，AI 输出必须继续经过 quality gate 与人工复核。
+
+## 第十一阶段发现
+- 生成链路最容易走偏的点不是 PFMEA 字段怎么填，而是把“上游待复核字段”误当成“本阶段硬阻断”。这次已拆成 `pending_fields` 和 `blocking_pending_fields` 两层语义。
+- `brainstorm_failure_modes` 的预检不能完全等同 `generate_pfd` 的质量门：PFD 阶段缺 `operation` 应阻断，但 brainstorm 阶段需要让候选生成器运行，才能准确报告“某工序没有失效模式候选”。
+- PFMEA 和控制计划生成当前应保持薄规则，输出工程确认占位与 `needs_confirmation`，不能假装已经完成正式工程评审。
+- AI-only evidence、缺失 evidence ref、缺关键本体字段仍然必须阻断；否则会破坏“证据可追溯、AI 不越权”的核心边界。
+
 ## 第二阶段发现
 - 三个真实 workbook 都能清楚映射到三类标准 fixture：过程流程图、PFMEA、控制计划。
 - 真实迁移的关键不是 sheet 名，而是合并单元格和空白行的继承语义：工序编号、过程功能、PFMEA 原因、控制计划特性经常只在上方行出现。

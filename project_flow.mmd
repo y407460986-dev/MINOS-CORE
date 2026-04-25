@@ -30,14 +30,25 @@ flowchart TD
     PL --> PL10[StageResult]
     PL1 --> PL11[evidence_bundle]
     PL11 --> PL2
+    PL2 --> PL2A[keyword rules analysis]
+    PL2 --> PL2B[AI assisted analysis]
     PL2 --> PL12[analysis_bundle]
+    PL2A --> PL12
+    PL2B --> PL12
     PL12 --> PL3
     PL3 --> PL13[process_flow]
     PL13 --> PL4
     PL4 --> PL14[brainstorm preflight]
+    PL14 --> PL15[failure_mode_candidates]
+    PL15 --> PL5
+    PL5 --> PL16[pfmea bundle]
+    PL16 --> PL6
+    PL6 --> PL17[control_plan bundle]
+    PL17 --> PL7
 
     AD --> AD1[OCR adapter boundary]
     AD --> AD2[LLM adapter boundary]
+    AD2 --> AD2A[Fake or configured LLM analyze adapter]
     AD --> AD3[legacy Excel reader]
     AD --> AD4[fixture JSON file system]
     AD --> AD5[XLSX exporter]
@@ -61,6 +72,8 @@ flowchart TD
     QG14 --> QG15[allow analyze]
     QG --> QG16[analysis bundle gate]
     QG16 --> QG17[allow generate_pfd]
+    QG16 --> QG16A[AI source ref check]
+    QG16 --> QG16B[AI inferred review only]
     QG --> QG18[PFD bundle gate]
     QG18 --> QG19[allow brainstorm_failure_modes]
     QG18 --> QG20[step link evidence refs]
@@ -90,6 +103,9 @@ flowchart TD
     T --> T16[PFD gate to brainstorm]
     T --> T17[PFD evidence ref hardening]
     T --> T18[Brainstorm preflight routing]
+    T --> T19[Generate PFMEA stage]
+    T --> T20[Generate control plan stage]
+    T --> T21[AI analyze enhancement]
     T1 --> G[MINOS-CORE rebuild gate]
     T2 --> G
     T3 --> G
@@ -108,3 +124,6 @@ flowchart TD
     T16 --> G
     T17 --> G
     T18 --> G
+    T19 --> G
+    T20 --> G
+    T21 --> G

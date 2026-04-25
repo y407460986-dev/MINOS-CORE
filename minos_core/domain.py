@@ -40,6 +40,7 @@ class ProcessStep:
     output_refs: list[str] = field(default_factory=list)
     special_characteristics: list[str] = field(default_factory=list)
     evidence_refs: list[str] = field(default_factory=list)
+    needs_confirmation: bool = False
 
     @property
     def id(self) -> str:
@@ -75,6 +76,7 @@ class ProcessStep:
                 data.get("special_characteristics", [])
             ),
             evidence_refs=_string_list(data.get("evidence_refs", [])),
+            needs_confirmation=bool(data.get("needs_confirmation", False)),
         )
 
 
@@ -123,6 +125,47 @@ class Characteristic:
 
 
 @dataclass
+class FailureModeCandidate:
+    candidate_id: str = ""
+    process_step_id: str = ""
+    sequence: int = 0
+    operation: str = ""
+    process_function: str = ""
+    failure_mode: str = ""
+    source_rule: str = ""
+    evidence_refs: list[str] = field(default_factory=list)
+    needs_confirmation: bool = False
+    ai_inferred: bool = False
+    source_process_step_id: str = ""
+    characteristic_refs: list[str] = field(default_factory=list)
+    created_by_stage: str = ""
+
+    @classmethod
+    def from_mapping(cls, data: Any) -> "FailureModeCandidate":
+        if isinstance(data, FailureModeCandidate):
+            return data
+        if not isinstance(data, dict):
+            return cls()
+        return cls(
+            candidate_id=str(data.get("candidate_id", data.get("id", ""))),
+            process_step_id=str(data.get("process_step_id", data.get("step_no", ""))),
+            sequence=int(data.get("sequence", 0) or 0),
+            operation=str(data.get("operation", data.get("name", ""))),
+            process_function=str(
+                data.get("process_function", data.get("description", ""))
+            ),
+            failure_mode=str(data.get("failure_mode", "")),
+            source_rule=str(data.get("source_rule", "")),
+            evidence_refs=_string_list(data.get("evidence_refs", [])),
+            needs_confirmation=bool(data.get("needs_confirmation", False)),
+            ai_inferred=bool(data.get("ai_inferred", False)),
+            source_process_step_id=str(data.get("source_process_step_id", "")),
+            characteristic_refs=_string_list(data.get("characteristic_refs", [])),
+            created_by_stage=str(data.get("created_by_stage", "")),
+        )
+
+
+@dataclass
 class FailureMode:
     pfmea_id: str
     process_step_id: str
@@ -139,6 +182,10 @@ class FailureMode:
     classification: str = ""
     linked_control_plan_id: str = ""
     evidence_refs: list[str] = field(default_factory=list)
+    source_candidate_id: str = ""
+    needs_confirmation: bool = False
+    characteristic_refs: list[str] = field(default_factory=list)
+    created_by_stage: str = ""
 
     @property
     def step_no(self) -> str:
@@ -188,6 +235,10 @@ class FailureMode:
             classification=str(data.get("classification", "")),
             linked_control_plan_id=str(data.get("linked_control_plan_id", "")),
             evidence_refs=_string_list(data.get("evidence_refs", [])),
+            source_candidate_id=str(data.get("source_candidate_id", "")),
+            needs_confirmation=bool(data.get("needs_confirmation", False)),
+            characteristic_refs=_string_list(data.get("characteristic_refs", [])),
+            created_by_stage=str(data.get("created_by_stage", "")),
         )
 
 
@@ -205,6 +256,10 @@ class ControlItem:
     control_method: str = ""
     reaction_plan: str = ""
     evidence_refs: list[str] = field(default_factory=list)
+    needs_confirmation: bool = False
+    characteristic_refs: list[str] = field(default_factory=list)
+    source_pfmea_id: str = ""
+    created_by_stage: str = ""
 
     @property
     def step_no(self) -> str:
@@ -241,6 +296,10 @@ class ControlItem:
             control_method=str(data.get("control_method", "")),
             reaction_plan=str(data.get("reaction_plan", "")),
             evidence_refs=_string_list(data.get("evidence_refs", [])),
+            needs_confirmation=bool(data.get("needs_confirmation", False)),
+            characteristic_refs=_string_list(data.get("characteristic_refs", [])),
+            source_pfmea_id=str(data.get("source_pfmea_id", "")),
+            created_by_stage=str(data.get("created_by_stage", "")),
         )
 
 
@@ -280,16 +339,35 @@ class TraceLink:
     to_id: str
     link_type: str = ""
     evidence_refs: list[str] = field(default_factory=list)
+    trace_link_id: str = ""
+    from_type: str = ""
+    to_type: str = ""
+    created_by_stage: str = ""
+    confidence: float | None = None
+    ai_inferred: bool = False
+    needs_confirmation: bool = False
 
     @classmethod
     def from_mapping(cls, data: Any) -> "TraceLink":
         if isinstance(data, TraceLink):
             return data
+        raw_confidence = data.get("confidence")
+        try:
+            confidence = None if raw_confidence in {None, ""} else float(raw_confidence)
+        except (TypeError, ValueError):
+            confidence = None
         return cls(
             from_id=str(data.get("from", data.get("from_id", ""))),
             to_id=str(data.get("to", data.get("to_id", ""))),
             link_type=str(data.get("link_type", "")),
             evidence_refs=_string_list(data.get("evidence_refs", [])),
+            trace_link_id=str(data.get("trace_link_id", data.get("id", ""))),
+            from_type=str(data.get("from_type", "")),
+            to_type=str(data.get("to_type", "")),
+            created_by_stage=str(data.get("created_by_stage", "")),
+            confidence=confidence,
+            ai_inferred=bool(data.get("ai_inferred", False)),
+            needs_confirmation=bool(data.get("needs_confirmation", False)),
         )
 
 
@@ -299,10 +377,14 @@ class APQPChain:
     drawings: list[Drawing] = field(default_factory=list)
     characteristics: list[Characteristic] = field(default_factory=list)
     process_steps: list[ProcessStep] = field(default_factory=list)
+    failure_mode_candidates: list[FailureModeCandidate] = field(default_factory=list)
     failure_modes: list[FailureMode] = field(default_factory=list)
     controls: list[ControlItem] = field(default_factory=list)
     evidence: list[Evidence] = field(default_factory=list)
     links: list[TraceLink] = field(default_factory=list)
+    pending_fields: list[Any] = field(default_factory=list)
+    ai_inferred_items: list[Any] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
     schema_version: str = ""
     document_type: str = "apqp_chain"
 
@@ -320,6 +402,10 @@ class APQPChain:
             ProcessStep.from_mapping(item)
             for item in normalized.get("process_steps", [])
         ]
+        self.failure_mode_candidates = [
+            FailureModeCandidate.from_mapping(item)
+            for item in normalized.get("failure_mode_candidates", [])
+        ]
         self.failure_modes = [
             FailureMode.from_mapping(item)
             for item in normalized.get("failure_modes", [])
@@ -333,6 +419,9 @@ class APQPChain:
         self.links = [
             TraceLink.from_mapping(item) for item in normalized.get("links", [])
         ]
+        self.pending_fields = list(normalized.get("pending_fields", []))
+        self.ai_inferred_items = list(normalized.get("ai_inferred_items", []))
+        self.metadata = dict(normalized.get("metadata", {}))
         self.schema_version = str(normalized.get("schema_version", ""))
         self.document_type = str(normalized.get("document_type", "apqp_chain"))
 
@@ -416,10 +505,16 @@ class APQPChain:
             "drawings": [item.__dict__ for item in self.drawings],
             "characteristics": [item.__dict__ for item in self.characteristics],
             "process_steps": [item.__dict__ for item in self.process_steps],
+            "failure_mode_candidates": [
+                item.__dict__ for item in self.failure_mode_candidates
+            ],
             "failure_modes": [item.__dict__ for item in self.failure_modes],
             "controls": [item.__dict__ for item in self.controls],
             "evidence": [item.__dict__ for item in self.evidence],
             "links": [item.__dict__ for item in self.links],
+            "pending_fields": self.pending_fields,
+            "ai_inferred_items": self.ai_inferred_items,
+            "metadata": self.metadata,
         }
 
 
@@ -435,10 +530,16 @@ def normalize_fixture_payload(payload: dict[str, Any]) -> dict[str, Any]:
         "drawings": payload.get("drawings", []),
         "characteristics": payload.get("characteristics", []),
         "process_steps": payload.get("process_steps", payload.get("steps", [])),
+        "failure_mode_candidates": payload.get(
+            "failure_mode_candidates", payload.get("candidates", [])
+        ),
         "failure_modes": payload.get("failure_modes", payload.get("pfmea_items", [])),
         "controls": payload.get("controls", payload.get("control_plan_items", [])),
         "evidence": payload.get("evidence", []),
         "links": payload.get("links", []),
+        "pending_fields": payload.get("pending_fields", []),
+        "ai_inferred_items": payload.get("ai_inferred_items", []),
+        "metadata": payload.get("metadata", {}),
     }
     if document_type == "process_flow":
         normalized["process_steps"] = payload.get("steps", [])
@@ -470,11 +571,32 @@ def _normalize_combined_payload(payload: dict[str, Any]) -> dict[str, Any]:
         "drawings": payload.get("drawings", []),
         "characteristics": payload.get("characteristics", []),
         "process_steps": payload.get("process_steps", process_flow.get("steps", [])),
+        "failure_mode_candidates": payload.get(
+            "failure_mode_candidates",
+            _first_list(
+                payload.get("candidates"),
+                payload.get("failure_mode_candidates"),
+                (payload.get("failure_mode_candidates_bundle") or {}).get("candidates"),
+                (payload.get("failure_mode_candidates_bundle") or {}).get(
+                    "failure_mode_candidates"
+                ),
+            ),
+        ),
         "failure_modes": payload.get("failure_modes", pfmea.get("rows", [])),
         "controls": payload.get("controls", control_plan.get("rows", [])),
         "evidence": payload.get("evidence", []),
         "links": payload.get("links", process_flow.get("links", [])),
+        "pending_fields": payload.get("pending_fields", []),
+        "ai_inferred_items": payload.get("ai_inferred_items", []),
+        "metadata": payload.get("metadata", {}),
     }
+
+
+def _first_list(*values: Any) -> list[Any]:
+    for value in values:
+        if isinstance(value, list):
+            return value
+    return []
 
 
 def _string_list(value: Any) -> list[str]:

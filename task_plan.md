@@ -1,5 +1,39 @@
 # MINOS-CORE 重建任务计划
 
+## 第十二阶段：AI analyze 增强
+本阶段目标是在 `analyze` 阶段接入可选 LLM adapter，把 Evidence bundle 增强为更完整的 `analysis_bundle`。本阶段不接真实外部服务，不生成下游 APQP 三表。
+
+## 第十二阶段执行流程
+/// 1. 保留 `keyword_rules` 作为默认基础路径。
+/// 2. 通过 LLM adapter 生成 drawing / characteristic / process_clue 候选。
+/// 3. AI 结果必须引用已有 evidence，并标记 `ai_inferred` 和 `needs_confirmation`。
+/// 4. 合并规则结果与 AI 结果，不覆盖确定证据。
+/// 5. analyze gate 继续检查 source_ref、AI-only、有效 Pxx route clue。
+/// 6. 补测试并跑完整 unittest 与 CLI smoke。
+
+## 第十二阶段 OpenSpec 四步闭环
+1. Define：增强 analyze，不生成下游 APQP 三表。
+2. Specify：analysis bundle 字段不破坏旧契约，新增 metadata 标记 AI 使用情况。
+3. Implement：只通过 adapter 边界接入，不把 SDK/key 写进 core。
+4. Verify：旧 keyword 测试不退化，AI-only 仍不能作为正式放行依据。
+
+## 第十一阶段：PFMEA 与控制计划生成闭环
+本阶段目标是在不搬目录、不接 LLM 的前提下，把 `brainstorm_failure_modes -> generate_pfmea -> generate_control_plan` 接通。
+
+## 第十一阶段执行流程
+/// 1. 新增薄规则 `generate_pfmea_from_candidates`，把失效模式候选转成正式 PFMEA bundle。
+/// 2. 新增薄规则 `generate_control_plan_from_pfmea`，把 PFMEA row 转成控制计划 bundle。
+/// 3. 在 `stage.py` 接入 `generate_pfmea` 和 `generate_control_plan`，保持旧 `validate/export` API 不变。
+/// 4. 在 `quality_gates.py` 增加 PFMEA bundle 与控制计划 bundle 质量门。
+/// 5. 区分上游待复核字段和本阶段硬缺字段：上游 pending 可继续生成草案，但本阶段缺证据、缺关键字段、AI-only 仍阻断。
+/// 6. 补阶段契约测试并运行完整 unittest 与 CLI smoke。
+
+## 第十一阶段 OpenSpec 四步闭环
+1. Define：目标是补齐 APQP 生成链路，不做目录迁移。
+2. Specify：用 unittest 固定 PFMEA/控制计划阶段的输入输出、证据引用和阻断行为。
+3. Implement：新增两个 generator，接入 stage 和 quality gate。
+4. Verify：运行 `python -m unittest discover -s tests -v`、CLI validate/audit/export smoke。
+
 ## 第二阶段：真实样本迁移
 本阶段目标是把三个真实 Excel 源转换为 MINOS-CORE 标准 fixture，并用同一条核心链路验收：
 

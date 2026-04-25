@@ -7,6 +7,7 @@ from typing import Any
 
 from .adapters.fixture_json import load_fixture_payload
 from .exporters import export_apqp_workbook
+from .stage import assemble_generated_apqp_chain as _assemble_generated_apqp_chain
 
 
 PIPELINE_STAGES = (
@@ -16,6 +17,7 @@ PIPELINE_STAGES = (
     "brainstorm_failure_modes",
     "generate_pfmea",
     "generate_control_plan",
+    "assemble_generated_apqp_chain",
     "validate",
     "export",
 )
@@ -50,8 +52,26 @@ def export_fixture(
     return export_apqp_workbook(chain, destination)
 
 
-def _load_fixture(fixture: str | Path | dict[str, Any]) -> dict[str, Any]:
-    return load_fixture_payload(fixture)
+
+def assemble_generated_apqp_chain(
+    process_flow: dict[str, Any] | None = None,
+    failure_mode_candidates: dict[str, Any] | None = None,
+    pfmea: dict[str, Any] | None = None,
+    control_plan: dict[str, Any] | None = None,
+    *,
+    pfd: dict[str, Any] | None = None,
+    brainstorm: dict[str, Any] | None = None,
+    metadata: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Assemble generated APQP bundles through the stage implementation."""
+
+    return _assemble_generated_apqp_chain(
+        pfd if process_flow is None else process_flow,
+        brainstorm if failure_mode_candidates is None else failure_mode_candidates,
+        pfmea,
+        control_plan,
+        metadata=metadata,
+    )
 
 
 def _build_chain(payload: dict[str, Any]) -> Any:

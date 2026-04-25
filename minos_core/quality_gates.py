@@ -31,11 +31,30 @@ class StageQualityGate:
     def ok(self) -> bool:
         return self.can_continue
 
+    @property
+    def needs_human_review(self) -> bool:
+        return bool(self.manual_review_items or self.needs_confirmation_items)
+
+    @property
+    def allow_formal_release(self) -> bool:
+        return self.allow_user_export
+
+    @property
+    def draft_only(self) -> bool:
+        return bool(
+            self.can_continue
+            and not self.allow_formal_release
+            and self.needs_confirmation_items
+        )
+
     def model_dump(self) -> dict[str, Any]:
         return {
             "stage": self.stage,
             "can_continue": self.can_continue,
             "allow_user_export": self.allow_user_export,
+            "allow_formal_release": self.allow_formal_release,
+            "needs_human_review": self.needs_human_review,
+            "draft_only": self.draft_only,
             "evidence_sufficient": self.evidence_sufficient,
             "pending_fields": self.pending_fields,
             "ai_inferred_items": self.ai_inferred_items,
@@ -66,17 +85,29 @@ def evaluate_stage_gate(
         if stage in {"ingest", "analyze"}
         else _evidence_coverage_report(chain)
     )
+    row_needs_confirmation_items = _row_needs_confirmation_items(chain)
+    needs_confirmation_items = _dedupe_preserve_order(
+        list(evidence_coverage["needs_confirmation_refs"])
+        + row_needs_confirmation_items
+    )
+    evidence_coverage["needs_confirmation_refs"] = needs_confirmation_items
     evidence_sufficient = bool(evidence_coverage["ok"])
     can_continue = (
         evidence_sufficient
         if stage in {"ingest", "analyze"}
         else bool(validation) and evidence_sufficient
     )
-    allow_user_export = (
-        False if stage in {"ingest", "analyze"} else can_continue and not pending_fields
+    allow_user_export = bool(
+        stage not in {"ingest", "analyze"}
+        and can_continue
+        and not pending_fields
+        and not needs_confirmation_items
     )
     manual_review_items = list(audit.manual_review_items)
     manual_review_items.extend(_evidence_manual_review_items(evidence_coverage))
+    manual_review_items.extend(
+        _row_needs_confirmation_manual_review_items(row_needs_confirmation_items)
+    )
     return StageQualityGate(
         stage=stage,
         can_continue=can_continue,
@@ -90,7 +121,7 @@ def evaluate_stage_gate(
         evidence_coverage=evidence_coverage,
         missing_evidence_refs=list(evidence_coverage["missing_refs"]),
         uncovered_evidence_items=list(evidence_coverage["uncovered_items"]),
-        needs_confirmation_items=list(evidence_coverage["needs_confirmation_refs"]),
+        needs_confirmation_items=needs_confirmation_items,
     )
 
 
@@ -158,6 +189,7 @@ def evaluate_brainstorm_failure_modes_input_gate(
         process_flow,
         stage_mode="brainstorm_failure_modes_preflight",
         next_stage="brainstorm_failure_modes",
+        require_operation=False,
     )
     return StageQualityGate(
         stage=stage,
@@ -176,10 +208,605 @@ def evaluate_brainstorm_failure_modes_input_gate(
     )
 
 
+def evaluate_failure_mode_candidates_gate(
+    candidates_bundle: dict[str, Any],
+    stage: str = "brainstorm_failure_modes",
+) -> StageQualityGate:
+    validation = ChainValidationResult(ok=True, messages=[], chain=APQPChain())
+    audit = audit_chain(APQPChain())
+    report = _failure_mode_candidates_report(candidates_bundle)
+    return StageQualityGate(
+        stage=stage,
+        can_continue=bool(report["ok"]),
+        allow_user_export=False,
+        validation=validation,
+        audit=audit,
+        evidence_sufficient=bool(report["evidence_sufficient"]),
+        pending_fields=list(report["pending_fields"]),
+        ai_inferred_items=list(report["ai_inferred_refs"]),
+        manual_review_items=_failure_mode_candidates_manual_review_items(report),
+        evidence_coverage=report,
+        missing_evidence_refs=list(report["missing_refs"]),
+        uncovered_evidence_items=list(report["uncovered_items"]),
+        needs_confirmation_items=list(report["needs_confirmation_refs"]),
+    )
+
+
+def evaluate_pfmea_bundle_gate(
+    pfmea_bundle: dict[str, Any],
+    stage: str = "generate_pfmea",
+) -> StageQualityGate:
+    validation = ChainValidationResult(ok=True, messages=[], chain=APQPChain())
+    audit = audit_chain(APQPChain())
+    report = _pfmea_bundle_report(pfmea_bundle)
+    return StageQualityGate(
+        stage=stage,
+        can_continue=bool(report["ok"]),
+        allow_user_export=False,
+        validation=validation,
+        audit=audit,
+        evidence_sufficient=bool(report["evidence_sufficient"]),
+        pending_fields=list(report["pending_fields"]),
+        ai_inferred_items=list(report["ai_inferred_refs"]),
+        manual_review_items=_pfmea_manual_review_items(report),
+        evidence_coverage=report,
+        missing_evidence_refs=list(report["missing_refs"]),
+        uncovered_evidence_items=list(report["uncovered_items"]),
+        needs_confirmation_items=list(report["needs_confirmation_refs"]),
+    )
+
+
+def evaluate_control_plan_bundle_gate(
+    control_plan_bundle: dict[str, Any],
+    stage: str = "generate_control_plan",
+) -> StageQualityGate:
+    validation = ChainValidationResult(ok=True, messages=[], chain=APQPChain())
+    audit = audit_chain(APQPChain())
+    report = _control_plan_bundle_report(control_plan_bundle)
+    return StageQualityGate(
+        stage=stage,
+        can_continue=bool(report["ok"]),
+        allow_user_export=False,
+        validation=validation,
+        audit=audit,
+        evidence_sufficient=bool(report["evidence_sufficient"]),
+        pending_fields=list(report["pending_fields"]),
+        ai_inferred_items=list(report["ai_inferred_refs"]),
+        manual_review_items=_control_plan_manual_review_items(report),
+        evidence_coverage=report,
+        missing_evidence_refs=list(report["missing_refs"]),
+        uncovered_evidence_items=list(report["uncovered_items"]),
+        needs_confirmation_items=list(report["needs_confirmation_refs"]),
+    )
+
+
+def _pfmea_bundle_report(pfmea_bundle: dict[str, Any]) -> dict[str, Any]:
+    rows = pfmea_bundle.get("rows", pfmea_bundle.get("failure_modes", []))
+    return _document_rows_report(
+        rows=rows,
+        evidence=pfmea_bundle.get("evidence", []),
+        pending_fields=pfmea_bundle.get("pending_fields", []),
+        ai_inferred_items=pfmea_bundle.get("ai_inferred_items", []),
+        stage_mode="generate_pfmea",
+        next_stage="generate_control_plan",
+        row_label="pfmea_row",
+        id_field="pfmea_id",
+        required_fields=(
+            "pfmea_id",
+            "process_step_id",
+            "failure_mode",
+            "failure_effect",
+            "failure_cause",
+            "evidence_refs",
+        ),
+        review_fields=("severity", "occurrence", "detection"),
+    )
+
+
+def _control_plan_bundle_report(control_plan_bundle: dict[str, Any]) -> dict[str, Any]:
+    rows = control_plan_bundle.get(
+        "rows", control_plan_bundle.get("control_plan_items", control_plan_bundle.get("controls", []))
+    )
+    return _document_rows_report(
+        rows=rows,
+        evidence=control_plan_bundle.get("evidence", []),
+        pending_fields=control_plan_bundle.get("pending_fields", []),
+        ai_inferred_items=control_plan_bundle.get("ai_inferred_items", []),
+        stage_mode="generate_control_plan",
+        next_stage="validate",
+        row_label="control_plan_row",
+        id_field="control_plan_id",
+        required_fields=(
+            "control_plan_id",
+            "process_step_id",
+            "pfmea_id",
+            "product_process_characteristic",
+            "specification",
+            "measurement_method",
+            "control_method",
+            "reaction_plan",
+            "evidence_refs",
+        ),
+        review_fields=("sample_size", "sample_frequency"),
+    )
+
+
+def _document_rows_report(
+    *,
+    rows: Any,
+    evidence: Any,
+    pending_fields: Any,
+    ai_inferred_items: Any,
+    stage_mode: str,
+    next_stage: str,
+    row_label: str,
+    id_field: str,
+    required_fields: tuple[str, ...],
+    review_fields: tuple[str, ...],
+) -> dict[str, Any]:
+    document_rows = rows if isinstance(rows, list) else []
+    evidence_rows = evidence if isinstance(evidence, list) else []
+    evidence_by_id = {
+        str(item.get("evidence_id", "")): item
+        for item in evidence_rows
+        if isinstance(item, dict) and item.get("evidence_id")
+    }
+    upstream_pending = _pending_field_paths(pending_fields)
+    blocking_pending: list[str] = []
+    uncovered_items: list[str] = []
+    missing_refs: list[str] = []
+    needs_confirmation_refs: list[str] = []
+    review_items: list[str] = []
+    referenced_evidence_ids: set[str] = set()
+    referenced_non_ai_evidence_ids: set[str] = set()
+    ai_inferred_refs = set(_flagged_evidence_ids(ai_inferred_items, "ai_inferred"))
+    row_ids: set[str] = set()
+
+    if not document_rows:
+        uncovered_items.append(f"{row_label}:min_count")
+
+    for index, row in enumerate(document_rows):
+        if not isinstance(row, dict):
+            blocking_pending.append(f"{row_label}[{index}]")
+            continue
+        row_id = str(row.get(id_field, "")).strip()
+        label = f"{row_label}:{row_id}" if row_id else f"{row_label}[{index}]"
+        if row_id:
+            row_ids.add(row_id)
+        for field_name in required_fields:
+            if field_name == "evidence_refs":
+                _check_document_evidence_refs(
+                    label,
+                    row.get("evidence_refs", []),
+                    evidence_by_id,
+                    blocking_pending,
+                    missing_refs,
+                    uncovered_items,
+                    ai_inferred_refs,
+                    needs_confirmation_refs,
+                    referenced_evidence_ids,
+                    referenced_non_ai_evidence_ids,
+                )
+                continue
+            if not str(row.get(field_name, "")).strip():
+                blocking_pending.append(f"{label}.{field_name}")
+        for field_name in review_fields:
+            if not str(row.get(field_name, "")).strip() or row.get(field_name) in {0, "0"}:
+                review_items.append(f"{label}.{field_name}")
+        if row.get("needs_confirmation"):
+            needs_confirmation_refs.append(row_id or label)
+
+    all_referenced_evidence_ai = (
+        bool(referenced_evidence_ids) and not referenced_non_ai_evidence_ids
+    )
+    if all_referenced_evidence_ai:
+        uncovered_items.append("all_referenced_evidence_ai_inferred")
+
+    required_count = max(len(document_rows), 1)
+    covered_count = (
+        required_count
+        - len(uncovered_items)
+        - len(blocking_pending)
+        - len(missing_refs)
+    )
+    evidence_sufficient = bool(
+        referenced_evidence_ids
+        and referenced_non_ai_evidence_ids
+        and not missing_refs
+        and not all_referenced_evidence_ai
+    )
+    ok = bool(
+        document_rows
+        and not blocking_pending
+        and not uncovered_items
+        and not missing_refs
+        and evidence_sufficient
+    )
+    pending = upstream_pending + blocking_pending
+    return {
+        "stage_mode": stage_mode,
+        "next_stage": next_stage,
+        "required_items": required_count,
+        "covered_items": max(covered_count, 0),
+        "coverage_ratio": max(covered_count, 0) / required_count
+        if required_count
+        else 0.0,
+        "row_count": len(document_rows),
+        "row_ids": sorted(row_ids),
+        "pending_fields": pending,
+        "blocking_pending_fields": blocking_pending,
+        "uncovered_items": uncovered_items,
+        "missing_refs": missing_refs,
+        "ai_inferred_refs": sorted(ai_inferred_refs),
+        "needs_confirmation_refs": sorted(set(needs_confirmation_refs)),
+        "review_items": sorted(set(review_items)),
+        "referenced_evidence_ids": sorted(referenced_evidence_ids),
+        "referenced_non_ai_evidence_ids": sorted(referenced_non_ai_evidence_ids),
+        "evidence_sufficient": evidence_sufficient,
+        "legacy_mode": False,
+        "ok": ok,
+    }
+
+
+def _check_document_evidence_refs(
+    label: str,
+    refs: Any,
+    evidence_by_id: dict[str, dict[str, Any]],
+    pending_fields: list[str],
+    missing_refs: list[str],
+    uncovered_items: list[str],
+    ai_inferred_refs: set[str],
+    needs_confirmation_refs: list[str],
+    referenced_evidence_ids: set[str],
+    referenced_non_ai_evidence_ids: set[str],
+) -> None:
+    evidence_refs = [str(ref).strip() for ref in refs or [] if str(ref).strip()]
+    if not evidence_refs:
+        pending_fields.append(f"{label}.evidence_refs")
+        return
+    row_non_ai_refs: set[str] = set()
+    row_referenced_refs: set[str] = set()
+    for ref in evidence_refs:
+        evidence_item = evidence_by_id.get(ref)
+        if evidence_item is None:
+            missing_refs.append(f"{label} -> {ref}")
+            continue
+        referenced_evidence_ids.add(ref)
+        row_referenced_refs.add(ref)
+        if evidence_item.get("ai_inferred"):
+            ai_inferred_refs.add(ref)
+        else:
+            referenced_non_ai_evidence_ids.add(ref)
+            row_non_ai_refs.add(ref)
+        if evidence_item.get("needs_confirmation"):
+            needs_confirmation_refs.append(ref)
+        if _refers_to_confirmable_requirement(evidence_item, label):
+            needs_confirmation_refs.append(ref)
+    if row_referenced_refs and not row_non_ai_refs:
+        uncovered_items.append(f"{label}.all_evidence_ai_inferred")
+
+
+def _refers_to_confirmable_requirement(evidence_item: dict[str, Any], label: str) -> bool:
+    if not evidence_item.get("needs_confirmation"):
+        return False
+    content = str(evidence_item.get("content", "")).lower()
+    source = str(evidence_item.get("source", "")).lower()
+    target = label.lower()
+    return any(term in source or term in content for term in _label_terms(target))
+
+
+def _label_terms(label: str) -> tuple[str, ...]:
+    if any(term in label for term in ("p20", "rivet", "joint")):
+        return ("rivet", "push-out", "push out", "force")
+    if any(term in label for term in ("p10", "incoming", "material")):
+        return ("material", "thickness")
+    if any(term in label for term in ("p30", "final", "inspection", "pack")):
+        return ("revision", "barcode", "pack", "quantity")
+    return ()
+
+
+def _pfmea_manual_review_items(report: dict[str, Any]) -> list[AuditItem]:
+    return _document_manual_review_items(
+        report,
+        incomplete_category="pfmea_incomplete",
+        missing_ref_category="pfmea_missing_ref",
+        pending_category="pfmea_pending_field",
+        needs_confirmation_category="pfmea_needs_confirmation",
+        ai_category="pfmea_ai_inferred",
+        review_category="pfmea_review_field",
+        message_prefix="PFMEA",
+    )
+
+
+def _control_plan_manual_review_items(report: dict[str, Any]) -> list[AuditItem]:
+    return _document_manual_review_items(
+        report,
+        incomplete_category="control_plan_incomplete",
+        missing_ref_category="control_plan_missing_ref",
+        pending_category="control_plan_pending_field",
+        needs_confirmation_category="control_plan_needs_confirmation",
+        ai_category="control_plan_ai_inferred",
+        review_category="control_plan_review_field",
+        message_prefix="控制计划",
+    )
+
+
+def _document_manual_review_items(
+    report: dict[str, Any],
+    *,
+    incomplete_category: str,
+    missing_ref_category: str,
+    pending_category: str,
+    needs_confirmation_category: str,
+    ai_category: str,
+    review_category: str,
+    message_prefix: str,
+) -> list[AuditItem]:
+    items: list[AuditItem] = []
+    for value in report["uncovered_items"]:
+        items.append(
+            AuditItem(value, incomplete_category, f"{message_prefix} 缺少进入下一阶段的必要内容", "blocker")
+        )
+    for value in report["missing_refs"]:
+        items.append(
+            AuditItem(value, missing_ref_category, f"{message_prefix} evidence_refs 引用了不存在的顶层证据", "blocker")
+        )
+    for value in report["pending_fields"]:
+        items.append(
+            AuditItem(value, pending_category, f"{message_prefix} 存在必填字段缺失", "blocker")
+        )
+    for value in report["needs_confirmation_refs"]:
+        items.append(
+            AuditItem(value, needs_confirmation_category, f"{message_prefix} 引用内容需要人工确认", "review")
+        )
+    for value in report["ai_inferred_refs"]:
+        items.append(
+            AuditItem(value, ai_category, f"{message_prefix} 引用了 AI 推断证据", "review")
+        )
+    for value in report.get("review_items", []):
+        items.append(
+            AuditItem(value, review_category, f"{message_prefix} 字段为空，需要人工复核", "review")
+        )
+    return items
+
+
+def _failure_mode_candidates_report(
+    candidates_bundle: dict[str, Any],
+) -> dict[str, Any]:
+    process_steps = candidates_bundle.get(
+        "process_steps", candidates_bundle.get("steps", [])
+    )
+    candidates = candidates_bundle.get(
+        "candidates", candidates_bundle.get("failure_mode_candidates", [])
+    )
+    evidence = candidates_bundle.get("evidence", [])
+    evidence_by_id = {
+        str(item.get("evidence_id", "")): item
+        for item in evidence
+        if isinstance(item, dict) and item.get("evidence_id")
+    }
+    step_ids = {
+        str(step.get("process_step_id", step.get("id", ""))).strip()
+        for step in process_steps
+        if isinstance(step, dict)
+        and str(step.get("process_step_id", step.get("id", ""))).strip()
+    }
+    candidate_count_by_step = {step_id: 0 for step_id in step_ids}
+    upstream_pending_fields = _pending_field_paths(
+        candidates_bundle.get("pending_fields", [])
+    )
+    blocking_pending_fields: list[str] = []
+    uncovered_items: list[str] = []
+    missing_refs: list[str] = []
+    ai_inferred_refs: set[str] = set()
+    needs_confirmation_refs: list[str] = []
+    referenced_evidence_ids: set[str] = set()
+    referenced_non_ai_evidence_ids: set[str] = set()
+    candidate_ids: set[str] = set()
+
+    if not candidates:
+        uncovered_items.append("failure_mode_candidates:min_count")
+
+    for index, candidate in enumerate(candidates):
+        if not isinstance(candidate, dict):
+            blocking_pending_fields.append(f"failure_mode_candidate[{index}]")
+            continue
+        candidate_id = str(candidate.get("candidate_id", "")).strip()
+        label = (
+            f"failure_mode_candidate:{candidate_id}"
+            if candidate_id
+            else f"failure_mode_candidate[{index}]"
+        )
+        step_id = str(candidate.get("process_step_id", "")).strip()
+        failure_mode = str(
+            candidate.get("failure_mode", candidate.get("candidate_failure_mode", ""))
+        ).strip()
+        evidence_refs = candidate.get("evidence_refs", [])
+        if not candidate_id:
+            blocking_pending_fields.append(
+                f"failure_mode_candidate[{index}].candidate_id"
+            )
+        else:
+            candidate_ids.add(candidate_id)
+        if not step_id:
+            blocking_pending_fields.append(f"{label}.process_step_id")
+        elif step_id not in step_ids:
+            uncovered_items.append(f"{label}.process_step_missing:{step_id}")
+        else:
+            candidate_count_by_step[step_id] = (
+                candidate_count_by_step.get(step_id, 0) + 1
+            )
+        if not failure_mode:
+            blocking_pending_fields.append(f"{label}.failure_mode")
+        if candidate.get("needs_confirmation"):
+            needs_confirmation_refs.append(candidate_id or label)
+        _check_candidate_evidence_refs(
+            label,
+            evidence_refs,
+            evidence_by_id,
+            blocking_pending_fields,
+            missing_refs,
+            uncovered_items,
+            ai_inferred_refs,
+            needs_confirmation_refs,
+            referenced_evidence_ids,
+            referenced_non_ai_evidence_ids,
+        )
+
+    for step_id in sorted(step_ids):
+        if candidate_count_by_step.get(step_id, 0) < 1:
+            uncovered_items.append(
+                f"process_step:{step_id}.failure_mode_candidates:min_count"
+            )
+
+    all_referenced_evidence_ai = (
+        bool(referenced_evidence_ids) and not referenced_non_ai_evidence_ids
+    )
+    if all_referenced_evidence_ai:
+        uncovered_items.append("all_referenced_evidence_ai_inferred")
+
+    required_count = max(len(process_steps) + len(candidates), 1)
+    covered_count = (
+        required_count
+        - len(uncovered_items)
+        - len(blocking_pending_fields)
+        - len(missing_refs)
+    )
+    evidence_sufficient = bool(
+        referenced_evidence_ids
+        and referenced_non_ai_evidence_ids
+        and not missing_refs
+        and not all_referenced_evidence_ai
+    )
+    ok = bool(
+        candidates
+        and not blocking_pending_fields
+        and not uncovered_items
+        and not missing_refs
+        and evidence_sufficient
+    )
+    pending_fields = upstream_pending_fields + blocking_pending_fields
+    return {
+        "stage_mode": "brainstorm_failure_modes",
+        "next_stage": "generate_pfmea",
+        "required_items": required_count,
+        "covered_items": max(covered_count, 0),
+        "coverage_ratio": max(covered_count, 0) / required_count
+        if required_count
+        else 0.0,
+        "step_count": len(process_steps),
+        "candidate_count": len(candidates),
+        "required_candidate_count": 1,
+        "step_ids": sorted(step_ids),
+        "candidate_ids": sorted(candidate_ids),
+        "candidate_count_by_step": candidate_count_by_step,
+        "pending_fields": pending_fields,
+        "blocking_pending_fields": blocking_pending_fields,
+        "uncovered_items": uncovered_items,
+        "missing_refs": missing_refs,
+        "ai_inferred_refs": sorted(ai_inferred_refs),
+        "needs_confirmation_refs": sorted(set(needs_confirmation_refs)),
+        "referenced_evidence_ids": sorted(referenced_evidence_ids),
+        "referenced_non_ai_evidence_ids": sorted(referenced_non_ai_evidence_ids),
+        "evidence_sufficient": evidence_sufficient,
+        "legacy_mode": False,
+        "ok": ok,
+    }
+
+
+def _check_candidate_evidence_refs(
+    label: str,
+    refs: Any,
+    evidence_by_id: dict[str, dict[str, Any]],
+    pending_fields: list[str],
+    missing_refs: list[str],
+    uncovered_items: list[str],
+    ai_inferred_refs: set[str],
+    needs_confirmation_refs: list[str],
+    referenced_evidence_ids: set[str],
+    referenced_non_ai_evidence_ids: set[str],
+) -> None:
+    evidence_refs = [str(ref).strip() for ref in refs or [] if str(ref).strip()]
+    if not evidence_refs:
+        pending_fields.append(f"{label}.evidence_refs")
+        return
+    candidate_non_ai_refs: set[str] = set()
+    candidate_referenced_refs: set[str] = set()
+    for ref in evidence_refs:
+        evidence_item = evidence_by_id.get(ref)
+        if evidence_item is None:
+            missing_refs.append(f"{label} -> {ref}")
+            continue
+        referenced_evidence_ids.add(ref)
+        candidate_referenced_refs.add(ref)
+        if evidence_item.get("ai_inferred"):
+            ai_inferred_refs.add(ref)
+        else:
+            referenced_non_ai_evidence_ids.add(ref)
+            candidate_non_ai_refs.add(ref)
+        if evidence_item.get("needs_confirmation"):
+            needs_confirmation_refs.append(ref)
+    if candidate_referenced_refs and not candidate_non_ai_refs:
+        uncovered_items.append(f"{label}.all_evidence_ai_inferred")
+
+
+def _failure_mode_candidates_manual_review_items(
+    report: dict[str, Any],
+) -> list[AuditItem]:
+    items: list[AuditItem] = []
+    for value in report["uncovered_items"]:
+        items.append(
+            AuditItem(
+                value,
+                "failure_mode_candidate_incomplete",
+                "失效模式候选缺少进入 generate_pfmea 的必要内容",
+                "blocker",
+            )
+        )
+    for value in report["missing_refs"]:
+        items.append(
+            AuditItem(
+                value,
+                "failure_mode_candidate_missing_ref",
+                "失效模式候选 evidence_refs 引用了不存在的顶层证据",
+                "blocker",
+            )
+        )
+    for value in report["pending_fields"]:
+        items.append(
+            AuditItem(
+                value,
+                "failure_mode_candidate_pending_field",
+                "失效模式候选存在必填字段缺失",
+                "blocker",
+            )
+        )
+    for value in report["needs_confirmation_refs"]:
+        items.append(
+            AuditItem(
+                value,
+                "failure_mode_candidate_needs_confirmation",
+                "失效模式候选引用内容需要人工确认",
+                "review",
+            )
+        )
+    for value in report["ai_inferred_refs"]:
+        items.append(
+            AuditItem(
+                value,
+                "failure_mode_candidate_ai_inferred",
+                "失效模式候选引用了 AI 推断证据",
+                "review",
+            )
+        )
+    return items
+
+
 def _pfd_bundle_report(
     pfd_bundle: dict[str, Any],
     stage_mode: str = "generate_pfd",
     next_stage: str = "brainstorm_failure_modes",
+    require_operation: bool = True,
 ) -> dict[str, Any]:
     steps = pfd_bundle.get("steps", pfd_bundle.get("process_steps", []))
     links = pfd_bundle.get("links", [])
@@ -205,8 +832,6 @@ def _pfd_bundle_report(
         uncovered_items.append("process_steps:min_count")
     if len(links) < 1:
         uncovered_items.append("links:min_count")
-    if ai_inferred_refs:
-        uncovered_items.append("ai_inferred_route_evidence")
 
     for index, step in enumerate(steps):
         if not isinstance(step, dict):
@@ -218,8 +843,10 @@ def _pfd_bundle_report(
             pfd_blocking_fields.append(f"process_step[{index}].id")
             continue
         step_ids.add(step_id)
-        if not operation:
+        if not operation and require_operation:
             pfd_blocking_fields.append(f"process_step:{step_id}.operation")
+        elif not operation:
+            review_items.append(f"process_step:{step_id}.operation")
         _check_pfd_evidence_refs(
             f"process_step:{step_id}",
             step.get("evidence_refs", []),
@@ -360,12 +987,18 @@ def _evidence_ids(items: Any) -> list[str]:
 
 
 def _flagged_evidence_ids(items: Any, flag: str) -> list[str]:
-    if not isinstance(items, list):
+    if isinstance(items, dict):
+        iterable = [items]
+    elif isinstance(items, list):
+        iterable = items
+    else:
         return []
     return [
-        str(item.get("evidence_id"))
-        for item in items
-        if isinstance(item, dict) and item.get("evidence_id") and item.get(flag)
+        str(item.get("evidence_id") or item.get("item_id"))
+        for item in iterable
+        if isinstance(item, dict)
+        and (item.get("evidence_id") or item.get("item_id"))
+        and item.get(flag)
     ]
 
 
@@ -462,6 +1095,7 @@ def _analysis_bundle_report(analysis_bundle: dict[str, Any]) -> dict[str, Any]:
             and operation
             and source_ref
             and source_ref not in ai_evidence_ids
+            and not clue.get("ai_inferred")
         ):
             valid_route_clues.append(clue)
     if len(valid_route_clues) < 2:
@@ -721,8 +1355,7 @@ def _evidence_coverage_report(chain: APQPChain) -> dict[str, Any]:
         "ok": bool(required_count)
         and not uncovered_items
         and not missing_refs
-        and not ai_inferred_refs
-        and not needs_confirmation_refs,
+        and not ai_inferred_refs,
     }
 
 
@@ -770,10 +1403,105 @@ def _evidence_manual_review_items(report: dict[str, Any]) -> list[AuditItem]:
     for value in report["needs_confirmation_refs"]:
         items.append(
             AuditItem(
-                value, "evidence_needs_confirmation", "引用证据标记为待确认", "blocker"
+                value, "evidence_needs_confirmation", "对象或引用证据标记为待确认", "review"
             )
         )
     return items
+
+
+def _row_needs_confirmation_items(chain: APQPChain) -> list[str]:
+    items: list[str] = []
+    for step in chain.process_steps:
+        if step.needs_confirmation:
+            items.append(f"process_step:{step.process_step_id}")
+    for candidate in chain.failure_mode_candidates:
+        if candidate.needs_confirmation:
+            items.append(f"failure_mode_candidate:{candidate.candidate_id}")
+    for failure in chain.failure_modes:
+        if failure.needs_confirmation:
+            items.append(f"failure_mode:{failure.pfmea_id}")
+    for control in chain.controls:
+        if control.needs_confirmation:
+            items.append(f"control_item:{control.control_plan_id}")
+    for link in chain.links:
+        if link.needs_confirmation:
+            items.append(_trace_link_label(link))
+    items.extend(_pending_field_paths(chain.pending_fields))
+    items.extend(_flagged_item_labels(chain.ai_inferred_items, "needs_confirmation"))
+    return _dedupe_preserve_order(items)
+
+
+def _row_needs_confirmation_manual_review_items(items: list[str]) -> list[AuditItem]:
+    return [
+        AuditItem(
+            item,
+            "row_needs_confirmation",
+            "关键对象标记为待确认，需要人工复核后才能正式放行",
+            "review",
+        )
+        for item in items
+    ]
+
+
+def _trace_link_label(link: Any) -> str:
+    link_id = str(getattr(link, "trace_link_id", "")).strip()
+    if link_id:
+        return f"trace_link:{link_id}"
+    from_id = str(getattr(link, "from_id", "")).strip()
+    to_id = str(getattr(link, "to_id", "")).strip()
+    if from_id or to_id:
+        return f"trace_link:{from_id}->{to_id}"
+    return "trace_link"
+
+
+def _flagged_item_labels(items: Any, flag: str) -> list[str]:
+    if isinstance(items, dict):
+        iterable = [items]
+    elif isinstance(items, list):
+        iterable = items
+    else:
+        return []
+    labels: list[str] = []
+    for index, item in enumerate(iterable):
+        if isinstance(item, str):
+            if flag == "needs_confirmation" and item.strip():
+                labels.append(item.strip())
+            continue
+        if not isinstance(item, dict) or not item.get(flag):
+            continue
+        labels.append(_flagged_item_label(item, index))
+    return labels
+
+
+def _flagged_item_label(item: dict[str, Any], index: int) -> str:
+    for field_name in (
+        "id",
+        "item_id",
+        "field",
+        "evidence_id",
+        "process_step_id",
+        "pfmea_id",
+        "control_plan_id",
+        "candidate_id",
+        "link_id",
+        "trace_link_id",
+    ):
+        value = str(item.get(field_name, "")).strip()
+        if value:
+            return value
+    return f"ai_inferred_item[{index}]"
+
+
+def _dedupe_preserve_order(values: list[str]) -> list[str]:
+    result: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        normalized = str(value).strip()
+        if not normalized or normalized in seen:
+            continue
+        result.append(normalized)
+        seen.add(normalized)
+    return result
 
 
 def _pending_fields(chain: APQPChain) -> list[str]:
@@ -788,8 +1516,23 @@ def _pending_fields(chain: APQPChain) -> list[str]:
             pending.append(f"{control.control_plan_id}.specification")
         if not control.reaction_plan:
             pending.append(f"{control.control_plan_id}.reaction_plan")
+    for item in _pending_field_paths(getattr(chain, "pending_fields", [])):
+        if item and item not in pending:
+            pending.append(item)
     return pending
 
 
 def _ai_inferred_items(chain: APQPChain) -> list[str]:
-    return [item.evidence_id for item in chain.evidence if item.ai_inferred]
+    items = [item.evidence_id for item in chain.evidence if item.ai_inferred]
+    for item in _flagged_evidence_ids(
+        getattr(chain, "ai_inferred_items", []), "ai_inferred"
+    ):
+        if item and item not in items:
+            items.append(item)
+    for item in getattr(chain, "ai_inferred_items", []):
+        if isinstance(item, dict):
+            continue
+        value = str(item)
+        if value and value not in items:
+            items.append(value)
+    return items

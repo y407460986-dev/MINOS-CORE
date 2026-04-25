@@ -422,15 +422,15 @@ class GeneratePfdStageTests(unittest.TestCase):
 
         self.assertEqual(result.stage, "brainstorm_failure_modes")
         self.assertEqual(result.status, "ok")
-        self.assertEqual(result.output["document_type"], "process_flow")
+        self.assertEqual(result.output["document_type"], "failure_mode_candidates")
         self.assertTrue(result.quality_gate.can_continue)
         self.assertEqual(
             result.quality_gate.evidence_coverage["stage_mode"],
-            "brainstorm_failure_modes_preflight",
+            "brainstorm_failure_modes",
         )
         self.assertEqual(
             result.quality_gate.evidence_coverage["next_stage"],
-            "brainstorm_failure_modes",
+            "generate_pfmea",
         )
 
     def test_brainstorm_preflight_blocks_when_link_type_is_missing(self):

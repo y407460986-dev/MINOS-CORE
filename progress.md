@@ -1,5 +1,31 @@
 # MINOS-CORE 重建进度
 
+## 第十二阶段当前状态
+AI analyze 增强已接入 FakeLLM 契约，默认 keyword-only 路径保持不变。
+
+## 第十二阶段已完成
+- 已新增 `analyze_evidence_bundle_with_ai(source, llm_adapter)`，先运行规则分析，再合并 LLM 结构化候选。
+- 已限制 AI 输出块为 `drawings`、`characteristics`、`process_clues`、`pending_fields`、`risksAndUncertainties`。
+- 已强制 AI 输出引用已有 evidence，并统一标记 `ai_inferred=True`、`needs_confirmation=True`。
+- 已实现非法 JSON、未知输出块、缺失 source_ref、引用不存在 evidence 时直接失败，不做 fallback。
+- 已更新 analyze gate，AI process clue 不计入“可进入 generate_pfd”的有效 Pxx route clue。
+- 已新增 `tests/test_analyze_stage.py` 中 AI analyze 相关测试，覆盖 FakeLLM、非法 JSON、source_ref、AI-only route 和 keyword-only 不退化。
+
+## 第十一阶段当前状态
+PFMEA 与控制计划生成闭环已接通，未搬目录，未接入 LLM。
+
+## 第十一阶段已完成
+- 已新增 `minos_core/generate_pfmea.py`，从 `failure_mode_candidates` 生成 `pfmea` bundle，保留证据引用并用明确的工程确认占位字段。
+- 已新增 `minos_core/generate_control_plan.py`，从 `pfmea` bundle 生成 `control_plan` bundle，按 AP/严重度/频度做薄规则默认控制项。
+- 已更新 `minos_core/stage.py`，接入 `generate_pfmea` 和 `generate_control_plan` 阶段，保持 `validate/export` 路径不变。
+- 已更新 `minos_core/quality_gates.py`，新增 PFMEA 与控制计划 bundle gate，并把上游 pending 与本阶段 blocking pending 分开。
+- 已修正 brainstorm 预检语义，空 `operation` 在 brainstorm preflight 中只作为 review，真正无候选项仍由候选质量门阻断。
+- 已新增 `tests/test_generate_pfmea_stage.py` 和 `tests/test_generate_control_plan_stage.py`，覆盖正常生成、证据引用、AI-only 阻断、缺证据阻断和旧链路不退化。
+- 已新增 `README.md`，记录当前 pipeline、运行命令、测试命令和核心边界。
+- 已更新 `project_flow.mmd`，补入 failure mode candidates、PFMEA bundle、control plan bundle 与新测试门。
+- 已运行完整回归 `python -m unittest discover -s tests -v`，当前 114 项全部通过。
+- 已运行 CLI smoke：`validate`、`audit`、`export` 均通过。
+
 ## 当前状态
 第二阶段已开始：真实样本迁移的测试与文档已按允许范围更新。adapter 实现由另一个 worker 负责，本轮只约束公开契约并保留验收入口。
 

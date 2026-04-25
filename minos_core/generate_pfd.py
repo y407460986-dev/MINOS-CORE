@@ -6,8 +6,16 @@ import re
 from typing import Any
 
 
+_STEP_CHARACTERISTIC_RULES = {
+    "P10": ("material", "thickness"),
+    "P20": ("rivet", "height", "push-out", "push out", "force"),
+    "P30": ("revision", "barcode", "pack", "quantity"),
+}
+
+
 def generate_pfd_from_analysis(analysis_bundle: dict[str, Any]) -> dict[str, Any]:
     pending_fields = list(analysis_bundle.get("pending_fields", []))
+    characteristics = _characteristics_by_ref(analysis_bundle.get("characteristics", []))
     steps_by_id: dict[str, dict[str, Any]] = {}
     for clue in analysis_bundle.get("process_clues", []):
         if not isinstance(clue, dict):
@@ -56,6 +64,7 @@ def generate_pfd_from_analysis(analysis_bundle: dict[str, Any]) -> dict[str, Any
             step["operation"] = operation
         if source_ref and source_ref not in step["evidence_refs"]:
             step["evidence_refs"].append(source_ref)
+        _apply_characteristics(step, source_ref, characteristics)
 
     steps = sorted(steps_by_id.values(), key=lambda item: item["sequence"])
     links = _sequence_links(steps)
@@ -77,6 +86,53 @@ def generate_pfd_from_analysis(analysis_bundle: dict[str, Any]) -> dict[str, Any
             "source_stage": "analyze",
         },
     }
+
+
+def _characteristics_by_ref(characteristics: Any) -> dict[str, list[dict[str, Any]]]:
+    by_ref: dict[str, list[dict[str, Any]]] = {}
+    if not isinstance(characteristics, list):
+        return by_ref
+    for characteristic in characteristics:
+        if not isinstance(characteristic, dict):
+            continue
+        source_ref = str(characteristic.get("source_ref", "")).strip()
+        if not source_ref:
+            continue
+        by_ref.setdefault("*", []).append(characteristic)
+        by_ref.setdefault(source_ref, []).append(characteristic)
+    return by_ref
+
+
+def _apply_characteristics(
+    step: dict[str, Any],
+    source_ref: str,
+    characteristics_by_ref: dict[str, list[dict[str, Any]]],
+) -> None:
+    existing = set(step.get("special_characteristics", []))
+    step_id = str(step.get("process_step_id", "")).strip().upper()
+    for characteristic in characteristics_by_ref.get("*", []):
+        if not _characteristic_applies_to_step(characteristic, step_id):
+            continue
+        characteristic_id = str(characteristic.get("characteristic_id", "")).strip()
+        if characteristic_id and characteristic_id not in existing:
+            step["special_characteristics"].append(characteristic_id)
+            existing.add(characteristic_id)
+            characteristic_ref = str(characteristic.get("source_ref", "")).strip()
+            if characteristic_ref and characteristic_ref not in step["evidence_refs"]:
+                step["evidence_refs"].append(characteristic_ref)
+
+
+def _characteristic_applies_to_step(
+    characteristic: dict[str, Any], step_id: str
+) -> bool:
+    terms = _STEP_CHARACTERISTIC_RULES.get(step_id, ())
+    if not terms:
+        return False
+    characteristic_text = " ".join(
+        str(characteristic.get(field_name, ""))
+        for field_name in ("characteristic_id", "name", "matched_terms")
+    ).lower()
+    return any(term in characteristic_text for term in terms)
 
 
 def _sequence_links(steps: list[dict[str, Any]]) -> list[dict[str, Any]]:

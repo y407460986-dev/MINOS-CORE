@@ -2,6 +2,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from minos_core.adapters.llm import FakeLLMAdapter
+from minos_core.analyze import analyze_evidence_bundle_with_ai
 from minos_core.quality_gates import evaluate_analysis_bundle_gate
 from minos_core.stage import run_stage
 
@@ -26,6 +28,111 @@ class AnalyzeStageTests(unittest.TestCase):
         self.assertIn("ai_inferred_items", result.output)
         self.assertTrue(result.quality_gate.can_continue)
         self.assertFalse(result.quality_gate.allow_user_export)
+
+    def test_ai_analyze_uses_fake_llm_and_marks_metadata(self):
+        result = analyze_evidence_bundle_with_ai(
+            {
+                "source": "manual",
+                "content": (
+                    "Drawing DRW-900 Rev A defines material thickness 2.00 +/- 0.10 mm. "
+                    "Process route includes P10 incoming material verification."
+                ),
+            },
+            FakeLLMAdapter(
+                content=(
+                    '{"drawings":[],"characteristics":[],"process_clues":['
+                    '{"process_step_id":"P20","operation":"rivet assembly",'
+                    '"source_ref":"EV-MANUAL-001","confidence":0.7}],'
+                    '"pending_fields":[],"risksAndUncertainties":[]}'
+                )
+            ),
+        )
+
+        self.assertEqual(result["document_type"], "analysis_bundle")
+        self.assertEqual(result["metadata"]["analysis_mode"], "keyword_rules_plus_ai")
+        self.assertTrue(result["metadata"]["llm_used"])
+        self.assertEqual(result["metadata"]["llm_model"], "fake")
+        ai_clues = [
+            item for item in result["process_clues"] if item.get("ai_inferred")
+        ]
+        self.assertEqual(len(ai_clues), 1)
+        self.assertEqual(ai_clues[0]["process_step_id"], "P20")
+        self.assertTrue(ai_clues[0]["needs_confirmation"])
+        self.assertTrue(result["ai_inferred_items"])
+
+    def test_ai_analyze_requires_valid_json_without_fallback(self):
+        with self.assertRaises(ValueError):
+            analyze_evidence_bundle_with_ai(
+                {
+                    "source": "manual",
+                    "content": "Drawing DRW-901 Rev A defines material thickness 2.00 +/- 0.10 mm.",
+                },
+                FakeLLMAdapter(content="not json"),
+            )
+
+    def test_ai_analyze_requires_source_ref_to_existing_evidence(self):
+        with self.assertRaises(ValueError):
+            analyze_evidence_bundle_with_ai(
+                {
+                    "source": "manual",
+                    "content": "Drawing DRW-902 Rev A defines material thickness 2.00 +/- 0.10 mm.",
+                },
+                FakeLLMAdapter(
+                    content=(
+                        '{"drawings":[],"characteristics":[],"process_clues":['
+                        '{"process_step_id":"P20","operation":"rivet assembly",'
+                        '"source_ref":"EV-NOT-FOUND"}],'
+                        '"pending_fields":[],"risksAndUncertainties":[]}'
+                    )
+                ),
+            )
+
+    def test_ai_analyze_process_clues_do_not_satisfy_gate_without_rule_route(self):
+        result = analyze_evidence_bundle_with_ai(
+            {
+                "source": "manual",
+                "content": (
+                    "Drawing DRW-903 Rev A defines material thickness 2.00 +/- 0.10 mm "
+                    "and rivet height 1.50 +0.50/-0.00 mm."
+                ),
+            },
+            FakeLLMAdapter(
+                content=(
+                    '{"drawings":[],"characteristics":[],"process_clues":['
+                    '{"process_step_id":"P10","operation":"incoming material verification",'
+                    '"source_ref":"EV-MANUAL-001"},'
+                    '{"process_step_id":"P20","operation":"rivet assembly",'
+                    '"source_ref":"EV-MANUAL-001"}],'
+                    '"pending_fields":[],"risksAndUncertainties":[]}'
+                )
+            ),
+        )
+        gate = evaluate_analysis_bundle_gate(result)
+
+        self.assertFalse(gate.can_continue)
+        self.assertIn(
+            "process_clues:min_valid_pxx_count", gate.uncovered_evidence_items
+        )
+        self.assertTrue(
+            all(item.get("ai_inferred") for item in result["process_clues"])
+        )
+
+    def test_ai_analyze_does_not_change_keyword_only_stage_behavior(self):
+        result = run_stage(
+            {
+                "source": "manual",
+                "content": (
+                    "Drawing DRW-904 Rev A defines material thickness 2.00 +/- 0.10 mm "
+                    "and rivet height 1.50 +0.50/-0.00 mm. Process route includes "
+                    "P10 incoming material verification and P20 rivet assembly."
+                ),
+            },
+            stage="analyze",
+        )
+
+        self.assertEqual(result.status, "ok")
+        self.assertEqual(result.output["metadata"]["analysis_mode"], "keyword_rules")
+        self.assertFalse(result.output["metadata"]["llm_used"])
 
     def test_analyze_extracts_fixture_drawing_characteristics_and_process_clues(self):
         result = run_stage(FIXTURE_DIR, stage="analyze")

@@ -232,6 +232,89 @@ class QualityAuditContractTests(unittest.TestCase):
         self.assertIn("EV-AI-001", gate.ai_inferred_items)
         self.assertTrue(gate.model_dump()["evidence_coverage"]["ai_inferred_refs"])
 
+    def test_stage_quality_gate_routes_row_needs_confirmation_to_review_only(self):
+        gates_module = _import_first("minos_core.quality_gates")
+        evaluate_stage_gate = _get_first(gates_module, "evaluate_stage_gate")
+        validate_chain = _validate_chain()
+        chain = copy.deepcopy(_load_fixture("apqp_chain"))
+        chain["process_flow"]["steps"][0]["needs_confirmation"] = True
+        chain["pfmea"]["rows"][0]["needs_confirmation"] = True
+        chain["control_plan"]["rows"][0]["needs_confirmation"] = True
+        chain["process_flow"]["links"][0]["needs_confirmation"] = True
+
+        validation_result = validate_chain(chain)
+        gate = evaluate_stage_gate(chain, stage="validate")
+        categories = {
+            item.category
+            for item in gate.manual_review_items
+            if getattr(item, "severity", "") == "review"
+        }
+
+        self.assertTrue(_validation_ok(validation_result), str(validation_result))
+        self.assertTrue(gate.can_continue)
+        self.assertTrue(gate.evidence_sufficient)
+        self.assertFalse(gate.allow_user_export)
+        self.assertFalse(gate.allow_formal_release)
+        self.assertTrue(gate.draft_only)
+        self.assertTrue(gate.needs_human_review)
+        self.assertIn("process_step:P10", gate.needs_confirmation_items)
+        self.assertIn("failure_mode:PFMEA-P10-001", gate.needs_confirmation_items)
+        self.assertIn("control_item:CP-P10-001", gate.needs_confirmation_items)
+        self.assertIn("trace_link:P10->P20", gate.needs_confirmation_items)
+        self.assertIn("row_needs_confirmation", categories)
+        self.assertFalse(
+            any(
+                item.category == "row_needs_confirmation"
+                and item.severity == "blocker"
+                for item in gate.manual_review_items
+            )
+        )
+
+    def test_stage_quality_gate_allows_draft_for_confirmable_evidence(self):
+        gates_module = _import_first("minos_core.quality_gates")
+        evaluate_stage_gate = _get_first(gates_module, "evaluate_stage_gate")
+        validate_chain = _validate_chain()
+        chain = copy.deepcopy(_load_fixture("apqp_chain"))
+        chain["evidence"][0]["needs_confirmation"] = True
+
+        validation_result = validate_chain(chain)
+        gate = evaluate_stage_gate(chain, stage="validate")
+        evidence_review_items = [
+            item
+            for item in gate.manual_review_items
+            if item.category == "evidence_needs_confirmation"
+        ]
+
+        self.assertTrue(_validation_ok(validation_result), str(validation_result))
+        self.assertTrue(gate.can_continue)
+        self.assertTrue(gate.evidence_sufficient)
+        self.assertFalse(gate.allow_user_export)
+        self.assertTrue(gate.draft_only)
+        self.assertTrue(gate.needs_human_review)
+        self.assertTrue(evidence_review_items)
+        self.assertTrue(all(item.severity == "review" for item in evidence_review_items))
+
+    def test_stage_quality_gate_reviews_chain_pending_and_ai_confirmations(self):
+        gates_module = _import_first("minos_core.quality_gates")
+        evaluate_stage_gate = _get_first(gates_module, "evaluate_stage_gate")
+        chain = copy.deepcopy(_load_fixture("apqp_chain"))
+        chain["pending_fields"] = [{"source_ref": "PFMEA-P10-001", "field": "severity"}]
+        chain["ai_inferred_items"] = [
+            {
+                "item_id": "AI-CHECK-P10",
+                "needs_confirmation": True,
+                "ai_inferred": True,
+            }
+        ]
+
+        gate = evaluate_stage_gate(chain, stage="validate")
+
+        self.assertTrue(gate.can_continue)
+        self.assertFalse(gate.allow_user_export)
+        self.assertIn("PFMEA-P10-001.severity", gate.needs_confirmation_items)
+        self.assertIn("AI-CHECK-P10", gate.needs_confirmation_items)
+        self.assertIn("AI-CHECK-P10", gate.ai_inferred_items)
+
 
 if __name__ == "__main__":
     unittest.main()

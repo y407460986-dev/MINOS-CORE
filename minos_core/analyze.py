@@ -109,7 +109,7 @@ def analyze_evidence_bundle(source: dict[str, Any]) -> dict[str, Any]:
             process_clues.setdefault(
                 (clue["process_step_id"], clue["operation"], source_ref), clue
             )
-        if evidence.ai_inferred or evidence.needs_confirmation:
+        if evidence.ai_inferred:
             ai_inferred_items.append(
                 {
                     "evidence_id": evidence.evidence_id,
@@ -199,8 +199,10 @@ def _characteristics(
 
 def _process_clues(evidence: Evidence, lower: str) -> list[dict[str, Any]]:
     clues: list[dict[str, Any]] = []
+    matched_pxx_operations: set[str] = set()
     for step_id, operation in PROCESS_STEP_RULES:
         if step_id.lower() in lower and operation in lower:
+            matched_pxx_operations.add(operation)
             clues.append(
                 {
                     "process_step_id": step_id,
@@ -213,6 +215,8 @@ def _process_clues(evidence: Evidence, lower: str) -> list[dict[str, Any]]:
                 }
             )
     for operation in PROCESS_PHRASE_RULES:
+        if operation in matched_pxx_operations:
+            continue
         if operation in lower:
             clues.append(
                 {

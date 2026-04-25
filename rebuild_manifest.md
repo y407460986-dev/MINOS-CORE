@@ -329,3 +329,25 @@ fixture 表达一条最小但完整的 APQP 链：
 - AI-only referenced evidence 必须 blocked，且 `evidence_sufficient=False`。
 - `process_function` / `special_characteristics` 为空只进入 review，不阻断。
 - `run_stage(..., stage="brainstorm_failure_modes")` 必须接受 `process_flow` 并复用 PFD gate，不能误走完整 APQPChain 校验。
+
+## 第十阶段二次前向筛查修复新增
+进入第十一阶段前再次补强 analyze/PFD/brainstorm gate。
+
+更新文件：
+- `minos_core/analyze.py`
+- `minos_core/quality_gates.py`
+- `tests/test_analyze_stage.py`
+- `tests/test_generate_pfd_stage.py`
+- `progress.md`
+- `findings.md`
+- `rebuild_manifest.md`
+
+新增测试契约：
+- analyze 至少需要 2 个合法 `Pxx` route clue 才可进入 `generate_pfd`。
+- phrase-only route clue 不计入合法 Pxx route clue。
+- 同一 evidence 已被 Pxx 识别的 operation 不再重复输出 phrase-only clue。
+- `needs_confirmation` 不得进入 `ai_inferred_items`。
+- `process_clues.source_ref` 引用不存在 evidence 时 analyze gate 必须 blocked。
+- PFD/brainstorm gate 必须保留字符串形式 `pending_fields`。
+- PFD/brainstorm gate 必须检查 `link_type`。
+- brainstorm preflight report 必须使用 `stage_mode=brainstorm_failure_modes_preflight`。

@@ -117,3 +117,12 @@
 - 已修复 AI-only route 时 `evidence_sufficient` 语义不一致的问题；现在 AI-only 或 missing refs 会让 `evidence_sufficient=False`。
 - 已把 `process_function` 和 `special_characteristics` 空值暴露为 review-only 项，避免伪造内容，也不阻断进入 brainstorm。
 - 已新增 `brainstorm_failure_modes` 前置分支，避免下一阶段误走完整 APQPChain 校验路径。
+
+## 第十阶段二次前向筛查发现与修复
+- 已修复 analyze gate 把 phrase-only process clue 计为可进入 PFD 的问题；现在必须至少有 2 个合法 `Pxx` route clue。
+- 已修复同一 evidence 同时输出 Pxx clue 和完全重复 phrase-only clue 的噪音。
+- 已修复 OCR 待确认被误标为 AI 推断的问题；`needs_confirmation` 与 `ai_inferred` 已分开。
+- 已修复 analysis bundle 中 `process_clues.source_ref` 可指向不存在 evidence 的漏洞。
+- 已修复字符串形式 `pending_fields` 被静默丢弃的问题。
+- 已修复 PFD/brainstorm gate 不检查 `link_type` 的问题。
+- 已修复 brainstorm preflight report 仍显示 `stage_mode=generate_pfd` 的语义问题。

@@ -267,6 +267,61 @@ class GeneratePfdStageTests(unittest.TestCase):
             )
         )
 
+    def test_generate_pfd_preserves_string_pending_fields(self):
+        process_flow = _valid_process_flow()
+        process_flow["pending_fields"] = [
+            "process_step:P10.operator_confirmation",
+            {"source_ref": "EV-ROUTE-001", "field": "process_step_id"},
+        ]
+
+        result = run_stage(process_flow, stage="generate_pfd")
+
+        self.assertEqual(result.status, "ok")
+        self.assertIn("process_step:P10.operator_confirmation", result.pending_fields)
+        self.assertIn("EV-ROUTE-001.process_step_id", result.pending_fields)
+
+    def test_generate_pfd_accepts_single_string_pending_fields(self):
+        process_flow = _valid_process_flow()
+        process_flow["pending_fields"] = "process_step:P10.operator_confirmation"
+
+        result = run_stage(process_flow, stage="generate_pfd")
+
+        self.assertEqual(result.status, "ok")
+        self.assertIn("process_step:P10.operator_confirmation", result.pending_fields)
+
+    def test_generate_pfd_blocks_when_link_type_is_missing(self):
+        process_flow = _valid_process_flow()
+        del process_flow["links"][0]["link_type"]
+
+        result = run_stage(process_flow, stage="generate_pfd")
+
+        self.assertEqual(result.status, "blocked")
+        self.assertFalse(result.quality_gate.can_continue)
+        self.assertIn("trace_link[0].link_type", result.pending_fields)
+
+    def test_generate_pfd_blocks_when_link_type_is_empty(self):
+        process_flow = _valid_process_flow()
+        process_flow["links"][0]["link_type"] = ""
+
+        result = run_stage(process_flow, stage="generate_pfd")
+
+        self.assertEqual(result.status, "blocked")
+        self.assertFalse(result.quality_gate.can_continue)
+        self.assertIn("trace_link[0].link_type", result.pending_fields)
+
+    def test_generate_pfd_blocks_when_link_type_is_invalid(self):
+        process_flow = _valid_process_flow()
+        process_flow["links"][0]["link_type"] = "dependency"
+
+        result = run_stage(process_flow, stage="generate_pfd")
+
+        self.assertEqual(result.status, "blocked")
+        self.assertFalse(result.quality_gate.can_continue)
+        self.assertIn(
+            "trace_link[0].link_type_invalid:dependency",
+            result.quality_gate.uncovered_evidence_items,
+        )
+
     def test_generate_pfd_blocks_when_all_referenced_evidence_is_ai_inferred(self):
         process_flow = _valid_process_flow()
         process_flow["evidence"] = [
@@ -311,6 +366,34 @@ class GeneratePfdStageTests(unittest.TestCase):
         self.assertIn("process_step:P10.process_function", review_item_ids)
         self.assertIn("process_step:P20.special_characteristics", review_item_ids)
 
+    def test_generate_pfd_report_stage_mode_points_to_generate_pfd(self):
+        result = run_stage(FIXTURE_DIR, stage="generate_pfd")
+
+        self.assertEqual(
+            result.quality_gate.evidence_coverage["stage_mode"], "generate_pfd"
+        )
+        self.assertEqual(
+            result.quality_gate.evidence_coverage["next_stage"],
+            "brainstorm_failure_modes",
+        )
+
+    def test_generate_pfd_keeps_needs_confirmation_as_review_without_blocking(self):
+        process_flow = _valid_process_flow()
+        process_flow["evidence"][0]["needs_confirmation"] = True
+
+        result = run_stage(process_flow, stage="generate_pfd")
+        review_items = [
+            item
+            for item in result.quality_gate.manual_review_items
+            if item.category == "pfd_needs_confirmation"
+        ]
+
+        self.assertEqual(result.status, "ok")
+        self.assertTrue(result.quality_gate.can_continue)
+        self.assertIn("EV-ROUTE-001", result.quality_gate.needs_confirmation_items)
+        self.assertTrue(review_items)
+        self.assertTrue(all(item.severity == "review" for item in review_items))
+
     def test_generate_pfd_does_not_break_validate(self):
         generate_result = run_stage(FIXTURE_DIR, stage="generate_pfd")
         validate_result = run_stage(FIXTURE_DIR, stage="validate")
@@ -342,9 +425,35 @@ class GeneratePfdStageTests(unittest.TestCase):
         self.assertEqual(result.output["document_type"], "process_flow")
         self.assertTrue(result.quality_gate.can_continue)
         self.assertEqual(
+            result.quality_gate.evidence_coverage["stage_mode"],
+            "brainstorm_failure_modes_preflight",
+        )
+        self.assertEqual(
             result.quality_gate.evidence_coverage["next_stage"],
             "brainstorm_failure_modes",
         )
+
+    def test_brainstorm_preflight_blocks_when_link_type_is_missing(self):
+        process_flow = _valid_process_flow()
+        del process_flow["links"][0]["link_type"]
+
+        result = run_stage(process_flow, stage="brainstorm_failure_modes")
+
+        self.assertEqual(result.status, "blocked")
+        self.assertFalse(result.quality_gate.can_continue)
+        self.assertIn("trace_link[0].link_type", result.pending_fields)
+
+    def test_brainstorm_preflight_keeps_needs_confirmation_as_review_without_blocking(
+        self,
+    ):
+        process_flow = _valid_process_flow()
+        process_flow["evidence"][0]["needs_confirmation"] = True
+
+        result = run_stage(process_flow, stage="brainstorm_failure_modes")
+
+        self.assertEqual(result.status, "ok")
+        self.assertTrue(result.quality_gate.can_continue)
+        self.assertIn("EV-ROUTE-001", result.quality_gate.needs_confirmation_items)
 
     def test_brainstorm_preflight_blocks_invalid_process_flow_without_apqp_validation(
         self,

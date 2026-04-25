@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -125,7 +126,11 @@ def evaluate_pfd_bundle_gate(
 ) -> StageQualityGate:
     validation = ChainValidationResult(ok=True, messages=[], chain=APQPChain())
     audit = audit_chain(APQPChain())
-    report = _pfd_bundle_report(pfd_bundle)
+    report = _pfd_bundle_report(
+        pfd_bundle,
+        stage_mode="generate_pfd",
+        next_stage="brainstorm_failure_modes",
+    )
     return StageQualityGate(
         stage=stage,
         can_continue=bool(report["ok"]),
@@ -147,10 +152,35 @@ def evaluate_brainstorm_failure_modes_input_gate(
     process_flow: dict[str, Any],
     stage: str = "brainstorm_failure_modes",
 ) -> StageQualityGate:
-    return evaluate_pfd_bundle_gate(process_flow, stage=stage)
+    validation = ChainValidationResult(ok=True, messages=[], chain=APQPChain())
+    audit = audit_chain(APQPChain())
+    report = _pfd_bundle_report(
+        process_flow,
+        stage_mode="brainstorm_failure_modes_preflight",
+        next_stage="brainstorm_failure_modes",
+    )
+    return StageQualityGate(
+        stage=stage,
+        can_continue=bool(report["ok"]),
+        allow_user_export=False,
+        validation=validation,
+        audit=audit,
+        evidence_sufficient=bool(report["evidence_sufficient"]),
+        pending_fields=list(report["pending_fields"]),
+        ai_inferred_items=list(report["ai_inferred_refs"]),
+        manual_review_items=_pfd_manual_review_items(report),
+        evidence_coverage=report,
+        missing_evidence_refs=list(report["missing_refs"]),
+        uncovered_evidence_items=list(report["uncovered_items"]),
+        needs_confirmation_items=list(report["needs_confirmation_refs"]),
+    )
 
 
-def _pfd_bundle_report(pfd_bundle: dict[str, Any]) -> dict[str, Any]:
+def _pfd_bundle_report(
+    pfd_bundle: dict[str, Any],
+    stage_mode: str = "generate_pfd",
+    next_stage: str = "brainstorm_failure_modes",
+) -> dict[str, Any]:
     steps = pfd_bundle.get("steps", pfd_bundle.get("process_steps", []))
     links = pfd_bundle.get("links", [])
     pending_fields = _pending_field_paths(pfd_bundle.get("pending_fields", []))
@@ -212,6 +242,11 @@ def _pfd_bundle_report(pfd_bundle: dict[str, Any]) -> dict[str, Any]:
             continue
         from_id = str(link.get("from", link.get("from_id", ""))).strip()
         to_id = str(link.get("to", link.get("to_id", ""))).strip()
+        link_type = str(link.get("link_type", "")).strip()
+        if not link_type:
+            pfd_blocking_fields.append(f"trace_link[{index}].link_type")
+        elif link_type != "sequence":
+            uncovered_items.append(f"trace_link[{index}].link_type_invalid:{link_type}")
         if not from_id:
             pfd_blocking_fields.append(f"trace_link[{index}].from")
         elif from_id not in step_ids:
@@ -261,8 +296,8 @@ def _pfd_bundle_report(pfd_bundle: dict[str, Any]) -> dict[str, Any]:
         and evidence_sufficient
     )
     return {
-        "stage_mode": "generate_pfd",
-        "next_stage": "brainstorm_failure_modes",
+        "stage_mode": stage_mode,
+        "next_stage": next_stage,
         "required_items": required_count,
         "covered_items": max(covered_count, 0),
         "coverage_ratio": max(covered_count, 0) / required_count
@@ -390,7 +425,6 @@ def _analysis_bundle_report(analysis_bundle: dict[str, Any]) -> dict[str, Any]:
     characteristics = analysis_bundle.get("characteristics", [])
     process_clues = analysis_bundle.get("process_clues", [])
     pending_fields = _pending_field_paths(analysis_bundle.get("pending_fields", []))
-    ai_inferred = analysis_bundle.get("ai_inferred_items", [])
     uncovered_items: list[str] = []
     if missing_blocks:
         uncovered_items.extend(f"missing_block:{name}" for name in missing_blocks)
@@ -404,6 +438,34 @@ def _analysis_bundle_report(analysis_bundle: dict[str, Any]) -> dict[str, Any]:
     evidence_ids = [
         str(item.get("evidence_id", "")) for item in evidence if isinstance(item, dict)
     ]
+    evidence_id_set = {item for item in evidence_ids if item}
+    ai_evidence_ids = {
+        str(item.get("evidence_id"))
+        for item in evidence
+        if isinstance(item, dict)
+        and item.get("evidence_id")
+        and item.get("ai_inferred")
+    }
+    missing_refs: list[str] = []
+    valid_route_clues: list[dict[str, Any]] = []
+    for index, clue in enumerate(process_clues):
+        if not isinstance(clue, dict):
+            continue
+        step_id = str(clue.get("process_step_id", "")).strip().upper()
+        operation = str(clue.get("operation", "")).strip()
+        source_ref = str(clue.get("source_ref", "")).strip()
+        if source_ref and source_ref not in evidence_id_set:
+            missing_refs.append(f"process_clues[{index}].source_ref -> {source_ref}")
+            continue
+        if (
+            re.match(r"^P\d+$", step_id)
+            and operation
+            and source_ref
+            and source_ref not in ai_evidence_ids
+        ):
+            valid_route_clues.append(clue)
+    if len(valid_route_clues) < 2:
+        uncovered_items.append("process_clues:min_valid_pxx_count")
     non_ai_evidence = [
         item
         for item in evidence
@@ -419,11 +481,7 @@ def _analysis_bundle_report(analysis_bundle: dict[str, Any]) -> dict[str, Any]:
         and item.get("needs_confirmation")
         and item.get("evidence_id")
     ]
-    ai_inferred_refs = [
-        str(item.get("evidence_id"))
-        for item in ai_inferred
-        if isinstance(item, dict) and item.get("evidence_id")
-    ]
+    ai_inferred_refs = sorted(ai_evidence_ids)
     all_ai = bool(evidence) and not non_ai_evidence
     if all_ai:
         uncovered_items.append("all_evidence_ai_inferred")
@@ -435,9 +493,10 @@ def _analysis_bundle_report(analysis_bundle: dict[str, Any]) -> dict[str, Any]:
         not missing_blocks
         and drawings
         and characteristics
-        and process_clues
+        and len(valid_route_clues) >= 2
         and evidence_sufficient
         and not all_ai
+        and not missing_refs
     )
     return {
         "stage_mode": "analyze",
@@ -448,14 +507,14 @@ def _analysis_bundle_report(analysis_bundle: dict[str, Any]) -> dict[str, Any]:
         "required_blocks": required_blocks,
         "missing_blocks": missing_blocks,
         "route_candidate_count": len(process_clues),
-        "usable_route_candidate_count": len(process_clues),
+        "usable_route_candidate_count": len(valid_route_clues),
         "drawing_count": len(drawings),
         "characteristic_count": len(characteristics),
         "evidence_count": len(evidence),
         "non_inferred_evidence_count": len(non_ai_evidence),
         "pending_fields": pending_fields,
         "uncovered_items": uncovered_items,
-        "missing_refs": [],
+        "missing_refs": missing_refs,
         "ai_inferred_refs": ai_inferred_refs,
         "needs_confirmation_refs": needs_confirmation_refs,
         "evidence_ids": evidence_ids,
@@ -466,13 +525,25 @@ def _analysis_bundle_report(analysis_bundle: dict[str, Any]) -> dict[str, Any]:
 
 
 def _pending_field_paths(items: Any) -> list[str]:
+    if items is None:
+        return []
+    if isinstance(items, str):
+        value = items.strip()
+        return [value] if value else []
     if not isinstance(items, list):
         return ["pending_fields"]
-    return [
-        f"{item.get('source_ref', '')}.{item.get('field', '')}".strip(".")
-        for item in items
-        if isinstance(item, dict) and item.get("field")
-    ]
+    paths: list[str] = []
+    for item in items:
+        if isinstance(item, str):
+            value = item.strip()
+            if value:
+                paths.append(value)
+            continue
+        if isinstance(item, dict) and item.get("field"):
+            paths.append(
+                f"{item.get('source_ref', '')}.{item.get('field', '')}".strip(".")
+            )
+    return paths
 
 
 def _analysis_manual_review_items(

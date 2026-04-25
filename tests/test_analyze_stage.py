@@ -2,6 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from minos_core.quality_gates import evaluate_analysis_bundle_gate
 from minos_core.stage import run_stage
 
 
@@ -83,7 +84,7 @@ class AnalyzeStageTests(unittest.TestCase):
                 "content": (
                     "Drawing DRW-100 revision B defines material thickness 2.00 +/- 0.10 mm "
                     "and rivet height 1.50 +0.50/-0.00 mm. Process route includes "
-                    "incoming inspection then rivet assembly."
+                    "P10 incoming material verification then P20 rivet assembly."
                 ),
             },
             stage="analyze",
@@ -104,7 +105,7 @@ class AnalyzeStageTests(unittest.TestCase):
                 "ocr_text": (
                     "Drawing DRW-200 Rev C. Characteristic thickness 2.00 +/- 0.10 mm. "
                     "Characteristic push-out force >= 10 kN. Process clues: incoming inspection, "
-                    "rivet assembly, final inspection."
+                    "P20 rivet assembly, P30 final inspection and pack."
                 ),
                 "needs_confirmation": True,
             },
@@ -120,6 +121,10 @@ class AnalyzeStageTests(unittest.TestCase):
         self.assertGreaterEqual(len(result.output["characteristics"]), 2)
         self.assertGreaterEqual(len(result.output["process_clues"]), 2)
         self.assertIn("EV-OCR-001", result.quality_gate.needs_confirmation_items)
+        self.assertNotIn("EV-OCR-001", result.ai_inferred_items)
+        self.assertNotIn(
+            "EV-OCR-001", result.quality_gate.evidence_coverage["ai_inferred_refs"]
+        )
         self.assertTrue(result.quality_gate.can_continue)
         self.assertFalse(result.quality_gate.allow_user_export)
 
@@ -133,7 +138,7 @@ class AnalyzeStageTests(unittest.TestCase):
                         "content": (
                             "Drawing DRW-300 Rev A defines thickness 2.00 +/- 0.10 mm "
                             "and rivet height 1.50 +0.50/-0.00 mm. Process route: "
-                            "incoming inspection, rivet assembly."
+                            "P10 incoming material verification, P20 rivet assembly."
                         ),
                     },
                     {
@@ -156,6 +161,10 @@ class AnalyzeStageTests(unittest.TestCase):
         self.assertEqual(result.status, "ok")
         self.assertIn("EV-AI-001", result.ai_inferred_items)
         self.assertIn("EV-PENDING-001", result.quality_gate.needs_confirmation_items)
+        self.assertNotIn("EV-PENDING-001", result.ai_inferred_items)
+        self.assertNotIn(
+            "EV-PENDING-001", result.quality_gate.evidence_coverage["ai_inferred_refs"]
+        )
         self.assertIsInstance(result.pending_fields, list)
         self.assertIn("pending_fields", result.output)
         self.assertIn("ai_inferred_items", result.output)
@@ -174,6 +183,147 @@ class AnalyzeStageTests(unittest.TestCase):
         self.assertIn("drawings", result.quality_gate.uncovered_evidence_items)
         self.assertIn("characteristics", result.quality_gate.uncovered_evidence_items)
         self.assertIn("process_clues", result.quality_gate.uncovered_evidence_items)
+
+    def test_analyze_gate_requires_at_least_two_valid_pxx_route_clues(self):
+        result = run_stage(
+            {
+                "source": "manual",
+                "content": (
+                    "Drawing DRW-400 Rev A defines material thickness 2.00 +/- 0.10 mm "
+                    "and rivet height 1.50 +0.50/-0.00 mm. Process route includes "
+                    "P10 incoming material verification only."
+                ),
+            },
+            stage="analyze",
+        )
+
+        self.assertEqual(result.status, "blocked")
+        self.assertFalse(result.quality_gate.can_continue)
+        self.assertEqual(
+            result.quality_gate.evidence_coverage["usable_route_candidate_count"], 1
+        )
+        self.assertIn(
+            "process_clues:min_valid_pxx_count",
+            result.quality_gate.uncovered_evidence_items,
+        )
+
+    def test_analyze_gate_does_not_count_phrase_only_route_clues_as_valid_pxx(self):
+        result = run_stage(
+            {
+                "source": "manual",
+                "content": (
+                    "Drawing DRW-401 Rev A defines material thickness 2.00 +/- 0.10 mm "
+                    "and rivet height 1.50 +0.50/-0.00 mm. Process route includes "
+                    "incoming inspection and rivet assembly."
+                ),
+            },
+            stage="analyze",
+        )
+
+        self.assertEqual(result.status, "blocked")
+        self.assertEqual(
+            result.quality_gate.evidence_coverage["usable_route_candidate_count"], 0
+        )
+
+    def test_analyze_does_not_emit_phrase_only_duplicate_for_pxx_matched_operation(
+        self,
+    ):
+        result = run_stage(
+            {
+                "source": "manual",
+                "content": (
+                    "Drawing DRW-402 Rev A defines material thickness 2.00 +/- 0.10 mm "
+                    "and rivet height 1.50 +0.50/-0.00 mm. Process route includes "
+                    "P10 incoming material verification, P20 rivet assembly, "
+                    "P30 final inspection and pack."
+                ),
+            },
+            stage="analyze",
+        )
+
+        duplicate_phrase_only = [
+            clue
+            for clue in result.output["process_clues"]
+            if clue["process_step_id"] == ""
+            and clue["operation"]
+            in {
+                "incoming material verification",
+                "rivet assembly",
+                "final inspection and pack",
+            }
+        ]
+
+        self.assertEqual(result.status, "ok")
+        self.assertEqual(duplicate_phrase_only, [])
+
+    def test_analyze_gate_accepts_two_valid_pxx_route_clues(self):
+        result = run_stage(
+            {
+                "source": "manual",
+                "content": (
+                    "Drawing DRW-403 Rev A defines material thickness 2.00 +/- 0.10 mm "
+                    "and rivet height 1.50 +0.50/-0.00 mm. Process route includes "
+                    "P10 incoming material verification and P20 rivet assembly."
+                ),
+            },
+            stage="analyze",
+        )
+
+        self.assertEqual(result.status, "ok")
+        self.assertTrue(result.quality_gate.can_continue)
+        self.assertGreaterEqual(
+            result.quality_gate.evidence_coverage["usable_route_candidate_count"], 2
+        )
+
+    def test_analyze_gate_blocks_process_clue_source_ref_missing_from_evidence(self):
+        analysis_bundle = {
+            "document_type": "analysis_bundle",
+            "schema_version": "0.1",
+            "evidence": [
+                {
+                    "evidence_id": "EV-REAL-001",
+                    "source": "manual",
+                    "content": "Drawing DRW-500 Rev A defines material thickness 2.00 +/- 0.10 mm and rivet height 1.50 +0.50/-0.00 mm.",
+                }
+            ],
+            "drawings": [
+                {
+                    "drawing_id": "DRW-500",
+                    "title": "drawing",
+                    "revision": "A",
+                    "source_ref": "EV-REAL-001",
+                }
+            ],
+            "characteristics": [
+                {
+                    "characteristic_id": "CHR-MATERIAL-THICKNESS",
+                    "name": "material thickness",
+                    "specification": "2.00 +/- 0.10 mm",
+                    "source_ref": "EV-REAL-001",
+                }
+            ],
+            "process_clues": [
+                {
+                    "process_step_id": "P10",
+                    "operation": "incoming material verification",
+                    "source_ref": "EV-REAL-001",
+                },
+                {
+                    "process_step_id": "P20",
+                    "operation": "rivet assembly",
+                    "source_ref": "EV-NOT-FOUND",
+                },
+            ],
+            "pending_fields": [],
+            "ai_inferred_items": [],
+        }
+
+        gate = evaluate_analysis_bundle_gate(analysis_bundle)
+
+        self.assertFalse(gate.can_continue)
+        self.assertTrue(
+            any("EV-NOT-FOUND" in item for item in gate.missing_evidence_refs)
+        )
 
     def test_analyze_output_can_be_validated_without_regression(self):
         analyze_result = run_stage(FIXTURE_DIR, stage="analyze")

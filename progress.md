@@ -195,3 +195,13 @@
 - `process_function` / `special_characteristics` 为空只作为 review 项，不阻断进入下一阶段。
 - 新增 `brainstorm_failure_modes` 前置分支：只接收 `process_flow`，复用 PFD gate，不再误走完整 APQPChain validate/export 路径。
 - 完整 unittest 已扩展到 75 项并全部通过。
+
+## 第十阶段二次前向筛查修复
+- analyze gate 已收紧为至少 2 个合法 `Pxx` route clue 才允许进入 `generate_pfd`。
+- analyze 已避免同一 evidence 中 Pxx 命中的 operation 再输出重复 phrase-only clue。
+- `needs_confirmation` 不再被误归入 `ai_inferred_items`。
+- analyze gate 已检查 `process_clues.source_ref` 是否引用顶层 evidence。
+- PFD/brainstorm gate 已支持字符串形式 `pending_fields`。
+- PFD/brainstorm gate 已检查 `link_type`，缺失、空值或非法值会阻断。
+- brainstorm preflight 的报告语义已修正为 `stage_mode=brainstorm_failure_modes_preflight`。
+- 完整 unittest 已扩展到 89 项并全部通过。

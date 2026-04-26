@@ -97,6 +97,50 @@ class SchemaVersion(Base):
     initialized_at = Column(DateTime, nullable=False, default=lambda: _utc_now())
 
 
+class PPAPPackage(Base):
+    __tablename__ = "ppap_packages"
+
+    id = Column(String(64), primary_key=True)
+    project_id = Column(String(64), ForeignKey("ppap_projects.id"), nullable=False)
+    name = Column(String(256), nullable=False)
+    submission_level = Column(String(32), nullable=True)
+    status = Column(String(32), nullable=False, default="draft")
+    created_at = Column(DateTime, nullable=False, default=lambda: _utc_now())
+
+    project = relationship("Project", back_populates="ppap_packages")
+    elements = relationship("PPAPElement", back_populates="package", cascade="all, delete-orphan")
+
+
+class PPAPElement(Base):
+    __tablename__ = "ppap_package_elements"
+
+    id = Column(String(64), primary_key=True)
+    package_id = Column(String(64), ForeignKey("ppap_packages.id"), nullable=False)
+    element_key = Column(String(64), nullable=False)
+    display_name = Column(String(256), nullable=False)
+    status = Column(String(32), nullable=False, default="missing")
+    notes = Column(Text, nullable=True)
+    updated_at = Column(DateTime, nullable=False, default=lambda: _utc_now())
+
+    package = relationship("PPAPPackage", back_populates="elements")
+    artifacts = relationship("PPAPElementArtifact", back_populates="element", cascade="all, delete-orphan")
+
+
+class PPAPElementArtifact(Base):
+    __tablename__ = "ppap_element_artifacts"
+
+    id = Column(String(64), primary_key=True)
+    element_id = Column(String(64), ForeignKey("ppap_package_elements.id"), nullable=False)
+    artifact_id = Column(String(64), ForeignKey("ppap_artifacts.id"), nullable=True)
+    artifact_ref_path = Column(String(512), nullable=True)
+    sha256 = Column(String(64), nullable=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=lambda: _utc_now())
+
+    element = relationship("PPAPElement", back_populates="artifacts")
+    artifact = relationship("Artifact")
+
+
 # ---------------------------------------------------------------------------
 # Relationship back-links (added after class definitions to satisfy linters)
 # ---------------------------------------------------------------------------
@@ -104,6 +148,7 @@ class SchemaVersion(Base):
 Project.input_packages = relationship("InputPackage", back_populates="project")
 Project.runs = relationship("Run", back_populates="project")
 Project.review_patches = relationship("ReviewPatch", back_populates="project")
+Project.ppap_packages = relationship("PPAPPackage", back_populates="project")
 
 
 # ---------------------------------------------------------------------------

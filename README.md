@@ -205,6 +205,12 @@ python -m minos_platform
 | `POST /api/projects/{id}/apply-review` | 应用 review patch，生成 review result |
 | `POST /api/projects/{id}/exports` | 导出 draft/final workbook |
 | `GET /api/artifacts/{id}` | 下载产物文件（只能下载已登记的 artifact） |
+| `POST /api/projects/{id}/ppap-packages` | 创建 PPAP Package（自动初始化 18 项要素） |
+| `GET /api/projects/{id}/ppap-packages` | 列出项目的所有 Package |
+| `GET /api/ppap-packages/{id}` | 获取 Package 详情 |
+| `PATCH /api/ppap-packages/{id}/elements/{eid}` | 更新要素状态 |
+| `POST /api/ppap-packages/{id}/elements/{eid}/artifacts` | 关联 Artifact 到要素 |
+| `POST /api/ppap-packages/{id}/refresh-from-project` | 自动关联项目 Artifact 到 PFD/PFMEA/Control Plan |
 
 ### 项目状态流转
 
@@ -232,3 +238,84 @@ created → input_registered → draft_ready → review_template_ready
 - SQLite 数据库：`out/platform/minos_platform.sqlite3`（含 `ppap_schema_version` 表记录平台 schema 版本）
 - 产物文件：`out/platform/artifacts/{project_id}/inputs/`（input packages、review patches）
 - 产物文件：`out/platform/artifacts/{project_id}/`（draft results、review results、exports）
+
+## PPAP Package 与要素状态管理（B阶段）
+
+`minos_platform` 支持在项目下创建 PPAP Package 并管理 18 项 PPAP 提交要素的完成状态。
+
+### PPAP Package 概念
+
+每个项目可创建一个或多个 PPAP Package，每个 Package 记录：
+- 提交等级（`submission_level`）
+- 当前状态（`draft` / `ready_for_submission` / `submitted` / `approved` / `rejected`）
+- 18 项要素的完成状态
+
+### 18 项 PPAP 要素
+
+创建 Package 时自动初始化以下 18 项要素：
+
+| # | 要素 Key | 显示名称 |
+|---|----------|----------|
+| 1 | `design_records` | Design Records |
+| 2 | `engineering_change_documents` | Authorized Engineering Change Documents |
+| 3 | `engineering_approval` | Customer Engineering Approval |
+| 4 | `dfmea` | DFMEA |
+| 5 | `process_flow_diagram` | Process Flow Diagram |
+| 6 | `pfmea` | PFMEA |
+| 7 | `control_plan` | Control Plan |
+| 8 | `msa_studies` | MSA Studies |
+| 9 | `dimensional_results` | Dimensional Results |
+| 10 | `material_test_results` | Material / Performance Test Results |
+| 11 | `initial_process_studies` | Initial Process Studies |
+| 12 | `laboratory_documentation` | Qualified Laboratory Documentation |
+| 13 | `appearance_approval` | Appearance Approval Report |
+| 14 | `sample_product` | Sample Product |
+| 15 | `master_sample` | Master Sample |
+| 16 | `checking_aids` | Checking Aids |
+| 17 | `customer_specific_requirements` | Customer-Specific Requirements |
+| 18 | `part_submission_warrant` | Part Submission Warrant |
+
+### 要素状态
+
+每项要素支持以下状态：
+
+- `not_required`：客户不需要此要素
+- `required`：客户需要，但尚未完成
+- `missing`：未提供或未关联
+- `draft_ready`：已有草案/产物
+- `needs_review`：需要人工复核
+- `approved`：已批准
+- `blocked`：被阻断
+
+### PPAP Package API
+
+| 端点 | 功能 |
+|------|------|
+| `POST /api/projects/{id}/ppap-packages` | 创建 PPAP Package（自动初始化 18 项要素） |
+| `GET /api/projects/{id}/ppap-packages` | 列出项目的所有 Package |
+| `GET /api/ppap-packages/{id}` | 获取 Package 详情（包含要素清单、状态统计） |
+| `GET /api/ppap-packages/{id}/elements` | 列出所有要素 |
+| `GET /api/ppap-packages/{id}/elements/{eid}` | 获取单个要素详情 |
+| `PATCH /api/ppap-packages/{id}/elements/{eid}` | 更新要素状态/备注 |
+| `POST /api/ppap-packages/{id}/elements/{eid}/artifacts` | 将平台 Artifact 关联到要素 |
+| `POST /api/ppap-packages/{id}/refresh-from-project` | 自动从项目已有 Artifact 填充 PFD/PFMEA/Control Plan |
+
+### ready_for_submission 规则
+
+Package 的 `ready_for_submission` 为 `True` 当且仅当：
+1. 至少有一项要素被标记为 `approved`
+2. 所有标记为 `required` 的要素都已 `approved`
+
+### 自动关联 Artifact
+
+`refresh-from-project` 会查找项目已有 runs 中的 `pfmea_xlsx` 和 `final_xlsx` 类型的 artifact，自动关联到 `process_flow_diagram`、`pfmea`、`control_plan` 三项要素，并将要素状态从 `missing` 更新为 `draft_ready`。
+
+### 跨项目 Artifact 防护
+
+关联 Artifact 时会验证 Artifact 所属 run 的 `project_id` 必须与 Package 所在项目的 `project_id` 一致；跨项目关联返回 409。
+
+### 明确非目标
+
+- 本阶段不做前端 UI、审批流、签核流。
+- 不做完整的 PPAP 提交客户门户。
+- Package 标记为 `submitted` / `approved` 不代表客户正式批准，只是内部状态跟踪。

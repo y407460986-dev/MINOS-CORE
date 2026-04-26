@@ -1,4 +1,4 @@
-"""GET /api/artifacts/{artifact_id} — serve artifact files."""
+"""GET /api/artifacts/{artifact_id} — serve artifact files. GET /api/artifacts — list artifacts."""
 
 from __future__ import annotations
 
@@ -11,8 +11,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from minos_platform import db
 from minos_platform.errors import NotFoundError
+from minos_platform.models import ArtifactSummary
 
 router = APIRouter()
+
+
+@router.get("/artifacts")
+async def list_artifacts(
+    session: AsyncSession = Depends(db.get_session),
+) -> list[ArtifactSummary]:
+    """List all artifacts."""
+    result = await session.execute(select(db.Artifact))
+    artifacts = result.scalars().all()
+    return [ArtifactSummary.model_validate(a) for a in artifacts]
 
 
 @router.get("/artifacts/{artifact_id}", response_class=FileResponse)

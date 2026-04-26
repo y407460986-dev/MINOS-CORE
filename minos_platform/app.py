@@ -14,6 +14,8 @@ from minos_platform.routers import (
     draft_runs,
     exports,
     input_packages,
+    ppap_elements,
+    ppap_packages,
     projects,
     review_patches,
     review_template,
@@ -55,3 +57,5 @@ app.include_router(review_patches.router, prefix="/api", tags=["review_patches"]
 app.include_router(apply_review.router, prefix="/api", tags=["apply_review"])
 app.include_router(exports.router, prefix="/api", tags=["exports"])
 app.include_router(artifacts.router, prefix="/api", tags=["artifacts"])
+app.include_router(ppap_packages.router, prefix="/api", tags=["ppap_packages"])
+app.include_router(ppap_elements.router, prefix="/api", tags=["ppap_elements"])

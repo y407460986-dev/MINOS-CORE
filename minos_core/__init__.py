@@ -30,7 +30,12 @@ from .quality_gates import (
     evaluate_pfd_bundle_gate,
     evaluate_stage_gate,
 )
-from .review_patch import REVIEW_PATCH_VERSION, ReviewPatchError, apply_review_patch
+from .review_patch import (
+    REVIEW_PATCH_VERSION,
+    ReviewPatchError,
+    apply_review_patch,
+    build_review_patch_template,
+)
 from .run_manifest import (
     RUN_MANIFEST_SCHEMA_VERSION,
     artifact_sha256,
@@ -77,6 +82,7 @@ __all__ = [
     "artifact_sha256",
     "audit_chain",
     "brainstorm_failure_modes_from_pfd",
+    "build_review_patch_template",
     "build_run_manifest",
     "evaluate_analysis_bundle_gate",
     "evaluate_brainstorm_failure_modes_input_gate",

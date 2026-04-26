@@ -52,6 +52,12 @@ flowchart TD
     PL20 --> PL22[run_manifest]
     PL20 --> PL23[review_patch]
     PL20 --> PL24[apqp_chain_review_result]
+    PL19 --> PL25[review-template]
+    PL25 --> PL26[review_patch_template<br/>template_status:<br/>requires_human_review]
+    PL26 --> PL27[human fills<br/>confirmed_by / reason / evidence_refs]
+    PL27 --> PL28[apply-review]
+    PL28 --> PL24
+    PL24 --> PL29[export final<br/>after export gate clears]
 
     AD --> AD1[OCR adapter boundary]
     AD --> AD2[LLM adapter boundary]
@@ -118,6 +124,7 @@ flowchart TD
     T --> T22[Generate draft CLI API]
     T --> T23[Engineering infra smoke]
     T --> T24[Trusted delivery JSON contracts]
+    T --> T25[Phase 6 pilot workflow<br/>input_package generate_draft<br/>review-template apply-review export]
     T1 --> G[MINOS-CORE rebuild gate]
     T2 --> G
     T3 --> G
@@ -142,3 +149,4 @@ flowchart TD
     T22 --> G
     T23 --> G
     T24 --> G
+    T25 --> G

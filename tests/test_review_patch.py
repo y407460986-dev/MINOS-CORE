@@ -3,7 +3,12 @@ import unittest
 
 from minos_core.adapters.fixture_json import load_fixture_payload
 from minos_core.quality_gates import evaluate_stage_gate
-from minos_core.review_patch import REVIEW_PATCH_VERSION, ReviewPatchError, apply_review_patch
+from minos_core.review_patch import (
+    REVIEW_PATCH_VERSION,
+    ReviewPatchError,
+    apply_review_patch,
+    build_review_patch_template,
+)
 
 
 ROOT_FIXTURE = "D:/MINOS-CORE/tests/fixtures/apqp_chain"
@@ -153,6 +158,111 @@ class ReviewPatchTests(unittest.TestCase):
         self.assertFalse(updated["pfmea"]["rows"][0]["needs_confirmation"])
         record = updated["metadata"]["review_confirmations"][0]
         self.assertEqual(record["manual_confirmation_event"], "MRB-2026-04-25-001")
+
+    def test_review_template_lists_review_items_without_auto_confirmation(self):
+        payload = _fixture()
+        payload["control_plan"]["rows"][0]["specification"] = ""
+        payload["pending_fields"] = ["control_item:CP-P10-001.specification"]
+        payload["evidence"][0]["needs_confirmation"] = True
+        payload["evidence"].append(
+            {
+                "evidence_id": "EV-AI-001",
+                "source": "llm",
+                "content": "AI inferred risk for manual review only.",
+                "confidence": 0.5,
+                "ai_inferred": True,
+                "needs_confirmation": True,
+            }
+        )
+        draft_result = {
+            "document_type": "apqp_chain_draft_result",
+            "status": "draft_ready",
+            "draft": payload,
+        }
+
+        template = build_review_patch_template(draft_result)
+
+        self.assertEqual(template["review_patch_version"], REVIEW_PATCH_VERSION)
+        self.assertEqual(
+            template["template_status"],
+            "requires_human_review_before_apply_review",
+        )
+        self.assertEqual(template["confirmed_by"], "")
+        self.assertEqual(template["confirmed_at"], "")
+        self.assertEqual(template["reason"], "")
+        targets = {item["target"] for item in template["items"]}
+        categories = {item["review_category"] for item in template["items"]}
+        self.assertIn("pending_field:CP-P10-001.specification", targets)
+        self.assertIn("evidence:EV-PFD-ROUTE-001", targets)
+        self.assertIn("evidence:EV-AI-001", targets)
+        self.assertIn("pending_field", categories)
+        self.assertIn("needs_confirmation", categories)
+        self.assertIn("ai_inferred_manual_review", categories)
+        for item in template["items"]:
+            self.assertEqual(item["confirmed_by"], "")
+            self.assertEqual(item["confirmed_at"], "")
+            self.assertEqual(item["reason"], "")
+            self.assertEqual(item["evidence_refs"], [])
+
+    def test_review_template_cannot_be_applied_without_human_completion(self):
+        payload = _fixture()
+        payload["evidence"][0]["needs_confirmation"] = True
+        draft_result = {
+            "document_type": "apqp_chain_draft_result",
+            "status": "draft_ready",
+            "draft": payload,
+        }
+        template = build_review_patch_template(draft_result)
+
+        with self.assertRaisesRegex(ReviewPatchError, "templates must be completed"):
+            apply_review_patch(payload, template)
+
+    def test_review_template_cli_writes_template_file(self):
+        import json
+        import subprocess
+        import sys
+        import tempfile
+        from pathlib import Path
+
+        payload = _fixture()
+        payload["evidence"][0]["needs_confirmation"] = True
+        draft_result = {
+            "document_type": "apqp_chain_draft_result",
+            "status": "draft_ready",
+            "draft": payload,
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir)
+            draft_path = tmp_path / "draft_result.json"
+            output_path = tmp_path / "review_patch_template.json"
+            draft_path.write_text(
+                json.dumps(draft_result, ensure_ascii=False), encoding="utf-8"
+            )
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "minos_core.cli",
+                    "review-template",
+                    "--draft-result",
+                    str(draft_path),
+                    "--output",
+                    str(output_path),
+                ],
+                cwd="D:/MINOS-CORE",
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+            template = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual(template["review_patch_version"], REVIEW_PATCH_VERSION)
+            self.assertIn(
+                "requires_human_review_before_apply_review",
+                output_path.read_text(encoding="utf-8"),
+            )
 
 
 if __name__ == "__main__":

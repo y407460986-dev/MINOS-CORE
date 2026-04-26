@@ -1,0 +1,186 @@
+{
+  "document_type": "evidence_bundle",
+  "schema_version": "minos-core.evidence_bundle.v1",
+  "metadata": {
+    "template_purpose": "用脱敏、可追溯的真实项目摘录组织 MINOS-CORE 阶段 6 小范围试运行输入。",
+    "source_index_path": "source_index.json",
+    "evidence_authoring_rules": [
+      "每条 evidence 只写一个可追溯事实或一组紧密相关事实。",
+      "source_document_id 必须能在 source_index.json 和 input_package.json 的 source_documents 中找到。",
+      "source_ref 必须定位到页、区域、条款、表格行或记录编号。",
+      "不确定、来自客户特殊要求、或需要工程判断的内容，needs_confirmation 设为 true。",
+      "不得把 OCR/AI 猜测写成已确认事实；如未来接入 AI，必须另行标记 ai_inferred。"
+    ]
+  },
+  "evidence": [
+    {
+      "evidence_id": "EV-TPL-DWG-001",
+      "source": "SRC-DWG-001 released engineering drawing redacted excerpt",
+      "source_document_id": "SRC-DWG-001",
+      "source_location": "redacted_plm://drawings/REDACTED-PART/revX/pages-allowed",
+      "source_ref": "SRC-DWG-001#SHEET-1-ZONE-B3",
+      "content": "图纸摘录示例：零件/总成修订为 REPLACE_WITH_REVISION；关键材料或尺寸要求为 REPLACE_WITH_REDACTED_SPEC；客户名称、完整图号和专有注释已脱敏。",
+      "evidence_type": "drawing_requirement",
+      "linked_process_step_ids": [],
+      "linked_characteristics": [
+        "REPLACE_WITH_CHARACTERISTIC_NAME"
+      ],
+      "confidence": 0.9,
+      "ai_inferred": false,
+      "needs_confirmation": true
+    },
+    {
+      "evidence_id": "EV-TPL-BOM-001",
+      "source": "SRC-BOM-001 released BOM redacted excerpt",
+      "source_document_id": "SRC-BOM-001",
+      "source_location": "redacted_erp://bom/REDACTED-PART/revX",
+      "source_ref": "SRC-BOM-001#LINES-10-90",
+      "content": "BOM 摘录示例：列出脱敏子件族、材料族、采购件/自制件边界，以及 BOM 修订与图纸修订的匹配关系；供应商名称和真实料号已脱敏。",
+      "evidence_type": "bom_requirement",
+      "linked_process_step_ids": [
+        "P10"
+      ],
+      "linked_characteristics": [
+        "revision alignment",
+        "incoming material identity"
+      ],
+      "confidence": 0.9,
+      "ai_inferred": false,
+      "needs_confirmation": true
+    },
+    {
+      "evidence_id": "EV-TPL-FLOW-001",
+      "source": "SRC-FLOW-001 process flow chart redacted excerpt",
+      "source_document_id": "SRC-FLOW-001",
+      "source_location": "redacted_qms://apqp/REDACTED-PROJECT/process-flow/revX",
+      "source_ref": "SRC-FLOW-001#OPS-P10-P90",
+      "content": "过程流程摘录示例：P10 来料/文件确认 -> P20 制造或装配主工序 -> P30 过程检验 -> P40 终检包装；请按真实项目替换步骤号、顺序、外协/返工边界。",
+      "evidence_type": "process_flow",
+      "linked_process_step_ids": [
+        "P10",
+        "P20",
+        "P30",
+        "P40"
+      ],
+      "linked_characteristics": [],
+      "confidence": 0.92,
+      "ai_inferred": false,
+      "needs_confirmation": true
+    },
+    {
+      "evidence_id": "EV-TPL-SC-001",
+      "source": "SRC-SC-001 special characteristics matrix redacted excerpt",
+      "source_document_id": "SRC-SC-001",
+      "source_location": "redacted_qms://apqp/REDACTED-PROJECT/special-characteristics/revX",
+      "source_ref": "SRC-SC-001#ROWS-1-20",
+      "content": "特殊特性摘录示例：列出产品特殊特性、过程特殊特性、安全/法规/追溯特性及其关联工序；请用脱敏名称替换真实符号和客户编码。",
+      "evidence_type": "special_characteristic",
+      "linked_process_step_ids": [
+        "P20",
+        "P30"
+      ],
+      "linked_characteristics": [
+        "REPLACE_WITH_SPECIAL_CHARACTERISTIC_A",
+        "REPLACE_WITH_SPECIAL_CHARACTERISTIC_B"
+      ],
+      "confidence": 0.9,
+      "ai_inferred": false,
+      "needs_confirmation": true
+    },
+    {
+      "evidence_id": "EV-TPL-INS-001",
+      "source": "SRC-INS-001 inspection standard redacted excerpt",
+      "source_document_id": "SRC-INS-001",
+      "source_location": "redacted_qms://inspection/REDACTED-PART/revX",
+      "source_ref": "SRC-INS-001#SECTIONS-3-8",
+      "content": "检验规范摘录示例：记录检验项目、量具类型、频次、样本量、记录要求和反应计划；请删除真实客户编码、人员姓名和完整专有表单。",
+      "evidence_type": "inspection_standard",
+      "linked_process_step_ids": [
+        "P10",
+        "P30",
+        "P40"
+      ],
+      "linked_characteristics": [
+        "REPLACE_WITH_INSPECTION_CHARACTERISTIC"
+      ],
+      "confidence": 0.9,
+      "ai_inferred": false,
+      "needs_confirmation": true
+    },
+    {
+      "evidence_id": "EV-TPL-WI-001",
+      "source": "SRC-WI-001 work instruction redacted excerpt",
+      "source_document_id": "SRC-WI-001",
+      "source_location": "redacted_mes://work-instructions/REDACTED-CELL/revX",
+      "source_ref": "SRC-WI-001#STEPS-010-080",
+      "content": "作业指导书摘录示例：记录设备/工装设定类别、首件确认、自检、防错、异常停线或隔离反应；不要写真实设备资产号、人员姓名或完整参数表。",
+      "evidence_type": "work_instruction",
+      "linked_process_step_ids": [
+        "P20"
+      ],
+      "linked_characteristics": [
+        "REPLACE_WITH_PROCESS_CHARACTERISTIC"
+      ],
+      "confidence": 0.9,
+      "ai_inferred": false,
+      "needs_confirmation": true
+    },
+    {
+      "evidence_id": "EV-TPL-CSR-001",
+      "source": "SRC-CSR-001 customer specific requirements redacted excerpt",
+      "source_document_id": "SRC-CSR-001",
+      "source_location": "redacted_customer_requirements://REDACTED-OEM/program/allowed-excerpt",
+      "source_ref": "SRC-CSR-001#CLAUSES-REDACTED",
+      "content": "客户特殊要求摘录示例：说明客户对特殊特性、检验频次、记录保存、标签追溯或提交格式的额外要求；必须仅使用授权摘录，不写客户门户敏感信息。",
+      "evidence_type": "customer_specific_requirement",
+      "linked_process_step_ids": [
+        "P30",
+        "P40"
+      ],
+      "linked_characteristics": [
+        "traceability",
+        "customer approval boundary"
+      ],
+      "confidence": 0.85,
+      "ai_inferred": false,
+      "needs_confirmation": true
+    },
+    {
+      "evidence_id": "EV-TPL-PFMEA-001",
+      "source": "SRC-PFMEA-001 existing PFMEA optional redacted excerpt",
+      "source_document_id": "SRC-PFMEA-001",
+      "source_location": "redacted_qms://apqp/REDACTED-PROJECT/pfmea/revX",
+      "source_ref": "SRC-PFMEA-001#ROWS-RELEVANT-ONLY",
+      "content": "已有 PFMEA 摘录示例：如有，列出可复用的脱敏失效模式、原因、现行预防/探测控制和未关闭行动；如没有，写明 not_available，并由质量工程师确认。",
+      "evidence_type": "existing_pfmea_optional",
+      "linked_process_step_ids": [
+        "P10",
+        "P20",
+        "P30"
+      ],
+      "linked_characteristics": [],
+      "confidence": 0.75,
+      "ai_inferred": false,
+      "needs_confirmation": true
+    },
+    {
+      "evidence_id": "EV-TPL-CP-001",
+      "source": "SRC-CP-001 existing control plan optional redacted excerpt",
+      "source_document_id": "SRC-CP-001",
+      "source_location": "redacted_qms://apqp/REDACTED-PROJECT/control-plan/revX",
+      "source_ref": "SRC-CP-001#ROWS-RELEVANT-ONLY",
+      "content": "已有控制计划摘录示例：如有，列出脱敏产品/过程特性、控制方法、频次、样本量、记录和反应计划；如没有，写明 not_available，并由质量工程师确认。",
+      "evidence_type": "existing_control_plan_optional",
+      "linked_process_step_ids": [
+        "P10",
+        "P20",
+        "P30",
+        "P40"
+      ],
+      "linked_characteristics": [],
+      "confidence": 0.75,
+      "ai_inferred": false,
+      "needs_confirmation": true
+    }
+  ]
+}

@@ -73,6 +73,157 @@ _TARGET_ID_FIELDS = {
 }
 
 
+def build_review_patch_template(draft_result_or_chain: dict[str, Any]) -> dict[str, Any]:
+    """Build a human-fillable review patch template from a draft result.
+
+    The template lists pending fields, confirmation needs, AI-inferred items, and
+    manual review items. It intentionally leaves reviewer identity, timestamp,
+    reasons, and evidence/manual confirmation basis blank so callers cannot treat
+    the template as an approved review patch.
+    """
+
+    chain_payload = _draft_chain_payload(draft_result_or_chain)
+    from .quality_gates import evaluate_export_gate
+
+    gate = evaluate_export_gate(chain_payload)
+    items: list[dict[str, Any]] = []
+    for field_path in gate.pending_fields:
+        items.append(
+            _template_item(
+                action="correct",
+                target=f"pending_field:{field_path}",
+                review_category="pending_field",
+                value="REPLACE_WITH_REVIEWED_VALUE",
+            )
+        )
+    for target in gate.needs_confirmation_items:
+        items.append(
+            _template_item(
+                action="confirm",
+                target=_normalize_template_target(target),
+                review_category="needs_confirmation",
+            )
+        )
+    for target in gate.ai_inferred_items:
+        items.append(
+            _template_item(
+                action="confirm",
+                target=_normalize_template_target(target),
+                review_category="ai_inferred_manual_review",
+            )
+        )
+    for item in gate.manual_review_items:
+        item_id = _manual_review_item_id(item)
+        items.append(
+            _template_item(
+                action="confirm",
+                target=_normalize_template_target(item_id),
+                review_category="manual_review",
+                manual_review_note=_manual_review_message(item),
+            )
+        )
+    return {
+        "review_patch_version": REVIEW_PATCH_VERSION,
+        "template_status": "requires_human_review_before_apply_review",
+        "confirmed_by": "",
+        "confirmed_at": "",
+        "reason": "",
+        "manual_confirmation_event": "",
+        "evidence_refs": [],
+        "quality_gate": gate.model_dump(),
+        "items": _dedupe_template_items(items),
+    }
+
+
+def _draft_chain_payload(draft_result_or_chain: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(draft_result_or_chain, dict):
+        raise TypeError("draft_result_or_chain must be a JSON object")
+    if draft_result_or_chain.get("document_type") == "apqp_chain_draft_result":
+        draft = draft_result_or_chain.get("draft")
+        if not isinstance(draft, dict):
+            raise ReviewPatchError("apqp_chain_draft_result.draft must be a JSON object")
+        return draft
+    if draft_result_or_chain.get("document_type") == "apqp_chain_review_result":
+        patched_chain = draft_result_or_chain.get("patched_chain")
+        if not isinstance(patched_chain, dict):
+            raise ReviewPatchError(
+                "apqp_chain_review_result.patched_chain must be a JSON object"
+            )
+        return patched_chain
+    return draft_result_or_chain
+
+
+def _template_item(
+    *,
+    action: str,
+    target: str,
+    review_category: str,
+    value: Any = None,
+    manual_review_note: str = "",
+) -> dict[str, Any]:
+    item: dict[str, Any] = {
+        "action": action,
+        "target": target,
+        "review_category": review_category,
+        "confirmed_by": "",
+        "confirmed_at": "",
+        "reason": "",
+        "evidence_refs": [],
+        "manual_confirmation_event": "",
+    }
+    if action == "correct":
+        item["value"] = value
+    if manual_review_note:
+        item["manual_review_note"] = manual_review_note
+    return item
+
+
+def _normalize_template_target(target: Any) -> str:
+    text = str(target).strip()
+    if not text:
+        return "manual_review:REPLACE_WITH_TARGET_ID"
+    if " -> " in text:
+        _, evidence_ref = text.rsplit(" -> ", 1)
+        evidence_ref = evidence_ref.strip()
+        if evidence_ref.startswith("EV-"):
+            return f"evidence:{evidence_ref}"
+    if ":" in text:
+        return text
+    if text.startswith("EV-"):
+        return f"evidence:{text}"
+    if text.startswith("CP-"):
+        return f"control_item:{text}"
+    if text.startswith("PFMEA-"):
+        return f"failure_mode:{text}"
+    if text.startswith("P"):
+        return f"process_step:{text}"
+    return f"ai_inferred_item:{text}"
+
+
+def _manual_review_item_id(item: Any) -> str:
+    if isinstance(item, dict):
+        return str(item.get("item_id", item.get("target", ""))).strip()
+    return str(getattr(item, "item_id", "")).strip()
+
+
+def _manual_review_message(item: Any) -> str:
+    if isinstance(item, dict):
+        return str(item.get("message", "")).strip()
+    return str(getattr(item, "message", "")).strip()
+
+
+def _dedupe_template_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    deduped: list[dict[str, Any]] = []
+    seen: set[tuple[str, str, str]] = set()
+    for item in items:
+        key = (item["action"], item["target"], item["review_category"])
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(item)
+    return deduped
+
+
 class ReviewPatchError(ValueError):
     """Raised when a review patch is structurally invalid."""
 
@@ -119,6 +270,10 @@ def apply_review_patch(
     if patch.get("review_patch_version") != REVIEW_PATCH_VERSION:
         raise ReviewPatchError(
             f"review_patch_version must be {REVIEW_PATCH_VERSION!r}"
+        )
+    if patch.get("template_status"):
+        raise ReviewPatchError(
+            "review patch templates must be completed by a human before apply_review"
         )
     items = patch.get("items")
     if not isinstance(items, list) or not items:

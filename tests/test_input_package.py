@@ -18,6 +18,7 @@ from minos_core.stage import run_stage
 ROOT = Path(__file__).resolve().parents[1]
 DEMO_PACKAGE = ROOT / "tests" / "fixtures" / "demo_input_package"
 REALISTIC_PACKAGE = ROOT / "tests" / "fixtures" / "realistic_input_package"
+REAL_PROJECT_TEMPLATE = ROOT / "tests" / "fixtures" / "real_project_input_package_template"
 NS = {"main": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
 
 
@@ -244,6 +245,50 @@ class InputPackageTests(unittest.TestCase):
             self.assertEqual(final_manifest_payload["document_type"], "run_manifest")
             self.assertIn("final_export", final_manifest_payload["artifact_hashes"])
 
+    def test_real_project_template_is_json_schema_structure_only(self):
+        input_package = json.loads(
+            (REAL_PROJECT_TEMPLATE / "input_package.json").read_text(encoding="utf-8")
+        )
+        evidence = json.loads(
+            (REAL_PROJECT_TEMPLATE / "evidence.json").read_text(encoding="utf-8")
+        )
+        review_patch = json.loads(
+            (REAL_PROJECT_TEMPLATE / "review_patch.json").read_text(encoding="utf-8")
+        )
+        source_index = json.loads(
+            (REAL_PROJECT_TEMPLATE / "source_index.json").read_text(encoding="utf-8")
+        )
+
+        self.assertTrue(validate_bundle_schema(input_package, "input_package"))
+        self.assertEqual(evidence["document_type"], "evidence_bundle")
+        self.assertIsInstance(evidence["evidence"], list)
+        self.assertTrue(evidence["evidence"])
+        self.assertIsInstance(source_index, dict)
+        self.assertEqual(
+            review_patch["template_status"],
+            "requires_human_review_before_apply_review",
+        )
+        self.assertIn("REPLACE_WITH", json.dumps(input_package, ensure_ascii=False))
+        self.assertEqual(input_package["evidence_path"], "evidence.json")
+        self.assertEqual(input_package["review_patch_path"], "review_patch.json")
+        self.assertEqual(review_patch["confirmed_by"], "")
+        self.assertEqual(review_patch["confirmed_at"], "")
+        self.assertEqual(review_patch["reason"], "")
+        self.assertEqual(review_patch["manual_confirmation_event"], "")
+        self.assertEqual(review_patch["evidence_refs"], [])
+        for item in review_patch["items"]:
+            self.assertEqual(item["confirmed_by"], "")
+            self.assertEqual(item["confirmed_at"], "")
+            self.assertEqual(item["reason"], "")
+            self.assertEqual(item["manual_confirmation_event"], "")
+            self.assertEqual(item["evidence_refs"], [])
+        evidence_ids = {item["evidence_id"] for item in evidence["evidence"]}
+        patch_refs = {
+            ref
+            for item in review_patch["items"]
+            for ref in item.get("evidence_refs", [])
+        }
+        self.assertTrue(patch_refs.issubset(evidence_ids))
 
     def test_realistic_input_package_covers_source_document_locations_and_final_gate(self):
         payload = load_fixture_payload(REALISTIC_PACKAGE)

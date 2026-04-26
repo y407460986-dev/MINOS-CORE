@@ -1,0 +1,117 @@
+{
+  "document_type": "input_package",
+  "schema_version": "minos-core.input_package.v1",
+  "package_id": "REAL-PROJECT-TEMPLATE-REDACTED-001",
+  "source_ref": "real_project_trial:redacted_program:replace_before_use",
+  "draft_requires_review": true,
+  "evidence_path": "evidence.json",
+  "review_patch_path": "review_patch.json",
+  "metadata": {
+    "template_purpose": "第 6 阶段小范围真实项目试运行输入模板；仅用于工程和质量人员整理脱敏输入，不是客户最终自动提交件。",
+    "confidentiality": "template_only_redacted_no_customer_data",
+    "project_code": "REPLACE_WITH_REDACTED_PROJECT_CODE",
+    "product_family": "REPLACE_WITH_REDACTED_PRODUCT_FAMILY",
+    "part_name": "REDACTED bracket assembly example",
+    "part_number": "REDACTED-PART-NUMBER",
+    "program_stage": "trial_run_preparation",
+    "prepared_by": "REPLACE_WITH_ROLE_OR_TEAM",
+    "prepared_at": "YYYY-MM-DD",
+    "notes": [
+      "提交前删除客户名称、供应商名称、人员姓名、价格、精确产能、客户门户编号和未授权图纸页。",
+      "保留足够工程语义：过程步骤、特殊特性、检验要求、修订关系、证据来源位置。",
+      "draft 输出只供内部工程复核，final 只表示本工具链 review gate 后的内部导出边界。"
+    ]
+  },
+  "source_documents": [
+    {
+      "source_document_id": "SRC-DWG-001",
+      "document_type": "released_engineering_drawing",
+      "title": "脱敏工程图纸或总成图",
+      "revision": "REPLACE_WITH_REVISION",
+      "owner_function": "Engineering",
+      "source_location": "redacted_plm://drawings/REDACTED-PART/revX/pages-allowed",
+      "source_ref": "SRC-DWG-001#SHEET-1-ZONES-A1-D5",
+      "expected_use": "提取关键尺寸、材料、特殊特性、图纸修订和客户工程要求。"
+    },
+    {
+      "source_document_id": "SRC-BOM-001",
+      "document_type": "released_bom",
+      "title": "脱敏工程 BOM 或制造 BOM",
+      "revision": "REPLACE_WITH_REVISION",
+      "owner_function": "Engineering/Manufacturing",
+      "source_location": "redacted_erp://bom/REDACTED-PART/revX",
+      "source_ref": "SRC-BOM-001#LINES-10-90",
+      "expected_use": "核对零件层级、材料/子件、修订匹配和来料控制对象。"
+    },
+    {
+      "source_document_id": "SRC-FLOW-001",
+      "document_type": "process_flow_chart",
+      "title": "脱敏过程流程图",
+      "revision": "REPLACE_WITH_REVISION",
+      "owner_function": "Manufacturing Engineering",
+      "source_location": "redacted_qms://apqp/REDACTED-PROJECT/process-flow/revX",
+      "source_ref": "SRC-FLOW-001#OPS-P10-P90",
+      "expected_use": "建立 PFD 过程顺序、过程步骤、输入输出和返工/外协边界。"
+    },
+    {
+      "source_document_id": "SRC-SC-001",
+      "document_type": "special_characteristics_matrix",
+      "title": "特殊特性清单或特性矩阵",
+      "revision": "REPLACE_WITH_REVISION",
+      "owner_function": "Quality/Engineering",
+      "source_location": "redacted_qms://apqp/REDACTED-PROJECT/special-characteristics/revX",
+      "source_ref": "SRC-SC-001#ROWS-1-20",
+      "expected_use": "标记关键/特殊/安全/法规/追溯特性，并关联到过程步骤和控制计划。"
+    },
+    {
+      "source_document_id": "SRC-INS-001",
+      "document_type": "inspection_standard",
+      "title": "检验规范、控制标准或检验指导书",
+      "revision": "REPLACE_WITH_REVISION",
+      "owner_function": "Quality",
+      "source_location": "redacted_qms://inspection/REDACTED-PART/revX",
+      "source_ref": "SRC-INS-001#SECTIONS-3-8",
+      "expected_use": "提取检验项目、方法、频次、样本量、量具、反应计划和记录要求。"
+    },
+    {
+      "source_document_id": "SRC-WI-001",
+      "document_type": "work_instruction",
+      "title": "作业指导书、设备设定表或换型点检表",
+      "revision": "REPLACE_WITH_REVISION",
+      "owner_function": "Manufacturing/Production",
+      "source_location": "redacted_mes://work-instructions/REDACTED-CELL/revX",
+      "source_ref": "SRC-WI-001#STEPS-010-080",
+      "expected_use": "提取工艺动作、防错、设备参数、首件检查、自检和异常处置。"
+    },
+    {
+      "source_document_id": "SRC-CSR-001",
+      "document_type": "customer_specific_requirements",
+      "title": "客户特殊要求摘要或授权摘录",
+      "revision": "REPLACE_WITH_REVISION_OR_DATE",
+      "owner_function": "Program/Quality",
+      "source_location": "redacted_customer_requirements://REDACTED-OEM/program/allowed-excerpt",
+      "source_ref": "SRC-CSR-001#CLAUSES-REDACTED",
+      "expected_use": "识别客户要求的频次、记录保存、特殊标识、提交边界和人工确认项。"
+    },
+    {
+      "source_document_id": "SRC-PFMEA-001",
+      "document_type": "existing_pfmea_optional",
+      "title": "已有 PFMEA（如有，脱敏摘录）",
+      "revision": "REPLACE_WITH_REVISION_OR_NOT_AVAILABLE",
+      "owner_function": "Quality/Manufacturing Engineering",
+      "source_location": "redacted_qms://apqp/REDACTED-PROJECT/pfmea/revX",
+      "source_ref": "SRC-PFMEA-001#ROWS-RELEVANT-ONLY",
+      "expected_use": "复用已有失效模式、原因、控制和历史复核结论；没有时保留此条并在 evidence 中说明 not_available。"
+    },
+    {
+      "source_document_id": "SRC-CP-001",
+      "document_type": "existing_control_plan_optional",
+      "title": "已有控制计划（如有，脱敏摘录）",
+      "revision": "REPLACE_WITH_REVISION_OR_NOT_AVAILABLE",
+      "owner_function": "Quality",
+      "source_location": "redacted_qms://apqp/REDACTED-PROJECT/control-plan/revX",
+      "source_ref": "SRC-CP-001#ROWS-RELEVANT-ONLY",
+      "expected_use": "复用已有产品/过程特性、控制方法、频次、样本量、反应计划；没有时保留此条并在 evidence 中说明 not_available。"
+    }
+  ]
+}

@@ -1,0 +1,207 @@
+{
+  "document_type": "source_index",
+  "schema_version": "minos-core.source_index.template.v1",
+  "index_id": "REAL-PROJECT-SOURCE-INDEX-TEMPLATE-001",
+  "package_id": "REAL-PROJECT-TEMPLATE-REDACTED-001",
+  "purpose": "记录真实项目试运行输入资料的来源、修订、脱敏状态和人工复核责任；不直接作为客户提交件。",
+  "redaction_rules": [
+    "不得包含客户名称、供应商名称、人员姓名、联系方式、价格、精确产能、客户门户编号、未授权图纸整页或完整专有规范。",
+    "source_location 使用 redacted_* URI 或内部可追溯占位符，不写本地个人路径。",
+    "source_ref 必须能让内部人员定位到被摘录的页、区域、条款、行号或记录号。",
+    "如资料缺失，保留 source_document_id，并将 availability 标为 not_available，同时在 evidence 中说明缺口和需要人工补齐的内容。"
+  ],
+  "sources": [
+    {
+      "source_document_id": "SRC-DWG-001",
+      "document_type": "released_engineering_drawing",
+      "required_for_trial": true,
+      "availability": "replace_with_available_or_not_available",
+      "revision": "REPLACE_WITH_REVISION",
+      "release_status": "released_or_pending_review",
+      "redaction_status": "replace_with_redacted_checked",
+      "source_location": "redacted_plm://drawings/REDACTED-PART/revX/pages-allowed",
+      "source_ref_examples": [
+        "SRC-DWG-001#SHEET-1-ZONE-B3",
+        "SRC-DWG-001#NOTES-REDACTED"
+      ],
+      "expected_extracts": [
+        "part revision",
+        "material or key dimension",
+        "special characteristics",
+        "engineering notes requiring quality review"
+      ],
+      "owner_function": "Engineering",
+      "review_owner": "Quality Engineer"
+    },
+    {
+      "source_document_id": "SRC-BOM-001",
+      "document_type": "released_bom",
+      "required_for_trial": true,
+      "availability": "replace_with_available_or_not_available",
+      "revision": "REPLACE_WITH_REVISION",
+      "release_status": "released_or_pending_review",
+      "redaction_status": "replace_with_redacted_checked",
+      "source_location": "redacted_erp://bom/REDACTED-PART/revX",
+      "source_ref_examples": [
+        "SRC-BOM-001#LINES-10-90"
+      ],
+      "expected_extracts": [
+        "component family",
+        "revision alignment",
+        "incoming material or purchased parts"
+      ],
+      "owner_function": "Engineering/Manufacturing",
+      "review_owner": "Manufacturing Engineer"
+    },
+    {
+      "source_document_id": "SRC-FLOW-001",
+      "document_type": "process_flow_chart",
+      "required_for_trial": true,
+      "availability": "replace_with_available_or_not_available",
+      "revision": "REPLACE_WITH_REVISION",
+      "release_status": "draft_or_released",
+      "redaction_status": "replace_with_redacted_checked",
+      "source_location": "redacted_qms://apqp/REDACTED-PROJECT/process-flow/revX",
+      "source_ref_examples": [
+        "SRC-FLOW-001#OPS-P10-P90"
+      ],
+      "expected_extracts": [
+        "process sequence",
+        "operation names",
+        "inspection gates",
+        "outsourced or rework boundaries if applicable"
+      ],
+      "owner_function": "Manufacturing Engineering",
+      "review_owner": "Manufacturing Engineer"
+    },
+    {
+      "source_document_id": "SRC-SC-001",
+      "document_type": "special_characteristics_matrix",
+      "required_for_trial": true,
+      "availability": "replace_with_available_or_not_available",
+      "revision": "REPLACE_WITH_REVISION",
+      "release_status": "draft_or_released",
+      "redaction_status": "replace_with_redacted_checked",
+      "source_location": "redacted_qms://apqp/REDACTED-PROJECT/special-characteristics/revX",
+      "source_ref_examples": [
+        "SRC-SC-001#ROWS-1-20"
+      ],
+      "expected_extracts": [
+        "special characteristic symbol or class",
+        "linked product or process characteristic",
+        "linked operation",
+        "safety/regulatory/traceability flag"
+      ],
+      "owner_function": "Quality/Engineering",
+      "review_owner": "Quality Engineer"
+    },
+    {
+      "source_document_id": "SRC-INS-001",
+      "document_type": "inspection_standard",
+      "required_for_trial": true,
+      "availability": "replace_with_available_or_not_available",
+      "revision": "REPLACE_WITH_REVISION",
+      "release_status": "draft_or_released",
+      "redaction_status": "replace_with_redacted_checked",
+      "source_location": "redacted_qms://inspection/REDACTED-PART/revX",
+      "source_ref_examples": [
+        "SRC-INS-001#SECTION-4.2",
+        "SRC-INS-001#CONTROL-ITEM-REDACTED"
+      ],
+      "expected_extracts": [
+        "inspection method",
+        "gauge or equipment type",
+        "frequency and sample size",
+        "reaction plan"
+      ],
+      "owner_function": "Quality",
+      "review_owner": "Quality Engineer"
+    },
+    {
+      "source_document_id": "SRC-WI-001",
+      "document_type": "work_instruction",
+      "required_for_trial": true,
+      "availability": "replace_with_available_or_not_available",
+      "revision": "REPLACE_WITH_REVISION",
+      "release_status": "draft_or_released",
+      "redaction_status": "replace_with_redacted_checked",
+      "source_location": "redacted_mes://work-instructions/REDACTED-CELL/revX",
+      "source_ref_examples": [
+        "SRC-WI-001#STEPS-010-080"
+      ],
+      "expected_extracts": [
+        "setup checks",
+        "operator checks",
+        "error proofing",
+        "equipment setting category",
+        "abnormal handling"
+      ],
+      "owner_function": "Manufacturing/Production",
+      "review_owner": "Manufacturing Engineer"
+    },
+    {
+      "source_document_id": "SRC-CSR-001",
+      "document_type": "customer_specific_requirements",
+      "required_for_trial": true,
+      "availability": "replace_with_available_or_not_available",
+      "revision": "REPLACE_WITH_REVISION_OR_DATE",
+      "release_status": "approved_excerpt_or_pending_review",
+      "redaction_status": "replace_with_redacted_checked",
+      "source_location": "redacted_customer_requirements://REDACTED-OEM/program/allowed-excerpt",
+      "source_ref_examples": [
+        "SRC-CSR-001#CLAUSE-REDACTED-A",
+        "SRC-CSR-001#PACK_LABEL_REQUIREMENT"
+      ],
+      "expected_extracts": [
+        "customer special frequency",
+        "record retention requirement",
+        "labeling or traceability requirement",
+        "manual approval boundary"
+      ],
+      "owner_function": "Program/Quality",
+      "review_owner": "Quality Engineer"
+    },
+    {
+      "source_document_id": "SRC-PFMEA-001",
+      "document_type": "existing_pfmea_optional",
+      "required_for_trial": false,
+      "availability": "replace_with_available_or_not_available",
+      "revision": "REPLACE_WITH_REVISION_OR_NOT_AVAILABLE",
+      "release_status": "draft_released_or_not_available",
+      "redaction_status": "replace_with_redacted_checked_or_not_available",
+      "source_location": "redacted_qms://apqp/REDACTED-PROJECT/pfmea/revX",
+      "source_ref_examples": [
+        "SRC-PFMEA-001#ROWS-RELEVANT-ONLY"
+      ],
+      "expected_extracts": [
+        "known failure modes",
+        "known causes",
+        "existing prevention and detection controls",
+        "open actions if applicable"
+      ],
+      "owner_function": "Quality/Manufacturing Engineering",
+      "review_owner": "Quality Engineer"
+    },
+    {
+      "source_document_id": "SRC-CP-001",
+      "document_type": "existing_control_plan_optional",
+      "required_for_trial": false,
+      "availability": "replace_with_available_or_not_available",
+      "revision": "REPLACE_WITH_REVISION_OR_NOT_AVAILABLE",
+      "release_status": "draft_released_or_not_available",
+      "redaction_status": "replace_with_redacted_checked_or_not_available",
+      "source_location": "redacted_qms://apqp/REDACTED-PROJECT/control-plan/revX",
+      "source_ref_examples": [
+        "SRC-CP-001#ROWS-RELEVANT-ONLY"
+      ],
+      "expected_extracts": [
+        "product and process characteristics",
+        "control method",
+        "frequency and sample size",
+        "reaction plan"
+      ],
+      "owner_function": "Quality",
+      "review_owner": "Quality Engineer"
+    }
+  ]
+}

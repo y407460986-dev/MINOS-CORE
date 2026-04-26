@@ -146,3 +146,11 @@
 - 已修复字符串形式 `pending_fields` 被静默丢弃的问题。
 - 已修复 PFD/brainstorm gate 不检查 `link_type` 的问题。
 - 已修复 brainstorm preflight report 仍显示 `stage_mode=generate_pfd` 的语义问题。
+
+## Phase 6 pilot 发现
+- input_package fixture（evidence_bundle + review_patch）可以无缝接入 `generate_draft`，不需要新建生成路径。
+- `build_review_patch_template` 生成模板时，所有 reviewer 身份、timestamp、reason、evidence_refs 都留空，保证模板不能被误当成已批准 patch。
+- `apply_review_patch` 靠 `template_status` 字段检查拒绝未完成模板，这是最小、最可靠的边界保护，不需要额外的 flag 或枚举状态。
+- `run_manifest` 的 `inputs`/`outputs` 收紧为 object 后，调用方（pipeline 里的 generate_draft、apply_review、export_draft_fixture）传的都是 dict，已经符合新格式，不需要额外适配。
+- 脱敏真实项目模板 fixture 必须确认没有任何真实客户名称、供应商名称、人员姓名、联系方式、价格、精确产能、客户门户编号、未授权图纸页或完整专有规范片段；当前 fixture 已确认符合。
+- `tests/test_phase6_pilot_workflow.py` 是端到端回归，必须覆盖完整链路和关键负向场景（模板不能 apply、未 review draft 不能 export）。

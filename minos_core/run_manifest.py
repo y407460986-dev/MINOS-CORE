@@ -91,8 +91,8 @@ def build_run_manifest(
         "schema_version": schema_version,
         "run_id": run_id or _new_run_id(),
         "created_at": created_at or _utc_now_iso(),
-        "inputs": _dump_json_value(inputs, default=[]),
-        "outputs": _dump_json_value(outputs, default=[]),
+        "inputs": _dump_json_object(inputs),
+        "outputs": _dump_json_object(outputs),
         "stages": stage_entries,
         "stage_results": stage_entries,
         "quality_gates": _dump_json_value(quality_gates, default=[]),
@@ -122,6 +122,13 @@ def _canonical_json_bytes(payload: Any) -> bytes:
         sort_keys=True,
         separators=(",", ":"),
     ).encode("utf-8")
+
+
+def _dump_json_object(value: Any) -> JsonObject:
+    dumped = _dump_json_value(value, default={})
+    if isinstance(dumped, dict):
+        return dumped
+    return {"value": dumped}
 
 
 def _dump_json_value(value: Any, default: Any = None) -> Any:

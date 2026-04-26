@@ -301,3 +301,31 @@
 2. Specify：生成结果必须是 `process_flow`，包含 `steps`、`links`、`evidence_refs`。
 3. Implement：只从明确 process clues 生成步骤和顺序，不猜工序编号。
 4. Verify：完整 unittest、CLI validate/audit/export smoke 必须通过。
+
+## Phase 6 真实项目试运行（第 6 阶段重入：input_package 与人工复核链路）
+本阶段目标是把 `input_package` fixture（evidence_bundle + review_patch）接进 `generate_draft`，并让 `review-template` 和 `apply-review` 形成完整的人工复核链路。
+
+### Phase 6 pilot 执行流程
+/// 1. 新增 `tests/fixtures/real_project_input_package_template/`：脱敏真实项目 input_package 模板 fixture，包含 input_package.json、evidence.json、review_patch.json（模板态）、source_index.json。
+/// 2. 新增 `tests/test_phase6_pilot_workflow.py`：覆盖 `input_package -> generate_draft -> review-template -> 人工填写 review_patch -> apply-review -> export` 完整链路，以及 `unreviewed draft` 不能导出 final workbook 的负向测试。
+/// 3. 新增 `minos_core/review_patch.py`：`build_review_patch_template(draft_result)` 从 draft envelope 生成待人工填写模板，`apply_review_patch(payload, patch)` 应用复核 patch。
+/// 4. `review_patch_template` 必须有 `template_status: "requires_human_review_before_apply_review"`；`apply_review_patch` 发现此字段则拒绝，保证模板不能被误当成已批准 review patch。
+/// 5. 在 `minos_core/cli.py` 新增 `review-template` 和 `apply-review` 子命令。
+/// 6. 在 `minos_core/__init__.py` 导出 `build_review_patch_template`。
+/// 7. `run_manifest` 的 `inputs`/`outputs` 字段收紧为固定 object 格式（`_dump_json_object`），非 dict 值包装为 `{"value": ...}`。
+/// 8. 补 `tests/test_review_patch.py` 覆盖：确认 evidence/rows、纠正 pending field、拒绝缺失 evidence_ref、显式 manual_confirmation_event、模板不能直接 apply、CLI review-template 写文件。
+
+### Phase 6 pilot OpenSpec 四步闭环
+1. Define：目标是 input_package 接入 generate_draft，并确保人工复核 gate 不能被绕过。
+2. Specify：模板必须携带 `template_status`，`apply_review_patch` 拒绝携带此字段的 patch；unreviewed draft 不能导出 final。
+3. Implement：新增 review_patch 模块、CLI 命令、fixture 模板、单元测试和 pilot workflow 测试。
+4. Verify：195 项 unittest 全部通过；`review-template` 能生成模板；模板 apply 失败；unreviewed draft export 失败。
+
+### Phase 6 pilot 非目标
+- 不接真实 OCR、真实 AI、客户门户、审批流或自动 PPAP 提交。
+- 不把模板 fixture 当成已批准 review patch 使用。
+
+### Phase 6 pilot 下一步：真实试运行包最小闭环
+- 准备一个已脱敏、非客户敏感的 filled input package 示例。
+- 跑通 `generate-draft -> review-template -> 人工填写 review_patch -> apply-review -> export` 全链路。
+- 记录哪些字段仍需人工补齐、哪些质量门提示最影响工程人员使用。

@@ -263,3 +263,26 @@ PFMEA 与控制计划生成闭环已接通，未搬目录，未接入 LLM。
 - PFD/brainstorm gate 已检查 `link_type`，缺失、空值或非法值会阻断。
 - brainstorm preflight 的报告语义已修正为 `stage_mode=brainstorm_failure_modes_preflight`。
 - 第十阶段二次前向筛查时完整 unittest 曾扩展到 89 项并全部通过；当前测试数量已继续变化，不再把 89 项作为当前状态。
+
+## Phase 6 pilot 当前状态
+Phase 6 真实项目试运行已完成代码落地：input_package 接入 generate_draft，`review-template` 和 `apply-review` 人工复核链路已接通，`run_manifest` schema 收紧。
+
+## Phase 6 pilot 已完成
+- 新增 `tests/fixtures/real_project_input_package_template/`：脱敏真实项目 input_package 模板 fixture，包含 input_package.json、evidence.json、review_patch.json（模板态）、source_index.json。
+- 新增 `tests/test_phase6_pilot_workflow.py`：覆盖 `input_package -> generate_draft -> review-template -> 人工填写 review_patch -> apply-review -> export` 完整链路。
+- 新增 `minos_core/review_patch.py`：`build_review_patch_template` 从 draft envelope 生成待人工填写模板；`apply_review_patch` 应用复核 patch 并记录 confirmations。
+- `review_patch_template` 必须携带 `template_status: "requires_human_review_before_apply_review"`；`apply_review_patch` 发现此字段则抛出 `ReviewPatchError`，模板不能被误当成已批准 patch。
+- 在 `minos_core/cli.py` 新增 `review-template` 和 `apply-review` 子命令。
+- 在 `minos_core/__init__.py` 导出 `build_review_patch_template`，原有 `brainstorm_failure_modes_from_pfd` 等导出保持不变。
+- `run_manifest` 的 `inputs`/`outputs` 字段收紧为固定 object 格式（`_dump_json_object`），非 dict 值包装为 `{"value": ...}`；所有 manifest 测试通过。
+- 补 `tests/test_review_patch.py` 覆盖 7 个测试场景。
+- 新增 `tests/test_input_package.py` 中 real_project_template 和 realistic_input_package 回归测试。
+- 完整 unittest 已扩展到 195 项并全部通过。
+
+## Phase 6 pilot 待验证
+/// 1. 运行 `python -m unittest discover -s tests -v`，确认 195 项全部通过。
+/// 2. 审核 git diff，确认改动聚焦 Phase 6 pilot 链路和文档。
+/// 3. 提交 Phase 6 pilot 改动。
+
+## Phase 6 pilot 下一步
+准备一个已脱敏、非客户敏感的 filled input_package 示例，跑通 `generate-draft -> review-template -> 人工填写 review_patch -> apply-review -> export` 全链路，并记录哪些字段仍需人工补齐、哪些质量门提示最影响工程人员使用。

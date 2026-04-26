@@ -108,6 +108,62 @@ python -m minos_core.cli export --input out\demo_review_result.json --output out
 - `demo_final.xlsx` 只从 `apply-review` 后通过质量门的 review result 导出。
 - 每一步的 `--manifest-output` 会生成可审计的 run manifest。
 
+## 第 6 阶段小范围真实项目试运行
+
+第 6 阶段用于让工程/质量人员把少量真实项目资料整理成可追溯、已脱敏的 `input_package` 输入，验证 MINOS-CORE 的 APQP 三表链路草案能力。该阶段不是客户最终 PPAP 自动提交，也不替代工程签核、质量批准或客户门户提交。
+
+标准目录建议从以下模板复制后再填写：
+
+```text
+tests\fixtures\real_project_input_package_template\
+  input_package.json
+  source_index.json
+  evidence.json
+  review_patch.json
+```
+
+- `input_package.json`：登记包 ID、脱敏项目元数据、证据文件路径、复核补丁路径和来源文件清单。
+- `source_index.json`：记录图纸、BOM、过程流程、特殊特性、检验规范、作业指导书、客户特殊要求、已有 PFMEA/控制计划（如有）的修订、来源位置、脱敏状态和复核责任。
+- `evidence.json`：只写可追溯事实摘录；每条 evidence 必须引用 `source_document_id` 和能定位页/区域/条款/行号的 `source_ref`。
+- `review_patch.json`：由工程/质量人员在草案复核后填写确认或修正项；不能用来掩盖缺失证据。模板目录中的该文件只是占位示例，复制后必须替换复核人、时间、证据和确认内容，不能直接当作已确认补丁使用。
+
+填写前检查清单：
+
+- 已确认资料可以用于内部试运行，并完成必要授权和脱敏。
+- 已删除客户名称、供应商名称、人员姓名、联系方式、价格、精确产能、客户门户编号和未授权整页图纸/规范。
+- 已准备真实资料类型：图纸、BOM、过程流程、特殊特性、检验规范、作业指导书、客户特殊要求；已有 PFMEA/控制计划如有则加入，没有则明确写 `not_available`。
+- 每份资料都有修订、来源位置、来源引用和复核责任人/职能。
+
+填写后检查清单：
+
+- 先把 `tests\fixtures\real_project_input_package_template\` 复制到新的项目工作目录，再替换占位内容后运行 pipeline；模板目录只用于 JSON/schema/结构校验，不要求也不应直接 `generate-draft` 通过。
+- `input_package.json`、`source_index.json`、`evidence.json`、`review_patch.json` 都是合法 UTF-8 JSON，可打开、无乱码。
+- `input_package.json` 的 `evidence_path` 和 `review_patch_path` 指向同目录内实际文件。
+- `source_documents[*].source_document_id`、`source_index.json` 的 sources、`evidence.json` 的 `source_document_id` 三者能对上。
+- 每条 evidence 的 `source_ref` 足够定位，且不含未脱敏敏感信息。
+- 所有 `needs_confirmation: true` 的内容已在 `review_patch.json` 中由人工确认或修正。
+- 草案输出仍带人工复核边界；不得把 draft 当作正式提交件。
+
+建议命令链（在项目根目录执行）：
+
+```powershell
+python -m json.tool tests\fixtures\real_project_input_package_template\input_package.json > $null
+python -m json.tool tests\fixtures\real_project_input_package_template\source_index.json > $null
+python -m json.tool tests\fixtures\real_project_input_package_template\evidence.json > $null
+python -m json.tool tests\fixtures\real_project_input_package_template\review_patch.json > $null
+# 模板目录到此为止只做 JSON/schema/结构校验；不要直接对模板目录运行 generate-draft。
+# 复制模板、替换所有占位内容并完成授权脱敏后，再在新项目工作目录执行：
+python -m minos_core.cli generate-draft --input path\to\filled_real_project_input_package --output out\real_project_draft_result.json --manifest-output out\real_project_draft_manifest.json
+python -m minos_core.cli review-template --draft-result out\real_project_draft_result.json --output out\review_patch_template.json
+python -m minos_core.cli export-draft --input out\real_project_draft_result.json --output out\real_project_draft.xlsx --manifest-output out\real_project_draft_export_manifest.json
+python -m minos_core.cli apply-review --draft-result out\real_project_draft_result.json --review-patch path\to\filled_real_project_input_package\review_patch.json --output out\real_project_review_result.json --manifest-output out\real_project_review_manifest.json
+python -m minos_core.cli export --input out\real_project_review_result.json --output out\real_project_final.xlsx --manifest-output out\real_project_final_manifest.json
+```
+
+`draft` / `final` 边界：`generate-draft` 和 `export-draft` 只生成内部工程复核草案；`apply-review` 后的 `export` 只表示已应用人工复核并通过 MINOS-CORE 内部质量门，仍不是客户最终 PPAP 自动提交件。
+
+第 6 阶段暂不接 OCR、真实 AI、客户复杂模板、客户门户、审批流或完整 PPAP 自动提交；这些能力应留在核心模块外的适配层或后续阶段单独设计。
+
 ## 测试
 
 ```powershell

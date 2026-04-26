@@ -1,0 +1,112 @@
+{
+  "review_patch_version": "minos-core.review_patch.v1",
+  "template_status": "requires_human_review_before_apply_review",
+  "confirmed_by": "",
+  "confirmed_at": "",
+  "reason": "",
+  "manual_confirmation_event": "",
+  "evidence_refs": [],
+  "items": [
+    {
+      "action": "confirm",
+      "target": "evidence:EV-TPL-DWG-001",
+      "review_category": "needs_confirmation",
+      "confirmed_by": "",
+      "confirmed_at": "",
+      "reason": "",
+      "manual_confirmation_event": "",
+      "evidence_refs": []
+    },
+    {
+      "action": "confirm",
+      "target": "evidence:EV-TPL-BOM-001",
+      "review_category": "needs_confirmation",
+      "confirmed_by": "",
+      "confirmed_at": "",
+      "reason": "",
+      "manual_confirmation_event": "",
+      "evidence_refs": []
+    },
+    {
+      "action": "confirm",
+      "target": "evidence:EV-TPL-FLOW-001",
+      "review_category": "needs_confirmation",
+      "confirmed_by": "",
+      "confirmed_at": "",
+      "reason": "",
+      "manual_confirmation_event": "",
+      "evidence_refs": []
+    },
+    {
+      "action": "confirm",
+      "target": "evidence:EV-TPL-SC-001",
+      "review_category": "needs_confirmation",
+      "confirmed_by": "",
+      "confirmed_at": "",
+      "reason": "",
+      "manual_confirmation_event": "",
+      "evidence_refs": []
+    },
+    {
+      "action": "confirm",
+      "target": "evidence:EV-TPL-INS-001",
+      "review_category": "needs_confirmation",
+      "confirmed_by": "",
+      "confirmed_at": "",
+      "reason": "",
+      "manual_confirmation_event": "",
+      "evidence_refs": []
+    },
+    {
+      "action": "confirm",
+      "target": "evidence:EV-TPL-WI-001",
+      "review_category": "needs_confirmation",
+      "confirmed_by": "",
+      "confirmed_at": "",
+      "reason": "",
+      "manual_confirmation_event": "",
+      "evidence_refs": []
+    },
+    {
+      "action": "confirm",
+      "target": "evidence:EV-TPL-CSR-001",
+      "review_category": "needs_confirmation",
+      "confirmed_by": "",
+      "confirmed_at": "",
+      "reason": "",
+      "manual_confirmation_event": "",
+      "evidence_refs": []
+    },
+    {
+      "action": "confirm",
+      "target": "evidence:EV-TPL-PFMEA-001",
+      "review_category": "needs_confirmation",
+      "confirmed_by": "",
+      "confirmed_at": "",
+      "reason": "",
+      "manual_confirmation_event": "",
+      "evidence_refs": []
+    },
+    {
+      "action": "confirm",
+      "target": "evidence:EV-TPL-CP-001",
+      "review_category": "needs_confirmation",
+      "confirmed_by": "",
+      "confirmed_at": "",
+      "reason": "",
+      "manual_confirmation_event": "",
+      "evidence_refs": []
+    },
+    {
+      "action": "correct",
+      "target": "pending_field:trial_boundary.draft_final_usage",
+      "review_category": "pending_field",
+      "value": "draft 输出仅用于内部工程/质量复核；final 输出仅表示已应用 review_patch 并通过 MINOS-CORE 内部质量门，不等同客户最终 PPAP 自动提交件。",
+      "confirmed_by": "",
+      "confirmed_at": "",
+      "reason": "",
+      "manual_confirmation_event": "",
+      "evidence_refs": []
+    }
+  ]
+}

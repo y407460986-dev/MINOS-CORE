@@ -13,6 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from minos_platform import config, db
+from minos_platform.utils import calculate_file_sha256
 from minos_platform.errors import InvalidStateError, NotFoundError, map_core_error
 from minos_platform.models import RunSummary
 
@@ -81,12 +82,13 @@ async def trigger_draft_run(
         draft_result = await asyncio.to_thread(_generate)
 
         draft_json = json.loads(Path(result_json_path).read_text(encoding="utf-8"))
+        draft_sha256 = calculate_file_sha256(Path(result_json_path))
         artifact = db.Artifact(
             id=str(uuid.uuid4()),
             run_id=run_id,
             artifact_type="draft_result",
             file_path=result_json_path,
-            sha256=draft_json.get("quality_gate", {}).get("run_id", "unknown"),
+            sha256=draft_sha256,
             created_at=datetime.now(timezone.utc).replace(microsecond=0),
         )
         session.add(artifact)

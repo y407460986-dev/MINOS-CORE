@@ -185,7 +185,7 @@ python -m unittest discover -s tests -v
 `minos_platform` 是建立在 `minos_core` 上的 PPAP 项目管理层，提供 FastAPI REST API 与 SQLite 持久化。本层为可选依赖，需单独安装：
 
 ```powershell
-pip install "minos-core[platform]"
+pip install -e ".[platform]"
 python -m minos_platform
 ```
 
@@ -198,13 +198,13 @@ python -m minos_platform
 | `POST /api/projects` | 创建 PPAP 项目 |
 | `GET /api/projects` | 列出所有项目 |
 | `GET /api/projects/{id}` | 查看项目详情和最新运行 |
-| `POST /api/projects/{id}/input-packages` | 登记已脱敏 input_package |
+| `POST /api/projects/{id}/input-packages` | 登记已脱敏 input_package（复制到 artifact 区，验证 SHA256） |
 | `POST /api/projects/{id}/draft-runs` | 调用 generate_draft 生成草案 |
 | `POST /api/projects/{id}/review-template` | 生成人工填写 review template |
-| `POST /api/projects/{id}/review-patches` | 提交人工填写的 review patch |
+| `POST /api/projects/{id}/review-patches` | 提交人工填写的 review patch（复制到 artifact 区，验证 SHA256） |
 | `POST /api/projects/{id}/apply-review` | 应用 review patch，生成 review result |
 | `POST /api/projects/{id}/exports` | 导出 draft/final workbook |
-| `GET /api/artifacts/{id}` | 下载产物文件 |
+| `GET /api/artifacts/{id}` | 下载产物文件（只能下载已登记的 artifact） |
 
 ### 项目状态流转
 
@@ -212,6 +212,14 @@ python -m minos_platform
 created → input_registered → draft_ready → review_template_ready
 → review_patch_submitted → review_applied → final_export_ready / blocked
 ```
+
+### 核心设计原则
+
+- **文件安全**：所有用户提交的 input package 和 review patch 都会被复制到 `out/platform/artifacts/` 下的平台管理区，原始路径不用于后续运行。
+- **SHA256 校验**：所有复制的文件都会计算真实 SHA256 与客户端提交值比对，不匹配返回 422。
+- **Artifact 可追溯**：每个产物（draft result、review template、review result、export）都有真实 SHA256 记录在 `ppap_artifacts` 表中。
+- **最终导出隔离**：final export 只能从 `review_applied` 状态执行，必须使用 apply-review 生成的 review result（含 patched_chain），不能使用 draft result。
+- **草案导出不改变状态**：draft export 成功后只记录 `draft_export_ready`，不改变项目状态。
 
 ### 明确非目标
 
@@ -221,5 +229,6 @@ created → input_registered → draft_ready → review_template_ready
 
 ### 数据存储
 
-- SQLite 数据库：`out/platform/minos_platform.sqlite3`
-- 产物文件：`out/platform/artifacts/{project_id}/{run_id}/`
+- SQLite 数据库：`out/platform/minos_platform.sqlite3`（含 `ppap_schema_version` 表记录平台 schema 版本）
+- 产物文件：`out/platform/artifacts/{project_id}/inputs/`（input packages、review patches）
+- 产物文件：`out/platform/artifacts/{project_id}/`（draft results、review results、exports）

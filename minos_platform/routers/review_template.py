@@ -13,6 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from minos_platform import config, db
+from minos_platform.utils import calculate_file_sha256
 from minos_platform.errors import InvalidStateError, NotFoundError, map_core_error
 from minos_platform.models import ReviewTemplateResponse
 
@@ -72,12 +73,13 @@ async def generate_review_template(
             encoding="utf-8",
         )
 
+        template_sha256 = calculate_file_sha256(Path(template_path))
         artifact = db.Artifact(
             id=str(uuid.uuid4()),
             run_id=run.id,
             artifact_type="review_template",
             file_path=template_path,
-            sha256="pending",
+            sha256=template_sha256,
             created_at=datetime.now(timezone.utc).replace(microsecond=0),
         )
         session.add(artifact)

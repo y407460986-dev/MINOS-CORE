@@ -89,6 +89,14 @@ class ReviewPatch(Base):
     project = relationship("Project", back_populates="review_patches")
 
 
+class SchemaVersion(Base):
+    __tablename__ = "ppap_schema_version"
+
+    id = Column(String(64), primary_key=True, default="platform_v1")
+    version = Column(String(64), nullable=False)
+    initialized_at = Column(DateTime, nullable=False, default=lambda: _utc_now())
+
+
 # ---------------------------------------------------------------------------
 # Relationship back-links (added after class definitions to satisfy linters)
 # ---------------------------------------------------------------------------
@@ -106,6 +114,9 @@ _engine = None
 _session_factory = None
 
 
+PLATFORM_SCHEMA_VERSION = "platform_v1"
+
+
 async def init_db(db_url: str) -> None:
     """Create all tables if they don't exist. Idempotent — skips if already initialized."""
     global _engine, _session_factory
@@ -115,6 +126,17 @@ async def init_db(db_url: str) -> None:
     _session_factory = async_sessionmaker(_engine, expire_on_commit=False)
     async with _engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # Upsert schema version record
+        await conn.run_sync(_upsert_schema_version)
+
+
+def _upsert_schema_version(connection) -> None:
+    """Insert or replace the platform schema version marker."""
+    from sqlalchemy import text
+    connection.execute(text(
+        "INSERT OR REPLACE INTO ppap_schema_version (id, version, initialized_at) "
+        "VALUES (:id, :version, :now)"
+    ), {"id": PLATFORM_SCHEMA_VERSION, "version": PLATFORM_SCHEMA_VERSION, "now": _utc_now()})
 
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:

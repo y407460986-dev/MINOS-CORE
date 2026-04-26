@@ -9,8 +9,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from minos_platform import db
-from minos_platform.errors import InvalidStateError, NotFoundError
+from minos_platform import config, db, utils
+from minos_platform.errors import APIError, InvalidStateError, NotFoundError
 from minos_platform.models import SubmitReviewPatchRequest
 
 VALID_STATES = {"review_template_ready"}
@@ -43,12 +43,32 @@ async def submit_review_patch(
     )
     run = run_result.scalar_one_or_none()
 
+    # Copy file to platform artifact area
+    dest_dir = config.get_artifacts_dir() / project_id / "inputs"
+    try:
+        copied_path = utils.safe_copy_input_file_or_dir(req.patch_path, dest_dir)
+    except FileNotFoundError:
+        raise APIError(message="Patch file not found", code="REVIEW_PATCH_NOT_FOUND")
+
+    # Reject patches that have template_status field
+    parsed = utils.parse_review_patch(copied_path)
+    if parsed is not None and "template_status" in parsed:
+        raise APIError(message="Patch must not contain template_status field", code="INVALID_PATCH")
+
+    # Calculate actual SHA256 of copied file
+    from minos_core import sha256_json
+    actual_hash = sha256_json(parsed)
+
+    # Compare against client-provided hash
+    if actual_hash != req.sha256:
+        raise APIError(message="SHA256 mismatch", code="SHA256_MISMATCH", status_code=422)
+
     patch = db.ReviewPatch(
         id=str(uuid.uuid4()),
         run_id=run.id if run else None,
         project_id=project_id,
-        patch_path=req.patch_path,
-        sha256=req.sha256,
+        patch_path=str(copied_path),
+        sha256=actual_hash,
         submitted_at=datetime.now(timezone.utc).replace(microsecond=0),
     )
     session.add(patch)

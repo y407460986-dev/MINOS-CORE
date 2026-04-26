@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -42,10 +43,15 @@ async def trigger_export(
     if project.status not in valid:
         raise InvalidStateError(project.status, "/".join(valid))
 
+    # For final export, prefer the latest "review" run (apply-review creates
+    # patched_chain). If none exists, fall back to the latest run.
+    # For draft export, use the latest any-run.
     run_result = await session.execute(
         select(db.Run)
         .where(db.Run.project_id == project_id)
-        .order_by(db.Run.created_at.desc())
+        .order_by(
+            db.Run.created_at.desc(),
+        )
         .limit(1)
     )
     latest_run = run_result.scalar_one_or_none()
@@ -53,9 +59,29 @@ async def trigger_export(
         raise NotFoundError("run", f"project={project_id}")
 
     if export_mode == "final":
+        if latest_run.run_type != "review":
+            # Find the latest review run instead
+            review_result = await session.execute(
+                select(db.Run)
+                .where(
+                    db.Run.project_id == project_id,
+                    db.Run.run_type == "review",
+                )
+                .order_by(db.Run.created_at.desc())
+                .limit(1)
+            )
+            review_run = review_result.scalar_one_or_none()
+            if review_run is not None:
+                latest_run = review_run
+
         chain_input = latest_run.result_json_path
         if not chain_input or not Path(chain_input).exists():
             raise NotFoundError("chain_input", chain_input or "none")
+        # The result JSON may be an apqp_chain_review_result envelope.
+        # Extract patched_chain if present, otherwise use as-is.
+        result_json = json.loads(Path(chain_input).read_text(encoding="utf-8"))
+        if "patched_chain" in result_json:
+            chain_input = result_json["patched_chain"]
     else:
         chain_input = latest_run.result_json_path
         if not chain_input or not Path(chain_input).exists():
@@ -112,8 +138,11 @@ async def trigger_export(
         )
         session.add(artifact)
 
-        project.status = "final_export_ready"
-        export_run.status = "final_export_ready"
+        if export_mode == "final":
+            project.status = "final_export_ready"
+            export_run.status = "final_export_ready"
+        else:
+            export_run.status = "draft_export_ready"
 
     except Exception as exc:  # noqa: BLE001
         export_run.status = "blocked"

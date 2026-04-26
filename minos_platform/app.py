@@ -39,7 +39,7 @@ app = FastAPI(
 
 
 @app.exception_handler(errors.APIError)
-async def api_error_handler(request: Request, exc: db.errors.APIError):
+async def api_error_handler(request: Request, exc: errors.APIError):
     """Render APIError exceptions with both detail and code fields."""
     return JSONResponse(
         status_code=exc.status_code,

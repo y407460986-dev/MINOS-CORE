@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import tempfile
 from pathlib import Path
 
@@ -59,9 +58,11 @@ def realistic_package_path():
 
 @pytest.fixture
 def demo_sha256():
-    return "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    # Real SHA256 of tests/fixtures/demo_input_package (directory hash)
+    return "f96b1b7a734767929e90d07430de96fb5e6362553af424141cc37a3d4ed40442"
 
 
 @pytest.fixture
 def realistic_sha256():
+    # Placeholder — real value depends on realistic_input_package content
     return "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3"

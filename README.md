@@ -178,3 +178,48 @@ python -m unittest discover -s tests -v
 - `adapters/` 负责外部输入边界，例如 fixture JSON、legacy Excel、OCR/LLM 占位。
 - `exporters/` 负责交付格式。
 - `generate_pfmea.py` 和 `generate_control_plan.py` 是薄规则生成器，不接 LLM、不做文件 IO。
+- `minos_platform/` 是独立平台层，不向 `minos_core` 引入任何依赖。
+
+## 平台后端 MVP（可选）
+
+`minos_platform` 是建立在 `minos_core` 上的 PPAP 项目管理层，提供 FastAPI REST API 与 SQLite 持久化。本层为可选依赖，需单独安装：
+
+```powershell
+pip install "minos-core[platform]"
+python -m minos_platform
+```
+
+启动后访问 `http://localhost:8000/docs`（自动生成的 Swagger 文档）。
+
+### 平台 API 端点
+
+| 端点 | 功能 |
+|------|------|
+| `POST /api/projects` | 创建 PPAP 项目 |
+| `GET /api/projects` | 列出所有项目 |
+| `GET /api/projects/{id}` | 查看项目详情和最新运行 |
+| `POST /api/projects/{id}/input-packages` | 登记已脱敏 input_package |
+| `POST /api/projects/{id}/draft-runs` | 调用 generate_draft 生成草案 |
+| `POST /api/projects/{id}/review-template` | 生成人工填写 review template |
+| `POST /api/projects/{id}/review-patches` | 提交人工填写的 review patch |
+| `POST /api/projects/{id}/apply-review` | 应用 review patch，生成 review result |
+| `POST /api/projects/{id}/exports` | 导出 draft/final workbook |
+| `GET /api/artifacts/{id}` | 下载产物文件 |
+
+### 项目状态流转
+
+```
+created → input_registered → draft_ready → review_template_ready
+→ review_patch_submitted → review_applied → final_export_ready / blocked
+```
+
+### 明确非目标
+
+- 本层不提供网页 UI、权限模型、多租户、客户门户。
+- 不接真实 OCR/AI、客户复杂模板、审批流或自动 PPAP 提交。
+- 不向 `minos_core` 引入数据库、异步框架或平台状态。
+
+### 数据存储
+
+- SQLite 数据库：`out/platform/minos_platform.sqlite3`
+- 产物文件：`out/platform/artifacts/{project_id}/{run_id}/`

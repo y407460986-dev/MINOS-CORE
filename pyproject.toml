@@ -10,11 +10,26 @@ readme = "README.md"
 requires-python = ">=3.9"
 dependencies = []
 
+[project.optional-dependencies]
+platform = [
+    "fastapi>=0.100",
+    "uvicorn>=0.23",
+    "sqlalchemy[asyncio]>=2.0",
+    "aiosqlite>=0.19",
+]
+
 [project.scripts]
 minos-core = "minos_core.cli:main"
+minos-platform = "minos_platform.cli:main"
 
 [tool.setuptools]
-packages = ["minos_core", "minos_core.adapters", "minos_core.exporters"]
+packages = [
+    "minos_core",
+    "minos_core.adapters",
+    "minos_core.exporters",
+    "minos_platform",
+    "minos_platform.routers",
+]
 
 [tool.unittest]
 discover_start_dir = "tests"

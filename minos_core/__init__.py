@@ -19,7 +19,12 @@ from .generate_pfd import generate_pfd_from_analysis
 from .generate_pfmea import generate_pfmea_from_candidates
 from .generate_control_plan import generate_control_plan_from_pfmea
 from .ingest import ingest_evidence_bundle
-from .pipeline import apply_review
+from .pipeline import (
+    apply_review,
+    export_draft_fixture,
+    export_fixture,
+    generate_draft,
+)
 from .quality_gates import (
     StageQualityGate,
     evaluate_analysis_bundle_gate,
@@ -91,7 +96,10 @@ __all__ = [
     "evaluate_pfmea_bundle_gate",
     "evaluate_pfd_bundle_gate",
     "evaluate_stage_gate",
+    "export_draft_fixture",
+    "export_fixture",
     "generate_control_plan_from_pfmea",
+    "generate_draft",
     "generate_pfd_from_analysis",
     "generate_pfmea_from_candidates",
     "ingest_evidence_bundle",

@@ -337,6 +337,7 @@ class DesktopTableEditorTests(unittest.TestCase):
         self.assertEqual(review["title"], "AI 预审")
         self.assertEqual(review["column_labels"][0], "预审分类")
         self.assertTrue(review["rows"])
+        self.assertIn("suggested_changes_display", review["columns"])
 
     def test_automation_batch_confirm_patch_marks_each_candidate(self):
         result = _result_without_open_change_impacts()
@@ -369,6 +370,31 @@ class DesktopTableEditorTests(unittest.TestCase):
         self.assertEqual(patch["items"][0]["action"], "update")
         self.assertEqual(patch["items"][0]["changes"]["recommended_action"], "追加防错确认")
         self.assertEqual(patch["items"][1]["action"], "accept_recommendation")
+
+    def test_automation_review_displays_no_auto_fix_text_instead_of_empty_dict(self):
+        result = _result_without_open_change_impacts()
+        result["manual_review"] = {
+            "required": True,
+            "items": [
+                {
+                    "item_id": "RI-global",
+                    "category": "人工复核问题",
+                    "severity": "blocker",
+                    "severity_display": "阻断",
+                    "message": "正式导出前，未处理的人工复核问题必须先关闭。",
+                }
+            ],
+        }
+
+        review = automation_review_model(result)
+        row = next(item for item in review["rows"] if item["issue_id"] == "RI-global")
+
+        self.assertEqual(row["suggested_changes"], {})
+        self.assertEqual(
+            row["suggested_changes_display"],
+            "暂无可一键采纳的字段修改；请按预审说明人工确认或在对应表格中修改。",
+        )
+        self.assertFalse(automation_fix_suggestion_patch(row)["items"])
 
     def test_automation_review_expands_review_issue_to_concrete_row(self):
         result = _result_without_open_change_impacts()

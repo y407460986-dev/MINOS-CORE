@@ -24,6 +24,7 @@ from .table_editor import (
     META_ORIGINAL,
     META_SOFT_DELETED,
     action_management_model,
+    automation_fix_suggestion_patch,
     automation_review_model,
     build_edit_patch,
     change_impact_model,
@@ -857,6 +858,14 @@ def run_desktop_app() -> int:
                 return
             row = self._selected_readonly_row("automation_review")
             if not row:
+                return
+            patch = automation_fix_suggestion_patch(row)
+            if not patch.get("items"):
+                QMessageBox.information(
+                    self,
+                    "没有可自动采纳的修改",
+                    "当前问题没有可一键采纳的字段修改。请按预审说明到对应表格或人工复核页处理。",
+                )
                 return
             record = DesktopRunService(self.db_path).accept_automation_fix_suggestion(
                 self.current_run_id,

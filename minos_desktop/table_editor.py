@@ -517,7 +517,7 @@ def automation_review_model(result: dict[str, Any]) -> dict[str, Any]:
             "review_message",
             "risk_level",
             "confidence",
-            "suggested_changes",
+            "suggested_changes_display",
             "recommendation_id",
             "jump_label",
         ),
@@ -532,7 +532,7 @@ def automation_review_model(result: dict[str, Any]) -> dict[str, Any]:
             "建议编号",
             "跳转",
         ),
-        "rows": rows,
+        "rows": [_with_suggestion_display(row) for row in rows],
     }
 
 
@@ -633,6 +633,23 @@ def automation_fix_suggestion_patch(
         automation_fix_suggestion_patch_items(row),
         patch_version=patch_version,
     )
+
+
+def _with_suggestion_display(row: dict[str, Any]) -> dict[str, Any]:
+    updated = dict(row)
+    updated["suggested_changes_display"] = _suggested_changes_text(row)
+    return updated
+
+
+def _suggested_changes_text(row: dict[str, Any]) -> str:
+    changes = row.get("suggested_changes", {})
+    if isinstance(changes, dict) and changes:
+        return json.dumps(changes, ensure_ascii=False)
+    if isinstance(changes, str) and changes.strip():
+        return changes.strip()
+    if row.get("review_category") == "可批量确认":
+        return "无需改表，AI 建议可批量确认。"
+    return "暂无可一键采纳的字段修改；请按预审说明人工确认或在对应表格中修改。"
 
 
 def action_management_model(result: dict[str, Any], *, today: date | None = None) -> dict[str, Any]:

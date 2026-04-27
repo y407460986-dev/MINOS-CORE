@@ -370,6 +370,66 @@ class DesktopTableEditorTests(unittest.TestCase):
         self.assertEqual(patch["items"][0]["changes"]["recommended_action"], "追加防错确认")
         self.assertEqual(patch["items"][1]["action"], "accept_recommendation")
 
+    def test_automation_review_expands_review_issue_to_concrete_row(self):
+        result = _result_without_open_change_impacts()
+        issue_id = "RI-ai-batch-blocker"
+        result["manual_review"] = {
+            "required": True,
+            "items": [
+                {
+                    "item_id": issue_id,
+                    "category": "人工复核问题",
+                    "severity": "blocker",
+                    "severity_display": "阻断",
+                    "message": "正式导出前，未处理的人工复核问题必须先关闭。",
+                }
+            ],
+        }
+        result["quality_gate"] = {
+            "review_issues": [
+                {
+                    "issue_id": issue_id,
+                    "category": "AI批量确认",
+                    "message": "PFMEA 高 AP 风险不能批量确认，需要人工复核。",
+                    "severity": "blocker",
+                    "target": "failure_mode:PFMEA-P10-001",
+                }
+            ]
+        }
+
+        review = automation_review_model(result)
+
+        row = next(item for item in review["rows"] if item["issue_id"] == issue_id)
+        self.assertEqual(row["target_table"], "pfmea")
+        self.assertEqual(row["target_id"], "PFMEA-P10-001")
+        self.assertEqual(row["review_message"], "PFMEA 高 AP 风险不能批量确认，需要人工复核。")
+        self.assertEqual(row["jump_label"], "跳转到 PFMEA：PFMEA-P10-001")
+        self.assertFalse(
+            any(not item["target_table"] and not item["target_id"] for item in review["rows"])
+        )
+
+    def test_automation_review_unlocated_issue_points_to_manual_review_page(self):
+        result = _result_without_open_change_impacts()
+        result["manual_review"] = {
+            "required": True,
+            "items": [
+                {
+                    "item_id": "RI-global",
+                    "category": "人工复核问题",
+                    "severity": "blocker",
+                    "severity_display": "阻断",
+                    "message": "正式导出前，未处理的人工复核问题必须先关闭。",
+                }
+            ],
+        }
+
+        review = automation_review_model(result)
+
+        row = next(item for item in review["rows"] if item["issue_id"] == "RI-global")
+        self.assertEqual(row["target_table"], "人工复核")
+        self.assertEqual(row["target_id"], "RI-global")
+        self.assertEqual(row["jump_label"], "查看人工复核页")
+
     def test_new_row_generates_add_patch(self):
         row = new_table_row(
             "process_flow",

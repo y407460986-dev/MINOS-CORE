@@ -1057,10 +1057,10 @@ def _manual_review_items_from_edit_gate(gate_result: dict[str, Any]) -> list[dic
     items.extend(
         {
             "item_id": item,
-            "category": "Review Issue",
+            "category": "人工复核问题",
             "severity": "blocker",
             "severity_display": "阻断",
-            "message": "正式导出前，所有 review_issue 都必须处理。",
+            "message": "正式导出前，未处理的人工复核问题必须先关闭。",
         }
         for item in gate_result.get("review_issues", [])
     )

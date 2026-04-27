@@ -872,6 +872,11 @@ def run_desktop_app() -> int:
             row = self._selected_readonly_row("automation_review")
             if not row:
                 return
+            target = str(row.get("jump_target") or "")
+            if target:
+                self._jump_to_target(target)
+                return
+            self._show_page("review")
             QMessageBox.information(
                 self,
                 "详细问题",
@@ -891,6 +896,9 @@ def run_desktop_app() -> int:
             if row_index < 0 or row_index >= len(rows):
                 return
             target = str(rows[row_index].get("jump_target") or "")
+            if not target and key == "automation_review":
+                self._show_page("review")
+                return
             self._jump_to_target(target)
 
         def _jump_to_target(self, target: str) -> None:
@@ -911,6 +919,13 @@ def run_desktop_app() -> int:
             for visible_row, source_row in enumerate(visible_indexes):
                 if source_row < len(rows) and str(rows[source_row].get(META_ROW_ID, "")) == row_id:
                     self.table_widgets[table_key].selectRow(visible_row)
+                    return
+
+        def _show_page(self, page_key: str) -> None:
+            for index in range(self.nav.count()):
+                item = self.nav.item(index)
+                if item.data(Qt.UserRole) == page_key:
+                    self.nav.setCurrentRow(index)
                     return
 
         def _refresh_recent_runs(self) -> None:

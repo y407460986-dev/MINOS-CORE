@@ -899,7 +899,7 @@ def navigation_target_from_ref(ref: str) -> str:
     if ":" not in text:
         return ""
     prefix, row_id = text.split(":", 1)
-    row_id = row_id.split(".", 1)[0].strip()
+    row_id = row_id.split(".", 1)[0].split(":", 1)[0].strip()
     return navigation_target(prefix, row_id)
 
 
@@ -1087,6 +1087,10 @@ def _automation_review_rows_from_manual_review(result: dict[str, Any]) -> list[d
         table_key, target_id = target.split(":", 1) if ":" in target else ("", "")
         title = str(question.get("问题", ""))
         category = "阻断问题" if "阻断" in title else "需要人工判断"
+        issue_id = str(question.get("问题ID", "")).strip()
+        if not target:
+            table_key = "人工复核"
+            target_id = issue_id or str(question.get("对象", "") or "全局问题")
         rows.append(
             {
                 "review_category": category,
@@ -1097,9 +1101,9 @@ def _automation_review_rows_from_manual_review(result: dict[str, Any]) -> list[d
                 "confidence": "",
                 "suggested_changes": {},
                 "recommendation_id": "",
-                "issue_id": "",
+                "issue_id": issue_id,
                 "jump_target": target,
-                "jump_label": navigation_label_from_target(target),
+                "jump_label": navigation_label_from_target(target) if target else "查看人工复核页",
             }
         )
     return rows
@@ -1172,7 +1176,7 @@ def _dedupe_automation_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for row in rows:
         key = (
             str(row.get("target_table", "")),
-            str(row.get("target_id", "")),
+            str(row.get("target_id", "") or row.get("issue_id", "")),
         )
         existing = by_key.get(key)
         if existing is None or priority.get(str(row.get("review_category")), 0) > priority.get(str(existing.get("review_category")), 0):
@@ -1207,17 +1211,25 @@ def _knowledge_recommendations(result: dict[str, Any]) -> list[dict[str, Any]]:
 
 def _manual_review_question(item: Any, result: dict[str, Any]) -> dict[str, Any]:
     if isinstance(item, dict):
-        target = str(item.get("target") or item.get("item_id") or item.get("source_ref") or "")
-        message = str(item.get("message") or item.get("reason") or item.get("detail") or item)
-        category = str(item.get("category") or item.get("review_category") or "人工复核")
-        severity = str(item.get("severity_display") or item.get("severity") or "")
+        payload = _expand_review_issue_item(item, result)
+        target = str(payload.get("target") or payload.get("item_id") or payload.get("source_ref") or "")
+        message = str(payload.get("message") or payload.get("reason") or payload.get("detail") or payload)
+        category = str(payload.get("category") or payload.get("review_category") or "人工复核")
+        severity = str(payload.get("severity_display") or payload.get("severity") or "")
+        issue_id = str(payload.get("issue_id") or payload.get("item_id") or "")
     else:
         target = str(item)
         message = str(item)
         category = "人工复核"
         severity = ""
+        issue_id = ""
+    if category == "Review Issue":
+        category = "人工复核问题"
+    if message == "正式导出前，所有 review_issue 都必须处理。":
+        message = "正式导出前，未处理的人工复核问题必须先关闭。"
     nav_target = navigation_target_from_ref(target)
     return {
+        "问题ID": issue_id,
         "问题": category if not severity else f"{category}（{severity}）",
         "对象": target,
         "详情": message,
@@ -1225,6 +1237,63 @@ def _manual_review_question(item: Any, result: dict[str, Any]) -> dict[str, Any]
         "跳转目标": nav_target,
         "跳转": navigation_label_from_target(nav_target),
     }
+
+
+def _expand_review_issue_item(item: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]:
+    payload = dict(item)
+    item_id = str(payload.get("item_id") or payload.get("issue_id") or "").strip()
+    category = str(payload.get("category", "")).strip()
+    if category != "Review Issue" and not item_id.startswith("RI-"):
+        return payload
+    issue = _review_issue_lookup(result).get(item_id)
+    if not issue:
+        return payload
+    expanded = dict(payload)
+    expanded.update(
+        {
+            "issue_id": issue.get("issue_id", item_id),
+            "category": issue.get("category") or "人工复核问题",
+            "message": issue.get("message") or payload.get("message", ""),
+            "severity": issue.get("severity", payload.get("severity", "")),
+            "target": issue.get("target") or payload.get("target") or payload.get("item_id", ""),
+            "field": issue.get("field", payload.get("field", "")),
+            "evidence_refs": issue.get("evidence_refs", payload.get("evidence_refs", [])),
+        }
+    )
+    return expanded
+
+
+def _review_issue_lookup(result: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    lookup: dict[str, dict[str, Any]] = {}
+    for container in _review_issue_containers(result):
+        issues = container.get("review_issues", []) if isinstance(container, dict) else []
+        if not isinstance(issues, list):
+            continue
+        for issue in issues:
+            if not isinstance(issue, dict):
+                continue
+            issue_id = str(issue.get("issue_id", "")).strip()
+            if issue_id and issue_id not in lookup:
+                lookup[issue_id] = issue
+    return lookup
+
+
+def _review_issue_containers(result: dict[str, Any]) -> list[dict[str, Any]]:
+    containers: list[dict[str, Any]] = []
+    if not isinstance(result, dict):
+        return containers
+    metadata = result.get("metadata", {})
+    if isinstance(metadata, dict):
+        containers.append(metadata)
+    chain = result.get("chain", {})
+    if isinstance(chain, dict) and isinstance(chain.get("metadata"), dict):
+        containers.append(chain["metadata"])
+    for key in ("quality_gate", "quality_gates"):
+        value = result.get(key)
+        if isinstance(value, dict):
+            containers.append(value)
+            containers.extend(nested for nested in value.values() if isinstance(nested, dict))
+    return containers
 
 
 def _evidence_text_for_item(item: Any, result: dict[str, Any]) -> str:

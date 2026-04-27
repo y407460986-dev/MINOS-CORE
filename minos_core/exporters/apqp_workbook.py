@@ -16,6 +16,7 @@ def export_apqp_workbook(
     require_gate: bool = True,
     export_mode: str = "final",
     quality_gate: Any | None = None,
+    manual_review_items: list[Any] | None = None,
 ) -> Path:
     """Export an APQP chain into the fixed Chinese workbook.
 
@@ -52,6 +53,12 @@ def export_apqp_workbook(
         _quality_gate_rows(chain, quality_gate, export_mode),
         column_widths={1: 24, 2: 18, 3: 80},
     )
+    if export_mode == "final":
+        workbook.add_sheet(
+            "正式导出审计",
+            _final_audit_rows(chain, quality_gate, manual_review_items),
+            column_widths={1: 18, 2: 24, 3: 30, 4: 88},
+        )
     workbook.add_sheet(
         "过程流程图", _process_flow_rows(chain), column_widths={1: 12, 2: 28, 3: 42}
     )
@@ -72,7 +79,7 @@ def export_apqp_workbook(
     )
     workbook.add_sheet(
         "人工复核清单",
-        _manual_review_rows(chain, quality_gate, export_mode),
+        _manual_review_rows(chain, quality_gate, export_mode, manual_review_items),
         column_widths={1: 8, 2: 24, 3: 20, 4: 14, 5: 80},
     )
     return workbook.save(path)
@@ -218,7 +225,11 @@ def _quality_gate_rows(
             ],
             ["待补字段数", len(gate.pending_fields), _join(gate.pending_fields)],
             ["AI 推断项数", len(gate.ai_inferred_items), _join(gate.ai_inferred_items)],
-            ["人工复核项数", len(gate.manual_review_items), ""],
+            [
+                "明细复核项数",
+                len(gate.manual_review_items),
+                "内部审计明细；用户优先查看人工复核清单中的中文摘要。",
+            ],
             ["校验消息数", len(gate.validation.messages), _join(gate.validation.messages)],
             ["工序数", gate.audit.counts.get("process_steps", 0), ""],
             ["PFMEA 数", gate.audit.counts.get("failure_modes", 0), ""],
@@ -253,19 +264,76 @@ def _process_flow_rows(chain: Any) -> list[list[Any]]:
 
 def _pfmea_rows(chain: Any) -> list[list[Any]]:
     rows = [
-        ["步骤", "过程", "失效模式", "失效后果", "失效原因", "严重度", "频度", "探测度"]
+        [
+            "PFMEA 编号",
+            "工序编号",
+            "过程项",
+            "过程步骤",
+            "过程工作要素",
+            "功能/要求",
+            "失效模式",
+            "失效后果",
+            "严重度 S",
+            "失效原因",
+            "预防控制",
+            "频度 O",
+            "探测控制",
+            "探测度 D",
+            "AP",
+            "RPN",
+            "推荐措施",
+            "责任人",
+            "目标完成日期",
+            "措施状态",
+            "实际完成日期",
+            "措施后 S/O/D/AP/RPN",
+            "证据",
+            "复核状态",
+        ]
     ]
     for item in _items(chain, "pfmea", "pfmea_items", "failure_modes"):
         rows.append(
             [
-                _first_value(item, "step_no", "step", "operation_no", default=""),
-                _first_value(item, "process_name", "process", "operation", default=""),
+                _first_value(item, "pfmea_id", "id", default=""),
+                _first_value(
+                    item, "process_step_id", "step_no", "step", "operation_no", default=""
+                ),
+                _first_value(item, "process_item", default=""),
+                _first_value(
+                    item,
+                    "process_step",
+                    "process_step_name",
+                    "process_step_operation",
+                    "process_name",
+                    "operation",
+                    default="",
+                ),
+                _first_value(item, "process_work_element", default=""),
+                _first_value(
+                    item,
+                    "function_requirement",
+                    "process_function",
+                    "process",
+                    default="",
+                ),
                 _first_value(item, "failure_mode", "mode", "failure", default=""),
                 _first_value(item, "effect", "failure_effect", "effects", default=""),
+                _first_value(item, "severity", "s", "S", default=""),
                 _first_value(item, "cause", "failure_cause", "causes", default=""),
-                _first_value(item, "severity", "s", default=""),
-                _first_value(item, "occurrence", "o", default=""),
-                _first_value(item, "detection", "d", default=""),
+                _first_value(item, "prevention_control", default=""),
+                _first_value(item, "occurrence", "o", "O", default=""),
+                _first_value(item, "detection_control", default=""),
+                _first_value(item, "detection", "d", "D", default=""),
+                _first_value(item, "action_priority", "AP", default=""),
+                _first_value(item, "rpn", "RPN", default=""),
+                _first_value(item, "recommended_action", default=""),
+                _first_value(item, "responsibility", "owner", default=""),
+                _first_value(item, "target_date", default=""),
+                _first_value(item, "action_status", "status", default=""),
+                _first_value(item, "actual_completion_date", "completion_date", default=""),
+                _after_action_text(item),
+                _join(_first_value(item, "evidence_refs", default=[])),
+                _review_status_text(item),
             ]
         )
     return rows
@@ -333,6 +401,7 @@ def _manual_review_rows(
     chain: Any,
     quality_gate: Any | None = None,
     export_mode: str = "final",
+    display_items: list[Any] | None = None,
 ) -> list[list[Any]]:
     if quality_gate is None:
         from ..quality_gates import evaluate_stage_gate
@@ -351,17 +420,231 @@ def _manual_review_rows(
                 "requires_engineering_review；not for customer submission；仅限草案，不能提交客户",
             ]
         )
-    for index, item in enumerate(gate.manual_review_items, start=1):
+    items = display_items if display_items is not None else gate.manual_review_items
+    for index, item in enumerate(items, start=1):
         rows.append(
             [
                 index,
                 _first_value(item, "item_id", default=""),
-                _first_value(item, "category", default=""),
-                _first_value(item, "severity", default="review"),
-                _first_value(item, "message", default=""),
+                _first_value(item, "category", default="人工复核"),
+                _first_value(
+                    item,
+                    "severity_display",
+                    "severity",
+                    default="需复核",
+                ),
+                _manual_review_message(item),
             ]
         )
     return rows
+
+
+def _final_audit_rows(
+    chain: Any,
+    quality_gate: Any | None = None,
+    manual_review_items: list[Any] | None = None,
+) -> list[list[Any]]:
+    if quality_gate is None:
+        from ..quality_gates import evaluate_stage_gate
+
+        gate = evaluate_stage_gate(chain, stage="export")
+    else:
+        gate = quality_gate
+    metadata = _metadata(chain)
+    confirmations = _list_value(metadata.get("review_confirmations"))
+    edit_history = _list_value(metadata.get("edit_history"))
+    soft_deleted = _soft_deleted_summary(chain, metadata)
+    manual_items = manual_review_items
+    if manual_items is None:
+        manual_items = _list_value(_first_value(gate, "manual_review_items", default=[]))
+
+    rows = [
+        ["类别", "项目", "状态/数量", "说明"],
+        ["导出", "export_mode", "final", "正式导出审计页"],
+        [
+            "质量门",
+            "allow_final_export",
+            _yes_no(_first_value(gate, "allow_user_export", default=False)),
+            "正式导出必须为“是”",
+        ],
+        [
+            "质量门",
+            "can_continue",
+            _yes_no(_first_value(gate, "can_continue", default=False)),
+            "",
+        ],
+        [
+            "质量门",
+            "evidence_sufficient",
+            _yes_no(_first_value(gate, "evidence_sufficient", default=False)),
+            "",
+        ],
+        [
+            "质量门",
+            "pending_fields",
+            len(_list_value(_first_value(gate, "pending_fields", default=[]))),
+            _join(_first_value(gate, "pending_fields", default=[])),
+        ],
+        [
+            "质量门",
+            "needs_confirmation_items",
+            len(_list_value(_first_value(gate, "needs_confirmation_items", default=[]))),
+            _join(_first_value(gate, "needs_confirmation_items", default=[])),
+        ],
+        [
+            "质量门",
+            "ai_inferred_items",
+            len(_list_value(_first_value(gate, "ai_inferred_items", default=[]))),
+            _join(_first_value(gate, "ai_inferred_items", default=[])),
+        ],
+        [
+            "人工确认",
+            "review_confirmations",
+            len(confirmations),
+            _confirmation_summary(confirmations),
+        ],
+        [
+            "人工确认",
+            "manual_review_items",
+            len(manual_items),
+            _manual_review_summary_text(manual_items),
+        ],
+        [
+            "edit_patch",
+            "edit_history",
+            len(edit_history),
+            _edit_history_summary(edit_history),
+        ],
+        [
+            "软删除",
+            "soft_deleted_items",
+            len(soft_deleted),
+            _join(soft_deleted),
+        ],
+    ]
+    return rows
+
+
+def _manual_review_message(item: Any) -> str:
+    message = str(_first_value(item, "message", default="")).strip()
+    count = _first_value(item, "count", default=None)
+    if count in {None, ""}:
+        return message
+    return f"{message}（涉及 {count} 条明细）"
+
+
+def _after_action_text(item: Any) -> str:
+    values = [
+        _first_value(item, "after_severity", default=""),
+        _first_value(item, "after_occurrence", default=""),
+        _first_value(item, "after_detection", default=""),
+        _first_value(item, "after_ap", default=""),
+        _first_value(item, "after_rpn", default=""),
+    ]
+    return "/".join(str(value) for value in values if value not in {"", None})
+
+
+def _review_status_text(item: Any) -> str:
+    parts = []
+    review_status = _first_value(item, "review_status", default="")
+    if review_status:
+        parts.append(str(review_status))
+    if _first_value(item, "needs_confirmation", default=False):
+        parts.append("需确认")
+    if _first_value(item, "ai_inferred", default=False):
+        parts.append("AI 草案")
+    return "；".join(parts)
+
+
+def _metadata(source: Any) -> Mapping[str, Any]:
+    metadata = _first_value(source, "metadata", default={})
+    return metadata if isinstance(metadata, Mapping) else {}
+
+
+def _list_value(value: Any) -> list[Any]:
+    if isinstance(value, list):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
+    if isinstance(value, set):
+        return list(value)
+    return []
+
+
+def _confirmation_summary(confirmations: list[Any]) -> str:
+    values = []
+    for item in confirmations[:20]:
+        target = _first_value(item, "target", default="")
+        confirmed_by = _first_value(item, "confirmed_by", default="")
+        reason = _first_value(item, "reason", default="")
+        values.append(
+            " / ".join(str(part) for part in (target, confirmed_by, reason) if part)
+        )
+    return _join(values)
+
+
+def _manual_review_summary_text(items: list[Any]) -> str:
+    values = []
+    for item in items[:20]:
+        item_id = _first_value(item, "item_id", "target", default="")
+        category = _first_value(item, "category", default="")
+        message = _manual_review_message(item)
+        values.append(
+            " / ".join(str(part) for part in (item_id, category, message) if part)
+        )
+    return _join(values)
+
+
+def _edit_history_summary(history: list[Any]) -> str:
+    values = []
+    for item in history[:20]:
+        action = _first_value(item, "action", default="")
+        table = _first_value(item, "table", default="")
+        target_id = _first_value(item, "target_id", default="")
+        edited_by = _first_value(item, "edited_by", default="")
+        values.append(
+            " / ".join(str(part) for part in (action, table, target_id, edited_by) if part)
+        )
+    return _join(values)
+
+
+def _soft_deleted_summary(chain: Any, metadata: Mapping[str, Any]) -> list[str]:
+    explicit = _list_value(metadata.get("soft_deleted_items"))
+    values = [str(item) for item in explicit if str(item).strip()]
+    values.extend(
+        _deleted_row_labels(_items(chain, "process_flow", "process_steps", "steps"), "process_flow")
+    )
+    values.extend(_deleted_row_labels(_items(chain, "pfmea", "pfmea_items", "failure_modes"), "pfmea"))
+    values.extend(
+        _deleted_row_labels(
+            _items(chain, "control_plan", "control_plan_items", "controls"),
+            "control_plan",
+        )
+    )
+    result = []
+    seen = set()
+    for value in values:
+        if value and value not in seen:
+            result.append(value)
+            seen.add(value)
+    return result
+
+
+def _deleted_row_labels(rows: list[Any], table: str) -> list[str]:
+    labels = []
+    for row in rows:
+        if not _first_value(row, "deleted", default=False):
+            continue
+        row_id = _first_value(
+            row,
+            "process_step_id",
+            "pfmea_id",
+            "control_plan_id",
+            "id",
+            default="",
+        )
+        labels.append(f"{table}:{row_id}" if row_id else table)
+    return labels
 
 
 def _process_steps(chain: Any) -> list[Any]:

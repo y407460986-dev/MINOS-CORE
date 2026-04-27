@@ -35,6 +35,14 @@ class ProcessStep:
     sequence: int = 0
     operation: str = ""
     process_function: str = ""
+    process_purpose: str = ""
+    product_characteristics: list[str] = field(default_factory=list)
+    process_characteristics: list[str] = field(default_factory=list)
+    equipment: str = ""
+    tooling: str = ""
+    gauges: list[str] = field(default_factory=list)
+    documents: list[str] = field(default_factory=list)
+    flow_type: str = ""
     owner: str = ""
     input_refs: list[str] = field(default_factory=list)
     output_refs: list[str] = field(default_factory=list)
@@ -69,6 +77,27 @@ class ProcessStep:
             process_function=str(
                 data.get("process_function", data.get("description", ""))
             ),
+            process_purpose=str(
+                data.get(
+                    "process_purpose",
+                    data.get("purpose", data.get("operation_purpose", "")),
+                )
+            ),
+            product_characteristics=_string_list(
+                data.get("product_characteristics", data.get("product_characteristic_refs", []))
+            ),
+            process_characteristics=_string_list(
+                data.get("process_characteristics", data.get("process_characteristic_refs", []))
+            ),
+            equipment=str(data.get("equipment", "")),
+            tooling=str(data.get("tooling", data.get("fixture", ""))),
+            gauges=_string_list(
+                data.get("gauges", data.get("inspection_gauges", data.get("measurement_devices", [])))
+            ),
+            documents=_string_list(
+                data.get("documents", data.get("document_refs", data.get("files", [])))
+            ),
+            flow_type=str(data.get("flow_type", data.get("process_type", ""))),
             owner=str(data.get("owner", "")),
             input_refs=_string_list(data.get("input_refs", [])),
             output_refs=_string_list(data.get("output_refs", [])),
@@ -169,7 +198,15 @@ class FailureModeCandidate:
 class FailureMode:
     pfmea_id: str
     process_step_id: str
+    process_item: str = ""
+    process_step: str = ""
+    process_work_element: str = ""
+    function_requirement: str = ""
+    process_step_name: str = ""
+    process_step_operation: str = ""
     process_function: str = ""
+    product_characteristics: list[str] = field(default_factory=list)
+    process_characteristics: list[str] = field(default_factory=list)
     failure_mode: str = ""
     failure_effect: str = ""
     severity: int = 0
@@ -179,6 +216,18 @@ class FailureMode:
     detection_control: str = ""
     detection: int = 0
     action_priority: str = ""
+    rpn: int = 0
+    recommended_action: str = ""
+    responsibility: str = ""
+    target_date: str = ""
+    action_status: str = ""
+    actual_completion_date: str = ""
+    after_severity: int = 0
+    after_occurrence: int = 0
+    after_detection: int = 0
+    after_ap: str = ""
+    after_rpn: int = 0
+    remarks: str = ""
     classification: str = ""
     linked_control_plan_id: str = ""
     evidence_refs: list[str] = field(default_factory=list)
@@ -222,7 +271,23 @@ class FailureMode:
         return cls(
             pfmea_id=str(data.get("pfmea_id", data.get("id", ""))),
             process_step_id=str(data.get("process_step_id", data.get("step_no", ""))),
+            process_item=str(data.get("process_item", "")),
+            process_step=str(data.get("process_step", "")),
+            process_work_element=str(data.get("process_work_element", "")),
+            function_requirement=str(
+                data.get("function_requirement", data.get("requirement", ""))
+            ),
+            process_step_name=str(data.get("process_step_name", data.get("operation", ""))),
+            process_step_operation=str(
+                data.get("process_step_operation", data.get("operation", ""))
+            ),
             process_function=str(data.get("process_function", data.get("process", ""))),
+            product_characteristics=_string_list(
+                data.get("product_characteristics", [])
+            ),
+            process_characteristics=_string_list(
+                data.get("process_characteristics", [])
+            ),
             failure_mode=str(data.get("failure_mode", "")),
             failure_effect=str(data.get("failure_effect", data.get("effect", ""))),
             severity=int(data.get("severity", 0) or 0),
@@ -232,6 +297,20 @@ class FailureMode:
             detection_control=str(data.get("detection_control", "")),
             detection=int(data.get("detection", 0) or 0),
             action_priority=str(data.get("action_priority", "")),
+            rpn=int(data.get("rpn", 0) or 0),
+            recommended_action=str(data.get("recommended_action", "")),
+            responsibility=str(data.get("responsibility", data.get("owner", ""))),
+            target_date=str(data.get("target_date", "")),
+            action_status=str(data.get("action_status", data.get("status", ""))),
+            actual_completion_date=str(
+                data.get("actual_completion_date", data.get("completion_date", ""))
+            ),
+            after_severity=int(data.get("after_severity", 0) or 0),
+            after_occurrence=int(data.get("after_occurrence", 0) or 0),
+            after_detection=int(data.get("after_detection", 0) or 0),
+            after_ap=str(data.get("after_ap", "")),
+            after_rpn=int(data.get("after_rpn", 0) or 0),
+            remarks=str(data.get("remarks", data.get("note", ""))),
             classification=str(data.get("classification", "")),
             linked_control_plan_id=str(data.get("linked_control_plan_id", "")),
             evidence_refs=_string_list(data.get("evidence_refs", [])),
@@ -259,6 +338,11 @@ class ControlItem:
     needs_confirmation: bool = False
     characteristic_refs: list[str] = field(default_factory=list)
     source_pfmea_id: str = ""
+    source_failure_cause: str = ""
+    source_prevention_control: str = ""
+    source_detection_control: str = ""
+    source_special_characteristics: list[str] = field(default_factory=list)
+    source_high_risk: bool = False
     created_by_stage: str = ""
 
     @property
@@ -299,6 +383,13 @@ class ControlItem:
             needs_confirmation=bool(data.get("needs_confirmation", False)),
             characteristic_refs=_string_list(data.get("characteristic_refs", [])),
             source_pfmea_id=str(data.get("source_pfmea_id", "")),
+            source_failure_cause=str(data.get("source_failure_cause", "")),
+            source_prevention_control=str(data.get("source_prevention_control", "")),
+            source_detection_control=str(data.get("source_detection_control", "")),
+            source_special_characteristics=_string_list(
+                data.get("source_special_characteristics", [])
+            ),
+            source_high_risk=bool(data.get("source_high_risk", False)),
             created_by_stage=str(data.get("created_by_stage", "")),
         )
 

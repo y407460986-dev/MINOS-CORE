@@ -1,12 +1,35 @@
 # MINOS-CORE
 
-MINOS-CORE 是一个证据驱动的 APQP 三表链路核心引擎，用于把可追溯证据整理为 PFD、PFMEA、控制计划之间的结构化链路；它不是完整 PPAP 平台。
+MINOS-CORE 当前目标已收口为 **AI 图纸驱动三表生成工具核心**：用户导入图纸 PDF/图片后，系统把图纸页面证据化，调用云端多模态 AI 识别图纸，推理过程流程图 PFD，再基于 PFD 生成 PFMEA，最后根据 PFMEA 生成控制计划 CP。
 
-当前主线是：
+本项目不再以完整 PPAP 18 项平台作为第一版目标。第一版只聚焦三份文件：
+
+- 过程流程图 PFD
+- PFMEA
+- 控制计划 CP
+
+输出形式为：
+
+- 一个统一三表工作簿
+- 三个独立 Excel 文件：`过程流程图.xlsx`、`PFMEA.xlsx`、`控制计划.xlsx`
+
+当前核心主线是：
 
 ```text
-ingest -> analyze -> generate_pfd -> brainstorm_failure_modes -> generate_pfmea -> generate_control_plan -> validate -> audit -> export
+drawing PDF/image -> render page evidence -> AI drawing analysis
+-> infer_process_flow_from_drawing -> infer_pfmea_from_process_flow
+-> generate_control_plan_from_pfmea -> quality gates -> export three tables
 ```
+
+一键后端闭环入口：
+
+```powershell
+python -m minos_core.cli generate-three-tables --input path\to\drawing.png --output-dir out\case001
+```
+
+该命令会生成 `three_table_generation_result.json`、`run_manifest.json`、统一三表工作簿和三份独立 Excel。默认导出为 draft，未经过人工复核的 AI 草案不会自动作为 final release。
+
+旧的 evidence/input_package APQP 链路仍保留，用于兼容已有测试、样本和后续服务层，但主产品路线以 AI 图纸识别三表生成为准。
 
 ## 当前已实现范围
 
@@ -38,11 +61,12 @@ ingest -> analyze -> generate_pfd -> brainstorm_failure_modes -> generate_pfmea 
 
 MINOS-CORE 当前不承诺、也不内置以下能力：
 
-- 不是真实 AI/OCR 平台；当前只保留适配器边界和占位契约。
+- 第一版不做完整 PPAP 18 项文件包。
+- 第一版不做客户门户提交、客户批准闭环、审批签核流。
+- 第一版不做 DWG/DXF/CAD 原生解析，只支持 PDF/PNG/JPG 输入边界。
 - 不提供数据库、长期存储、权限模型或多租户能力。
-- 不提供 UI、审批流、签核流、消息通知或企业门户。
+- 不提供完整企业门户或多用户协作。
 - 不负责 ERP、MES、PLM、QMS 等企业系统集成。
-- 不是完整 PPAP 平台，不覆盖所有 PPAP 表单、客户门户提交、正式批准闭环。
 - 不在核心模块中直接调用真实 LLM/OCR SDK、网络服务或写入 API key。
 
 ## 阶段输入输出简表
@@ -80,8 +104,13 @@ MINOS-CORE 当前不承诺、也不内置以下能力：
 - `analyze_evidence_bundle_with_ai(...)` 只增强 `analysis_bundle`，不直接生成 PFD、PFMEA 或控制计划。
 - AI 输出必须引用已有 evidence，并标记 `ai_inferred` 和 `needs_confirmation`。
 - AI 线索不能单独满足下游质量门，必须经过规则证据、质量门和人工复核。
-- 当前只使用 LLM adapter / FakeLLM 契约，不在 core 中写入真实 API key、SDK 或网络调用。
-- 真实 AI/OCR 如果接入，应位于 `adapters/` 边界之外或通过明确 adapter 注入，核心生成器仍保持可测试、可复现、可审计。
+- 图纸识别已接入 OpenAI Responses 兼容 adapter：`OpenAIResponsesMultimodalDrawingAnalyzer`。
+- 配置读取顺序为：显式 `MINOS_OPENAI_*`、`OPENAI_*` 优先；当 Codex provider 标记 `requires_openai_auth = true` 时，MINOS 会优先复用 Codex `auth.json` 的 OpenAI key，再考虑 `ARK_API_KEY`。
+- 当前推荐将 MINOS 运行模型固定为 `gpt-5.4`；在当前 Codex 中转配置下，这条链路已经验证可通过标准 HTTP Responses 请求完成真实三表草案生成。API key 只在运行时读取，不写入仓库、不打印到诊断输出。
+- `python -m minos_core.cli ai-config` 只显示模型、中转地址、key 是否已配置和来源，不显示 key 值。
+- 可用 `python -m minos_core.cli analyze-drawing --input path\to\drawing.png --output out\drawing_analysis.json` 调用真实多模态 AI 生成 `drawing_analysis_bundle`。
+- 可用 `python -m minos_core.cli generate-three-tables --input path\to\drawing.png --output-dir out\case001` 从图纸一键生成 PFD/PFMEA/CP 草案和 Excel。
+- `MINOS_DISABLE_CODEX_CONFIG=1` 可禁用 Codex 配置复用，便于测试或隔离运行。
 
 ## 运行
 
@@ -91,6 +120,66 @@ python -m minos_core.cli validate --input tests\fixtures\apqp_chain
 python -m minos_core.cli audit --input tests\fixtures\apqp_chain
 python -m minos_core.cli export --input tests\fixtures\apqp_chain --output out.xlsx
 ```
+
+## Windows 桌面业务闭环 MVP
+
+桌面端作为可选依赖提供，不影响 core 和 platform 的默认测试环境：
+
+```powershell
+pip install -e ".[desktop]"
+minos-desktop
+```
+
+当前桌面端包含：项目、图纸导入、AI 识别结果、PFD 草案、PFMEA 草案、CP 草案、人工复核、导出、设置。桌面端通过 `minos_desktop/services.py` 调用 `generate_three_tables_from_drawing(...)`，不把图纸识别、质量门和导出逻辑写进 UI。
+
+桌面端默认使用 SQLite 数据库：
+
+```text
+out/desktop/minos_desktop.sqlite3
+```
+
+服务层包含：
+
+- `DesktopSettingsStore`：管理 AI 配置状态和默认输出目录；设置页不显示、不保存明文 API key。
+- `DesktopProjectStore`：创建和更新桌面项目。
+- `DesktopRunService`：后台运行 core pipeline，保存 run 记录和导出记录。
+- `DesktopRunState`、`DesktopRunRecord`、`DesktopExportRecord`：记录运行状态、运行结果和导出产物。
+
+Qt UI 通过服务层刷新 AI/PFD/PFMEA/CP/复核/导出页面。运行失败时，桌面端会保留原始错误、原因判断和三种处理方案，且包含“放弃任务”。
+
+如果没有安装 PySide6，`minos-desktop` 会明确提示安装 `.[desktop]`，不会影响命令行和测试。
+
+桌面端测试：
+
+```powershell
+python -m unittest tests.test_desktop_shell tests.test_qt_app_helpers -v
+```
+
+## 下一阶段：真实桌面试跑与交付验收
+
+下一阶段目标是用真实 Windows 桌面环境跑完整交付验收：确认 AI 配置可用、图纸输入安全、后端三表 smoke 可运行、桌面端可人工完成一次试跑，并对导出的 xlsx 做基础可打开性检查。
+
+本阶段仍只验收 **AI 图纸驱动 PFD/PFMEA/CP 三表工具**，不扩展为完整 PPAP 18 项，不接客户门户、审批流、签核流或客户正式提交。
+
+输入边界：
+
+- 不提交、不登记、不上传真实客户图纸。
+- demo 图纸必须是合成输入、脱敏输入，或已获得授权且去除客户/供应商/人员/价格/客户门户编号等敏感信息的内部样例。
+- demo 图纸只用于验证“图纸 -> PFD/PFMEA/CP 草案 -> 导出”的工具链，不代表客户正式 PPAP 文件。
+
+建议验收命令：
+
+```powershell
+python -m minos_core.cli ai-config
+python -m minos_core.cli write-demo-drawing --output out\desktop_acceptance\safe_demo_drawing.png
+python -m minos_core.cli generate-three-tables --input out\desktop_acceptance\safe_demo_drawing.png --output-dir out\desktop_acceptance\cli_smoke
+python -m minos_core.cli accept-three-tables --result out\desktop_acceptance\cli_smoke\three_table_generation_result.json
+python -m minos_desktop.cli --smoke --output-dir out\desktop_acceptance\preflight --db-path out\desktop_acceptance\preflight\minos_desktop.sqlite3
+python -m unittest discover -s tests -v
+python -m pytest tests/platform -q
+```
+
+`write-demo-drawing` 生成的是合成 PNG，只用于验收链路；`accept-three-tables` 会检查结果 JSON、manifest、AI evidence refs、PFD/PFMEA/CP 内容和四个 xlsx 的 OpenXML zip 基础结构。它能作为交付前体检，但不等同于真实 Excel 自动打开验证。真实打开桌面 UI 的人工验收仍通过 `minos-desktop` 完成。
 
 ## Demo input package CLI 端到端流程
 
@@ -182,6 +271,8 @@ python -m unittest discover -s tests -v
 
 ## 平台后端 MVP（可选）
 
+以下 `minos_platform` 内容是可选平台层和历史兼容能力，不是当前第一版产品主线。MINOS-CORE 当前主线仍是 AI 图纸驱动 PFD/PFMEA/CP 三表生成工具；完整 PPAP 18 项平台、客户门户和审批流不属于桌面业务闭环 MVP。
+
 `minos_platform` 是建立在 `minos_core` 上的 PPAP 项目管理层，提供 FastAPI REST API 与 SQLite 持久化。本层为可选依赖，需单独安装：
 
 ```powershell
@@ -240,6 +331,8 @@ created → input_registered → draft_ready → review_template_ready
 - 产物文件：`out/platform/artifacts/{project_id}/`（draft results、review results、exports）
 
 ## PPAP Package 与要素状态管理（B阶段）
+
+本节记录可选平台层能力，不改变 MINOS-CORE 当前主目标。桌面 MVP 不依赖 PPAP Package 状态机，也不把三表工具扩展为完整 PPAP 提交平台。
 
 `minos_platform` 支持在项目下创建 PPAP Package 并管理 18 项 PPAP 提交要素的完成状态。
 

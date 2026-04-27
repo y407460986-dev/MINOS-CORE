@@ -25,6 +25,9 @@ class ReviewPatchTests(unittest.TestCase):
         payload["process_flow"]["steps"][0]["needs_confirmation"] = True
         payload["pfmea"]["rows"][0]["needs_confirmation"] = True
         payload["control_plan"]["rows"][0]["needs_confirmation"] = True
+        payload["ai_inferred_items"] = ["PFMEA-P10-001", "CP-P10-001"]
+        payload["pfmea"]["ai_inferred_items"] = ["PFMEA-P10-001"]
+        payload["control_plan"]["ai_inferred_items"] = ["CP-P10-001"]
 
         before = evaluate_stage_gate(payload, stage="export")
         self.assertFalse(before.allow_user_export)
@@ -55,6 +58,10 @@ class ReviewPatchTests(unittest.TestCase):
         self.assertFalse(updated["process_flow"]["steps"][0]["needs_confirmation"])
         self.assertFalse(updated["pfmea"]["rows"][0]["needs_confirmation"])
         self.assertFalse(updated["control_plan"]["rows"][0]["needs_confirmation"])
+        self.assertNotIn("PFMEA-P10-001", updated["ai_inferred_items"])
+        self.assertNotIn("CP-P10-001", updated["ai_inferred_items"])
+        self.assertEqual(updated["pfmea"]["ai_inferred_items"], [])
+        self.assertEqual(updated["control_plan"]["ai_inferred_items"], [])
         self.assertEqual(
             len(updated["metadata"]["review_confirmations"]),
             4,

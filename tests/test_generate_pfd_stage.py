@@ -88,6 +88,51 @@ class GeneratePfdStageTests(unittest.TestCase):
         self.assertEqual(steps["P20"]["sequence"], 20)
         self.assertEqual(steps["P30"]["sequence"], 30)
 
+    def test_generate_pfd_preserves_three_table_linkage_step_fields(self):
+        analysis_bundle = {
+            "document_type": "analysis_bundle",
+            "product": {},
+            "evidence": [
+                {"evidence_id": "EV-P10", "source": "route", "content": "P10"},
+                {"evidence_id": "EV-P20", "source": "route", "content": "P20"},
+            ],
+            "drawings": [],
+            "characteristics": [],
+            "process_clues": [
+                {
+                    "process_step_id": "P10",
+                    "operation": "blanking",
+                    "process_function": "cut blank",
+                    "process_purpose": "prepare blank",
+                    "product_characteristics": ["SC-LENGTH"],
+                    "process_characteristics": ["PRESS-TONNAGE"],
+                    "equipment": "Press A",
+                    "tooling": "Blank die",
+                    "gauges": ["Caliper"],
+                    "documents": ["WI-10"],
+                    "flow_type": "value_added",
+                    "source_ref": "EV-P10",
+                },
+                {
+                    "process_step_id": "P20",
+                    "operation": "inspection",
+                    "source_ref": "EV-P20",
+                },
+            ],
+        }
+
+        result = run_stage(analysis_bundle, stage="generate_pfd")
+        step = _steps_by_id(result.output)["P10"]
+
+        self.assertEqual(step["process_purpose"], "prepare blank")
+        self.assertEqual(step["product_characteristics"], ["SC-LENGTH"])
+        self.assertEqual(step["process_characteristics"], ["PRESS-TONNAGE"])
+        self.assertEqual(step["equipment"], "Press A")
+        self.assertEqual(step["tooling"], "Blank die")
+        self.assertEqual(step["gauges"], ["Caliper"])
+        self.assertEqual(step["documents"], ["WI-10"])
+        self.assertEqual(step["flow_type"], "value_added")
+
     def test_generate_pfd_builds_sequence_links_between_extracted_steps(self):
         result = run_stage(FIXTURE_DIR, stage="generate_pfd")
 
@@ -364,7 +409,63 @@ class GeneratePfdStageTests(unittest.TestCase):
         self.assertTrue(result.quality_gate.evidence_sufficient)
         self.assertNotIn("process_step:P10.process_function", result.pending_fields)
         self.assertIn("process_step:P10.process_function", review_item_ids)
+        self.assertNotIn("process_step:P20.special_characteristics", review_item_ids)
+
+    def test_generate_pfd_reviews_empty_special_characteristics_when_step_needs_confirmation(self):
+        process_flow = _valid_process_flow()
+        process_flow["steps"][1]["special_characteristics"] = []
+        process_flow["steps"][1]["needs_confirmation"] = True
+
+        result = run_stage(process_flow, stage="generate_pfd")
+        review_item_ids = [
+            item.item_id
+            for item in result.quality_gate.manual_review_items
+            if item.category == "pfd_review_field"
+        ]
+
+        self.assertEqual(result.status, "ok")
         self.assertIn("process_step:P20.special_characteristics", review_item_ids)
+
+    def test_generate_pfd_reviews_unmapped_special_characteristics_once(self):
+        process_flow = _valid_process_flow()
+        process_flow["characteristics"] = [
+            {"characteristic_id": "SC-THICKNESS"},
+            {"characteristic_id": "SC-HEIGHT"},
+            {"characteristic_id": "SC-SURFACE"},
+        ]
+
+        result = run_stage(process_flow, stage="generate_pfd")
+        review_item_ids = [
+            item.item_id
+            for item in result.quality_gate.manual_review_items
+            if item.category == "pfd_review_field"
+        ]
+
+        self.assertEqual(result.status, "ok")
+        self.assertEqual(
+            review_item_ids.count("process_flow.characteristics.unmapped"), 1
+        )
+        self.assertEqual(
+            result.quality_gate.evidence_coverage["unmapped_special_characteristics"],
+            ["SC-SURFACE"],
+        )
+
+    def test_generate_pfd_does_not_review_mapped_special_characteristics(self):
+        process_flow = _valid_process_flow()
+        process_flow["characteristics"] = [
+            {"characteristic_id": "SC-THICKNESS"},
+            {"characteristic_id": "SC-HEIGHT"},
+        ]
+
+        result = run_stage(process_flow, stage="generate_pfd")
+        review_item_ids = [
+            item.item_id
+            for item in result.quality_gate.manual_review_items
+            if item.category == "pfd_review_field"
+        ]
+
+        self.assertEqual(result.status, "ok")
+        self.assertNotIn("process_flow.characteristics.unmapped", review_item_ids)
 
     def test_generate_pfd_report_stage_mode_points_to_generate_pfd(self):
         result = run_stage(FIXTURE_DIR, stage="generate_pfd")

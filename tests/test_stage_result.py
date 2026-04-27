@@ -216,6 +216,50 @@ class StageResultTests(unittest.TestCase):
         self.assertIn("EV-AI-001", result.ai_inferred_items)
         self.assertFalse(result.quality_gate.allow_user_export)
 
+    def test_validate_reports_three_table_linkage_gaps(self):
+        from minos_core.validation import validate_chain
+
+        fixture = _load_fixture()
+        fixture.setdefault("metadata", {})["strict_three_table_linkage"] = True
+        fixture["process_flow"]["steps"].append(
+            {
+                "process_step_id": "P40",
+                "sequence": 40,
+                "operation": "Special check",
+                "process_function": "Verify special feature",
+                "special_characteristics": ["SC-EXTRA"],
+                "evidence_refs": ["EV-PACK-SCAN-001"],
+            }
+        )
+        fixture["control_plan"]["rows"][0]["process_step_id"] = "P99"
+        fixture["control_plan"]["rows"][1]["sample_frequency"] = ""
+
+        result = validate_chain(fixture)
+        messages = "\n".join(result.messages)
+
+        self.assertFalse(result.ok)
+        self.assertIn("process step 'P40' has no PFMEA row", messages)
+        self.assertIn("has characteristics but no PFMEA risk row", messages)
+        self.assertIn("control plan 'CP-P10-001' references missing process step 'P99'", messages)
+        self.assertIn("control plan 'CP-P20-001' is missing sample_frequency", messages)
+
+    def test_validate_reports_special_characteristic_not_carried_through(self):
+        from minos_core.validation import validate_chain
+
+        fixture = _load_fixture()
+        fixture.setdefault("metadata", {})["strict_three_table_linkage"] = True
+        fixture["pfmea"]["rows"][0]["classification"] = ""
+        fixture["pfmea"]["rows"][0]["characteristic_refs"] = []
+        fixture["control_plan"]["rows"][0]["classification"] = ""
+        fixture["control_plan"]["rows"][0]["source_special_characteristics"] = []
+
+        result = validate_chain(fixture)
+        messages = "\n".join(result.messages)
+
+        self.assertFalse(result.ok)
+        self.assertIn("missing from PFMEA: SC-THICKNESS", messages)
+        self.assertIn("missing from control plan: SC-THICKNESS", messages)
+
 
 if __name__ == "__main__":
     unittest.main()

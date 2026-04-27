@@ -16,6 +16,7 @@ NS = {"main": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
 REQUIRED_SHEETS = [
     "摘要",
     "质量门状态",
+    "正式导出审计",
     "过程流程图",
     "PFMEA",
     "控制计划",

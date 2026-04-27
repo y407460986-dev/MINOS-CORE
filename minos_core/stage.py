@@ -830,6 +830,7 @@ def _gate_from_dump(payload: dict[str, Any]):
         missing_evidence_refs=list(payload.get("missing_evidence_refs", [])),
         uncovered_evidence_items=list(payload.get("uncovered_evidence_items", [])),
         needs_confirmation_items=list(payload.get("needs_confirmation_items", [])),
+        review_issues=list(payload.get("review_issues", [])),
     )
 
 

@@ -20,6 +20,7 @@ NS = {"main": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
 REQUIRED_SHEETS = [
     "摘要",
     "质量门状态",
+    "正式导出审计",
     "过程流程图",
     "PFMEA",
     "控制计划",
@@ -379,14 +380,20 @@ class XlsxExportContractTests(unittest.TestCase):
             export_workbook(chain, xlsx_path)
             with zipfile.ZipFile(xlsx_path) as archive:
                 gate_sheet = archive.read("xl/worksheets/sheet2.xml").decode("utf-8")
-                review_sheet = archive.read("xl/worksheets/sheet7.xml").decode("utf-8")
+                audit_sheet = archive.read("xl/worksheets/sheet3.xml").decode("utf-8")
+                review_sheet = archive.read("xl/worksheets/sheet8.xml").decode("utf-8")
 
         self.assertIn("允许用户导出", gate_sheet)
         self.assertIn("证据充分", gate_sheet)
         self.assertIn("证据覆盖率", gate_sheet)
         self.assertIn("缺失证据引用数", gate_sheet)
         self.assertIn("待确认证据数", gate_sheet)
-        self.assertIn("人工复核项数", gate_sheet)
+        self.assertIn("明细复核项数", gate_sheet)
+        self.assertIn("正式导出审计", audit_sheet)
+        self.assertIn("allow_final_export", audit_sheet)
+        self.assertIn("review_confirmations", audit_sheet)
+        self.assertIn("edit_history", audit_sheet)
+        self.assertIn("soft_deleted_items", audit_sheet)
         self.assertIn("对象ID", review_sheet)
         self.assertIn("复核说明", review_sheet)
 

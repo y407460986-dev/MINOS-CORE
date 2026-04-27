@@ -52,7 +52,44 @@ def generate_pfd_from_analysis(analysis_bundle: dict[str, Any]) -> dict[str, Any
                 "process_step_id": normalized_step_id,
                 "sequence": int(match.group(1)),
                 "operation": operation,
-                "process_function": "",
+                "process_function": _text(
+                    clue.get("process_function"),
+                    clue.get("function"),
+                    clue.get("process_purpose"),
+                    clue.get("purpose"),
+                    default="",
+                ),
+                "process_purpose": _text(
+                    clue.get("process_purpose"),
+                    clue.get("purpose"),
+                    default="",
+                ),
+                "product_characteristics": _string_list(
+                    clue.get(
+                        "product_characteristics",
+                        clue.get("product_characteristic_refs", []),
+                    )
+                ),
+                "process_characteristics": _string_list(
+                    clue.get(
+                        "process_characteristics",
+                        clue.get("process_characteristic_refs", []),
+                    )
+                ),
+                "equipment": _text(clue.get("equipment"), default=""),
+                "tooling": _text(clue.get("tooling"), clue.get("fixture"), default=""),
+                "gauges": _string_list(
+                    clue.get(
+                        "gauges",
+                        clue.get("inspection_gauges", clue.get("measurement_devices", [])),
+                    )
+                ),
+                "documents": _string_list(
+                    clue.get("documents", clue.get("document_refs", clue.get("files", [])))
+                ),
+                "flow_type": _text(
+                    clue.get("flow_type"), clue.get("process_type"), default=""
+                ),
                 "owner": "",
                 "input_refs": [],
                 "output_refs": [],
@@ -62,6 +99,7 @@ def generate_pfd_from_analysis(analysis_bundle: dict[str, Any]) -> dict[str, Any
         )
         if not step["operation"] and operation:
             step["operation"] = operation
+        _fill_step_fields(step, clue)
         if source_ref and source_ref not in step["evidence_refs"]:
             step["evidence_refs"].append(source_ref)
         _apply_characteristics(step, source_ref, characteristics)
@@ -101,6 +139,55 @@ def _characteristics_by_ref(characteristics: Any) -> dict[str, list[dict[str, An
         by_ref.setdefault("*", []).append(characteristic)
         by_ref.setdefault(source_ref, []).append(characteristic)
     return by_ref
+
+
+def _fill_step_fields(step: dict[str, Any], clue: dict[str, Any]) -> None:
+    for field_name, values in (
+        (
+            "process_function",
+            (
+                clue.get("process_function"),
+                clue.get("function"),
+                clue.get("process_purpose"),
+                clue.get("purpose"),
+            ),
+        ),
+        ("process_purpose", (clue.get("process_purpose"), clue.get("purpose"))),
+        ("equipment", (clue.get("equipment"),)),
+        ("tooling", (clue.get("tooling"), clue.get("fixture"))),
+        ("flow_type", (clue.get("flow_type"), clue.get("process_type"))),
+    ):
+        if not step.get(field_name):
+            step[field_name] = _text(*values, default="")
+    for field_name, value in (
+        (
+            "product_characteristics",
+            clue.get(
+                "product_characteristics",
+                clue.get("product_characteristic_refs", []),
+            ),
+        ),
+        (
+            "process_characteristics",
+            clue.get(
+                "process_characteristics",
+                clue.get("process_characteristic_refs", []),
+            ),
+        ),
+        (
+            "gauges",
+            clue.get(
+                "gauges",
+                clue.get("inspection_gauges", clue.get("measurement_devices", [])),
+            ),
+        ),
+        ("documents", clue.get("documents", clue.get("document_refs", clue.get("files", [])))),
+    ):
+        existing = set(_string_list(step.get(field_name, [])))
+        for item in _string_list(value):
+            if item not in existing:
+                step.setdefault(field_name, []).append(item)
+                existing.add(item)
 
 
 def _apply_characteristics(
@@ -153,3 +240,21 @@ def _sequence_links(steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
             }
         )
     return links
+
+
+def _text(*values: Any, default: str = "") -> str:
+    for value in values:
+        text = str(value or "").strip()
+        if text:
+            return text
+    return default
+
+
+def _string_list(value: Any) -> list[str]:
+    if isinstance(value, str):
+        values = [value]
+    elif isinstance(value, list):
+        values = value
+    else:
+        values = []
+    return [str(item).strip() for item in values if str(item).strip()]

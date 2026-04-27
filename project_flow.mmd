@@ -20,18 +20,21 @@ flowchart TD
 
     PL --> PL1[ingest]
     PL --> PL2[analyze]
+    PL --> PLCFG[AI config<br/>env vars or Codex config/auth]
     PL --> PL3[generate_pfd]
     PL --> PL4[brainstorm_failure_modes]
     PL --> PL5[generate_pfmea]
     PL --> PL6[generate_control_plan]
     PL --> PL7[validate]
     PL --> PL8[export]
+    PL --> PL30[generate_three_tables_from_drawing<br/>drawing to three-table backend loop]
     PL --> PL9[StageContext]
     PL --> PL10[StageResult]
     PL1 --> PL11[evidence_bundle]
     PL11 --> PL2
     PL2 --> PL2A[keyword rules analysis]
     PL2 --> PL2B[AI assisted analysis]
+    PLCFG --> PL2B
     PL2 --> PL12[analysis_bundle]
     PL2A --> PL12
     PL2B --> PL12
@@ -45,6 +48,55 @@ flowchart TD
     PL16 --> PL6
     PL6 --> PL17[control_plan bundle]
     PL17 --> PL18[assemble_generated_apqp_chain]
+    PL30 --> PL1
+    PL30 --> PL2B
+    PL30 --> PL3
+    PL30 --> PL5
+    PL30 --> PL6
+    PL30 --> PL8
+    PL30 --> PL31[three_table_generation_result<br/>run_manifest and xlsx exports]
+    PL32[Desktop business loop MVP] --> PL30
+    PL32 --> PL33[background core pipeline run]
+    PL33 --> PL31
+    PL32 --> PL34[desktop CLI smoke preflight<br/>no AI network by default]
+    PL32 --> PL34[Real desktop trial<br/>delivery acceptance]
+    PL34 --> PL35[desktop preflight]
+    PL34 --> PL36[safe demo drawing<br/>write-demo-drawing]
+    PL34 --> PL37[CLI smoke<br/>ai-config generate-three-tables<br/>accept-three-tables]
+    PL34 --> PL38[desktop manual acceptance]
+    PL34 --> PL39[xlsx openability check<br/>OpenXML structure first]
+    PL34 --> PL40[unittest and pytest record]
+    PL34 --> PL41[real drawing sample run<br/>stamping hinge limiter]
+    PL41 --> PL42[gpt-5.4 default model<br/>Codex auth and proxy reuse]
+    PL41 --> PL43[accept-three-tables verification]
+    PL41 --> PL44[PySide6 desktop smoke ready]
+    PL41 --> PL45[PySide6 import failure guarded in preflight]
+    PL41 --> PL46[manual review compression<br/>dedupe repeated targets]
+    PL46 --> PL47[unmapped special characteristics<br/>single aggregate review item]
+    PL47 --> PL48[AI risk reasoning enhancement<br/>multi-row PFMEA per PFD step<br/>no fixed max risk count]
+    PL48 --> PL49[AI control strategy draft<br/>CP from PFMEA risk controls]
+    PL49 --> PL50[Responses streaming<br/>SSE delta and completed events]
+    PL50 --> PL51[Drawing preprocessing candidates<br/>PaddleOCR PP-Structure Docling]
+    PL51 --> PL52[Chinese delivery output<br/>grouped manual review summary<br/>raw_items retained]
+    PL52 --> PL53[Chinese user surfaces<br/>status_display<br/>CLI desktop workbook summaries]
+    PL53 --> PL54[human-in-the-loop editor<br/>editable PFD PFMEA CP tables]
+    PL54 --> PL55[edit_patch<br/>add update soft_delete confirm]
+    PL55 --> PL56[row confirmation gate<br/>final export only after active rows confirmed]
+    PL56 --> PL57[desktop draft/final export<br/>soft-deleted rows filtered]
+    PL57 --> PL58[Chinese desktop language layer<br/>table headers review export settings]
+    PL58 --> PL59[Chinese AI draft content<br/>PFD PFMEA CP user-visible text]
+    PL59 --> PL60[desktop three-table field completion<br/>PFD key editable fields<br/>PFMEA inherited PFD context<br/>CP PFMEA source and controls]
+    PL60 --> PL61[empty edit_patch guard<br/>save only real add update delete confirm]
+    PL61 --> PL62[core three-table linkage<br/>PFD rich fields PFMEA inheritance CP source retention]
+    PL62 --> PL63[consistency validation<br/>no orphan PFMEA or CP rows]
+    PL63 --> PL64[v1.5 AIAG-VDA PFMEA<br/>AP first RPN auxiliary]
+    PL64 --> PL65[action closure<br/>owner due date after SOD AP]
+    PL65 --> PL66[change management<br/>field diff and downstream impacts]
+    PL66 --> PL67[knowledge recommendations<br/>local rules accept or ignore]
+    PL67 --> PL68[strict_aiag_vda_pfmea_gate<br/>new three-table and edited flow only]
+    PL68 --> PL69[v1.6 desktop professional loop<br/>actions changes recommendations]
+    PL69 --> PL70[PFMEA filters<br/>AP high overdue pending action review]
+    PL70 --> PL71[local knowledge base<br/>SQLite seeded rules]
     PL18 --> PL19[generate_draft draft envelope]
     PL19 --> PL20[trusted delivery JSON contracts]
     PL20 --> PL7
@@ -62,13 +114,27 @@ flowchart TD
     AD --> AD1[OCR adapter boundary]
     AD --> AD2[LLM adapter boundary]
     AD2 --> AD2A[Fake or configured LLM analyze adapter]
+    AD2 --> AD2B[OpenAI Responses<br/>drawing analyzer]
+    AD2B --> AD2C[Codex config.toml/auth.json<br/>runtime secret read only]
+    AD2C --> AD2D[requires_openai_auth<br/>prefer Codex auth over ARK key]
+    AD2C --> AD2E[responses endpoint path<br/>match Codex api.path]
     AD --> AD3[legacy Excel reader]
     AD --> AD4[fixture JSON file system]
     AD --> AD5[XLSX exporter]
     AD --> AD8[pyproject package metadata]
     AD --> AD9[gitignore local outputs]
+    AD --> AD10[desktop SQLite<br/>out/desktop/minos_desktop.sqlite3]
+    AD --> AD11[DesktopSettingsStore<br/>no plaintext key persistence]
+    AD --> AD12[DesktopProjectStore]
+    AD --> AD13[DesktopRunService]
+    AD13 --> AD14[DesktopRunState<br/>DesktopRunRecord<br/>DesktopExportRecord]
+    AD --> AD15[Desktop preflight module<br/>PySide6 AI config output dir SQLite entry import]
+    AD15 --> AD16[Desktop knowledge store<br/>knowledge_rules SQLite table]
     AD1 --> AD6[FakeOCR text evidence]
     AD4 --> AD7[evidence json]
+    AD10 --> AD11
+    AD10 --> AD12
+    AD10 --> AD14
 
     QG --> QG1[evidence sufficient]
     QG --> QG2[pending fields]
@@ -93,6 +159,23 @@ flowchart TD
     QG18 --> QG19[allow brainstorm_failure_modes]
     QG18 --> QG20[step link evidence refs]
     QG18 --> QG21[thin PFD review fields]
+    QG18 --> QG27[ordinary empty special characteristics ignored<br/>unmapped top-level characteristics reviewed once]
+    QG --> QG28[PFMEA CP review gate<br/>review risky uncertain rows only]
+    QG28 --> QG29[row-level AI draft retained<br/>final export still blocked]
+    QG29 --> QG30[three-table consistency checks<br/>PFD risk coverage high-risk CP control<br/>special characteristics carried through]
+    QG30 --> QG31[CP step in PFD<br/>measurement frequency reaction plan required]
+    QG31 --> QG32[v1.5 strict professional gate<br/>AP action closure change impacts recommendations]
+    QG32 --> QG33[legacy export compatibility<br/>strict_three_table_linkage separated]
+    QG33 --> QG34[desktop professional closure<br/>recommendation and change patch actions]
+    QG34 --> QG35[v1.7 export acceptance<br/>draft marks final audit sheet xlsx openability]
+    QG35 --> QG36[final Excel audit<br/>quality gate manual confirmation edit patch soft delete]
+    QG --> QG22[desktop failure report<br/>raw error cause options]
+    QG22 --> QG23[options include abandon task]
+    QG --> QG24[desktop smoke JSON report<br/>status checks warnings recommendations]
+    QG24 --> QG23
+    QG --> QG24[demo data safety gate]
+    QG24 --> QG25[no real customer drawings]
+    QG24 --> QG26[synthetic sanitized authorized input only]
 
     AD --> PL
     PL --> DC
@@ -125,6 +208,19 @@ flowchart TD
     T --> T23[Engineering infra smoke]
     T --> T24[Trusted delivery JSON contracts]
     T --> T25[Phase 6 pilot workflow<br/>input_package generate_draft<br/>review-template apply-review export]
+    T --> T26[Desktop shell and Qt helper tests<br/>services SQLite lazy PySide6]
+    T --> T27[Desktop preflight tests<br/>no Qt required no plaintext key]
+    T --> T27[Real desktop acceptance gates<br/>preflight safe demo CLI smoke<br/>manual desktop xlsx openability]
+    T --> T28[Manual review compression tests<br/>dedupe and PFD unmapped characteristic review]
+    T --> T29[AI risk reasoning tests<br/>PFMEA multi-risk CP control draft]
+    T --> T30[Chinese desktop UI helper tests<br/>Chinese labels and summaries]
+    T --> T31[Chinese generated content tests<br/>PFD PFMEA CP draft text]
+    T --> T32[Desktop three-table field/UI tests<br/>inherited display without noisy patch]
+    T --> T33[Core three-table linkage tests<br/>PFD PFMEA CP consistency]
+    T --> T34[v1.5 AIAG-VDA tests<br/>AP action closure change and knowledge]
+    T --> T35[Legacy compatibility regression<br/>old fixture export still works]
+    T --> T36[v1.6 desktop professional tests<br/>actions filters knowledge change patches]
+    T --> T37[v1.7 export acceptance tests<br/>blocked final draft marks audit sheet xlsx zip]
     T1 --> G[MINOS-CORE rebuild gate]
     T2 --> G
     T3 --> G
@@ -150,3 +246,16 @@ flowchart TD
     T23 --> G
     T24 --> G
     T25 --> G
+    T26 --> G
+    T27 --> G
+    T27 --> G
+    T28 --> G
+    T29 --> G
+    T30 --> G
+    T31 --> G
+    T32 --> G
+    T33 --> G
+    T34 --> G
+    T35 --> G
+    T36 --> G
+    T37 --> G

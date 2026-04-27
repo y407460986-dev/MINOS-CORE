@@ -43,6 +43,15 @@ def _workbook_text(path: Path) -> str:
     return "\n".join(values)
 
 
+def _assert_xlsx_openable(testcase, path: Path) -> None:
+    testcase.assertTrue(path.exists())
+    with zipfile.ZipFile(path) as archive:
+        names = set(archive.namelist())
+    testcase.assertIn("[Content_Types].xml", names)
+    testcase.assertIn("xl/workbook.xml", names)
+    testcase.assertTrue(any(name.startswith("xl/worksheets/sheet") for name in names))
+
+
 def _sheet_names(path: Path) -> list[str]:
     with zipfile.ZipFile(path) as archive:
         workbook_xml = ElementTree.fromstring(archive.read("xl/workbook.xml"))
@@ -70,7 +79,7 @@ class ExportModeTests(unittest.TestCase):
             result = export_draft_fixture(fixture, output_path)
 
             self.assertEqual(result, output_path)
-            self.assertTrue(output_path.exists())
+            _assert_xlsx_openable(self, output_path)
             self.assertIn("DRAFT_ONLY", _sheet_names(output_path))
             workbook_text = _workbook_text(output_path)
             self.assertIn("draft_only", workbook_text)
@@ -78,6 +87,7 @@ class ExportModeTests(unittest.TestCase):
             self.assertIn("not for customer submission", workbook_text)
             self.assertIn("quality_gate_allow_final_export", workbook_text)
             self.assertIn("manual_review_required", workbook_text)
+            self.assertIn("仅限草案", workbook_text)
             self.assertIn("process_step:P10", workbook_text)
             self.assertIn("failure_mode:PFMEA-P10-001", workbook_text)
             self.assertIn("control_item:CP-P10-001", workbook_text)
@@ -109,8 +119,13 @@ class ExportModeTests(unittest.TestCase):
             self.assertTrue(output_path.exists())
             workbook_text = _workbook_text(output_path)
             self.assertNotIn("DRAFT_ONLY", _sheet_names(output_path))
+            self.assertIn("正式导出审计", _sheet_names(output_path))
             self.assertIn("export_mode", workbook_text)
             self.assertIn("final", workbook_text)
+            self.assertIn("allow_final_export", workbook_text)
+            self.assertIn("review_confirmations", workbook_text)
+            self.assertIn("edit_history", workbook_text)
+            self.assertIn("soft_deleted_items", workbook_text)
             self.assertNotIn("not for customer submission", workbook_text)
 
     def test_cli_export_draft_uses_draft_mode_without_final_gate_bypass(self):

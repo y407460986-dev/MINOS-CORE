@@ -1,0 +1,752 @@
+import json
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+from zipfile import ZipFile
+
+from PIL import Image
+
+from minos_core.adapters.multimodal import FakeMultimodalDrawingAnalyzer
+from minos_core.drawing_analysis import (
+    DrawingAnalysisError,
+    analyze_drawing_pages,
+    evaluate_drawing_recognition_gate,
+)
+from minos_core.drawing_input import (
+    DrawingInputError,
+    load_drawing_source,
+    render_drawing_pages,
+)
+from minos_core.drawing_to_pfd import infer_process_flow_from_drawing
+from minos_core.exporters.three_table_workbooks import (
+    export_split_three_table_workbooks,
+    export_three_table_workbook,
+)
+from minos_core.generate_control_plan import generate_control_plan_from_pfmea
+from minos_core.pfd_to_pfmea_ai import infer_pfmea_from_process_flow
+from minos_core.pipeline import generate_three_tables_from_drawing
+from minos_core.cli import main
+from minos_core.schemas import validate_bundle_schema
+
+
+class AIDrawingThreeTableWorkflowTests(unittest.TestCase):
+    def test_png_drawing_becomes_page_evidence(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            image_path = self._write_png(Path(tmpdir) / "drawing.png")
+
+            source = load_drawing_source(image_path)
+            pages = render_drawing_pages(source)
+
+            self.assertEqual(source.file_type, "png")
+            self.assertEqual(len(pages), 1)
+            self.assertEqual(pages[0].evidence_id, "drawing_page_001")
+            self.assertEqual(pages[0].width, 100)
+            self.assertEqual(pages[0].height, 80)
+            self.assertTrue(pages[0].sha256)
+
+    def test_missing_or_broken_drawing_fails_explicitly(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with self.assertRaises(FileNotFoundError):
+                load_drawing_source(Path(tmpdir) / "missing.png")
+
+            bad = Path(tmpdir) / "bad.png"
+            bad.write_text("not an image", encoding="utf-8")
+            source = load_drawing_source(bad)
+            with self.assertRaisesRegex(DrawingInputError, "cannot be opened"):
+                render_drawing_pages(source)
+
+    def test_pdf_without_renderer_fails_explicitly(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            pdf = Path(tmpdir) / "drawing.pdf"
+            pdf.write_bytes(b"%PDF-1.4\n%%EOF")
+            source = load_drawing_source(pdf)
+            try:
+                import fitz  # type: ignore[import-not-found]  # noqa: F401
+            except ImportError:
+                with self.assertRaisesRegex(DrawingInputError, "PDF rendering requires PyMuPDF"):
+                    render_drawing_pages(source, Path(tmpdir) / "pages")
+            else:
+                with self.assertRaisesRegex(DrawingInputError, "PDF rendering failed"):
+                    render_drawing_pages(source, Path(tmpdir) / "pages")
+
+    def test_fake_multimodal_adapter_returns_valid_drawing_analysis_bundle(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            pages = render_drawing_pages(load_drawing_source(self._write_png(Path(tmpdir) / "drawing.png")))
+            bundle = analyze_drawing_pages(
+                pages,
+                FakeMultimodalDrawingAnalyzer(json.dumps(self._analysis_payload())),
+                {"part_family": "hinge"},
+            )
+
+            self.assertTrue(validate_bundle_schema(bundle, "drawing_analysis_bundle"))
+            self.assertEqual(bundle["drawing_identity"]["part_name"], "Hinge Bracket")
+            gate = evaluate_drawing_recognition_gate(bundle)
+            self.assertTrue(gate.can_continue)
+            self.assertFalse(gate.allow_user_export)
+            self.assertTrue(gate.needs_human_review)
+
+    def test_invalid_ai_json_and_non_page_unknown_evidence_refs_fail(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            pages = render_drawing_pages(load_drawing_source(self._write_png(Path(tmpdir) / "drawing.png")))
+
+            with self.assertRaisesRegex(DrawingAnalysisError, "invalid JSON"):
+                analyze_drawing_pages(pages, FakeMultimodalDrawingAnalyzer("{bad"))
+
+            payload = self._analysis_payload()
+            payload["materials"][0]["evidence_refs"] = ["missing"]
+            with self.assertRaisesRegex(DrawingAnalysisError, "unknown evidence"):
+                analyze_drawing_pages(
+                    pages,
+                    FakeMultimodalDrawingAnalyzer(json.dumps(payload)),
+                )
+
+    def test_unknown_single_page_drawing_ref_is_repaired_for_manual_review(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            pages = render_drawing_pages(load_drawing_source(self._write_png(Path(tmpdir) / "drawing.png")))
+            payload = self._analysis_payload()
+            payload["materials"][0]["evidence_refs"] = ["drawing_page_003"]
+
+            bundle = analyze_drawing_pages(
+                pages,
+                FakeMultimodalDrawingAnalyzer(json.dumps(payload)),
+            )
+            material = bundle["materials"][0]
+            gate = evaluate_drawing_recognition_gate(bundle)
+
+            self.assertEqual(material["evidence_refs"], ["drawing_page_001"])
+            self.assertEqual(material["original_evidence_refs"], ["drawing_page_003"])
+            self.assertTrue(material["needs_confirmation"])
+            self.assertIn("evidence_ref_repairs", material)
+            self.assertIn("evidence_ref_repairs", bundle["metadata"])
+            self.assertTrue(gate.can_continue)
+            self.assertTrue(gate.needs_human_review)
+            self.assertFalse(gate.missing_evidence_refs)
+            self.assertTrue(
+                any(
+                    getattr(item, "category", "") == "drawing_evidence_ref_repaired"
+                    for item in gate.manual_review_items
+                )
+            )
+
+    def test_drawing_to_pfd_to_pfmea_to_cp_and_excel_exports(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            pages = render_drawing_pages(load_drawing_source(self._write_png(Path(tmpdir) / "drawing.png")))
+            drawing_bundle = analyze_drawing_pages(
+                pages,
+                FakeMultimodalDrawingAnalyzer(json.dumps(self._analysis_payload())),
+            )
+
+            pfd = infer_process_flow_from_drawing(drawing_bundle)
+            operations = [step["operation"] for step in pfd["steps"]]
+            self.assertEqual(operations[:2], ["来料检验", "材料准备"])
+            self.assertIn("落料", operations)
+            self.assertIn("冲孔", operations)
+            self.assertIn("表面处理", operations)
+            self.assertEqual(operations[-3:], ["过程检验", "最终检验", "包装"])
+            self.assertTrue(all(step["evidence_refs"] for step in pfd["steps"]))
+
+            pfmea = infer_pfmea_from_process_flow(pfd)
+            rows_by_step = _rows_by_step(pfmea["rows"])
+            self.assertEqual(set(rows_by_step), {step["process_step_id"] for step in pfd["steps"]})
+            for step_rows in rows_by_step.values():
+                self.assertGreaterEqual(len(step_rows), 2)
+                failure_modes = [row["failure_mode"] for row in step_rows]
+                self.assertEqual(len(failure_modes), len(set(failure_modes)))
+            self.assertTrue(any(not row["needs_confirmation"] for row in pfmea["rows"]))
+            piercing_step_id = next(step["process_step_id"] for step in pfd["steps"] if step["operation"] == "冲孔")
+            self.assertTrue(all(row["needs_confirmation"] for row in rows_by_step[piercing_step_id]))
+            for row in pfmea["rows"]:
+                _assert_pfmea_ai_risk_row(self, row)
+
+            cp = generate_control_plan_from_pfmea(pfmea)
+            self.assertEqual(len(cp["rows"]), len(pfmea["rows"]))
+            self.assertTrue(all(row["pfmea_id"] for row in cp["rows"]))
+            self.assertTrue(all(row["specification"] for row in cp["rows"]))
+            self.assertTrue(all(row["measurement_method"] for row in cp["rows"]))
+            self.assertTrue(all(row["sample_size"] for row in cp["rows"]))
+            self.assertTrue(all(row["sample_frequency"] for row in cp["rows"]))
+            self.assertTrue(all(row["control_method"] for row in cp["rows"]))
+            self.assertTrue(all(row["reaction_plan"] for row in cp["rows"]))
+            self.assertTrue(all(row["ai_inferred"] for row in cp["rows"]))
+            self.assertTrue(all(row["ai_reasoning"] for row in cp["rows"]))
+
+            chain = {
+                "document_type": "apqp_chain",
+                "schema_version": "minos-core.generated.v1",
+                "product": pfd["product"],
+                "drawings": pfd["drawings"],
+                "characteristics": pfd["characteristics"],
+                "process_steps": pfd["steps"],
+                "failure_modes": pfmea["rows"],
+                "controls": cp["rows"],
+                "evidence": drawing_bundle["evidence"],
+                "links": pfd["links"],
+                "pending_fields": [],
+                "ai_inferred_items": pfd["ai_inferred_items"] + pfmea["ai_inferred_items"],
+            }
+            unified = export_three_table_workbook(
+                chain,
+                Path(tmpdir) / "三表总工作簿.xlsx",
+                export_mode="draft",
+                require_gate=False,
+            )
+            split = export_split_three_table_workbooks(chain, Path(tmpdir) / "split")
+
+            self._assert_xlsx(unified)
+            unified_text = self._xlsx_text(unified)
+            self.assertIn("DRAFT_ONLY", self._sheet_names(unified))
+            self.assertIn("draft_only", unified_text)
+            self.assertIn("not for customer submission", unified_text)
+            self.assertEqual(set(split), {"process_flow", "pfmea", "control_plan"})
+            for path in split.values():
+                self._assert_xlsx(path)
+                text = self._xlsx_text(path)
+                self.assertIn("draft_only", text)
+                self.assertIn("requires_engineering_review", text)
+                self.assertIn("not for customer submission", text)
+
+    def test_generated_three_table_user_content_is_chinese(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            pages = render_drawing_pages(load_drawing_source(self._write_png(Path(tmpdir) / "drawing.png")))
+            drawing_bundle = analyze_drawing_pages(
+                pages,
+                FakeMultimodalDrawingAnalyzer(json.dumps(self._analysis_payload())),
+            )
+
+            pfd = infer_process_flow_from_drawing(drawing_bundle)
+            pfmea = infer_pfmea_from_process_flow(pfd)
+            cp = generate_control_plan_from_pfmea(pfmea)
+
+        pfd_text = json.dumps(pfd["steps"], ensure_ascii=False)
+        pfmea_text = json.dumps(pfmea["rows"], ensure_ascii=False)
+        cp_text = json.dumps(cp["rows"], ensure_ascii=False)
+
+        self.assertIn("来料检验", pfd_text)
+        self.assertIn("材料准备", pfd_text)
+        self.assertIn("过程检验", pfd_text)
+        self.assertNotIn("incoming inspection", pfd_text.lower())
+        self.assertNotIn("material preparation", pfd_text.lower())
+        self.assertIn("未达成", pfmea_text)
+        self.assertIn("证据引用", pfmea_text)
+        self.assertNotIn("not achieved", pfmea_text.lower())
+        self.assertNotIn("inferred from", pfmea_text.lower())
+        self.assertIn("草案控制意图", cp_text)
+        self.assertIn("控制计划行来源于", cp_text)
+        self.assertNotIn("Draft control intent", cp_text)
+        self.assertNotIn("Control plan row derived", cp_text)
+
+    def test_drawing_to_pfd_accepts_nested_ai_fields_and_process_step_clues(self):
+        bundle = {
+            "drawing_identity": {
+                "part_name": {"value": "DEMO BRACKET", "confidence": 0.99, "evidence_refs": ["drawing_page_001"]},
+                "drawing_number": {"value": "MINOS-DEMO-001", "confidence": 0.99, "evidence_refs": ["drawing_page_001"]},
+                "revision": {"value": "A", "confidence": 0.99, "evidence_refs": ["drawing_page_001"]},
+            },
+            "special_characteristics": [
+                {
+                    "id": "SC-01",
+                    "description": "hole position",
+                    "classification": "special characteristic",
+                    "evidence_refs": ["drawing_page_001"],
+                }
+            ],
+            "manufacturing_clues": [
+                {
+                    "process_step": "blanking",
+                    "sequence": 1,
+                    "confidence": 0.99,
+                    "evidence_refs": ["drawing_page_001"],
+                },
+                {
+                    "process_step": "piercing",
+                    "sequence": 2,
+                    "confidence": 0.99,
+                    "special_characteristics": ["SC-01"],
+                    "evidence_refs": ["drawing_page_001"],
+                },
+            ],
+            "evidence": [
+                {
+                    "evidence_id": "drawing_page_001",
+                    "source": "drawing_page",
+                }
+            ],
+        }
+
+        pfd = infer_process_flow_from_drawing(bundle)
+
+        operations = [step["operation"] for step in pfd["steps"]]
+        self.assertEqual(operations[:2], ["来料检验", "材料准备"])
+        self.assertIn("落料", operations)
+        self.assertIn("冲孔", operations)
+        self.assertEqual(operations[-3:], ["过程检验", "最终检验", "包装"])
+        library_steps = [step for step in pfd["steps"] if step["source"] == "process_library"]
+        self.assertTrue(library_steps)
+        self.assertTrue(all(step["ai_inferred"] for step in library_steps))
+        self.assertTrue(all(step["needs_confirmation"] for step in library_steps))
+        self.assertTrue(all(step["evidence_refs"] == ["drawing_page_001"] for step in library_steps))
+        self.assertEqual(pfd["product"]["part_name"], "DEMO BRACKET")
+        self.assertEqual(pfd["drawings"][0]["drawing_id"], "MINOS-DEMO-001")
+        self.assertEqual(pfd["drawings"][0]["source_ref"], "drawing_page_001")
+        self.assertEqual(pfd["characteristics"][0]["characteristic_id"], "SC-01")
+        self.assertEqual(pfd["links"][0]["from"], "P10")
+        self.assertEqual(pfd["links"][0]["to"], "P20")
+
+    def test_drawing_analysis_gate_accepts_nested_evidence_and_sequence_clues(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            pages = render_drawing_pages(
+                load_drawing_source(self._write_png(Path(tmpdir) / "drawing.png"))
+            )
+            payload = {
+                "drawing_identity": {
+                    "part_name": {"value": "DEMO BRACKET", "evidence_refs": ["drawing_page_001"]},
+                    "drawing_number": {"value": "MINOS-DEMO-001", "evidence_refs": ["drawing_page_001"]},
+                    "revision": {"value": "A", "evidence_refs": ["drawing_page_001"]},
+                },
+                "materials": [
+                    {
+                        "material_spec": {
+                            "value": "SPCC-SD",
+                            "confidence": 0.96,
+                            "evidence_refs": ["drawing_page_001"],
+                        },
+                        "thickness": {
+                            "value": 1.6,
+                            "confidence": 0.96,
+                            "evidence_refs": ["drawing_page_001"],
+                        },
+                    }
+                ],
+                "surface_treatments": [],
+                "dimensions": [],
+                "tolerances": [],
+                "special_characteristics": [],
+                "technical_requirements": [],
+                "inspection_requirements": [],
+                "manufacturing_clues": [
+                    {
+                        "process_sequence": ["blanking", "piercing", "deburr"],
+                        "source_text": "blanking -> piercing -> deburr",
+                        "confidence": 0.95,
+                        "evidence_refs": ["drawing_page_001"],
+                    }
+                ],
+                "uncertainties": [],
+            }
+
+            bundle = analyze_drawing_pages(
+                pages,
+                FakeMultimodalDrawingAnalyzer(json.dumps(payload)),
+            )
+
+        gate = evaluate_drawing_recognition_gate(bundle)
+        pfd = infer_process_flow_from_drawing(bundle)
+        operations = [step["operation"] for step in pfd["steps"]]
+        self.assertTrue(gate.can_continue)
+        self.assertFalse(gate.missing_evidence_refs)
+        self.assertEqual(operations[:2], ["来料检验", "材料准备"])
+        self.assertIn("落料", operations)
+        self.assertIn("冲孔", operations)
+        self.assertIn("去毛刺", operations)
+        self.assertEqual(operations[-3:], ["过程检验", "最终检验", "包装"])
+
+    def test_drawing_to_pfd_can_infer_steps_from_free_text_manufacturing_clue(self):
+        bundle = {
+            "drawing_identity": {
+                "part_name": {"value": "DEMO PANEL", "evidence_refs": ["drawing_page_001"]},
+                "drawing_number": {"value": "PANEL-001", "evidence_refs": ["drawing_page_001"]},
+                "revision": {"value": "A", "evidence_refs": ["drawing_page_001"]},
+            },
+            "special_characteristics": [],
+            "manufacturing_clues": [
+                {
+                    "clue": "Likely injection molded part due to uniform thin wall and ribbing",
+                    "confidence": 0.9,
+                    "evidence_refs": ["drawing_page_001"],
+                }
+            ],
+            "evidence": [{"evidence_id": "drawing_page_001", "source": "drawing_page"}],
+        }
+
+        pfd = infer_process_flow_from_drawing(bundle)
+
+        operations = [step["operation"] for step in pfd["steps"]]
+        self.assertEqual(operations[:2], ["来料检验", "材料准备"])
+        self.assertIn("注塑", operations)
+        self.assertIn("修边", operations)
+        self.assertEqual(operations[-3:], ["过程检验", "最终检验", "包装"])
+        self.assertTrue(all(step["needs_confirmation"] for step in pfd["steps"]))
+
+    def test_drawing_to_pfd_adds_common_sheet_metal_process_library_steps(self):
+        bundle = {
+            "drawing_identity": {
+                "part_name": {"value": "DEMO STAMPING", "evidence_refs": ["drawing_page_001"]},
+                "drawing_number": {"value": "STAMP-001", "evidence_refs": ["drawing_page_001"]},
+                "revision": {"value": "A", "evidence_refs": ["drawing_page_001"]},
+            },
+            "materials": [{"name": "sheet metal SPCC", "evidence_refs": ["drawing_page_001"]}],
+            "surface_treatments": [{"name": "zinc plating", "evidence_refs": ["drawing_page_001"]}],
+            "technical_requirements": [{"text": "No burrs, clean before plating", "evidence_refs": ["drawing_page_001"]}],
+            "special_characteristics": [],
+            "manufacturing_clues": [
+                {
+                    "clue": "Likely stamping sheet metal part",
+                    "confidence": 0.9,
+                    "evidence_refs": ["drawing_page_001"],
+                }
+            ],
+            "evidence": [{"evidence_id": "drawing_page_001", "source": "drawing_page"}],
+        }
+
+        pfd = infer_process_flow_from_drawing(bundle)
+        operations = [step["operation"] for step in pfd["steps"]]
+
+        self.assertEqual(operations[:2], ["来料检验", "材料准备"])
+        for expected in ("落料", "成形", "去毛刺", "清洗", "表面处理"):
+            self.assertIn(expected, operations)
+        self.assertEqual(operations[-3:], ["过程检验", "最终检验", "包装"])
+        for step in pfd["steps"]:
+            if step["source"] == "process_library":
+                self.assertTrue(step["ai_inferred"])
+                self.assertTrue(step["needs_confirmation"])
+                self.assertEqual(step["evidence_refs"], ["drawing_page_001"])
+
+    def test_pfmea_ai_risk_inference_uses_step_context_and_confirmation_rules(self):
+        pfd = {
+            "document_type": "process_flow",
+            "schema_version": "minos-core.generated.v1",
+            "product": {"part_name": "Demo Part"},
+            "evidence": [{"evidence_id": "EV-1"}],
+            "steps": [
+                {
+                    "process_step_id": "P10",
+                    "operation": "Blanking",
+                    "process_function": "Create blank profile",
+                    "confidence": 0.88,
+                    "evidence_refs": ["EV-1"],
+                },
+                {
+                    "process_step_id": "P20",
+                    "operation": "Piercing",
+                    "process_function": "Create mounting holes",
+                    "special_characteristics": ["SC-HOLE-POS"],
+                    "confidence": 0.83,
+                    "evidence_refs": ["EV-1"],
+                },
+                {
+                    "process_step_id": "P30",
+                    "operation": "Final inspection",
+                    "process_function": "Verify finished part",
+                    "confidence": 0.62,
+                    "evidence_refs": ["EV-1"],
+                },
+            ],
+            "links": [],
+        }
+
+        pfmea = infer_pfmea_from_process_flow(pfd)
+        rows_by_step = _rows_by_step(pfmea["rows"])
+
+        for step_id in ("P10", "P20", "P30"):
+            self.assertGreaterEqual(len(rows_by_step[step_id]), 2)
+            failure_modes = [row["failure_mode"] for row in rows_by_step[step_id]]
+            self.assertEqual(len(failure_modes), len(set(failure_modes)))
+        for row in pfmea["rows"]:
+            _assert_pfmea_ai_risk_row(self, row)
+            self.assertEqual(row["S"], row["severity"])
+            self.assertEqual(row["O"], row["occurrence"])
+            self.assertEqual(row["D"], row["detection"])
+            self.assertEqual(row["AP"], row["action_priority"])
+        self.assertTrue(any("毛坯" in row["failure_mode"] for row in rows_by_step["P10"]))
+        self.assertTrue(any("孔" in row["failure_mode"] for row in rows_by_step["P20"]))
+        self.assertTrue(any(row["AP"] == "H" for row in rows_by_step["P20"]))
+        self.assertTrue(all(row["needs_confirmation"] for row in rows_by_step["P20"]))
+        self.assertTrue(all(row["needs_confirmation"] for row in rows_by_step["P30"]))
+        self.assertTrue(any(not row["needs_confirmation"] for row in rows_by_step["P10"]))
+
+    def test_generate_three_tables_from_drawing_exports_full_draft_package(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            image_path = self._write_png(root / "drawing.png")
+
+            result = generate_three_tables_from_drawing(
+                image_path,
+                root / "out",
+                context={"part_family": "hinge"},
+                analyzer=FakeMultimodalDrawingAnalyzer(json.dumps(self._analysis_payload())),
+            )
+
+            self.assertEqual(result["document_type"], "three_table_generation_result")
+            self.assertEqual(result["status"], "needs_review")
+            self.assertEqual(result["status_display"], "待人工复核")
+            self.assertTrue(validate_bundle_schema(result, "three_table_generation_result"))
+            self.assertEqual(
+                set(result["exports"]),
+                {"unified_workbook", "process_flow", "pfmea", "control_plan"},
+            )
+            for path in result["exports"].values():
+                self._assert_xlsx(Path(path))
+            self.assertTrue(Path(result["manifest"]["path"]).exists())
+            self.assertIn("unified_workbook", result["manifest"]["artifact_hashes"])
+            self.assertTrue(result["manual_review"]["required"])
+            self.assertIn("raw_items", result["manual_review"])
+            self.assertGreaterEqual(
+                result["manual_review"]["raw_count"],
+                len(result["manual_review"]["items"]),
+            )
+            self.assertLessEqual(len(result["manual_review"]["items"]), 6)
+            self.assertTrue(
+                all("message" in item and "category" in item for item in result["manual_review"]["items"])
+            )
+            self.assertTrue(
+                all("severity_display" in item for item in result["manual_review"]["items"])
+            )
+            self.assertTrue(
+                any(
+                    item.get("category") == "PFMEA 复核"
+                    for item in result["manual_review"]["items"]
+                )
+            )
+            review_keys = [
+                _canonical_review_key(item if isinstance(item, str) else item.get("item_id"))
+                for item in result["manual_review"]["items"]
+            ]
+            self.assertEqual(len(review_keys), len(set(review_keys)))
+
+    def test_generate_three_tables_final_export_blocks_unreviewed_ai_draft(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            image_path = self._write_png(Path(tmpdir) / "drawing.png")
+
+            result = generate_three_tables_from_drawing(
+                image_path,
+                Path(tmpdir) / "out",
+                export_mode="final",
+                analyzer=FakeMultimodalDrawingAnalyzer(json.dumps(self._analysis_payload())),
+            )
+
+            self.assertEqual(result["status"], "blocked")
+            self.assertEqual(result["blocked_stage"], "final_three_table")
+            self.assertEqual(result["exports"], {})
+
+    def test_generate_three_tables_propagates_invalid_ai_json(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            image_path = self._write_png(Path(tmpdir) / "drawing.png")
+
+            with self.assertRaisesRegex(DrawingAnalysisError, "invalid JSON"):
+                generate_three_tables_from_drawing(
+                    image_path,
+                    Path(tmpdir) / "out",
+                    analyzer=FakeMultimodalDrawingAnalyzer("{bad"),
+                )
+
+    def test_generate_three_tables_cli_saves_failure_result_without_key(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            image_path = self._write_png(Path(tmpdir) / "drawing.png")
+            result_path = Path(tmpdir) / "result.json"
+            import os
+
+            with patch.dict(os.environ, {"MINOS_DISABLE_CODEX_CONFIG": "1"}, clear=True):
+                code = main(
+                    [
+                        "generate-three-tables",
+                        "--input",
+                        str(image_path),
+                        "--output-dir",
+                        str(Path(tmpdir) / "out"),
+                        "--result-output",
+                        str(result_path),
+                    ]
+                )
+
+            self.assertEqual(code, 2)
+            self.assertFalse(result_path.exists())
+
+    def test_generate_three_tables_cli_saves_result_json(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            image_path = self._write_png(Path(tmpdir) / "drawing.png")
+            result_path = Path(tmpdir) / "result.json"
+            fake_result = {
+                "document_type": "three_table_generation_result",
+                "schema_version": "minos-core.three_table_generation_result.v1",
+                "status": "needs_review",
+                "drawing_analysis": {},
+                "process_flow": {},
+                "pfmea": {},
+                "control_plan": {},
+                "quality_gate": {},
+                "exports": {"unified_workbook": str(Path(tmpdir) / "三表总工作簿.xlsx")},
+                "manifest": {},
+            }
+            with patch(
+                "minos_core.pipeline.generate_three_tables_from_drawing",
+                return_value=fake_result,
+            ):
+                code = main(
+                    [
+                        "generate-three-tables",
+                        "--input",
+                        str(image_path),
+                        "--output-dir",
+                        str(Path(tmpdir) / "out"),
+                        "--result-output",
+                        str(result_path),
+                        "--context-json",
+                        '{"part_family":"hinge"}',
+                    ]
+                )
+
+            self.assertEqual(code, 0)
+            saved = json.loads(result_path.read_text(encoding="utf-8"))
+            self.assertEqual(saved["status"], "needs_review")
+
+    def _write_png(self, path: Path) -> Path:
+        Image.new("RGB", (100, 80), color="white").save(path)
+        return path
+
+    def _analysis_payload(self):
+        refs = ["drawing_page_001"]
+        return {
+            "drawing_identity": {
+                "part_name": "Hinge Bracket",
+                "drawing_number": "HB-001",
+                "revision": "A",
+                "evidence_refs": refs,
+            },
+            "materials": [
+                {"name": "SPCC", "confidence": 0.92, "evidence_refs": refs}
+            ],
+            "surface_treatments": [
+                {"name": "Zinc plated", "confidence": 0.8, "evidence_refs": refs}
+            ],
+            "dimensions": [
+                {"name": "hole diameter", "value": "8.0 +/-0.1", "confidence": 0.88, "evidence_refs": refs}
+            ],
+            "tolerances": [],
+            "special_characteristics": [
+                {
+                    "id": "SC-001",
+                    "name": "hole position",
+                    "classification": "SC",
+                    "specification": "+/-0.1",
+                    "confidence": 0.7,
+                    "evidence_refs": refs,
+                }
+            ],
+            "technical_requirements": [
+                {"text": "No burrs", "confidence": 0.9, "evidence_refs": refs}
+            ],
+            "inspection_requirements": [
+                {"text": "Check critical dimensions", "confidence": 0.85, "evidence_refs": refs}
+            ],
+            "manufacturing_clues": [
+                {
+                    "process_step_id": "P10",
+                    "operation": "Blanking",
+                    "process_function": "Create blank profile",
+                    "equipment": "Press",
+                    "confidence": 0.82,
+                    "evidence_refs": refs,
+                },
+                {
+                    "process_step_id": "P20",
+                    "operation": "Piercing",
+                    "process_function": "Create mounting holes",
+                    "equipment": "Piercing die",
+                    "special_characteristics": ["SC-001"],
+                    "confidence": 0.78,
+                    "evidence_refs": refs,
+                },
+                {
+                    "process_step_id": "P30",
+                    "operation": "Surface treatment",
+                    "process_function": "Apply corrosion protection",
+                    "confidence": 0.76,
+                    "evidence_refs": refs,
+                },
+            ],
+            "uncertainties": [
+                {"text": "Exact process sequence requires engineer review", "confidence": 0.6, "evidence_refs": refs}
+            ],
+        }
+
+    def _assert_xlsx(self, path: Path):
+        self.assertTrue(Path(path).exists())
+        with ZipFile(path) as archive:
+            names = set(archive.namelist())
+        self.assertIn("[Content_Types].xml", names)
+        self.assertIn("xl/workbook.xml", names)
+
+    def _xlsx_text(self, path: Path) -> str:
+        with ZipFile(path) as archive:
+            return "\n".join(
+                archive.read(name).decode("utf-8")
+                for name in archive.namelist()
+                if name.endswith(".xml")
+            )
+
+    def _sheet_names(self, path: Path) -> list[str]:
+        from xml.etree import ElementTree
+
+        ns = {"main": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+        with ZipFile(path) as archive:
+            workbook = ElementTree.fromstring(archive.read("xl/workbook.xml"))
+        return [node.attrib["name"] for node in workbook.findall(".//main:sheet", ns)]
+
+
+def _canonical_review_key(value):
+    text = str(value or "").strip()
+    if text.startswith("failure_mode:"):
+        return "pfmea:" + text.split(":", 1)[1]
+    if text.startswith("control_item:"):
+        return "control_plan:" + text.split(":", 1)[1]
+    if text.startswith("process_step:"):
+        return "pfd:" + text.split(":", 1)[1]
+    if text.startswith("PFMEA-"):
+        return "pfmea:" + text
+    if text.startswith("CP-"):
+        return "control_plan:" + text
+    return text
+
+
+def _rows_by_step(rows):
+    by_step = {}
+    for row in rows:
+        by_step.setdefault(row["process_step_id"], []).append(row)
+    return by_step
+
+
+def _assert_pfmea_ai_risk_row(test_case, row):
+    required_fields = {
+        "severity",
+        "occurrence",
+        "detection",
+        "action_priority",
+        "S",
+        "O",
+        "D",
+        "AP",
+        "prevention_control",
+        "detection_control",
+        "recommended_action",
+        "ai_reasoning",
+        "confidence",
+        "ai_inferred",
+        "needs_confirmation",
+        "evidence_refs",
+    }
+    test_case.assertTrue(required_fields.issubset(row))
+    test_case.assertIn(row["action_priority"], {"H", "M", "L"})
+    test_case.assertTrue(row["prevention_control"])
+    test_case.assertTrue(row["detection_control"])
+    test_case.assertTrue(row["recommended_action"])
+    test_case.assertTrue(row["ai_reasoning"])
+    test_case.assertTrue(row["ai_inferred"])
+    test_case.assertIsInstance(row["needs_confirmation"], bool)
+    test_case.assertIsInstance(row["evidence_refs"], list)
+    test_case.assertGreaterEqual(row["confidence"], 0.0)
+    test_case.assertLessEqual(row["confidence"], 0.9)
+
+
+if __name__ == "__main__":
+    unittest.main()

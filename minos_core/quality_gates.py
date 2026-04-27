@@ -2,13 +2,22 @@
 
 from __future__ import annotations
 
+import copy
 import re
 from dataclasses import dataclass, field
 from typing import Any
 
+from .action_closure import action_closure_issues
 from .audit import AuditItem, AuditReport, audit_chain
+from .change_management import blocking_change_impacts
 from .domain import APQPChain
+from .knowledge_recommendation import unresolved_recommendations
 from .review_patch import REVIEW_CONFIRMATIONS_KEY
+from .review_issues import (
+    build_review_issue,
+    review_issue_from_manual_item,
+    unresolved_review_issues,
+)
 from .schemas import validate_bundle_schema
 from .validation import ChainValidationResult, validate_chain
 
@@ -28,6 +37,7 @@ class StageQualityGate:
     missing_evidence_refs: list[str] = field(default_factory=list)
     uncovered_evidence_items: list[str] = field(default_factory=list)
     needs_confirmation_items: list[str] = field(default_factory=list)
+    review_issues: list[dict[str, Any]] = field(default_factory=list)
 
     @property
     def ok(self) -> bool:
@@ -64,6 +74,7 @@ class StageQualityGate:
             "missing_evidence_refs": self.missing_evidence_refs,
             "uncovered_evidence_items": self.uncovered_evidence_items,
             "needs_confirmation_items": self.needs_confirmation_items,
+            "review_issues": self.review_issues,
             "manual_review_items": [
                 item.__dict__ if hasattr(item, "__dict__") else item
                 for item in self.manual_review_items
@@ -108,6 +119,11 @@ def _export_gate_failure_message(gate: StageQualityGate) -> str:
     _append_gate_detail(lines, "pending_fields", gate.pending_fields)
     _append_gate_detail(lines, "needs_confirmation_items", gate.needs_confirmation_items)
     _append_gate_detail(lines, "ai_inferred_items", gate.ai_inferred_items)
+    _append_gate_detail(
+        lines,
+        "review_issues",
+        [item.get("issue_id", item) for item in gate.review_issues],
+    )
     _append_gate_detail(lines, "missing_evidence_refs", gate.missing_evidence_refs)
     _append_gate_detail(lines, "uncovered_evidence_items", gate.uncovered_evidence_items)
     if gate.validation.messages:
@@ -123,7 +139,10 @@ def _append_gate_detail(lines: list[str], label: str, values: list[Any]) -> None
 def evaluate_stage_gate(
     chain: APQPChain | dict[str, Any], stage: str = "validate"
 ) -> StageQualityGate:
+    unsafe_ai_batch_issues: list[dict[str, Any]] = []
     if isinstance(chain, dict):
+        unsafe_ai_batch_issues = _unsafe_ai_batch_review_issues(chain)
+        chain = _with_safe_ai_batch_confirmations(chain)
         chain = APQPChain(**chain)
     validation = _stage_validation(chain, stage)
     audit = audit_chain(chain)
@@ -149,6 +168,22 @@ def evaluate_stage_gate(
         confirmed_targets | confirmed_field_paths,
     )
     evidence_sufficient = bool(evidence_coverage["ok"])
+    strict_aiag_vda_gate = _strict_aiag_vda_pfmea_gate_enabled(chain)
+    action_issues = (
+        action_closure_issues([item.__dict__ for item in chain.failure_modes])
+        if strict_aiag_vda_gate
+        else []
+    )
+    action_blockers = [item for item in action_issues if item.get("severity") == "blocker"]
+    change_impacts = _metadata_list(chain, "change_impacts") if strict_aiag_vda_gate else []
+    change_blockers = blocking_change_impacts(change_impacts)
+    recommendation_items = (
+        _metadata_list(chain, "knowledge_recommendations") if strict_aiag_vda_gate else []
+    )
+    recommendation_blockers = unresolved_recommendations(recommendation_items)
+    review_issue_blockers = unresolved_review_issues(
+        _metadata_list(chain, "review_issues")
+    )
     can_continue = (
         evidence_sufficient
         if stage in {"ingest", "analyze"}
@@ -160,6 +195,11 @@ def evaluate_stage_gate(
         and not pending_fields
         and not needs_confirmation_items
         and not ai_inferred_items
+        and not action_blockers
+        and not change_blockers
+        and not recommendation_blockers
+        and not review_issue_blockers
+        and not unsafe_ai_batch_issues
     )
     manual_review_items = list(audit.manual_review_items)
     manual_review_items.extend(_evidence_manual_review_items(evidence_coverage))
@@ -170,6 +210,17 @@ def evaluate_stage_gate(
             )
         )
     )
+    manual_review_items.extend(_dict_manual_review_items(action_issues))
+    manual_review_items.extend(_dict_manual_review_items(change_blockers))
+    manual_review_items.extend(_recommendation_manual_review_items(recommendation_blockers))
+    review_issues = _review_issues_from_gate_debts(
+        manual_review_items=manual_review_items,
+        needs_confirmation_items=needs_confirmation_items,
+        recommendation_blockers=recommendation_blockers,
+        change_blockers=change_blockers,
+        existing_review_issues=review_issue_blockers,
+    )
+    review_issues = _dedupe_review_issues(review_issues + unsafe_ai_batch_issues)
     return StageQualityGate(
         stage=stage,
         can_continue=can_continue,
@@ -184,6 +235,7 @@ def evaluate_stage_gate(
         missing_evidence_refs=list(evidence_coverage["missing_refs"]),
         uncovered_evidence_items=list(evidence_coverage["uncovered_items"]),
         needs_confirmation_items=needs_confirmation_items,
+        review_issues=review_issues,
     )
 
 
@@ -358,7 +410,7 @@ def evaluate_control_plan_bundle_gate(
 
 def _pfmea_bundle_report(pfmea_bundle: dict[str, Any]) -> dict[str, Any]:
     rows = pfmea_bundle.get("rows", pfmea_bundle.get("failure_modes", []))
-    return _document_rows_report(
+    report = _document_rows_report(
         rows=rows,
         evidence=pfmea_bundle.get("evidence", []),
         pending_fields=pfmea_bundle.get("pending_fields", []),
@@ -377,13 +429,119 @@ def _pfmea_bundle_report(pfmea_bundle: dict[str, Any]) -> dict[str, Any]:
         ),
         review_fields=("severity", "occurrence", "detection"),
     )
+    _extend_pfmea_pfd_linkage_report(report, pfmea_bundle, rows)
+    return report
+
+
+def _metadata_list(chain: APQPChain, key: str) -> list[dict[str, Any]]:
+    value = chain.metadata.get(key, []) if isinstance(chain.metadata, dict) else []
+    return value if isinstance(value, list) else []
+
+
+def _strict_aiag_vda_pfmea_gate_enabled(chain: APQPChain) -> bool:
+    metadata = chain.metadata if isinstance(chain.metadata, dict) else {}
+    if metadata.get("strict_aiag_vda_pfmea_gate") is True:
+        return True
+    generation_mode = str(metadata.get("generation_mode", "")).strip()
+    if generation_mode in {
+        "ai_drawing_three_table_generation",
+        "human_edited_three_table_generation",
+    }:
+        return True
+    return False
+
+
+def _dict_manual_review_items(items: list[dict[str, Any]]) -> list[AuditItem]:
+    return [
+        AuditItem(
+            str(item.get("item_id", "")),
+            str(item.get("category", "人工复核")),
+            str(item.get("message", "")),
+            str(item.get("severity", "review")),
+        )
+        for item in items
+    ]
+
+
+def _recommendation_manual_review_items(items: list[dict[str, Any]]) -> list[AuditItem]:
+    return [
+        AuditItem(
+            str(item.get("recommendation_id", item.get("item_id", ""))),
+            "知识库推荐",
+            str(item.get("reason", "知识库推荐需要人工采纳或填写忽略原因。")),
+            "review",
+        )
+        for item in items
+    ]
+
+
+def _review_issues_from_gate_debts(
+    *,
+    manual_review_items: list[Any],
+    needs_confirmation_items: list[str],
+    recommendation_blockers: list[dict[str, Any]],
+    change_blockers: list[dict[str, Any]],
+    existing_review_issues: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    issues: list[dict[str, Any]] = []
+    for item in manual_review_items:
+        issues.append(review_issue_from_manual_item(item))
+    for item in needs_confirmation_items:
+        issues.append(
+            build_review_issue(
+                category="人工确认",
+                message="关键对象标记为待确认，需要人工确认后才能正式放行。",
+                severity="review",
+                source="quality_gate",
+                target=item,
+            )
+        )
+    for item in recommendation_blockers:
+        issues.append(
+            build_review_issue(
+                category="知识库推荐",
+                message=str(item.get("reason", "知识库推荐需要人工采纳或填写忽略原因。")),
+                severity="blocker",
+                source="knowledge_recommendation",
+                target=str(item.get("target_id", "")),
+                recommendation_id=str(item.get("recommendation_id", "")),
+                confidence=item.get("confidence"),
+            )
+        )
+    for item in change_blockers:
+        issues.append(
+            build_review_issue(
+                category="变更影响",
+                message=str(item.get("message", "变更影响需要处理后才能正式放行。")),
+                severity=str(item.get("severity", "blocker")),
+                source="change_management",
+                target=str(item.get("target", "")),
+                change_impact_id=str(item.get("item_id", "")),
+            )
+        )
+    issues.extend(dict(item) for item in existing_review_issues)
+    return _dedupe_review_issues(issues)
+
+
+def _dedupe_review_issues(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    result: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for item in items:
+        issue_id = str(item.get("issue_id", "")).strip()
+        if not issue_id:
+            continue
+        if issue_id in seen:
+            continue
+        result.append(item)
+        seen.add(issue_id)
+    return result
 
 
 def _control_plan_bundle_report(control_plan_bundle: dict[str, Any]) -> dict[str, Any]:
     rows = control_plan_bundle.get(
         "rows", control_plan_bundle.get("control_plan_items", control_plan_bundle.get("controls", []))
     )
-    return _document_rows_report(
+    report = _document_rows_report(
         rows=rows,
         evidence=control_plan_bundle.get("evidence", []),
         pending_fields=control_plan_bundle.get("pending_fields", []),
@@ -405,6 +563,86 @@ def _control_plan_bundle_report(control_plan_bundle: dict[str, Any]) -> dict[str
         ),
         review_fields=("sample_size", "sample_frequency"),
     )
+    _extend_control_plan_linkage_report(report, control_plan_bundle, rows)
+    return report
+
+
+def _extend_pfmea_pfd_linkage_report(
+    report: dict[str, Any], pfmea_bundle: dict[str, Any], rows: Any
+) -> None:
+    process_steps = pfmea_bundle.get("process_steps", pfmea_bundle.get("steps", []))
+    if not isinstance(process_steps, list) or not isinstance(rows, list):
+        return
+    step_ids = {
+        str(step.get("process_step_id", step.get("id", ""))).strip()
+        for step in process_steps
+        if isinstance(step, dict) and str(step.get("process_step_id", step.get("id", ""))).strip()
+    }
+    row_step_ids = {
+        str(row.get("process_step_id", "")).strip()
+        for row in rows
+        if isinstance(row, dict) and str(row.get("process_step_id", "")).strip()
+    }
+    for step_id in sorted(step_ids - row_step_ids):
+        report["uncovered_items"].append(f"process_step:{step_id}.pfmea_risk")
+    for step_id in sorted(row_step_ids - step_ids):
+        report["uncovered_items"].append(f"pfmea_row.process_step_missing:{step_id}")
+    report["ok"] = bool(report["ok"] and not any(
+        item.endswith(".pfmea_risk") or "process_step_missing" in item
+        for item in report["uncovered_items"]
+    ))
+
+
+def _extend_control_plan_linkage_report(
+    report: dict[str, Any], control_plan_bundle: dict[str, Any], rows: Any
+) -> None:
+    pfmea_rows = control_plan_bundle.get("pfmea_rows", control_plan_bundle.get("failure_modes", []))
+    process_steps = control_plan_bundle.get("process_steps", [])
+    if not isinstance(rows, list):
+        return
+    if isinstance(process_steps, list) and process_steps:
+        step_ids = {
+            str(step.get("process_step_id", step.get("id", ""))).strip()
+            for step in process_steps
+            if isinstance(step, dict) and str(step.get("process_step_id", step.get("id", ""))).strip()
+        }
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            step_id = str(row.get("process_step_id", "")).strip()
+            control_id = str(row.get("control_plan_id", "")).strip()
+            if step_id and step_id not in step_ids:
+                report["uncovered_items"].append(
+                    f"control_plan_row:{control_id}.process_step_missing:{step_id}"
+                )
+    if isinstance(pfmea_rows, list) and pfmea_rows:
+        controlled_pfmea_ids = {
+            str(row.get("pfmea_id", "")).strip()
+            for row in rows
+            if isinstance(row, dict) and str(row.get("pfmea_id", "")).strip()
+        }
+        for pfmea_row in pfmea_rows:
+            if not isinstance(pfmea_row, dict) or not _pfmea_row_requires_control(pfmea_row):
+                continue
+            pfmea_id = str(pfmea_row.get("pfmea_id", "")).strip()
+            if pfmea_id and pfmea_id not in controlled_pfmea_ids:
+                report["uncovered_items"].append(
+                    f"pfmea_row:{pfmea_id}.control_plan_control"
+                )
+    report["ok"] = bool(report["ok"] and not any(
+        "process_step_missing" in item or item.endswith(".control_plan_control")
+        for item in report["uncovered_items"]
+    ))
+
+
+def _pfmea_row_requires_control(row: dict[str, Any]) -> bool:
+    action_priority = str(row.get("action_priority", row.get("AP", ""))).strip().upper()
+    classification = str(row.get("classification", "")).strip()
+    try:
+        severity = int(row.get("severity", row.get("S", 0)) or 0)
+    except (TypeError, ValueError):
+        severity = 0
+    return bool(action_priority in {"H", "M"} or severity >= 9 or classification)
 
 
 def _document_rows_report(
@@ -449,6 +687,8 @@ def _document_rows_report(
         label = f"{row_label}:{row_id}" if row_id else f"{row_label}[{index}]"
         if row_id:
             row_ids.add(row_id)
+        if row.get("ai_inferred") and row_id:
+            ai_inferred_refs.add(row_id)
         for field_name in required_fields:
             if field_name == "evidence_refs":
                 _check_document_evidence_refs(
@@ -469,7 +709,7 @@ def _document_rows_report(
         for field_name in review_fields:
             if not str(row.get(field_name, "")).strip() or row.get(field_name) in {0, "0"}:
                 review_items.append(f"{label}.{field_name}")
-        if row.get("needs_confirmation"):
+        if _document_row_needs_confirmation(row):
             needs_confirmation_refs.append(row_id or label)
 
     all_referenced_evidence_ai = (
@@ -581,6 +821,60 @@ def _label_terms(label: str) -> tuple[str, ...]:
     return ()
 
 
+def _document_row_needs_confirmation(row: dict[str, Any]) -> bool:
+    if row.get("needs_confirmation"):
+        return True
+    if not row.get("ai_inferred"):
+        return False
+    risk_level = str(row.get("source_risk_level", row.get("risk_level", ""))).strip().lower()
+    classification = str(row.get("classification", "")).strip()
+    confidence = _float_value(row.get("confidence"))
+    evidence_refs = [str(ref).strip() for ref in row.get("evidence_refs", []) if str(ref).strip()]
+    if risk_level == "high" or classification:
+        return True
+    if confidence is not None and confidence < 0.75:
+        return True
+    if not evidence_refs:
+        return True
+    return _row_ai_reasoning_is_uncertain(row)
+
+
+def _row_ai_reasoning_is_uncertain(row: dict[str, Any]) -> bool:
+    text = " ".join(
+        str(row.get(field_name, "")).strip()
+        for field_name in (
+            "ai_reasoning",
+            "reasoning",
+            "uncertainty",
+            "uncertainties",
+            "recommended_action",
+        )
+        if row.get(field_name) is not None
+    ).lower()
+    return any(
+        token in text
+        for token in (
+            "uncertain",
+            "not confirmed",
+            "requires engineer",
+            "requires engineering",
+            "requires quality",
+            "requires review",
+            "pending",
+            "待确认",
+            "不确定",
+            "需复核",
+        )
+    )
+
+
+def _float_value(value: Any) -> float | None:
+    try:
+        return None if value in {None, ""} else float(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def _pfmea_manual_review_items(report: dict[str, Any]) -> list[AuditItem]:
     return _document_manual_review_items(
         report,
@@ -635,7 +929,10 @@ def _document_manual_review_items(
         items.append(
             AuditItem(value, needs_confirmation_category, f"{message_prefix} 引用内容需要人工确认", "review")
         )
+    row_ids = {str(value).strip() for value in report.get("row_ids", [])}
     for value in report["ai_inferred_refs"]:
+        if str(value).strip() in row_ids:
+            continue
         items.append(
             AuditItem(value, ai_category, f"{message_prefix} 引用了 AI 推断证据", "review")
         )
@@ -904,6 +1201,7 @@ def _pfd_bundle_report(
     review_items: list[str] = []
     referenced_evidence_ids: set[str] = set()
     referenced_non_ai_evidence_ids: set[str] = set()
+    mapped_special_characteristics: set[str] = set()
     if len(steps) < 2:
         uncovered_items.append("process_steps:min_count")
     if len(links) < 1:
@@ -936,8 +1234,17 @@ def _pfd_bundle_report(
         )
         if not str(step.get("process_function", "")).strip():
             review_items.append(f"process_step:{step_id}.process_function")
-        if not step.get("special_characteristics"):
+        if not step.get("special_characteristics") and step.get("needs_confirmation"):
             review_items.append(f"process_step:{step_id}.special_characteristics")
+        mapped_special_characteristics.update(
+            _special_characteristic_refs(step.get("special_characteristics"))
+        )
+
+    unmapped_special_characteristics = _unmapped_special_characteristics(
+        pfd_bundle.get("characteristics", []), mapped_special_characteristics
+    )
+    if unmapped_special_characteristics:
+        review_items.append("process_flow.characteristics.unmapped")
 
     for index, link in enumerate(links):
         if not isinstance(link, dict):
@@ -1016,11 +1323,56 @@ def _pfd_bundle_report(
         "ai_inferred_refs": sorted(ai_inferred_refs),
         "needs_confirmation_refs": sorted(set(needs_confirmation_refs)),
         "review_items": sorted(set(review_items)),
+        "unmapped_special_characteristics": unmapped_special_characteristics,
         "step_ids": sorted(step_ids),
         "evidence_sufficient": evidence_sufficient,
         "legacy_mode": False,
         "ok": ok,
     }
+
+
+def _special_characteristic_refs(value: Any) -> set[str]:
+    if isinstance(value, str):
+        return {value.strip()} if value.strip() else set()
+    if not isinstance(value, list):
+        return set()
+    refs: set[str] = set()
+    for item in value:
+        if isinstance(item, dict):
+            ref = str(
+                item.get("characteristic_id")
+                or item.get("id")
+                or item.get("name")
+                or ""
+            ).strip()
+        else:
+            ref = str(item).strip()
+        if ref:
+            refs.add(ref)
+    return refs
+
+
+def _unmapped_special_characteristics(
+    characteristics: Any, mapped_refs: set[str]
+) -> list[str]:
+    if not isinstance(characteristics, list):
+        return []
+    characteristic_refs: list[str] = []
+    for index, item in enumerate(characteristics, start=1):
+        if isinstance(item, dict):
+            ref = str(
+                item.get("characteristic_id")
+                or item.get("id")
+                or item.get("name")
+                or f"characteristics[{index - 1}]"
+            ).strip()
+        else:
+            ref = str(item).strip()
+        if ref:
+            characteristic_refs.append(ref)
+    if not characteristic_refs:
+        return []
+    return [ref for ref in characteristic_refs if ref not in mapped_refs]
 
 
 def _check_pfd_evidence_refs(
@@ -1612,6 +1964,128 @@ def _review_confirmations(chain: APQPChain) -> list[Any]:
     return confirmations if isinstance(confirmations, list) else []
 
 
+def _with_safe_ai_batch_confirmations(payload: dict[str, Any]) -> dict[str, Any]:
+    targets = _safe_ai_batch_confirmation_targets(payload)
+    if not targets:
+        return payload
+    patched = copy.deepcopy(payload)
+    metadata = patched.setdefault("metadata", {})
+    if not isinstance(metadata, dict):
+        return patched
+    confirmations = metadata.setdefault(REVIEW_CONFIRMATIONS_KEY, [])
+    if not isinstance(confirmations, list):
+        return patched
+    existing = {
+        str(item.get("target", "")).strip()
+        for item in confirmations
+        if isinstance(item, dict)
+    }
+    for target in targets:
+        if target in existing:
+            continue
+        confirmations.append(
+            {
+                "target": target,
+                "confirmation_mode": "ai_recommended_batch",
+                "source": "automation_review",
+            }
+        )
+    return patched
+
+
+def _unsafe_ai_batch_review_issues(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    issues: list[dict[str, Any]] = []
+    for table, chain_key, id_fields, target_type in (
+        ("process_flow", "process_steps", ("process_step_id", "id", "step_no"), "process_step"),
+        ("pfmea", "failure_modes", ("pfmea_id", "id"), "failure_mode"),
+        ("control_plan", "controls", ("control_plan_id", "id"), "control_item"),
+    ):
+        rows = payload.get(chain_key, [])
+        if not isinstance(rows, list):
+            continue
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            if str(row.get("confirmation_mode", "")).strip() != "ai_recommended_batch":
+                continue
+            row_id = _row_mapping_id(row, id_fields)
+            if not row_id or _safe_ai_batch_row(payload, table, row):
+                continue
+            target = f"{target_type}:{row_id}"
+            issues.append(
+                build_review_issue(
+                    category="AI批量确认",
+                    message="该项目不满足低风险高置信批量确认条件，需要人工复核后才能正式放行。",
+                    severity="blocker",
+                    source="automation_review",
+                    target=target,
+                    automation_level="ai_recommended_batch",
+                    can_batch_confirm=False,
+                    human_reason_required=True,
+                )
+            )
+    return issues
+
+
+def _safe_ai_batch_confirmation_targets(payload: dict[str, Any]) -> list[str]:
+    targets: list[str] = []
+    for table, chain_key, id_fields, target_type in (
+        ("process_flow", "process_steps", ("process_step_id", "id", "step_no"), "process_step"),
+        ("pfmea", "failure_modes", ("pfmea_id", "id"), "failure_mode"),
+        ("control_plan", "controls", ("control_plan_id", "id"), "control_item"),
+    ):
+        rows = payload.get(chain_key, [])
+        if not isinstance(rows, list):
+            continue
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            if str(row.get("confirmation_mode", "")).strip() != "ai_recommended_batch":
+                continue
+            row_id = _row_mapping_id(row, id_fields)
+            if row_id and _safe_ai_batch_row(payload, table, row):
+                targets.append(f"{target_type}:{row_id}")
+    return _dedupe_preserve_order(targets)
+
+
+def _safe_ai_batch_row(payload: dict[str, Any], table: str, row: dict[str, Any]) -> bool:
+    if row.get("deleted") or row.get("soft_deleted"):
+        return False
+    refs = [str(ref).strip() for ref in row.get("evidence_refs", []) if str(ref).strip()]
+    if not refs:
+        return False
+    confidence = _float_value(row.get("confidence"))
+    if confidence is None or confidence < 0.85:
+        return False
+    if str(row.get("action_priority", row.get("AP", ""))).strip().upper() == "H":
+        return False
+    if (
+        row.get("classification")
+        or row.get("characteristic_refs")
+        or row.get("special_characteristics")
+        or row.get("source_special_characteristics")
+    ):
+        return False
+    if table != "process_flow":
+        step_id = str(row.get("process_step_id", "")).strip()
+        for step in payload.get("process_steps", []):
+            if (
+                isinstance(step, dict)
+                and str(step.get("process_step_id", "")).strip() == step_id
+                and step.get("special_characteristics")
+            ):
+                return False
+    return True
+
+
+def _row_mapping_id(row: dict[str, Any], fields: tuple[str, ...]) -> str:
+    for field_name in fields:
+        value = str(row.get(field_name, "")).strip()
+        if value:
+            return value
+    return ""
+
+
 def _without_confirmed(values: list[str], confirmed: set[str]) -> list[str]:
     return [value for value in values if not _is_confirmed(value, confirmed)]
 
@@ -1639,6 +2113,8 @@ def _confirmation_matches_value(confirmed: str, value: str) -> bool:
             return True
     if ":" in confirmed:
         confirmed_type, confirmed_id = confirmed.split(":", 1)
+        if value.startswith(f"{confirmed} -> "):
+            return True
         if value == confirmed_id:
             return True
         if value.endswith(f":{confirmed_id}"):

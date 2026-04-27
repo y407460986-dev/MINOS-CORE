@@ -6,9 +6,19 @@ from typing import Any
 
 
 REVIEW_PATCH_VERSION = "minos-core.review_patch.v1"
+EDIT_PATCH_VERSION = "minos-core.edit_patch.v1"
 
 SCHEMA_REQUIRED_FIELDS: dict[str, tuple[str, ...]] = {
     "evidence_bundle": ("evidence",),
+    "drawing_analysis_bundle": (
+        "drawing_identity",
+        "materials",
+        "dimensions",
+        "special_characteristics",
+        "technical_requirements",
+        "manufacturing_clues",
+        "evidence",
+    ),
     "analysis_bundle": ("drawings", "characteristics", "process_clues", "evidence"),
     "process_flow": ("steps", "links", "evidence"),
     "failure_mode_candidates": ("candidates", "evidence"),
@@ -24,6 +34,7 @@ SCHEMA_REQUIRED_FIELDS: dict[str, tuple[str, ...]] = {
     ),
     "run_manifest": ("run_id", "stages"),
     "review_patch": ("review_patch_version", "items"),
+    "edit_patch": ("edit_patch_version", "items"),
     "apqp_chain_draft_result": (
         "status",
         "draft_notice",
@@ -32,6 +43,16 @@ SCHEMA_REQUIRED_FIELDS: dict[str, tuple[str, ...]] = {
         "quality_gate",
         "manual_review",
         "stage_results",
+    ),
+    "three_table_generation_result": (
+        "status",
+        "drawing_analysis",
+        "process_flow",
+        "pfmea",
+        "control_plan",
+        "quality_gate",
+        "exports",
+        "manifest",
     ),
     "apqp_chain_review_result": (
         "status",
@@ -161,6 +182,8 @@ def _resolve_document_type(
         return payload_document_type
     if _looks_like_review_patch(payload):
         return "review_patch"
+    if _looks_like_edit_patch(payload):
+        return "edit_patch"
     if _looks_like_legacy_apqp_chain(payload):
         return "apqp_chain"
     return ""
@@ -171,6 +194,8 @@ def _has_schema_version(payload: dict[str, Any], document_type: str) -> bool:
         return True
     if document_type == "review_patch":
         return _clean_text(payload.get("review_patch_version")) == REVIEW_PATCH_VERSION
+    if document_type == "edit_patch":
+        return _clean_text(payload.get("edit_patch_version")) == EDIT_PATCH_VERSION
     if document_type not in _SCHEMA_VERSION_COMPATIBLE_DOCUMENT_TYPES:
         return False
     if document_type == "apqp_chain":
@@ -215,6 +240,10 @@ def _looks_like_review_patch(payload: dict[str, Any]) -> bool:
     return bool(payload.get("review_patch_version") and "items" in payload)
 
 
+def _looks_like_edit_patch(payload: dict[str, Any]) -> bool:
+    return bool(payload.get("edit_patch_version") and "items" in payload)
+
+
 def _looks_like_legacy_apqp_chain(payload: dict[str, Any]) -> bool:
     normalized_fields = {"process_steps", "failure_modes", "controls", "evidence"}
     if normalized_fields.issubset(payload):
@@ -236,15 +265,38 @@ def _looks_like_legacy_apqp_chain(payload: dict[str, Any]) -> bool:
 
 def _validate_contract_fields(payload: dict[str, Any], document_type: str) -> None:
     validators = {
+        "drawing_analysis_bundle": _validate_drawing_analysis_bundle,
         "input_package": _validate_input_package,
         "run_manifest": _validate_run_manifest,
         "review_patch": _validate_review_patch,
+        "edit_patch": _validate_edit_patch,
         "apqp_chain_draft_result": _validate_apqp_chain_draft_result,
+        "three_table_generation_result": _validate_three_table_generation_result,
         "apqp_chain_review_result": _validate_apqp_chain_review_result,
     }
     validator = validators.get(document_type)
     if validator is not None:
         validator(payload, document_type)
+
+
+def _validate_drawing_analysis_bundle(payload: dict[str, Any], document_type: str) -> None:
+    failures = _ContractFailureCollector(document_type)
+    if payload.get("schema_version") != "minos-core.drawing_analysis.v1":
+        failures.add("schema_version must be 'minos-core.drawing_analysis.v1'")
+    if not isinstance(payload.get("drawing_identity"), dict):
+        failures.add("drawing_identity must be an object")
+    for field_name in (
+        "materials",
+        "dimensions",
+        "special_characteristics",
+        "technical_requirements",
+        "inspection_requirements",
+        "manufacturing_clues",
+        "uncertainties",
+        "evidence",
+    ):
+        _optional_list(payload, failures, field_name)
+    failures.raise_if_any()
 
 
 def _validate_input_package(payload: dict[str, Any], document_type: str) -> None:
@@ -346,6 +398,47 @@ def _validate_review_patch_item(
         )
 
 
+def _validate_edit_patch(payload: dict[str, Any], document_type: str) -> None:
+    failures = _ContractFailureCollector(document_type)
+    if payload.get("edit_patch_version") != EDIT_PATCH_VERSION:
+        failures.add(f"edit_patch_version must be {EDIT_PATCH_VERSION!r}")
+    items = payload.get("items")
+    if not isinstance(items, list) or not items:
+        failures.add("items must be a non-empty list")
+        failures.raise_if_any()
+        return
+    for index, item in enumerate(items):
+        _validate_edit_patch_item(item, index, failures)
+    failures.raise_if_any()
+
+
+def _validate_edit_patch_item(
+    item: Any,
+    index: int,
+    failures: _ContractFailureCollector,
+) -> None:
+    if not isinstance(item, dict):
+        failures.add(f"items[{index}] must be an object")
+        return
+    action = _clean_text(item.get("action"))
+    if action not in {"add", "update", "soft_delete", "confirm"}:
+        failures.add(
+            f"items[{index}].action must be add, update, soft_delete, or confirm"
+        )
+    table = _clean_text(item.get("table"))
+    if table not in {"process_flow", "pfmea", "control_plan"}:
+        failures.add(
+            f"items[{index}].table must be process_flow, pfmea, or control_plan"
+        )
+    if action == "add":
+        if not isinstance(item.get("row"), dict):
+            failures.add(f"items[{index}].row is required for add")
+    elif not _clean_text(item.get("target_id")):
+        failures.add(f"items[{index}].target_id must be a non-empty string")
+    if action == "update" and not isinstance(item.get("changes"), dict):
+        failures.add(f"items[{index}].changes must be an object for update")
+
+
 def _validate_apqp_chain_draft_result(payload: dict[str, Any], document_type: str) -> None:
     failures = _ContractFailureCollector(document_type)
     status = _clean_text(payload.get("status"))
@@ -372,6 +465,28 @@ def _validate_apqp_chain_draft_result(payload: dict[str, Any], document_type: st
         for index, result in enumerate(stage_results):
             if not isinstance(result, dict):
                 failures.add(f"stage_results[{index}] must be an object")
+    failures.raise_if_any()
+
+
+def _validate_three_table_generation_result(payload: dict[str, Any], document_type: str) -> None:
+    failures = _ContractFailureCollector(document_type)
+    status = _clean_text(payload.get("status"))
+    if status not in {"draft_ready", "needs_review", "blocked"}:
+        failures.add("status must be 'draft_ready', 'needs_review', or 'blocked'")
+    for field_name in ("quality_gate", "exports", "manifest"):
+        _optional_object(payload, failures, field_name)
+    for field_name in (
+        "drawing_analysis",
+        "process_flow",
+        "pfmea",
+        "control_plan",
+    ):
+        value = payload.get(field_name)
+        if value is not None and not isinstance(value, dict):
+            failures.add(f"{field_name} must be an object or null")
+    manual_review = payload.get("manual_review")
+    if manual_review is not None and not isinstance(manual_review, dict):
+        failures.add("manual_review must be an object")
     failures.raise_if_any()
 
 

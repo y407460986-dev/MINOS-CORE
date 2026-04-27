@@ -45,11 +45,41 @@ BASE_REVIEW_PATCH = {
     ],
 }
 
+BASE_EDIT_PATCH = {
+    "edit_patch_version": "minos-core.edit_patch.v1",
+    "edited_by": "process.engineer",
+    "edited_at": "2026-04-26T10:00:00Z",
+    "reason": "人工编辑三表草案",
+    "items": [
+        {
+            "action": "update",
+            "table": "pfmea",
+            "target_id": "PFMEA-P10-001",
+            "changes": {"failure_mode": "人工修正后的失效模式"},
+        }
+    ],
+}
+
 
 VALID_BUNDLES = {
     "evidence_bundle": {
         "document_type": "evidence_bundle",
         "schema_version": "0.1",
+        "evidence": BASE_EVIDENCE,
+    },
+    "drawing_analysis_bundle": {
+        "document_type": "drawing_analysis_bundle",
+        "schema_version": "minos-core.drawing_analysis.v1",
+        "drawing_identity": {},
+        "materials": [],
+        "surface_treatments": [],
+        "dimensions": [],
+        "tolerances": [],
+        "special_characteristics": [],
+        "technical_requirements": [],
+        "inspection_requirements": [],
+        "manufacturing_clues": [],
+        "uncertainties": [],
         "evidence": BASE_EVIDENCE,
     },
     "analysis_bundle": {
@@ -119,6 +149,7 @@ VALID_BUNDLES = {
         "warnings": [],
     },
     "review_patch": BASE_REVIEW_PATCH,
+    "edit_patch": BASE_EDIT_PATCH,
     "apqp_chain_draft_result": {
         "document_type": "apqp_chain_draft_result",
         "status": "draft_ready",
@@ -233,6 +264,31 @@ class BundleSchemaTests(unittest.TestCase):
         self.assertTrue(validate_bundle_schema(payload))
         self.assertTrue(validate_bundle_schema(payload, "review_patch"))
 
+    def test_validate_bundle_schema_accepts_edit_patch_without_document_type(self):
+        payload = copy.deepcopy(BASE_EDIT_PATCH)
+
+        self.assertTrue(validate_bundle_schema(payload))
+        self.assertTrue(validate_bundle_schema(payload, "edit_patch"))
+
+    def test_validate_edit_patch_reports_action_table_and_target_errors(self):
+        payload = {
+            "document_type": "edit_patch",
+            "edit_patch_version": "minos-core.edit_patch.v1",
+            "items": [
+                {
+                    "action": "replace",
+                    "table": "unknown",
+                    "changes": [],
+                }
+            ],
+        }
+
+        with self.assertRaisesRegex(
+            BundleSchemaError,
+            r"edit_patch.*items\[0\]\.action.*items\[0\]\.table.*target_id",
+        ):
+            validate_bundle_schema(payload)
+
     def test_validate_review_patch_reports_action_target_and_basis_errors(self):
         payload = {
             "document_type": "review_patch",
@@ -250,7 +306,7 @@ class BundleSchemaTests(unittest.TestCase):
 
         with self.assertRaisesRegex(
             BundleSchemaError,
-            "review_patch.*items\[0\]\.action.*items\[0\]\.target.*evidence_refs",
+            r"review_patch.*items\[0\]\.action.*items\[0\]\.target.*evidence_refs",
         ):
             validate_bundle_schema(payload)
 
@@ -305,7 +361,7 @@ class BundleSchemaTests(unittest.TestCase):
 
         with self.assertRaisesRegex(
             BundleSchemaError,
-            "run_manifest.*stages\[0\]\.status",
+            r"run_manifest.*stages\[0\]\.status",
         ):
             validate_bundle_schema(payload)
 

@@ -398,9 +398,85 @@ def _apply_item(payload: dict[str, Any], record: dict[str, Any]) -> None:
         row[record["field"]] = record["value"]
     if "needs_confirmation" in row:
         row["needs_confirmation"] = False
+    _remove_confirmed_ai_inferred_item(
+        payload,
+        target_type=target_type,
+        target_id=record["target_id"],
+        row=row,
+    )
     if record.get("field"):
         for pending_field in _pending_field_candidates(record):
             _remove_pending_field(payload, pending_field)
+
+
+def _remove_confirmed_ai_inferred_item(
+    payload: dict[str, Any],
+    *,
+    target_type: str,
+    target_id: str,
+    row: dict[str, Any],
+) -> None:
+    candidates = _ai_inferred_target_candidates(target_type, target_id, row)
+    if not candidates:
+        return
+    for container in _ai_inferred_item_containers(payload):
+        items = container.get("ai_inferred_items")
+        if isinstance(items, list):
+            container["ai_inferred_items"] = [
+                item for item in items if not _ai_inferred_item_matches(item, candidates)
+            ]
+        elif isinstance(items, str) and items.strip() in candidates:
+            container["ai_inferred_items"] = []
+
+
+def _ai_inferred_target_candidates(
+    target_type: str,
+    target_id: str,
+    row: dict[str, Any],
+) -> set[str]:
+    candidates = {str(target_id).strip()}
+    if target_type == "failure_mode":
+        candidates.add(str(row.get("pfmea_id", "")).strip())
+    elif target_type == "control_item":
+        candidates.add(str(row.get("control_plan_id", "")).strip())
+    elif target_type == "process_step":
+        candidates.add(str(row.get("process_step_id", "")).strip())
+    elif target_type == "evidence":
+        candidates.add(str(row.get("evidence_id", "")).strip())
+    elif target_type == "failure_mode_candidate":
+        candidates.add(str(row.get("candidate_id", "")).strip())
+    elif target_type == "trace_link":
+        candidates.add(str(row.get("trace_link_id", "")).strip())
+    candidates.add(f"{target_type}:{target_id}")
+    return {candidate for candidate in candidates if candidate}
+
+
+def _ai_inferred_item_containers(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    containers: list[dict[str, Any]] = []
+    if "ai_inferred_items" in payload:
+        containers.append(payload)
+    for key in (
+        "process_flow",
+        "failure_mode_candidates",
+        "pfmea",
+        "control_plan",
+        "analysis_bundle",
+    ):
+        value = payload.get(key)
+        if isinstance(value, dict) and "ai_inferred_items" in value:
+            containers.append(value)
+    return containers
+
+
+def _ai_inferred_item_matches(item: Any, candidates: set[str]) -> bool:
+    if isinstance(item, str):
+        return item.strip() in candidates
+    if isinstance(item, dict):
+        return any(
+            str(item.get(field_name, "")).strip() in candidates
+            for field_name in _TARGET_ID_FIELDS["ai_inferred_item"]
+        )
+    return str(item).strip() in candidates
 
 
 def _parse_target(target: str, index: int) -> tuple[str, str]:

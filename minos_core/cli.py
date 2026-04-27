@@ -22,6 +22,61 @@ def main(argv: list[str] | None = None) -> int:
         "--samples-dir", default=None, help="Optional sample metadata directory"
     )
     subparsers.add_parser("list-samples", help="List configured sample metadata")
+    subparsers.add_parser("ai-config", help="Show AI provider config status without printing secrets")
+
+    analyze_drawing_parser = subparsers.add_parser(
+        "analyze-drawing",
+        help="Analyze a PDF/PNG/JPG drawing with the configured multimodal AI",
+    )
+    analyze_drawing_parser.add_argument("--input", required=True, help="Drawing PDF/PNG/JPG path")
+    analyze_drawing_parser.add_argument("--output", help="Optional drawing_analysis_bundle JSON path")
+    analyze_drawing_parser.add_argument(
+        "--pages-output-dir",
+        help="Optional directory for rendered PDF page images",
+    )
+    analyze_drawing_parser.add_argument(
+        "--context-json",
+        default="{}",
+        help="Optional JSON object with part family or project context",
+    )
+
+    generate_three_parser = subparsers.add_parser(
+        "generate-three-tables",
+        help="Generate draft PFD/PFMEA/CP workbooks from a drawing",
+    )
+    generate_three_parser.add_argument("--input", required=True, help="Drawing PDF/PNG/JPG path")
+    generate_three_parser.add_argument("--output-dir", required=True, help="Output directory")
+    generate_three_parser.add_argument(
+        "--result-output",
+        help="Optional result envelope JSON path; defaults to output-dir\\three_table_generation_result.json",
+    )
+    generate_three_parser.add_argument(
+        "--context-json",
+        default="{}",
+        help="Optional JSON object with part family or project context",
+    )
+    generate_three_parser.add_argument(
+        "--export-mode",
+        choices=("draft", "final"),
+        default="draft",
+        help="Export draft by default; final is blocked unless the quality gate allows it",
+    )
+
+    demo_drawing_parser = subparsers.add_parser(
+        "write-demo-drawing",
+        help="Write a synthetic safe demo drawing PNG for local smoke tests",
+    )
+    demo_drawing_parser.add_argument("--output", required=True, help="Output PNG path")
+
+    accept_three_parser = subparsers.add_parser(
+        "accept-three-tables",
+        help="Check a three_table_generation_result JSON and exported workbooks",
+    )
+    accept_three_parser.add_argument(
+        "--result",
+        required=True,
+        help="three_table_generation_result.json path",
+    )
 
     validate_parser = subparsers.add_parser("validate", help="Validate an APQP fixture")
     validate_parser.add_argument(
@@ -161,6 +216,27 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.command in {"list", "list-samples"}:
         return _list_samples(getattr(args, "samples_dir", None))
+    if args.command == "ai-config":
+        return _ai_config()
+    if args.command == "analyze-drawing":
+        return _analyze_drawing(
+            args.input,
+            args.output,
+            args.pages_output_dir,
+            args.context_json,
+        )
+    if args.command == "generate-three-tables":
+        return _generate_three_tables(
+            args.input,
+            args.output_dir,
+            args.result_output,
+            args.context_json,
+            args.export_mode,
+        )
+    if args.command == "write-demo-drawing":
+        return _write_demo_drawing(args.output)
+    if args.command == "accept-three-tables":
+        return _accept_three_tables(args.result)
     if args.command == "validate":
         return _validate(args.fixture or args.input)
     if args.command == "export":
@@ -203,6 +279,145 @@ def _list_samples(samples_dir: str | None = None) -> int:
             )
         )
     return 0
+
+
+def _ai_config() -> int:
+    from .ai_config import load_openai_responses_config
+
+    config = load_openai_responses_config().model_dump()
+    print(json.dumps(config, ensure_ascii=False, indent=2))
+    return 0 if config["api_key_configured"] else 2
+
+
+def _analyze_drawing(
+    drawing_input: str,
+    output: str | None,
+    pages_output_dir: str | None,
+    context_json: str,
+) -> int:
+    from .adapters.multimodal import OpenAIMultimodalError, OpenAIResponsesMultimodalDrawingAnalyzer
+    from .drawing_analysis import DrawingAnalysisError, analyze_drawing_pages
+    from .drawing_input import DrawingInputError, load_drawing_source, render_drawing_pages
+
+    context = _parse_context_json(context_json)
+    try:
+        source = load_drawing_source(drawing_input)
+        pages = render_drawing_pages(source, pages_output_dir)
+        bundle = analyze_drawing_pages(
+            pages,
+            OpenAIResponsesMultimodalDrawingAnalyzer(),
+            context,
+        )
+    except (
+        DrawingInputError,
+        DrawingAnalysisError,
+        OpenAIMultimodalError,
+        FileNotFoundError,
+        json.JSONDecodeError,
+    ) as exc:
+        print(f"图纸分析失败：{exc}")
+        return 2
+
+    text = json.dumps(bundle, ensure_ascii=False, indent=2)
+    if output:
+        destination = Path(output)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(text, encoding="utf-8")
+        print(f"图纸分析结果已保存：{destination}")
+    else:
+        print(text)
+    return 0
+
+
+def _parse_context_json(context_json: str) -> dict[str, Any]:
+    payload = json.loads(context_json or "{}")
+    if not isinstance(payload, dict):
+        raise json.JSONDecodeError("context JSON must be an object", context_json, 0)
+    return payload
+
+
+def _generate_three_tables(
+    drawing_input: str,
+    output_dir: str,
+    result_output: str | None,
+    context_json: str,
+    export_mode: str,
+) -> int:
+    from .adapters.multimodal import OpenAIMultimodalError
+    from .drawing_analysis import DrawingAnalysisError
+    from .drawing_input import DrawingInputError
+    from .pipeline import generate_three_tables_from_drawing
+
+    try:
+        result = generate_three_tables_from_drawing(
+            drawing_input,
+            output_dir,
+            context=_parse_context_json(context_json),
+            export_mode=export_mode,
+        )
+    except (
+        DrawingInputError,
+        DrawingAnalysisError,
+        OpenAIMultimodalError,
+        FileNotFoundError,
+        json.JSONDecodeError,
+        ValueError,
+    ) as exc:
+        print(f"三表生成失败：{exc}")
+        return 2
+
+    destination = Path(result_output) if result_output else Path(output_dir) / "three_table_generation_result.json"
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(
+        json.dumps(result, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    print(f"三表生成结果已保存：{destination}")
+    print(f"状态：{result.get('status_display') or result.get('status')}")
+    manual_review = result.get("manual_review")
+    if isinstance(manual_review, dict):
+        summary = manual_review.get("summary")
+        if isinstance(summary, dict) and summary.get("message"):
+            print(str(summary["message"]))
+    if result.get("exports"):
+        print(json.dumps(result["exports"], ensure_ascii=False, indent=2))
+    return 0 if result.get("status") != "blocked" else 2
+
+
+def _write_demo_drawing(output: str) -> int:
+    from .demo_acceptance import write_safe_demo_drawing_png
+
+    path = write_safe_demo_drawing_png(output)
+    print(f"安全演示图纸已保存：{path}")
+    return 0
+
+
+def _accept_three_tables(result_path: str) -> int:
+    from .adapters.fixture_json import read_json_object
+    from .demo_acceptance import summarize_three_table_acceptance
+
+    try:
+        payload = read_json_object(result_path)
+        summary = summarize_three_table_acceptance(payload)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        print(f"三表验收检查失败：{exc}")
+        return 2
+    payload = {
+        "ok": summary.ok,
+        "errors": list(summary.errors),
+        "warnings": list(summary.warnings),
+        "workbook_checks": {
+            name: {
+                "path": check.path,
+                "ok": check.ok,
+                "errors": list(check.errors),
+                "worksheet_count": len(check.worksheets),
+            }
+            for name, check in summary.workbook_checks.items()
+        },
+    }
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0 if summary.ok else 2
 
 
 def _validate(fixture: str) -> int:
@@ -288,7 +503,7 @@ def _apply_review(
     try:
         result = apply_review(review_input, review_patch, output, manifest_output)
     except (ReviewPatchError, TypeError, ValueError) as exc:
-        print(f"apply-review failed: {exc}")
+        print(f"人工复核应用失败：{exc}")
         return 2
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0

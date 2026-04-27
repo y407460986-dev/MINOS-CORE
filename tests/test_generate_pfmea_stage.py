@@ -73,6 +73,70 @@ class GeneratePfmeaStageTests(unittest.TestCase):
             source_candidate_id = row["source_candidate_id"]
             self.assertEqual(row["evidence_refs"], candidate_refs[source_candidate_id])
 
+    def test_generate_pfmea_inherits_pfd_steps_and_drops_orphan_candidates(self):
+        candidates = {
+            "document_type": "failure_mode_candidates",
+            "evidence": [
+                {"evidence_id": "EV-P10", "source": "route", "content": "P10"},
+                {"evidence_id": "EV-P20", "source": "route", "content": "P20"},
+            ],
+            "process_steps": [
+                {
+                    "process_step_id": "P10",
+                    "operation": "Blanking",
+                    "process_function": "Cut blank",
+                    "product_characteristics": ["SC-LENGTH"],
+                    "process_characteristics": ["PRESS-TONNAGE"],
+                    "special_characteristics": ["SC-LENGTH"],
+                    "evidence_refs": ["EV-P10"],
+                },
+                {
+                    "process_step_id": "P20",
+                    "operation": "Inspection",
+                    "process_function": "Verify blank",
+                    "evidence_refs": ["EV-P20"],
+                },
+            ],
+            "candidates": [
+                {
+                    "candidate_id": "FMC-P10-001",
+                    "process_step_id": "P10",
+                    "failure_mode": "Length out of tolerance",
+                    "failure_effect": "Assembly fit issue",
+                    "failure_cause": "Feed drift",
+                    "evidence_refs": ["EV-P10"],
+                },
+                {
+                    "candidate_id": "FMC-P99-001",
+                    "process_step_id": "P99",
+                    "failure_mode": "Orphan risk",
+                    "evidence_refs": ["EV-P10"],
+                },
+                {
+                    "candidate_id": "FMC-P20-001",
+                    "process_step_id": "P20",
+                    "failure_mode": "Inspection missed defect",
+                    "failure_effect": "Defect escapes",
+                    "failure_cause": "Gauge not used",
+                    "evidence_refs": ["EV-P20"],
+                },
+            ],
+        }
+
+        result = run_stage(candidates, stage="generate_pfmea")
+        row = result.output["rows"][0]
+
+        self.assertEqual(result.status, "ok")
+        self.assertEqual(len(result.output["rows"]), 2)
+        self.assertNotIn("P99", {item["process_step_id"] for item in result.output["rows"]})
+        self.assertEqual(row["process_step_id"], "P10")
+        self.assertEqual(row["process_step_name"], "Blanking")
+        self.assertEqual(row["process_function"], "Cut blank")
+        self.assertEqual(row["product_characteristics"], ["SC-LENGTH"])
+        self.assertEqual(row["process_characteristics"], ["PRESS-TONNAGE"])
+        self.assertEqual(row["characteristic_refs"], ["SC-LENGTH"])
+        self.assertEqual(result.output["process_steps"], candidates["process_steps"])
+
     def test_generate_pfmea_blocks_missing_candidate_evidence_ref(self):
         pfd_result = run_stage(FIXTURE_DIR, stage="generate_pfd")
         brainstorm_result = run_stage(

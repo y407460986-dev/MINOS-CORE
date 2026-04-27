@@ -129,6 +129,10 @@ def _candidate(
         "sequence": step.get("sequence", _sequence_from_step_id(step_id)),
         "operation": str(step.get("operation", step.get("name", ""))).strip(),
         "process_function": str(step.get("process_function", "")).strip(),
+        "process_step_name": str(step.get("operation", step.get("name", ""))).strip(),
+        "product_characteristics": _string_list(step.get("product_characteristics", [])),
+        "process_characteristics": _string_list(step.get("process_characteristics", [])),
+        "special_characteristics": _string_list(step.get("special_characteristics", [])),
         "failure_mode": failure_mode,
         "source_rule": source_rule,
         "evidence_refs": [
@@ -147,3 +151,13 @@ def _sequence_from_step_id(step_id: str) -> int:
 
 def _normalized_text(value: str) -> str:
     return " ".join(value.strip().lower().split())
+
+
+def _string_list(value: Any) -> list[str]:
+    if isinstance(value, str):
+        values = [value]
+    elif isinstance(value, list):
+        values = value
+    else:
+        values = []
+    return [str(item).strip() for item in values if str(item).strip()]

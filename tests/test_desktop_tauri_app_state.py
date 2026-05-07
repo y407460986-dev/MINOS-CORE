@@ -102,6 +102,25 @@ def test_workbench_soft_delete_can_be_undone_and_pfd_diagram_uses_visible_rows()
     assert "visiblePfdRows" in page_source
 
 
+def test_desktop_sidecar_starts_without_windows_console_window() -> None:
+    rust_source = (
+        ROOT / "apps" / "desktop-tauri" / "src-tauri" / "src" / "lib.rs"
+    ).read_text(encoding="utf-8")
+
+    assert "std::os::windows::process::CommandExt" in rust_source
+    assert "CREATE_NO_WINDOW" in rust_source
+    assert ".creation_flags(CREATE_NO_WINDOW)" in rust_source
+
+
+def test_desktop_binary_uses_windows_gui_subsystem_in_release() -> None:
+    main_source = (
+        ROOT / "apps" / "desktop-tauri" / "src-tauri" / "src" / "main.rs"
+    ).read_text(encoding="utf-8")
+
+    assert "windows_subsystem = \"windows\"" in main_source
+    assert "not(debug_assertions)" in main_source
+
+
 def test_workbench_uses_pfd_flow_diagram_for_standard_process_fields() -> None:
     page_source = (
         ROOT / "apps" / "desktop-tauri" / "src" / "pages" / "ThreeTableWorkbench.tsx"

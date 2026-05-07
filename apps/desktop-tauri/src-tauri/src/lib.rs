@@ -1,6 +1,8 @@
 use once_cell::sync::OnceCell;
 use serde::Serialize;
 use std::net::{SocketAddr, TcpStream};
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
@@ -10,6 +12,8 @@ use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
 
 static SIDECAR_CHILD: OnceCell<Mutex<Option<Child>>> = OnceCell::new();
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -113,6 +117,8 @@ fn ensure_sidecar_running(app: &tauri::AppHandle) -> bool {
         .stdin(Stdio::null())
         .stdout(stdout)
         .stderr(stderr);
+    #[cfg(windows)]
+    command.creation_flags(CREATE_NO_WINDOW);
 
     let Ok(child) = command.spawn() else {
         return false;
@@ -143,7 +149,9 @@ fn is_api_port_open() -> bool {
 fn workspace_root() -> Option<PathBuf> {
     let current = std::env::current_dir().ok()?;
     for ancestor in current.ancestors() {
-        if ancestor.join("minos_core").is_dir() && ancestor.join("apps").join("desktop-tauri").is_dir() {
+        if ancestor.join("minos_core").is_dir()
+            && ancestor.join("apps").join("desktop-tauri").is_dir()
+        {
             return Some(ancestor.to_path_buf());
         }
     }

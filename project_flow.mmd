@@ -621,3 +621,11 @@ flowchart TD
     FIX322 --> FIX323[text LLM default reasoning<br/>medium for PFD PFMEA CP]
     FIX323 --> FIX324[real saved drawing_analysis<br/>PFD smoke 12 rows OK]
     FIX324 --> G
+
+    FIX330[desktop console window hide fix]
+    FIX330 --> FIX331[Tauri release exe<br/>Windows GUI subsystem]
+    FIX330 --> FIX332[Python sidecar process<br/>CREATE_NO_WINDOW]
+    FIX332 --> FIX333[NSIS release rebuilt<br/>app opens without extra terminal]
+    FIX331 --> FIX333
+    FIX333 --> REL308
+    FIX333 --> G

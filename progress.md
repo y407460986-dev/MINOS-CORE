@@ -5,6 +5,10 @@
 ## 发布前完整验收当前状态
 
 - 已完成：发布前验收主线自动化检查已收口，当前未发现新的 core/platform/desktop API 代码缺陷。
+- 已修复：Windows 发布版启动软件时弹出命令行窗口；主 Tauri exe 已切换为 release GUI 子系统，Python sidecar 已使用 `CREATE_NO_WINDOW` 隐藏控制台。
+- 已验证：新增桌面窗口回归检查先红后绿；`python -m pytest tests/test_desktop_tauri_app_state.py tests/test_desktop_shell.py tests/test_desktop_api_sidecar.py tests/test_desktop_table_editor.py tests/test_live_linkage.py -q`：82 项通过。
+- 已验证：`npm run build` 通过；`npm run release:nsis` 通过，并重新生成 `apps\desktop-tauri\src-tauri\target\release\bundle\nsis\MINOS-CORE_1.14.0_x64-setup.exe`。
+- 已验证：重新启动 `minos-core-desktop.exe` 后，只看到主窗口 `MINOS-CORE Workbench`；未再出现标题指向 `minos-core-desktop.exe` 的 Windows Terminal 窗口，sidecar 监听 `127.0.0.1:8000`。
 - 已验证：`python -m pytest tests -q -m "not real_api"`：778 项通过、2 项跳过、61 个 subtests 通过。
 - 已验证：`python -m unittest discover -s tests -v`：719 项通过、1 项跳过。
 - 已验证：`python -m unittest discover -s tests\acceptance -v`：真实 API 验收入口正常，因 `MINOS_RUN_REAL_ACCEPTANCE` 未设置为 `1` 跳过 1 项。

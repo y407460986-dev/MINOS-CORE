@@ -1182,3 +1182,4 @@ V1.14.1 在 V1.14 图纸事实到工程闭环的基础上，把图纸入口调�
 /// 5. 运行 Tauri `npm run build`、Rust `cargo check`、Python `pip check` 和 wheel 构建。
 /// 6. 验证 Tauri 发布安装包链路；若默认 all targets 不收口，只收口到当前 Windows 发布所需的 NSIS 目标。
 /// 7. 更新 `progress.md`、`findings.md`、`project_flow.mmd`，记录通过项、跳过项和剩余风险。
+/// 8. 修复发布版桌面启动时弹出命令行窗口：主 Tauri exe 使用 Windows GUI 子系统，Python sidecar 使用 `CREATE_NO_WINDOW` 隐藏控制台，并重新构建 NSIS 安装包。

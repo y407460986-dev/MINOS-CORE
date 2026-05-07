@@ -80,6 +80,24 @@ def test_workbench_clean_editing_surface_contract() -> None:
     assert "position:absolute" in table_source or "absolute" in table_source
 
 
+def test_workbench_soft_delete_can_be_undone_and_pfd_diagram_uses_visible_rows() -> None:
+    page_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "pages" / "ThreeTableWorkbench.tsx"
+    ).read_text(encoding="utf-8")
+    store_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "state" / "workbench-store.ts"
+    ).read_text(encoding="utf-8")
+
+    assert "lastSoftDeletedRows" in page_source
+    assert "undoSoftDeleteRows" in page_source
+    assert 'action: "update"' in page_source
+    assert "deleted: false" in page_source
+    assert "soft_deleted: false" in page_source
+    assert "processFlowStepsFromRows" in page_source
+    assert "processFlowStepsFromRows" in store_source
+    assert "visiblePfdRows" in page_source
+
+
 def test_workbench_uses_pfd_flow_diagram_for_standard_process_fields() -> None:
     page_source = (
         ROOT / "apps" / "desktop-tauri" / "src" / "pages" / "ThreeTableWorkbench.tsx"
@@ -97,8 +115,8 @@ def test_workbench_uses_pfd_flow_diagram_for_standard_process_fields() -> None:
     assert 'import { PfdFlowDiagram } from "../components/PfdFlowDiagram";' in page_source
     assert "<PfdFlowDiagram" in page_source
     assert 'filters.table === "pfd"' in page_source
-    assert "processFlowStepsFromResult" in page_source
-    assert "processFlowStepsFromResult" in store_source
+    assert "processFlowStepsFromRows" in page_source
+    assert "processFlowStepsFromRows" in store_source
     assert "next_step_ids" in component_source
     assert "input_material" in component_source
     assert "output_result" in component_source

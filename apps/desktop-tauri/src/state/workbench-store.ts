@@ -91,6 +91,12 @@ export function processFlowStepsFromResult(result: Record<string, unknown> | nul
   return Array.isArray(processFlow?.steps) ? (processFlow.steps as ProcessFlowStep[]) : [];
 }
 
+export function processFlowStepsFromRows(rows: WorkbenchRow[]): ProcessFlowStep[] {
+  return rows
+    .filter((row) => row.table === "pfd")
+    .map((row) => row.raw as ProcessFlowStep);
+}
+
 export function rowsFromResult(result: Record<string, unknown> | null | undefined): WorkbenchRow[] {
   if (!result) return [];
   return [

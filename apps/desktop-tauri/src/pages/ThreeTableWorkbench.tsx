@@ -7,7 +7,7 @@ import { PfdFlowDiagram } from "../components/PfdFlowDiagram";
 import { SegmentedControl } from "../components/SegmentedControl";
 import { StatStrip } from "../components/StatStrip";
 import { WorkbenchTable } from "../components/WorkbenchTable";
-import { filterRows, initialFilters, processFlowStepsFromResult, rowsFromResult, type WorkbenchFilters } from "../state/workbench-store";
+import { filterRows, initialFilters, processFlowStepsFromRows, rowsFromResult, type WorkbenchFilters } from "../state/workbench-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -23,8 +23,10 @@ export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onR
   const [filters, setFilters] = useState<WorkbenchFilters>(initialFilters);
   const [saveState, setSaveState] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [lastSoftDeletedRows, setLastSoftDeletedRows] = useState<WorkbenchRow[]>([]);
   const sourceRows = useMemo(() => rowsFromResult(run?.current_result), [run]);
-  const processFlowSteps = useMemo(() => processFlowStepsFromResult(run?.current_result), [run]);
+  const visiblePfdRows = useMemo(() => sourceRows.filter((row) => row.table === "pfd"), [sourceRows]);
+  const processFlowSteps = useMemo(() => processFlowStepsFromRows(visiblePfdRows), [visiblePfdRows]);
   const rows = useMemo(() => filterRows(sourceRows, filters), [filters, sourceRows]);
   const highRisk = sourceRows.filter((row) => row.risk === "high").length;
   const hasRun = Boolean(run);
@@ -142,8 +144,36 @@ export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onR
     try {
       const items = targetRows.map((row) => (buildSoftDeletePatch(row).items as Record<string, unknown>[])[0]);
       const updated = await applyEditPatch(run.id, buildRowsPatch(items));
+      setLastSoftDeletedRows(targetRows);
       onRunUpdated?.(updated);
       setSaveState("已软删除选中行，下游关联会重新计算。");
+    } catch (caught) {
+      setSaveState(caught instanceof Error ? caught.message : String(caught));
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function undoSoftDeleteRows() {
+    if (!run || lastSoftDeletedRows.length === 0) return;
+    setSaveState(`正在恢复 ${lastSoftDeletedRows.length} 行...`);
+    setIsSaving(true);
+    try {
+      const items = lastSoftDeletedRows.map((row) => ({
+        action: "update",
+        table: tableKey(row),
+        target_id: row.rowId,
+        row_id: row.rowId,
+        changes: {
+          deleted: false,
+          soft_deleted: false,
+          review_status: "待确认"
+        }
+      }));
+      const updated = await applyEditPatch(run.id, buildRowsPatch(items));
+      setLastSoftDeletedRows([]);
+      onRunUpdated?.(updated);
+      setSaveState("已恢复刚才软删除的行。");
     } catch (caught) {
       setSaveState(caught instanceof Error ? caught.message : String(caught));
     } finally {
@@ -238,7 +268,16 @@ export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onR
             ))}
           </div>
         </div>
-        {saveState && <div className="mt-2 text-[#56565b] text-[13px]">{saveState}</div>}
+        {saveState && (
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-[#56565b] text-[13px]">
+            <span>{saveState}</span>
+            {lastSoftDeletedRows.length > 0 && (
+              <Button size="sm" variant="outline" disabled={isSaving} onClick={undoSoftDeleteRows}>
+                撤销软删除
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
       <section className={`flex items-center gap-2.5 min-h-12 flex-wrap ${hasRun ? "" : "pointer-events-none opacity-60"}`} aria-disabled={!hasRun}>

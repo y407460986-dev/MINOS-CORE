@@ -53,14 +53,14 @@ function statusFromRow(row: Record<string, unknown>): RowStatus {
   return "draft";
 }
 
-function rowsFromDocument(result: Record<string, unknown>, table: TableKind): WorkbenchRow[] {
+function rowsFromDocument(result: Record<string, unknown>, table: TableKind, includeDeleted = false): WorkbenchRow[] {
   const sourceKey = table === "pfd" ? "process_flow" : table === "cp" ? "control_plan" : "pfmea";
   const containerKey = table === "pfd" ? "steps" : "rows";
   const idKey = table === "pfd" ? "process_step_id" : table === "cp" ? "control_plan_id" : "pfmea_id";
   const document = result[sourceKey] as Record<string, unknown> | undefined;
   const rows = Array.isArray(document?.[containerKey]) ? (document?.[containerKey] as Record<string, unknown>[]) : [];
 
-  return rows.filter((row) => !row.deleted && !row.soft_deleted).map((row, index) => {
+  return rows.filter((row) => includeDeleted || (!row.deleted && !row.soft_deleted)).map((row, index) => {
     const id = text(row[idKey], `${table.toUpperCase()}-${index + 1}`);
     return {
       id,
@@ -104,4 +104,13 @@ export function rowsFromResult(result: Record<string, unknown> | null | undefine
     ...rowsFromDocument(result, "pfmea"),
     ...rowsFromDocument(result, "cp")
   ];
+}
+
+export function softDeletedRowsFromResult(result: Record<string, unknown> | null | undefined): WorkbenchRow[] {
+  if (!result) return [];
+  return [
+    ...rowsFromDocument(result, "pfd", true),
+    ...rowsFromDocument(result, "pfmea", true),
+    ...rowsFromDocument(result, "cp", true)
+  ].filter((row) => Boolean(row.raw.deleted || row.raw.soft_deleted));
 }

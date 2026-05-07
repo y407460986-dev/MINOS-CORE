@@ -7,7 +7,7 @@ import { PfdFlowDiagram } from "../components/PfdFlowDiagram";
 import { SegmentedControl } from "../components/SegmentedControl";
 import { StatStrip } from "../components/StatStrip";
 import { WorkbenchTable } from "../components/WorkbenchTable";
-import { filterRows, initialFilters, processFlowStepsFromRows, rowsFromResult, type WorkbenchFilters } from "../state/workbench-store";
+import { filterRows, initialFilters, processFlowStepsFromRows, rowsFromResult, softDeletedRowsFromResult, type WorkbenchFilters } from "../state/workbench-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -25,6 +25,8 @@ export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onR
   const [isSaving, setIsSaving] = useState(false);
   const [lastSoftDeletedRows, setLastSoftDeletedRows] = useState<WorkbenchRow[]>([]);
   const sourceRows = useMemo(() => rowsFromResult(run?.current_result), [run]);
+  const softDeletedRows = useMemo(() => softDeletedRowsFromResult(run?.current_result), [run]);
+  const restorableSoftDeletedRows = lastSoftDeletedRows.length > 0 ? lastSoftDeletedRows : softDeletedRows;
   const visiblePfdRows = useMemo(() => sourceRows.filter((row) => row.table === "pfd"), [sourceRows]);
   const processFlowSteps = useMemo(() => processFlowStepsFromRows(visiblePfdRows), [visiblePfdRows]);
   const rows = useMemo(() => filterRows(sourceRows, filters), [filters, sourceRows]);
@@ -155,11 +157,11 @@ export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onR
   }
 
   async function undoSoftDeleteRows() {
-    if (!run || lastSoftDeletedRows.length === 0) return;
-    setSaveState(`正在恢复 ${lastSoftDeletedRows.length} 行...`);
+    if (!run || restorableSoftDeletedRows.length === 0) return;
+    setSaveState(`正在恢复 ${restorableSoftDeletedRows.length} 行...`);
     setIsSaving(true);
     try {
-      const items = lastSoftDeletedRows.map((row) => ({
+      const items = restorableSoftDeletedRows.map((row) => ({
         action: "update",
         table: tableKey(row),
         target_id: row.rowId,
@@ -271,11 +273,14 @@ export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onR
         {saveState && (
           <div className="mt-2 flex flex-wrap items-center gap-2 text-[#56565b] text-[13px]">
             <span>{saveState}</span>
-            {lastSoftDeletedRows.length > 0 && (
-              <Button size="sm" variant="outline" disabled={isSaving} onClick={undoSoftDeleteRows}>
-                撤销软删除
-              </Button>
-            )}
+          </div>
+        )}
+        {restorableSoftDeletedRows.length > 0 && (
+          <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md border border-[#f2d48a] bg-[#fff8e6] px-3 py-2 text-[13px] text-[#6f4e00]">
+            <span>已软删除 {restorableSoftDeletedRows.length} 行。</span>
+            <Button size="sm" variant="outline" disabled={isSaving} onClick={undoSoftDeleteRows}>
+              恢复软删除行
+            </Button>
           </div>
         )}
       </div>

@@ -89,12 +89,16 @@ def test_workbench_soft_delete_can_be_undone_and_pfd_diagram_uses_visible_rows()
     ).read_text(encoding="utf-8")
 
     assert "lastSoftDeletedRows" in page_source
+    assert "softDeletedRowsFromResult" in page_source
+    assert "restorableSoftDeletedRows" in page_source
     assert "undoSoftDeleteRows" in page_source
+    assert "已软删除" in page_source
     assert 'action: "update"' in page_source
     assert "deleted: false" in page_source
     assert "soft_deleted: false" in page_source
     assert "processFlowStepsFromRows" in page_source
     assert "processFlowStepsFromRows" in store_source
+    assert "softDeletedRowsFromResult" in store_source
     assert "visiblePfdRows" in page_source
 
 

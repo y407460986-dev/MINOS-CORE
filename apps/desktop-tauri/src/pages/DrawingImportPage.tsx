@@ -18,6 +18,7 @@ import {
   applyLinkageSync,
   startChainRun,
   getChainState,
+  getRun,
   confirmPfdStage,
   confirmPfmeaStage,
   confirmCpStage,
@@ -172,9 +173,51 @@ export default function DrawingImportPage({ activeRun, onRunCreated, onRunUpdate
   }
 
   function extractChainState(run: DesktopRun): ChainState | null {
+    if (run.chain_stages) return run.chain_stages;
     const cs = (run as Record<string, unknown>).chain_stages;
     if (cs && typeof cs === "object") return cs as ChainState;
     return null;
+  }
+
+  function stageStatusFromChainState(cs: ChainState | null, stage: "pfmea" | "cp"): string {
+    return cs?.[stage]?.status ?? "";
+  }
+
+  function stageFailureTitle(stage: "pfmea" | "cp"): string {
+    return stage === "pfmea" ? "失效模式分析生成失败" : "控制计划生成失败";
+  }
+
+  function pollRunUntilStageSettled(runId: number, stage: "pfmea" | "cp") {
+    const timer = window.setInterval(async () => {
+      try {
+        const latest = await getRun(runId);
+        setCompletedRun(latest);
+        onRunUpdated(latest);
+        const cs = extractChainState(latest);
+        if (cs) setChainState(cs);
+        const stageStatus = stageStatusFromChainState(cs, stage);
+        if (latest.status === "failed" || stageStatus === "failed") {
+          window.clearInterval(timer);
+          setRunState("failed");
+          setStatus(stageFailureTitle(stage));
+          setError(latest.failure_message || "后台生成失败，请查看本地服务日志后重试。");
+          setChainGenerating(false);
+          return;
+        }
+        if (stageStatus && stageStatus !== "running") {
+          window.clearInterval(timer);
+          setRunState("chain_active");
+          setStatus(stageStatus === "generated" ? "下一阶段已生成，请继续确认。" : "阶段状态已更新。");
+          setChainGenerating(false);
+        }
+      } catch (caught) {
+        window.clearInterval(timer);
+        setRunState("failed");
+        setStatus("阶段状态刷新失败");
+        setError(errorMessage(caught));
+        setChainGenerating(false);
+      }
+    }, 2500);
   }
 
   async function refreshChainState() {
@@ -197,9 +240,15 @@ export default function DrawingImportPage({ activeRun, onRunCreated, onRunUpdate
       onRunUpdated(updated);
       const cs = extractChainState(updated);
       if (cs) setChainState(cs);
+      if (stage === "pfd") {
+        pollRunUntilStageSettled(updated.id, "pfmea");
+      } else if (stage === "pfmea") {
+        pollRunUntilStageSettled(updated.id, "cp");
+      } else {
+        setChainGenerating(false);
+      }
     } catch (caught) {
       setError(errorMessage(caught));
-    } finally {
       setChainGenerating(false);
     }
   }

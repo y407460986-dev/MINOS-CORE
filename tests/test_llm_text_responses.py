@@ -1,5 +1,6 @@
 import json
 import os
+import urllib.error
 import unittest
 from unittest.mock import patch
 
@@ -152,6 +153,36 @@ class OpenAITextGeneratorResponsesTests(unittest.TestCase):
                 OpenAITextGenerator(config).generate_structured("system", "user")
 
         self.assertEqual(captured["payload"]["reasoning"], {"effort": "medium"})
+
+    def test_text_generation_does_not_retry_gateway_timeout(self):
+        config = AIProviderConfig(
+            provider="openai_responses",
+            model="gpt-test",
+            base_url="https://proxy.example/v1",
+            api_key_configured=True,
+            api_key_env_name="MINOS_OPENAI_API_KEY",
+            responses_path="responses",
+            reasoning_effort="medium",
+        )
+        attempts = {"count": 0}
+
+        def fake_urlopen(_request, timeout=0):
+            attempts["count"] += 1
+            raise urllib.error.HTTPError(
+                "https://proxy.example/v1/responses",
+                504,
+                "Gateway Time-out",
+                {},
+                None,
+            )
+
+        with patch.dict(os.environ, {"MINOS_OPENAI_API_KEY": "secret"}, clear=True):
+            with patch("urllib.request.urlopen", side_effect=fake_urlopen):
+                with self.assertRaises(RuntimeError) as raised:
+                    OpenAITextGenerator(config).generate_structured("system", "user")
+
+        self.assertEqual(attempts["count"], 1)
+        self.assertIn("LLM Responses HTTP 504", str(raised.exception))
 
 
 if __name__ == "__main__":

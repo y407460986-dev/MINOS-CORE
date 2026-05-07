@@ -118,7 +118,7 @@ class OpenAITextGenerator:
                 raise RuntimeError(_timeout_message(self._timeout_seconds)) from exc
             except urllib.error.HTTPError as exc:
                 err_body = exc.read().decode("utf-8", errors="replace")
-                if attempt < attempts and exc.code in {429, 500, 502, 503, 504}:
+                if attempt < attempts and exc.code in {429, 500, 502, 503}:
                     time.sleep(attempt)
                     continue
                 logger.error("LLM Responses HTTP %d: %s", exc.code, err_body[:500])

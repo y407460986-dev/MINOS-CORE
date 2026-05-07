@@ -23,6 +23,22 @@ def test_drawing_import_page_uses_chain_start_feedback() -> None:
     assert 'setStatus("PFD 已生成，请确认过程流程图。");' not in page_source
 
 
+def test_drawing_import_page_polls_after_stage_confirm_and_shows_failure() -> None:
+    page_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "pages" / "DrawingImportPage.tsx"
+    ).read_text(encoding="utf-8")
+    type_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "api" / "types.ts"
+    ).read_text(encoding="utf-8")
+
+    assert "getRun" in page_source
+    assert "pollRunUntilStageSettled" in page_source
+    assert "window.setInterval" in page_source
+    assert "失效模式分析生成失败" in page_source
+    assert "failure_message" in page_source
+    assert "chain_stages?: ChainState" in type_source
+
+
 def test_workbench_pfd_confirm_allows_direct_confirm_and_responsive_editor() -> None:
     page_source = (
         ROOT / "apps" / "desktop-tauri" / "src" / "pages" / "ThreeTableWorkbench.tsx"

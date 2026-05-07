@@ -85,6 +85,7 @@ export type DesktopRun = {
   output_dir: string;
   raw_result?: Record<string, unknown>;
   current_result: Record<string, unknown>;
+  chain_stages?: ChainState | null;
   exports?: Record<string, string>;
   failure_message?: string;
 };

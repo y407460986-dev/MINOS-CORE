@@ -636,3 +636,9 @@ flowchart TD
     FIX340 --> FIX343[process flow bulk confirm<br/>confirmed and pending counts]
     FIX343 --> FIX344[row-level confirmation badges<br/>table and diagram visible]
     FIX344 --> G
+
+    FIX350[PFMEA wait and 504 feedback fix]
+    FIX350 --> FIX351[keep text reasoning<br/>medium not low]
+    FIX350 --> FIX352[poll run after stage confirm<br/>show failed stage and raw error]
+    FIX350 --> FIX353[504 gateway timeout<br/>fail fast instead of 3 long retries]
+    FIX353 --> G

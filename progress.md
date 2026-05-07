@@ -12,6 +12,10 @@
 - 已修复：Tauri 三表工作台残留英文状态和标签，`medium/approved` 改为 `中风险/已确认`，右侧 `Inspector/Sidecar` 改为 `检查器/本地后端`，流程图符号 `OP/INSP` 改为中文符号。
 - 已新增：过程流程图一键确认全部行入口，不再要求先选中单行；阶段操作区显示 `已确认 / 待确认` 数量，表格和流程图节点都显示行级确认状态。
 - 已验证：`python -m pytest tests/test_desktop_tauri_app_state.py tests/test_desktop_table_editor.py tests/test_desktop_shell.py tests/test_desktop_api_sidecar.py -q`：68 项通过；Tauri `npm run build` 通过。
+- 已定位：当前 run #17 失效模式分析不是本地计算慢，而是文本 Responses 请求多次返回 `504 Gateway Time-out`；后端已将 run 写成 `失败`，但图纸导入页没有持续刷新后台阶段状态。
+- 已修复：图纸导入页在确认过程流程图后持续轮询 run 状态，后台失败时显示“失效模式分析生成失败”和原始错误；文本模型默认推理强度保持 `medium`，未降到 `low`。
+- 已优化：文本 Responses 对 `504 Gateway Time-out` 不再重复三轮长等待，其他临时错误仍保留重试。
+- 已验证：`python -m pytest tests/test_llm_text_responses.py tests/test_desktop_tauri_app_state.py tests/test_desktop_shell.py tests/test_desktop_api_sidecar.py -q`：49 项通过；Tauri `npm run build` 通过。
 - 已验证：`python -m pytest tests -q -m "not real_api"`：778 项通过、2 项跳过、61 个 subtests 通过。
 - 已验证：`python -m unittest discover -s tests -v`：719 项通过、1 项跳过。
 - 已验证：`python -m unittest discover -s tests\acceptance -v`：真实 API 验收入口正常，因 `MINOS_RUN_REAL_ACCEPTANCE` 未设置为 `1` 跳过 1 项。

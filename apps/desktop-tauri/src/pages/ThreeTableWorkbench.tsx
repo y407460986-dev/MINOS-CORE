@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { SlidersHorizontal } from "lucide-react";
+import { useMemo, useState } from "react";
+import { AlertTriangle, CheckCircle2, Loader2, SlidersHorizontal } from "lucide-react";
 import { applyEditPatch, confirmPfdStage, getRun } from "../api/client";
 import type { DesktopRun, TableKind, WorkbenchRow } from "../api/types";
 import { PreviewRail } from "../components/PreviewRail";
@@ -21,7 +21,6 @@ type ThreeTableWorkbenchProps = {
 
 export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onRunUpdated }: ThreeTableWorkbenchProps) {
   const [filters, setFilters] = useState<WorkbenchFilters>(initialFilters);
-  const [editValue, setEditValue] = useState("");
   const [saveState, setSaveState] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const sourceRows = useMemo(() => rowsFromResult(run?.current_result), [run]);
@@ -30,30 +29,23 @@ export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onR
   const highRisk = sourceRows.filter((row) => row.risk === "high").length;
   const hasRun = Boolean(run);
 
-  useEffect(() => {
-    setEditValue(selectedRow ? currentEditableValue(selectedRow) : "");
-  }, [selectedRow]);
-
   function patchFilters(patch: Partial<WorkbenchFilters>) {
     setFilters((current) => ({ ...current, ...patch }));
   }
 
-  function editableField(row: WorkbenchRow): string {
+  function editableField(row: WorkbenchRow, displayField?: string): string {
     if (row.table === "pfd") return "operation";
-    if (row.table === "pfmea") return "failure_mode";
+    if (row.table === "pfmea") {
+      if (displayField === "owner") return "responsibility";
+      return "failure_mode";
+    }
+    if (row.table === "cp" && displayField === "owner") return "responsibility";
     return "control_method";
   }
 
-  function currentEditableValue(row: WorkbenchRow): string {
-    const value = row.raw[editableField(row)];
-    if (value === null || value === undefined) return "";
-    if (typeof value === "object") return JSON.stringify(value);
-    return String(value);
-  }
-
-  function buildSelectedRowPatch(row: WorkbenchRow, value: string): Record<string, unknown> {
+  function buildSelectedRowPatch(row: WorkbenchRow, value: string, displayField?: string): Record<string, unknown> {
     const table = row.table === "pfd" ? "process_flow" : row.table === "cp" ? "control_plan" : "pfmea";
-    const field = editableField(row);
+    const field = editableField(row, displayField);
     return {
       edit_patch_version: "minos-core.edit_patch.v1",
       items: [
@@ -87,6 +79,13 @@ export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onR
     };
   }
 
+  function buildRowsPatch(items: Record<string, unknown>[]): Record<string, unknown> {
+    return {
+      edit_patch_version: "minos-core.edit_patch.v1",
+      items
+    };
+  }
+
   function stageStatus(updatedRun: DesktopRun | null, stage: "pfmea" | "cp"): string {
     const chainStages = updatedRun?.raw_result?.chain_stages ?? updatedRun?.current_result?.chain_stages;
     if (!chainStages || typeof chainStages !== "object") return "";
@@ -114,15 +113,21 @@ export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onR
     }, 2500);
   }
 
-  async function saveSelectedRow() {
-    if (!run || !selectedRow || !editValue.trim()) return;
-    setSaveState("正在保存编辑...");
+  async function saveDraftChanges(changes: Array<{ row: WorkbenchRow; field: string; value: string }>) {
+    if (!run || changes.length === 0) return;
+    setSaveState(`正在保存 ${changes.length} 项表格编辑...`);
     setIsSaving(true);
     try {
-      const updated = await applyEditPatch(run.id, buildSelectedRowPatch(selectedRow, editValue));
+      const items = changes.map((change) => ({
+        action: "update",
+        table: tableKey(change.row),
+        target_id: change.row.rowId,
+        row_id: change.row.rowId,
+        changes: { [editableField(change.row, change.field)]: change.value }
+      }));
+      const updated = await applyEditPatch(run.id, buildRowsPatch(items));
       onRunUpdated?.(updated);
-      setSaveState("已保存编辑并刷新三表");
-      setEditValue("");
+      setSaveState("已保存表格编辑并刷新三表。");
     } catch (caught) {
       setSaveState(caught instanceof Error ? caught.message : String(caught));
     } finally {
@@ -130,15 +135,37 @@ export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onR
     }
   }
 
-  async function softDeleteSelectedRow() {
-    if (!run || !selectedRow) return;
-    setSaveState("正在软删除此行...");
+  async function softDeleteRows(targetRows: WorkbenchRow[]) {
+    if (!run || targetRows.length === 0) return;
+    setSaveState(`正在软删除 ${targetRows.length} 行...`);
     setIsSaving(true);
     try {
-      const updated = await applyEditPatch(run.id, buildSoftDeletePatch(selectedRow));
+      const items = targetRows.map((row) => (buildSoftDeletePatch(row).items as Record<string, unknown>[])[0]);
+      const updated = await applyEditPatch(run.id, buildRowsPatch(items));
       onRunUpdated?.(updated);
-      setSaveState("已软删除此行，下游关联会重新计算。");
-      setEditValue("");
+      setSaveState("已软删除选中行，下游关联会重新计算。");
+    } catch (caught) {
+      setSaveState(caught instanceof Error ? caught.message : String(caught));
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function markRowsForReview(targetRows: WorkbenchRow[]) {
+    if (!run || targetRows.length === 0) return;
+    setSaveState(`正在标记 ${targetRows.length} 行为评审中...`);
+    setIsSaving(true);
+    try {
+      const items = targetRows.map((row) => ({
+        action: "update",
+        table: tableKey(row),
+        target_id: row.rowId,
+        row_id: row.rowId,
+        changes: { review_status: "待确认" }
+      }));
+      const updated = await applyEditPatch(run.id, buildRowsPatch(items));
+      onRunUpdated?.(updated);
+      setSaveState("已标记为评审中。");
     } catch (caught) {
       setSaveState(caught instanceof Error ? caught.message : String(caught));
     } finally {
@@ -151,16 +178,11 @@ export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onR
     setSaveState("正在确认 PFD，PFMEA 将在后台生成...");
     setIsSaving(true);
     try {
-      const patch = editValue.trim()
-        ? buildSelectedRowPatch(selectedRow, editValue)
-        : undefined;
       const updated = await confirmPfdStage(run.id, {
-        confirmed_by: "desktop",
-        ...(patch ? { edit_patch: patch } : {})
+        confirmed_by: "desktop"
       });
       onRunUpdated?.(updated);
       pollRunUntil(updated.id, "pfmea", "PFD 已确认，正在后台生成 PFMEA，可继续查看和整理当前表。");
-      setEditValue("");
     } catch (caught) {
       setSaveState(caught instanceof Error ? caught.message : String(caught));
     } finally {
@@ -171,6 +193,24 @@ export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onR
   function selectPfdStep(stepId: string) {
     const row = sourceRows.find((item) => item.table === "pfd" && item.rowId === stepId);
     if (row) onSelectRow(row);
+  }
+
+  function compactChainStages() {
+    const chainStages = run?.raw_result?.chain_stages ?? run?.current_result?.chain_stages;
+    const stages = [
+      { key: "pfd", label: "PFD" },
+      { key: "pfmea", label: "PFMEA" },
+      { key: "cp", label: "CP" }
+    ];
+    return stages.map((stage) => {
+      const value = chainStages && typeof chainStages === "object"
+        ? (chainStages as Record<string, unknown>)[stage.key]
+        : null;
+      const status = value && typeof value === "object"
+        ? (value as Record<string, unknown>).status
+        : "";
+      return { ...stage, status: typeof status === "string" ? status : "not_started" };
+    });
   }
 
   return (
@@ -184,8 +224,21 @@ export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onR
         ]}
       />
 
-      <div className="text-[#56565b] text-[13px]">
-        {run ? `当前运行 #${run.id}：${run.status_display || run.status}` : '暂无运行结果，请先在"图纸导入"中生成三表。'}
+      <div className="rounded-lg border bg-white px-4 py-3" aria-label="紧凑阶段状态">
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-[#56565b] text-[13px]">
+            {run ? `当前运行 #${run.id}：${run.status_display || run.status}` : '暂无运行结果，请先在"图纸导入"中生成三表。'}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {compactChainStages().map((stage) => (
+              <span key={stage.key} className="inline-flex items-center gap-1.5 rounded-full border bg-muted/40 px-2.5 py-1 text-xs text-muted-foreground">
+                {stage.status === "running" ? <Loader2 size={13} className="animate-spin text-primary" /> : stage.status === "failed" ? <AlertTriangle size={13} className="text-destructive" /> : <CheckCircle2 size={13} className={stage.status === "confirmed" || stage.status === "generated" ? "text-[#34C759]" : "text-muted-foreground"} />}
+                {stage.label} · {stageStatusText(stage.status)}
+              </span>
+            ))}
+          </div>
+        </div>
+        {saveState && <div className="mt-2 text-[#56565b] text-[13px]">{saveState}</div>}
       </div>
 
       <section className={`flex items-center gap-2.5 min-h-12 flex-wrap ${hasRun ? "" : "pointer-events-none opacity-60"}`} aria-disabled={!hasRun}>
@@ -244,32 +297,41 @@ export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onR
         />
       )}
 
-      <WorkbenchTable rows={rows} selectedRow={selectedRow} onSelectRow={onSelectRow} />
-
-      <section className="grid grid-cols-1 md:grid-cols-[auto_minmax(180px,1fr)_minmax(240px,2fr)_auto_auto] items-center gap-2.5 p-3 bg-white border border-border rounded-lg">
-        <strong>行编辑</strong>
-        <span className="text-muted-foreground text-[13px]">
-          {selectedRow ? `正在编辑 ${selectedRow.id}` : hasRun ? "选择一行后编辑关键字段" : "先生成三表再编辑"}
-        </span>
-        <Input
-          value={editValue}
-          disabled={!selectedRow || !hasRun || isSaving}
-          placeholder={selectedRow ? `修改 ${editableField(selectedRow)}` : "暂无选中行"}
-          onChange={(event) => setEditValue(event.target.value)}
+      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_280px]" aria-label="三表编辑画布">
+        <WorkbenchTable
+          rows={rows}
+          selectedRow={selectedRow}
+          onSelectRow={onSelectRow}
+          onSaveDrafts={saveDraftChanges}
+          onSoftDeleteRows={softDeleteRows}
+          onMarkRowsForReview={markRowsForReview}
+          busy={isSaving || !hasRun}
         />
-        <Button variant="outline" disabled={!selectedRow || !hasRun || !editValue.trim() || isSaving} onClick={saveSelectedRow}>
-          {isSaving ? "处理中" : "保存编辑"}
-        </Button>
-        <Button variant="outline" disabled={!selectedRow || !hasRun || isSaving} onClick={softDeleteSelectedRow}>
-          软删除此行
-        </Button>
-        <Button disabled={!selectedRow || selectedRow.table !== "pfd" || !hasRun || isSaving} onClick={saveAndConfirmPfd}>
-          {isSaving ? "确认中" : editValue.trim() ? "保存并确认 PFD" : "确认 PFD"}
-        </Button>
-        {saveState && <span className="text-[#56565b] text-[13px] md:col-span-6">{saveState}</span>}
-      </section>
-
-      <PreviewRail row={selectedRow} />
+        <aside className="grid gap-3 content-start">
+          <PreviewRail row={selectedRow} />
+          <section className="grid gap-2 rounded-lg border bg-white p-3">
+            <span className="text-muted-foreground text-xs">阶段操作</span>
+            <Button disabled={!selectedRow || selectedRow.table !== "pfd" || !hasRun || isSaving} onClick={saveAndConfirmPfd}>
+              {isSaving ? "确认中" : "确认 PFD"}
+            </Button>
+            <p className="m-0 text-[12px] leading-[1.45] text-muted-foreground">
+              PFD 确认后，PFMEA 会在后台生成；你可以继续浏览和整理当前三表。
+            </p>
+          </section>
+        </aside>
+      </div>
     </div>
   );
+}
+
+function stageStatusText(status: string): string {
+  const map: Record<string, string> = {
+    not_started: "待开始",
+    running: "生成中",
+    generated: "已生成",
+    confirmed: "已确认",
+    blocked: "已阻断",
+    failed: "失败"
+  };
+  return map[status] ?? status;
 }

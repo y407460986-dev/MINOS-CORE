@@ -32,12 +32,12 @@ def test_workbench_pfd_confirm_allows_direct_confirm_and_responsive_editor() -> 
     ).read_text(encoding="utf-8")
 
     assert 'table: "pfd"' in store_source
-    assert 'const patch = editValue.trim()' in page_source
-    assert 'edit_patch: patch' in page_source
+    assert "saveDraftChanges" in page_source
+    assert "onSaveDrafts={saveDraftChanges}" in page_source
     assert 'selectedRow.table !== "pfd"' in page_source
-    assert 'selectedRow.table !== "pfd" || !hasRun || !editValue.trim()' not in page_source
-    assert 'grid-cols-1' in page_source
-    assert 'md:grid-cols' in page_source
+    assert 'selectedRow.table !== "pfd" || !hasRun || isSaving' in page_source
+    assert "editValue" not in page_source
+    assert 'aria-label="三表编辑画布"' in page_source
 
 
 def test_workbench_rows_can_be_soft_deleted_and_chain_generation_is_polled() -> None:
@@ -48,14 +48,36 @@ def test_workbench_rows_can_be_soft_deleted_and_chain_generation_is_polled() -> 
         ROOT / "apps" / "desktop-tauri" / "src" / "api" / "client.ts"
     ).read_text(encoding="utf-8")
 
-    assert "softDeleteSelectedRow" in page_source
-    assert "软删除此行" in page_source
+    assert "softDeleteRows" in page_source
+    assert "onSoftDeleteRows={softDeleteRows}" in page_source
+    assert "软删除" in page_source
     assert 'action: "soft_delete"' in page_source
     assert "isSaving" in page_source
     assert "正在确认 PFD，PFMEA 将在后台生成" in page_source
     assert "getRun" in page_source
     assert "window.setInterval" in page_source
     assert "export function getRun" in client_source
+
+
+def test_workbench_clean_editing_surface_contract() -> None:
+    page_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "pages" / "ThreeTableWorkbench.tsx"
+    ).read_text(encoding="utf-8")
+    table_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "components" / "WorkbenchTable.tsx"
+    ).read_text(encoding="utf-8")
+
+    assert "compactChainStages" in page_source
+    assert "三表编辑画布" in page_source
+    assert "底部批量操作条" not in page_source
+    assert "浮动上下文工具条" in table_source
+    assert "editingCell" in table_source
+    assert "draftChanges" in table_source
+    assert "selectedRowIds" in table_source
+    assert "onSaveDrafts" in table_source
+    assert "onSoftDeleteRows" in table_source
+    assert "onMarkRowsForReview" in table_source
+    assert "position:absolute" in table_source or "absolute" in table_source
 
 
 def test_workbench_uses_pfd_flow_diagram_for_standard_process_fields() -> None:

@@ -32,7 +32,7 @@ function taskCategoryLabel(task: ClosureTask): string {
   const id = task.id.toLowerCase();
   if (id.includes("drawing_recognition")) return "图纸识别复核";
   if (id.includes("process_flow_review")) return "过程流程图复核";
-  if (id.includes("pfmea_review")) return "PFMEA 复核";
+  if (id.includes("pfmea_review")) return "失效模式分析复核";
   if (id.includes("control_plan_review")) return "控制计划复核";
   if (id.includes("trace-link")) return "追溯关系确认";
   if (id.includes("knowledge") || id.includes("知识库推荐")) return "知识推荐处理";
@@ -43,7 +43,7 @@ function taskCategoryLabel(task: ClosureTask): string {
     change_impact: "变更影响处理",
     manual_review: "人工复核",
     automation_review: "AI 预审",
-    pfmea_action: "PFMEA 措施确认",
+    pfmea_action: "失效模式分析措施确认",
     linkage_sync: "三表联动同步",
     closure_task: "闭环任务"
   };

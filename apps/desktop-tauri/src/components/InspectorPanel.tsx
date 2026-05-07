@@ -1,4 +1,5 @@
 import type { BootstrapPayload, HealthResponse, WorkbenchRow } from "../api/types";
+import { riskLabel, rowStatusLabel } from "../state/workbench-display";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 
@@ -13,7 +14,7 @@ export function InspectorPanel({ row, health, bootstrap, emptyHint }: InspectorP
   return (
     <aside className="bg-white/82 border-0 border-l border-solid border-border p-[18px]">
       <div className="grid gap-[3px] mb-4">
-        <strong>Inspector</strong>
+        <strong>检查器</strong>
         <span className="text-muted-foreground">证据、状态与本地服务</span>
       </div>
 
@@ -24,8 +25,8 @@ export function InspectorPanel({ row, health, bootstrap, emptyHint }: InspectorP
           <dl className="grid gap-[9px] m-0">
             {[
               ["过程", row.process],
-              ["风险", row.risk],
-              ["状态", row.status],
+              ["风险", riskLabel(row.risk)],
+              ["状态", rowStatusLabel(row.status)],
               ["责任", row.owner],
             ].map(([label, value]) => (
               <div key={label} className="flex justify-between gap-2.5">
@@ -63,7 +64,7 @@ export function InspectorPanel({ row, health, bootstrap, emptyHint }: InspectorP
             <dd className="m-0 text-right">{health?.ok ? "通过" : "未连接"}</dd>
           </div>
           <div className="flex justify-between gap-2.5">
-            <dt className="text-muted-foreground">Sidecar</dt>
+            <dt className="text-muted-foreground">本地后端</dt>
             <dd className="m-0 text-right">{bootstrap?.sidecarManaged ? "托管" : "未托管"}</dd>
           </div>
           <div className="flex justify-between gap-2.5">

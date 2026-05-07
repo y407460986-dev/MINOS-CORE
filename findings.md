@@ -7,6 +7,8 @@
 - 桌面启动弹出的黑色命令行窗口有两个来源：主 Tauri exe 未声明 Windows GUI 子系统，Python sidecar 用普通 `Command::new("python")` 启动时也会继承可见控制台语义。
 - 只隐藏 Python sidecar 不够；发布版入口也必须使用 `#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]`，否则主程序本身仍可能由 Windows Terminal 承载。
 - sidecar 需要在 Windows 下显式使用 `std::os::windows::process::CommandExt` 和 `CREATE_NO_WINDOW`，这样后端 API 仍正常运行，但不会给用户弹出额外命令行窗口。
+- 三表工作台的英文残留主要不是翻译文案漏改，而是前端直接把内部枚举值渲染出来：`risk=medium`、`status=approved`、流程符号 `OP/INSP`。应统一经过显示层映射，内部值继续保持稳定。
+- 过程流程图确认交互之前把“阶段确认”和“选中行”绑在一起，用户容易误以为必须一行一行处理；更清楚的设计是阶段区提供“确认全部过程流程图”，并同时展示行级确认状态。
 - 当前代码层自动化验收已经覆盖 core、platform、desktop API、Tauri 前端、Rust 检查、Python wheel 构建、CLI smoke、合成三表导出和 OpenXML 基础可打开性检查；这些检查本轮均通过。
 - 真实 API 验收入口本身可运行，但没有真实图纸路径和显式开关时只能跳过；这不是代码失败，但意味着不能把“真实图纸 + 真实 Responses 调用”声明为本轮已验收。
 - Tauri 默认 `targets = all` 对当前 Windows 发布不够稳，会让发布命令长时间停在打包阶段且不生成 `bundle` 产物。当前最短稳定发布路径是 `tauri build --ci --no-sign --bundles nsis`。

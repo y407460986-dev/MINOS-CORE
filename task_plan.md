@@ -1183,3 +1183,4 @@ V1.14.1 在 V1.14 图纸事实到工程闭环的基础上，把图纸入口调�
 /// 6. 验证 Tauri 发布安装包链路；若默认 all targets 不收口，只收口到当前 Windows 发布所需的 NSIS 目标。
 /// 7. 更新 `progress.md`、`findings.md`、`project_flow.mmd`，记录通过项、跳过项和剩余风险。
 /// 8. 修复发布版桌面启动时弹出命令行窗口：主 Tauri exe 使用 Windows GUI 子系统，Python sidecar 使用 `CREATE_NO_WINDOW` 隐藏控制台，并重新构建 NSIS 安装包。
+/// 9. 横向收口 Tauri 桌面中文化：风险、状态、阶段、检查器、本地服务、流程图符号、导入/导出页标题均显示中文；过程流程图支持一键确认全部可见行，并显示已确认/待确认进度。

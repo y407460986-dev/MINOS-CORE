@@ -54,7 +54,7 @@ export default function ExportPage({ run }: ExportPageProps) {
   return (
     <section className="grid gap-4">
       <div>
-        <span className="text-primary text-xs font-bold">Export</span>
+        <span className="text-primary text-xs font-bold">导出</span>
         <h2 className="mt-1 mb-0 text-[22px]">导出与提交包</h2>
       </div>
 

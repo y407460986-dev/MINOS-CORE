@@ -34,8 +34,8 @@ def test_workbench_pfd_confirm_allows_direct_confirm_and_responsive_editor() -> 
     assert 'table: "pfd"' in store_source
     assert "saveDraftChanges" in page_source
     assert "onSaveDrafts={saveDraftChanges}" in page_source
-    assert 'selectedRow.table !== "pfd"' in page_source
-    assert 'selectedRow.table !== "pfd" || !hasRun || isSaving' in page_source
+    assert "confirmAllPfdRows" in page_source
+    assert "visiblePfdRows.length === 0" in page_source
     assert "editValue" not in page_source
     assert 'aria-label="三表编辑画布"' in page_source
 
@@ -53,7 +53,7 @@ def test_workbench_rows_can_be_soft_deleted_and_chain_generation_is_polled() -> 
     assert "软删除" in page_source
     assert 'action: "soft_delete"' in page_source
     assert "isSaving" in page_source
-    assert "正在确认 PFD，PFMEA 将在后台生成" in page_source
+    assert "正在确认全部过程流程图，失效模式分析将在后台生成" in page_source
     assert "getRun" in page_source
     assert "window.setInterval" in page_source
     assert "export function getRun" in client_source
@@ -78,6 +78,40 @@ def test_workbench_clean_editing_surface_contract() -> None:
     assert "onSoftDeleteRows" in table_source
     assert "onMarkRowsForReview" in table_source
     assert "position:absolute" in table_source or "absolute" in table_source
+
+
+def test_workbench_visible_statuses_are_chinese_and_pfd_can_confirm_all() -> None:
+    page_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "pages" / "ThreeTableWorkbench.tsx"
+    ).read_text(encoding="utf-8")
+    table_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "components" / "WorkbenchTable.tsx"
+    ).read_text(encoding="utf-8")
+    inspector_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "components" / "InspectorPanel.tsx"
+    ).read_text(encoding="utf-8")
+    diagram_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "components" / "PfdFlowDiagram.tsx"
+    ).read_text(encoding="utf-8")
+    display_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "state" / "workbench-display.ts"
+    ).read_text(encoding="utf-8")
+
+    assert "riskLabel" in table_source
+    assert "rowStatusLabel" in table_source
+    assert "riskLabel(row.risk)" in inspector_source
+    assert "rowStatusLabel(row.status)" in inspector_source
+    assert "确认全部过程流程图" in page_source
+    assert "pfdConfirmSummary" in page_source
+    assert "待确认" in page_source and "已确认" in page_source
+    assert 'code: "加工"' in diagram_source
+    assert 'code: "检验"' in diagram_source
+    assert 'medium: "中风险"' in display_source
+    assert 'approved: "已确认"' in display_source
+    assert "<strong>检查器</strong>" in inspector_source
+    assert "<strong>Inspector</strong>" not in inspector_source
+    assert "<dt className=\"text-muted-foreground\">本地后端</dt>" in inspector_source
+    assert "<dt className=\"text-muted-foreground\">Sidecar</dt>" not in inspector_source
 
 
 def test_workbench_soft_delete_can_be_undone_and_pfd_diagram_uses_visible_rows() -> None:

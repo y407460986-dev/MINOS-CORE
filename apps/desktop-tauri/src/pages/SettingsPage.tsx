@@ -80,7 +80,7 @@ export default function SettingsPage({ apiState, bootstrap }: SettingsPageProps)
         {[
           ["本地服务状态", serviceState],
           ["本地服务地址", bootstrap?.apiBaseUrl ?? "http://127.0.0.1:8000"],
-          ["Sidecar 托管", bootstrap?.sidecarManaged ? "已启用" : "未启用"],
+          ["本地后端托管", bootstrap?.sidecarManaged ? "已启用" : "未启用"],
           ["AI 提供方", ai?.provider ?? "-"],
           ["模型", ai?.model_configured ? ai.model : "未配置"],
           ["模型密钥", ai?.api_key_configured ? `已配置：${ai.api_key_env_name || ai.api_key_source}` : "未配置"],

@@ -6,6 +6,7 @@ import {
 } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
 import type { WorkbenchRow } from "../api/types";
+import { riskLabel, rowStatusLabel } from "../state/workbench-display";
 import {
   Table,
   TableBody,
@@ -37,8 +38,8 @@ const columns: WorkbenchColumnDef[] = [
   { accessorKey: "id", header: "编号" },
   { accessorKey: "process", header: "过程", editableField: "process" },
   { accessorKey: "characteristic", header: "特性", editableField: "characteristic" },
-  { accessorKey: "risk", header: "风险" },
-  { accessorKey: "status", header: "状态" },
+  { accessorKey: "risk", header: "风险", cell: ({ row }) => riskLabel(row.original.risk) },
+  { accessorKey: "status", header: "状态", cell: ({ row }) => rowStatusLabel(row.original.status) },
   { accessorKey: "owner", header: "责任", editableField: "owner" },
 ];
 

@@ -24,9 +24,9 @@ type StepDef = {
 };
 
 const STEPS: StepDef[] = [
-  { key: "pfd", label: "过程流程图", description: "PFD — 从图纸分析推理生成工序流程" },
-  { key: "pfmea", label: "失效模式分析", description: "PFMEA — 基于已确认的 PFD 推理潜在失效" },
-  { key: "cp", label: "控制计划", description: "CP — 基于已确认的 PFMEA 生成控制措施" },
+  { key: "pfd", label: "过程流程图", description: "从图纸分析推理生成工序流程" },
+  { key: "pfmea", label: "失效模式分析", description: "基于已确认的过程流程图推理潜在失效" },
+  { key: "cp", label: "控制计划", description: "基于已确认的失效模式分析生成控制措施" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -244,7 +244,7 @@ export function ChainStepper({
             <div>
               <strong className="text-sm">链式确认流程已完成</strong>
               <p className="text-xs text-muted-foreground">
-                PFD、PFMEA、CP 三个阶段均已确认。现在可以进入三表工作台查看和导出。
+                过程流程图、失效模式分析、控制计划三个阶段均已确认。现在可以进入三表工作台查看和导出。
               </p>
             </div>
             <Button size="sm" className="ml-auto" onClick={onViewTable}>

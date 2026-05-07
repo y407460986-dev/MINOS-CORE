@@ -51,37 +51,37 @@ const LAYOUT_HEIGHT = 286;
 
 const FLOW_SYMBOL_META: Record<string, FlowSymbolMeta> = {
   operation: {
-    code: "OP",
+    code: "加工",
     label: "加工",
     shapeClassName: "rounded-sm border-[#2563eb] bg-[#eff6ff]",
     textClassName: "text-[#1d4ed8]"
   },
   inspection: {
-    code: "INSP",
+    code: "检验",
     label: "检验",
     shapeClassName: "rotate-45 border-[#7c3aed] bg-[#f5f3ff]",
     textClassName: "-rotate-45 text-[#6d28d9]"
   },
   transport: {
-    code: "TR",
+    code: "运输",
     label: "运输",
     shapeClassName: "rounded-full border-[#0891b2] bg-[#ecfeff]",
     textClassName: "text-[#0e7490]"
   },
   storage: {
-    code: "ST",
+    code: "存储",
     label: "存储",
     shapeClassName: "border-x-[18px] border-t-[32px] border-x-transparent border-t-[#fef3c7]",
     textClassName: "absolute top-[9px] text-[#92400e]"
   },
   rework: {
-    code: "RW",
+    code: "返工",
     label: "返工",
     shapeClassName: "rounded-full border-[#dc2626] bg-[#fef2f2]",
     textClassName: "text-[#b91c1c]"
   },
   outsourced: {
-    code: "OS",
+    code: "外协",
     label: "外协",
     shapeClassName: "rounded-sm border-dashed border-[#16a34a] bg-[#f0fdf4]",
     textClassName: "text-[#15803d]"
@@ -96,7 +96,7 @@ function text(value: unknown, fallback = "-"): string {
 }
 
 function stepId(step: ProcessFlowStep, index: number): string {
-  return text(step.process_step_id ?? step.step_id ?? step.id, `PFD-${index + 1}`);
+  return text(step.process_step_id ?? step.step_id ?? step.id, `流程-${index + 1}`);
 }
 
 function nextStepIds(step: ProcessFlowStep, nextStep: ProcessFlowStep | undefined, index: number): string[] {
@@ -128,6 +128,11 @@ function flowSymbolKey(step: ProcessFlowStep): string {
 
 function symbolLabel(step: ProcessFlowStep, meta: FlowSymbolMeta): string {
   return text(step.flow_type_display ?? meta.label ?? step.flow_symbol ?? step.flow_type ?? step.operation_type, meta.label);
+}
+
+function isConfirmedStep(step: ProcessFlowStep): boolean {
+  const reviewStatus = text(step.review_status, "");
+  return step.needs_confirmation === false || reviewStatus.includes("已确认");
 }
 
 function processFlowEdgeKind(source: ProcessFlowStep, fromIndex: number, toIndex: number): ProcessFlowEdgeKind {
@@ -202,7 +207,7 @@ export function PfdFlowDiagram({ steps, selectedRow, onSelectStep }: PfdFlowDiag
   if (steps.length === 0) {
     return (
       <section className="rounded-lg border bg-white px-3 py-4 text-center text-[13px] text-muted-foreground">
-        PFD 暂无流程步骤。
+        过程流程图暂无流程步骤。
       </section>
     );
   }
@@ -210,7 +215,7 @@ export function PfdFlowDiagram({ steps, selectedRow, onSelectStep }: PfdFlowDiag
   const layout = buildProcessFlowLayout(steps);
 
   return (
-    <section className="rounded-lg border bg-white overflow-x-auto" aria-label="PFD 标准过程流程图">
+    <section className="rounded-lg border bg-white overflow-x-auto" aria-label="标准过程流程图">
       <div className="relative min-w-max p-3" style={{ width: layout.width, height: layout.height }}>
         <svg
           className="pointer-events-none absolute left-0 top-0 z-0"
@@ -244,6 +249,7 @@ export function PfdFlowDiagram({ steps, selectedRow, onSelectStep }: PfdFlowDiag
           const outgoing = nextStepIds(step, steps[index + 1], index);
           const selected = selectedRow?.table === "pfd" && selectedRow.rowId === id;
           const symbolMeta = FLOW_SYMBOL_META[flowSymbolKey(step)];
+          const confirmed = isConfirmedStep(step);
 
           return (
             <div key={`${id}-${index}`} className="absolute z-10" style={{ left: x, top: y }}>
@@ -270,6 +276,9 @@ export function PfdFlowDiagram({ steps, selectedRow, onSelectStep }: PfdFlowDiag
                     <strong className="block text-[13px] text-foreground">{id}</strong>
                     <span className="block truncate text-[11px] text-muted-foreground">{symbolLabel(step, symbolMeta)}</span>
                   </div>
+                  <span className={cn("ml-auto rounded-full border px-1.5 py-0.5 text-[10px]", confirmed ? "border-[#34C759] text-[#1f8f3a]" : "border-[#f2d48a] text-[#8a6100]")}>
+                    {confirmed ? "已确认" : "待确认"}
+                  </span>
                 </div>
                 <div className="font-medium text-[#303034]">{text(step.operation ?? step.process_step ?? step.process_item)}</div>
                 <div className="grid gap-1 text-muted-foreground">

@@ -120,7 +120,7 @@ export default function DrawingImportPage({ activeRun, onRunCreated, onRunUpdate
     runState === "running" ? "生成中..." : runState === "chain_active" ? "重新开始" : "开始生成";
   const startHint =
     runState === "running"
-      ? "正在分析图纸并生成 PFD..."
+      ? "正在分析图纸并生成过程流程图..."
       : runState === "failed"
         ? "上次请求失败，修正后可重新开始。"
         : runState === "blocked"
@@ -155,7 +155,7 @@ export default function DrawingImportPage({ activeRun, onRunCreated, onRunUpdate
         output_dir: outputDir,
         context: { source: "tauri-react-desktop", part_family: partFamilyDraft.trim() || undefined, analysis_mode: analysisMode, ocr_engine: "auto" },
       });
-      setStatus("正在分析图纸并生成 PFD（第一步）...");
+      setStatus("正在分析图纸并生成过程流程图（第一步）...");
       const run = await startChainRun(project.id);
       setCompletedRun(run); onRunCreated(run);
       setRunState("chain_active");
@@ -425,7 +425,7 @@ export default function DrawingImportPage({ activeRun, onRunCreated, onRunUpdate
             <CardContent className="p-4 grid content-start gap-2.5 min-h-[220px]">
               <div className="flex items-center gap-[7px] text-primary text-xs font-bold">
                 <GitBranch size={16} />
-                <span>PFD 确认</span>
+                <span>过程流程图确认</span>
               </div>
               <h3 className="m-0 text-base leading-[1.35]">过程流程图</h3>
               {[["工序", insights.pfdStepCount], ["待确认", insights.pfdReviewCount], ["联动差异", insights.linkageIssueCount]].map(([label, value]) => (
@@ -550,7 +550,7 @@ function buildImportInsights(
     generationTitle: failureMessage ? "生成未完成" : blockedStage ? "生成已停在需处理环节" : "三表草案已就绪",
     generationMessage: visionStreamError
       ? "AI 视觉识别中断，已保留 OCR 识别结果。"
-      : userFacingMessage(failureMessage) || `运行状态：${statusDisplay}。图纸识别、零件族和 PFD 已汇总到下方确认区。`,
+      : userFacingMessage(failureMessage) || `运行状态：${statusDisplay}。图纸识别、零件族和过程流程图已汇总到下方确认区。`,
     failureDetail: visionStreamError ? `详情：\n${failureMessage}` : "",
     blockedStage,
     recognition: {
@@ -665,15 +665,15 @@ function chainStartFeedback(run: DesktopRun, chainState: ChainState | null): { s
   const pfdStatus = chainState?.pfd?.status;
   if (pfdStatus === "failed" || failure) {
     return {
-      status: "PFD 生成失败，请查看原始错误。",
+      status: "过程流程图生成失败，请查看原始错误。",
       error: failure
     };
   }
   if (pfdStatus === "generated") {
-    return { status: "PFD 已生成，请确认过程流程图。", error: "" };
+    return { status: "过程流程图已生成，请确认。", error: "" };
   }
   if (pfdStatus === "running") {
-    return { status: "PFD 正在生成...", error: "" };
+    return { status: "过程流程图正在生成...", error: "" };
   }
   return { status: "链式流程已启动，请刷新阶段状态。", error: "" };
 }

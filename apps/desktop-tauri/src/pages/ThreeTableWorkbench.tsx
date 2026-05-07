@@ -8,6 +8,7 @@ import { SegmentedControl } from "../components/SegmentedControl";
 import { StatStrip } from "../components/StatStrip";
 import { WorkbenchTable } from "../components/WorkbenchTable";
 import { filterRows, initialFilters, processFlowStepsFromRows, rowsFromResult, softDeletedRowsFromResult, type WorkbenchFilters } from "../state/workbench-store";
+import { stageStatusText } from "../state/workbench-display";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -31,6 +32,11 @@ export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onR
   const processFlowSteps = useMemo(() => processFlowStepsFromRows(visiblePfdRows), [visiblePfdRows]);
   const rows = useMemo(() => filterRows(sourceRows, filters), [filters, sourceRows]);
   const highRisk = sourceRows.filter((row) => row.risk === "high").length;
+  const pfdPendingCount = visiblePfdRows.filter((row) => row.status !== "approved").length;
+  const pfdConfirmedCount = visiblePfdRows.length - pfdPendingCount;
+  const pfdConfirmSummary = visiblePfdRows.length > 0
+    ? `过程流程图确认进度：已确认 ${pfdConfirmedCount} 行，待确认 ${pfdPendingCount} 行`
+    : "过程流程图暂无可确认行";
   const hasRun = Boolean(run);
 
   function patchFilters(patch: Partial<WorkbenchFilters>) {
@@ -205,16 +211,16 @@ export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onR
     }
   }
 
-  async function saveAndConfirmPfd() {
-    if (!run || !selectedRow || selectedRow.table !== "pfd") return;
-    setSaveState("正在确认 PFD，PFMEA 将在后台生成...");
+  async function confirmAllPfdRows() {
+    if (!run || visiblePfdRows.length === 0) return;
+    setSaveState("正在确认全部过程流程图，失效模式分析将在后台生成...");
     setIsSaving(true);
     try {
       const updated = await confirmPfdStage(run.id, {
         confirmed_by: "desktop"
       });
       onRunUpdated?.(updated);
-      pollRunUntil(updated.id, "pfmea", "PFD 已确认，正在后台生成 PFMEA，可继续查看和整理当前表。");
+      pollRunUntil(updated.id, "pfmea", "过程流程图已确认，正在后台生成失效模式分析；你可以继续查看和整理当前表。");
     } catch (caught) {
       setSaveState(caught instanceof Error ? caught.message : String(caught));
     } finally {
@@ -230,9 +236,9 @@ export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onR
   function compactChainStages() {
     const chainStages = run?.raw_result?.chain_stages ?? run?.current_result?.chain_stages;
     const stages = [
-      { key: "pfd", label: "PFD" },
-      { key: "pfmea", label: "PFMEA" },
-      { key: "cp", label: "CP" }
+      { key: "pfd", label: "过程流程图" },
+      { key: "pfmea", label: "失效模式分析" },
+      { key: "cp", label: "控制计划" }
     ];
     return stages.map((stage) => {
       const value = chainStages && typeof chainStages === "object"
@@ -251,8 +257,8 @@ export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onR
         stats={[
           { label: "三表记录", value: sourceRows.length },
           { label: "高风险", value: highRisk, tone: "danger" },
-          { label: "待评审", value: sourceRows.filter((row) => row.status === "review").length, tone: "warning" },
-          { label: "已批准", value: sourceRows.filter((row) => row.status === "approved").length }
+          { label: "待确认", value: sourceRows.filter((row) => row.status === "review").length, tone: "warning" },
+          { label: "已确认", value: sourceRows.filter((row) => row.status === "approved").length }
         ]}
       />
 
@@ -290,9 +296,9 @@ export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onR
           value={filters.table}
           onChange={(table) => patchFilters({ table })}
           options={[
-            { value: "pfd", label: "PFD" },
-            { value: "pfmea", label: "PFMEA" },
-            { value: "cp", label: "CP" }
+            { value: "pfd", label: "过程流程图" },
+            { value: "pfmea", label: "失效模式分析" },
+            { value: "cp", label: "控制计划" }
           ]}
         />
         <div className="grid gap-[5px] min-w-[240px] flex-1">
@@ -326,8 +332,8 @@ export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onR
             <SelectContent>
               <SelectItem value="all">全部状态</SelectItem>
               <SelectItem value="draft">草稿</SelectItem>
-              <SelectItem value="review">评审中</SelectItem>
-              <SelectItem value="approved">已批准</SelectItem>
+              <SelectItem value="review">待确认</SelectItem>
+              <SelectItem value="approved">已确认</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -355,27 +361,18 @@ export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onR
           <PreviewRail row={selectedRow} />
           <section className="grid gap-2 rounded-lg border bg-white p-3">
             <span className="text-muted-foreground text-xs">阶段操作</span>
-            <Button disabled={!selectedRow || selectedRow.table !== "pfd" || !hasRun || isSaving} onClick={saveAndConfirmPfd}>
-              {isSaving ? "确认中" : "确认 PFD"}
+            <div className="rounded-md border bg-muted/30 px-3 py-2 text-[12px] text-muted-foreground">
+              {pfdConfirmSummary}
+            </div>
+            <Button disabled={!hasRun || isSaving || visiblePfdRows.length === 0 || pfdPendingCount === 0} onClick={confirmAllPfdRows}>
+              {isSaving ? "确认中" : "确认全部过程流程图"}
             </Button>
             <p className="m-0 text-[12px] leading-[1.45] text-muted-foreground">
-              PFD 确认后，PFMEA 会在后台生成；你可以继续浏览和整理当前三表。
+              全部确认后，失效模式分析会在后台生成；表格和流程图会用“已确认 / 待确认”标出每一行状态。
             </p>
           </section>
         </aside>
       </div>
     </div>
   );
-}
-
-function stageStatusText(status: string): string {
-  const map: Record<string, string> = {
-    not_started: "待开始",
-    running: "生成中",
-    generated: "已生成",
-    confirmed: "已确认",
-    blocked: "已阻断",
-    failed: "失败"
-  };
-  return map[status] ?? status;
 }

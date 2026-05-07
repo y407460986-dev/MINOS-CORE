@@ -1,0 +1,4829 @@
+{
+  "schema_version": "minos-core.part_family_knowledge.v1",
+  "family_key": "limiter",
+  "family_name": "限位器",
+  "process_route_templates": [
+    {
+      "process_step_id": "P00",
+      "sequence": 0,
+      "operation": "来料检验",
+      "process_function": "外购件检验",
+      "special_characteristics": [],
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "4过程流程图 ",
+          "row": 10
+        }
+      ],
+      "template_id": "limiter-route-001"
+    },
+    {
+      "process_step_id": "P01",
+      "sequence": 1,
+      "operation": "入库",
+      "process_function": "合格入库",
+      "special_characteristics": [],
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "4过程流程图 ",
+          "row": 11
+        }
+      ],
+      "template_id": "limiter-route-002"
+    },
+    {
+      "process_step_id": "P02",
+      "sequence": 2,
+      "operation": "投料",
+      "process_function": "发料进行生产",
+      "special_characteristics": [],
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "4过程流程图 ",
+          "row": 12
+        }
+      ],
+      "template_id": "limiter-route-003"
+    },
+    {
+      "process_step_id": "P10",
+      "sequence": 10,
+      "operation": "壳体涂油",
+      "process_function": "将壳体放入设备进行涂油",
+      "special_characteristics": [
+        "涂油量",
+        "注油压力\n柱塞距离"
+      ],
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "4过程流程图 ",
+          "row": 13
+        }
+      ],
+      "template_id": "limiter-route-004"
+    },
+    {
+      "process_step_id": "P20",
+      "sequence": 20,
+      "operation": "限位臂注油",
+      "process_function": "将限位臂放入设备进行涂油",
+      "special_characteristics": [
+        "涂油量",
+        "注油压力\n柱塞距离"
+      ],
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "4过程流程图 ",
+          "row": 16
+        }
+      ],
+      "template_id": "limiter-route-005"
+    },
+    {
+      "process_step_id": "P30",
+      "sequence": 30,
+      "operation": "壳体铆接",
+      "process_function": "将滑块弹簧放入壳体，完成后将壳体小总成放入夹具定位体，将另一半壳体小总成插入铆钉并放入夹具的上定位块，将限位臂放入夹具中，启动按钮",
+      "special_characteristics": [
+        "无裂纹，壳体无损伤",
+        "壳体合装压力/限位块行程"
+      ],
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "4过程流程图 ",
+          "row": 19
+        }
+      ],
+      "template_id": "limiter-route-006"
+    },
+    {
+      "process_step_id": "P40",
+      "sequence": 40,
+      "operation": "压入销轴",
+      "process_function": "将销轴压入支架及限位臂孔内",
+      "special_characteristics": [
+        "无间隙",
+        "压入压力/限位块行程"
+      ],
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "4过程流程图 ",
+          "row": 22
+        }
+      ],
+      "template_id": "limiter-route-007"
+    },
+    {
+      "process_step_id": "P50",
+      "sequence": 50,
+      "operation": "铆接并打标",
+      "process_function": "铆接并激光打标",
+      "special_characteristics": [
+        "铆接高度/打标内容",
+        "铆接时间/铆接压力"
+      ],
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "4过程流程图 ",
+          "row": 25
+        }
+      ],
+      "template_id": "limiter-route-008"
+    },
+    {
+      "process_step_id": "P60",
+      "sequence": 60,
+      "operation": "扭力检测",
+      "process_function": "限位臂总成放入设备进行力矩检测",
+      "special_characteristics": [
+        "支架力矩",
+        "SC",
+        "检测速度"
+      ],
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "4过程流程图 ",
+          "row": 28
+        }
+      ],
+      "template_id": "limiter-route-009"
+    },
+    {
+      "process_step_id": "P70",
+      "sequence": 70,
+      "operation": "检查+包装",
+      "process_function": "产品包装及检查",
+      "special_characteristics": [],
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "4过程流程图 ",
+          "row": 30
+        }
+      ],
+      "template_id": "limiter-route-010"
+    },
+    {
+      "process_step_id": "P80",
+      "sequence": 80,
+      "operation": "入库",
+      "process_function": "入库",
+      "special_characteristics": [
+        "FIFO"
+      ],
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "4过程流程图 ",
+          "row": 33
+        }
+      ],
+      "template_id": "limiter-route-011"
+    },
+    {
+      "process_step_id": "P90",
+      "sequence": 90,
+      "operation": "发运",
+      "process_function": "发运",
+      "special_characteristics": [
+        "FIFO"
+      ],
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "4过程流程图 ",
+          "row": 34
+        }
+      ],
+      "template_id": "limiter-route-012"
+    }
+  ],
+  "pfmea_patterns": [
+    {
+      "process_step_id": "P00",
+      "process_function": "各外购件尺寸；外购件尺寸；按外协件检测要求检测",
+      "failure_mode": "合格件判定为不合格件",
+      "failure_effect": "造成物料 / 工时浪费，影响交付周期",
+      "failure_cause": "检测方法未更新",
+      "prevention_control": "供应商每批来料自检报告",
+      "detection_control": "人员岗位矩阵技能定期考核",
+      "classification": "",
+      "rating_hint": {
+        "severity": 4,
+        "occurrence": 2,
+        "detection": 3,
+        "action_priority": "L"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 10
+        }
+      ],
+      "pattern_id": "limiter-pfmea-001"
+    },
+    {
+      "process_step_id": "P00",
+      "process_function": "各外购件尺寸；外购件尺寸；按外协件检测要求检测",
+      "failure_mode": "不合格件判定为合格件",
+      "failure_effect": "装配故障、客户抱怨",
+      "failure_cause": "检测方法未更新",
+      "prevention_control": "供应商每批来料自检报告",
+      "detection_control": "人员岗位矩阵技能定期考核",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 2,
+        "detection": 3,
+        "action_priority": "L"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 11
+        }
+      ],
+      "pattern_id": "limiter-pfmea-002"
+    },
+    {
+      "process_step_id": "P00",
+      "process_function": "材料、机械性能；材料、机械性能符合图纸要求；符合客户提供的材料标准",
+      "failure_mode": "材料、机械性能不符合要求",
+      "failure_effect": "影响客户装车及客户抱怨",
+      "failure_cause": "供应商选用材料错误",
+      "prevention_control": "供应商每批订单材质证明/供应商定期审核",
+      "detection_control": "验供方质保书及每年提交一次第三方实验报告",
+      "classification": "",
+      "rating_hint": {
+        "severity": 8,
+        "occurrence": 2,
+        "detection": 3,
+        "action_priority": "M"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 12
+        }
+      ],
+      "pattern_id": "limiter-pfmea-003"
+    },
+    {
+      "process_step_id": "P00",
+      "process_function": "禁用物质检测；GB/T30512；符合标准要求",
+      "failure_mode": "禁用物质含量超标",
+      "failure_effect": "违反法规，产品拒收",
+      "failure_cause": "供应商选用材料错误",
+      "prevention_control": "供应商每批订单材质证明/供应商定期审核",
+      "detection_control": "验供方质保书及每年提交一次第三方实验报告",
+      "classification": "CC",
+      "rating_hint": {
+        "severity": 9,
+        "occurrence": 2,
+        "detection": 3,
+        "action_priority": "M"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 13
+        }
+      ],
+      "pattern_id": "limiter-pfmea-004"
+    },
+    {
+      "process_step_id": "P01",
+      "process_function": "零件正确入库；零件摆放的批次要求；按先进先出的原则入库",
+      "failure_mode": "批次管理混乱",
+      "failure_effect": "错用旧批次导致质量风险",
+      "failure_cause": "现场无目视化",
+      "prevention_control": "WMS系统管理",
+      "detection_control": "扫码入库",
+      "classification": "",
+      "rating_hint": {
+        "severity": 2,
+        "occurrence": 3,
+        "detection": 6,
+        "action_priority": "M"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 14
+        }
+      ],
+      "pattern_id": "limiter-pfmea-005"
+    },
+    {
+      "process_step_id": "P01",
+      "process_function": "零件正确入库；零件按时入库；零件按时摆放到正确的库位",
+      "failure_mode": "零件未按时入库",
+      "failure_effect": "导致生产计划变更",
+      "failure_cause": "缺少相应文件",
+      "prevention_control": "对供应商送货管理规定",
+      "detection_control": "核对零件到货数量和到货单",
+      "classification": "",
+      "rating_hint": {
+        "severity": 2,
+        "occurrence": 3,
+        "detection": 6,
+        "action_priority": "M"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 15
+        }
+      ],
+      "pattern_id": "limiter-pfmea-006"
+    },
+    {
+      "process_step_id": "P01",
+      "process_function": "零件正确入库；零件标识；入库零件有标签",
+      "failure_mode": "标签漏帖",
+      "failure_effect": "造成生产延误",
+      "failure_cause": "培训不到位",
+      "prevention_control": "WMS系统管理",
+      "detection_control": "扫码入库",
+      "classification": "",
+      "rating_hint": {
+        "severity": 2,
+        "occurrence": 3,
+        "detection": 6,
+        "action_priority": "M"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 16
+        }
+      ],
+      "pattern_id": "limiter-pfmea-007"
+    },
+    {
+      "process_step_id": "P01",
+      "process_function": "零件正确入库；零件标识；标签粘贴正确",
+      "failure_mode": "标签错帖",
+      "failure_effect": "错发料 / 混料",
+      "failure_cause": "培训不到位",
+      "prevention_control": "WMS系统管理",
+      "detection_control": "标签和实物核对",
+      "classification": "",
+      "rating_hint": {
+        "severity": 2,
+        "occurrence": 3,
+        "detection": 6,
+        "action_priority": "M"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 17
+        }
+      ],
+      "pattern_id": "limiter-pfmea-008"
+    },
+    {
+      "process_step_id": "P02",
+      "process_function": "零件正确投放；产品的投放的批次要求；按先进先出的原则投放零件",
+      "failure_mode": "批次管理混乱",
+      "failure_effect": "造成投料时间过长",
+      "failure_cause": "操作者失误",
+      "prevention_control": "操作者岗前培训",
+      "detection_control": "出库时检查标签",
+      "classification": "",
+      "rating_hint": {
+        "severity": 2,
+        "occurrence": 3,
+        "detection": 6,
+        "action_priority": "M"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 18
+        }
+      ],
+      "pattern_id": "limiter-pfmea-009"
+    },
+    {
+      "process_step_id": "P02",
+      "process_function": "零件正确投放；零件投放点；零件正确的投放到指定的区域",
+      "failure_mode": "零件未投放到指定区域",
+      "failure_effect": "造成生产延误",
+      "failure_cause": "ERP信息未及时更新",
+      "prevention_control": "生产变更管理规定",
+      "detection_control": "生产班组长核对投料",
+      "classification": "",
+      "rating_hint": {
+        "severity": 2,
+        "occurrence": 3,
+        "detection": 6,
+        "action_priority": "M"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 19
+        }
+      ],
+      "pattern_id": "limiter-pfmea-010"
+    },
+    {
+      "process_step_id": "P02",
+      "process_function": "零件正确投放；投放零件正确；投放的零件正确",
+      "failure_mode": "投放的零件错误",
+      "failure_effect": "导致后续生产返工",
+      "failure_cause": "未对出库单和零件核对",
+      "prevention_control": "库房管理规定",
+      "detection_control": "投放前核对标签与实物",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 3,
+        "detection": 5,
+        "action_priority": "M"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 20
+        }
+      ],
+      "pattern_id": "limiter-pfmea-011"
+    },
+    {
+      "process_step_id": "P02",
+      "process_function": "零件正确投放；零件投放数量；零件投放数量正确",
+      "failure_mode": "投料数量多",
+      "failure_effect": "形成余料，造成物料混料并引起后道工序停线",
+      "failure_cause": "计量工具失效",
+      "prevention_control": "计量工具定期标定",
+      "detection_control": "班组长核对投料数量",
+      "classification": "",
+      "rating_hint": {
+        "severity": 4,
+        "occurrence": 3,
+        "detection": 5,
+        "action_priority": "M"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 21
+        }
+      ],
+      "pattern_id": "limiter-pfmea-012"
+    },
+    {
+      "process_step_id": "P02",
+      "process_function": "零件正确投放；零件投放数量；零件投放数量正确",
+      "failure_mode": "投料数量少",
+      "failure_effect": "造成生产完成延误",
+      "failure_cause": "计量工具失效",
+      "prevention_control": "计量工具定期标定",
+      "detection_control": "班组长核对投料数量",
+      "classification": "",
+      "rating_hint": {
+        "severity": 2,
+        "occurrence": 3,
+        "detection": 6,
+        "action_priority": "L"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 22
+        }
+      ],
+      "pattern_id": "limiter-pfmea-013"
+    },
+    {
+      "process_step_id": "P02",
+      "process_function": "零件正确投放；零件的外观要求；零件表面无磕碰",
+      "failure_mode": "零件表面损伤",
+      "failure_effect": "造成部分零件需要返工或报废",
+      "failure_cause": "使用的工具未考虑到对零件的防护",
+      "prevention_control": "仓库管理规定",
+      "detection_control": "生产操作工在线检查",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 3,
+        "detection": 7,
+        "action_priority": "H"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 23
+        }
+      ],
+      "pattern_id": "limiter-pfmea-014"
+    },
+    {
+      "process_step_id": "P02",
+      "process_function": "零件正确投放；零件的外观要求；零件表面无锈蚀",
+      "failure_mode": "零件表面锈蚀",
+      "failure_effect": "影响产品外观及产品性能",
+      "failure_cause": "未按FIFO原则存储",
+      "prevention_control": "WMS系统管理",
+      "detection_control": "系统有效期监控",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 3,
+        "detection": 5,
+        "action_priority": "M"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 24
+        }
+      ],
+      "pattern_id": "limiter-pfmea-015"
+    },
+    {
+      "process_step_id": "P02",
+      "process_function": "零件正确投放；零件的外观要求；零件表面无锈蚀",
+      "failure_mode": "零件表面锈蚀",
+      "failure_effect": "影响产品外观及产品性能",
+      "failure_cause": "存储不当",
+      "prevention_control": "环境温度监控",
+      "detection_control": "点检",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 3,
+        "detection": 5,
+        "action_priority": "M"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 25
+        }
+      ],
+      "pattern_id": "limiter-pfmea-016"
+    },
+    {
+      "process_step_id": "P10",
+      "process_function": "注油压力；设备压力正确；注油压力稳定在工艺要求范围",
+      "failure_mode": "设备压力超差",
+      "failure_effect": "影响后道工序加工精度，导致涂油不均",
+      "failure_cause": "设备调试错误；",
+      "prevention_control": "设备调试指定人员；设备参数锁止；定期校准压力传感器",
+      "detection_control": "参数点检；首件验证",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 3,
+        "detection": 5,
+        "action_priority": "M"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 26
+        }
+      ],
+      "pattern_id": "limiter-pfmea-017"
+    },
+    {
+      "process_step_id": "P10",
+      "process_function": "注油泵位置；油泵调整旋钮位置正确；注油泵位置精准匹配壳体注油口",
+      "failure_mode": "位置不正确",
+      "failure_effect": "影响后道工序加工，导致注油位置偏移",
+      "failure_cause": "旋钮松动；日常误触碰",
+      "prevention_control": "设备调试指定人员；旋钮定位销机械防错；班前位置确认",
+      "detection_control": "参数点检；首件验证",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 3,
+        "detection": 5,
+        "action_priority": "M"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 27
+        }
+      ],
+      "pattern_id": "limiter-pfmea-018"
+    },
+    {
+      "process_step_id": "P10",
+      "process_function": "壳体注油；油脂使用正确；油脂型号符合图纸要求",
+      "failure_mode": "型号使用错误",
+      "failure_effect": "影响产品润滑性能，缩短产品寿命",
+      "failure_cause": "现场清料不彻底；标识模糊",
+      "prevention_control": "零件条码出库验证；油脂扫码领用；更换现场清料；型号标识可视化",
+      "detection_control": "开班点检；装配质量点检表；在线型号识别",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 3,
+        "detection": 5,
+        "action_priority": "M"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 28
+        }
+      ],
+      "pattern_id": "limiter-pfmea-019"
+    },
+    {
+      "process_step_id": "P10",
+      "process_function": "壳体注油；油脂使用正确；单壳体注油量符合量化要求",
+      "failure_mode": "注油量错误",
+      "failure_effect": "影响产品润滑性能，导致过度润滑或润滑不足",
+      "failure_cause": "工装调试失误；",
+      "prevention_control": "工装调试指定人员；流量闭环控制；电子秤定期校准",
+      "detection_control": "电子秤首检 3 件；开班点检；装配质量点检表；过程注油量监控",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 3,
+        "detection": 5,
+        "action_priority": "M"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 29
+        }
+      ],
+      "pattern_id": "limiter-pfmea-020"
+    },
+    {
+      "process_step_id": "P10",
+      "process_function": "壳体注油；油脂使用正确；壳体型号与生产指令一致",
+      "failure_mode": "壳体使用错误",
+      "failure_effect": "影响产品装配精度与性能，导致后道工序返工",
+      "failure_cause": "工装调试失误；物料混放；目视识别误差",
+      "prevention_control": "零件条码出库；更换现场清料；夹具机械防错；型号防呆标识",
+      "detection_control": "开班点检；装配质量点检表；视觉检测防错",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 3,
+        "detection": 5,
+        "action_priority": "M"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 30
+        }
+      ],
+      "pattern_id": "limiter-pfmea-021"
+    },
+    {
+      "process_step_id": "P10",
+      "process_function": "壳体注油；油脂使用正确；涂油表面均匀，无堆积 / 拖拽痕迹",
+      "failure_mode": "油量堆积未清理；涂油拖拽拉延",
+      "failure_effect": "影响产品外观及润滑均匀性，影响产品性能",
+      "failure_cause": "调试工调试失误；设备喷嘴堵塞；清理不及时",
+      "prevention_control": "工装调试指定人员；班前喷嘴清理；设备自动清嘴功能",
+      "detection_control": "开班点检；装配质量点检表；在线视觉检测",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 3,
+        "detection": 5,
+        "action_priority": "M"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 31
+        }
+      ],
+      "pattern_id": "limiter-pfmea-022"
+    },
+    {
+      "process_step_id": "P20",
+      "process_function": "注油压力；油脂使用正确；设备压力正确",
+      "failure_mode": "设备压力超差",
+      "failure_effect": "影响总成功能，客户抱怨",
+      "failure_cause": "调试人员未按 SOP 操作",
+      "prevention_control": "调试参数锁定 / 防错",
+      "detection_control": "工艺参数点检（开班 / 换型）",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": "L"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 32
+        }
+      ],
+      "pattern_id": "limiter-pfmea-023"
+    },
+    {
+      "process_step_id": "P20",
+      "process_function": "注油泵位置；油脂使用正确；油泵调整旋钮位置正确",
+      "failure_mode": "旋钮位置不正确",
+      "failure_effect": "限位臂磨损",
+      "failure_cause": "调试人员未按基准定位",
+      "prevention_control": "调试参数锁定 / 防错",
+      "detection_control": "工艺参数点检（开班 / 换型）",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": "L"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 33
+        }
+      ],
+      "pattern_id": "limiter-pfmea-024"
+    },
+    {
+      "process_step_id": "P20",
+      "process_function": "限位臂注油；按作业指导书要求加工；限位臂无错装",
+      "failure_mode": "限位臂错装",
+      "failure_effect": "限位臂功能失效、总成无法正常工作",
+      "failure_cause": "工装防错缺失/ 调试工未确认型号",
+      "prevention_control": "工装设计防错",
+      "detection_control": "100% 目测（操作工自检）\n设备防错监控",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 1,
+        "detection": 5,
+        "action_priority": "L"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 34
+        }
+      ],
+      "pattern_id": "limiter-pfmea-025"
+    },
+    {
+      "process_step_id": "P20",
+      "process_function": "限位臂注油；按作业指导书要求加工；限位臂共0.15-0.25g",
+      "failure_mode": "注油量超差",
+      "failure_effect": "影响总成寿命",
+      "failure_cause": "1. 设备注油参数调试错误\n2. 注油嘴磨损导致流量偏差",
+      "prevention_control": "1. 注油参数固化\n2. 定期检查注油嘴",
+      "detection_control": "首检 3 件 / 自检 3 件 / 2h / 末检 3 件",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": "M"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 35
+        }
+      ],
+      "pattern_id": "limiter-pfmea-026"
+    },
+    {
+      "process_step_id": "P20",
+      "process_function": "限位臂注油；按作业指导书要求加工；限位臂共0.15-0.25g",
+      "failure_mode": "转动力矩超差",
+      "failure_effect": "影响总成寿命",
+      "failure_cause": "注油量 / 油脂型号错误",
+      "prevention_control": "注油参数 / 油脂型号防错",
+      "detection_control": "开班点检型号/参数\n首检 3 件 / 自检 3 件 / 2h / 末检 3 件",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": "M"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 36
+        }
+      ],
+      "pattern_id": "limiter-pfmea-027"
+    },
+    {
+      "process_step_id": "P20",
+      "process_function": "限位臂注油；按作业指导书要求加工；油脂牌号是否正确\nM21 EPK-A",
+      "failure_mode": "油脂型号使用错误",
+      "failure_effect": "总成寿命降低",
+      "failure_cause": "1. 调试工领用错误\n2. 现场无清晰标识",
+      "prevention_control": "1. 油脂出库管理\n2. 现场容器标识牌清晰",
+      "detection_control": "开班点检 / 装配质量点检表",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 3,
+        "detection": 6,
+        "action_priority": "M"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 37
+        }
+      ],
+      "pattern_id": "limiter-pfmea-028"
+    },
+    {
+      "process_step_id": "P30",
+      "process_function": "压力；按作业指导书要求加工；设备压力正确",
+      "failure_mode": "设备压力过过大",
+      "failure_effect": "铆钉开裂、客户抱怨",
+      "failure_cause": "调试人员未按 SOP 操作",
+      "prevention_control": "调试参数锁定 / 防错",
+      "detection_control": "工艺参数点检（开班 / 换型）",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": "L"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 38
+        }
+      ],
+      "pattern_id": "limiter-pfmea-029"
+    },
+    {
+      "process_step_id": "P30",
+      "process_function": "压力；按作业指导书要求加工；设备压力正确",
+      "failure_mode": "设备压力不足",
+      "failure_effect": "铆接间隙，总成异响，客户抱怨",
+      "failure_cause": "调试人员未按 SOP 操作",
+      "prevention_control": "调试参数锁定 / 防错",
+      "detection_control": "工艺参数点检（开班 / 换型）",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": "L"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 39
+        }
+      ],
+      "pattern_id": "limiter-pfmea-030"
+    },
+    {
+      "process_step_id": "P30",
+      "process_function": "距离；按作业指导书要求加工；限位块位置正确",
+      "failure_mode": "限位块位置不正确",
+      "failure_effect": "翻边开裂，总成功能失效",
+      "failure_cause": "调试人员未按基准定位",
+      "prevention_control": "制作位置定位工装",
+      "detection_control": "工艺参数点检（开班 / 换型）",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": "L"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 40
+        }
+      ],
+      "pattern_id": "limiter-pfmea-031"
+    },
+    {
+      "process_step_id": "P30",
+      "process_function": "壳体铆接；按作业指导书要求加工；限位臂错装、反装",
+      "failure_mode": "限位臂错装 / 反装",
+      "failure_effect": "限位臂功能失效、总成无法正常工作",
+      "failure_cause": "工装设备防错缺失",
+      "prevention_control": "工装设计防错（形状 / 定位销）",
+      "detection_control": "100% 人工目视检查\n设备监控",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 2,
+        "detection": 5,
+        "action_priority": "L"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 41
+        }
+      ],
+      "pattern_id": "limiter-pfmea-032"
+    },
+    {
+      "process_step_id": "P30",
+      "process_function": "壳体铆接；按作业指导书要求加工；壳体、壳体铆钉无损伤、开裂等缺陷",
+      "failure_mode": "零件损伤 / 开裂",
+      "failure_effect": "强度不足、客户抱怨",
+      "failure_cause": "铆接压力过大",
+      "prevention_control": "铆接压力参数固化",
+      "detection_control": "首检 3 件 / 自检 3 件 / 2h / 末检 3 件",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 2,
+        "detection": 5,
+        "action_priority": "L"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 42
+        }
+      ],
+      "pattern_id": "limiter-pfmea-033"
+    },
+    {
+      "process_step_id": "P30",
+      "process_function": "壳体铆接；按作业指导书要求加工；壳体接合面间隙≤0.2mm",
+      "failure_mode": "壳体缝隙过大",
+      "failure_effect": "总成寿命降低",
+      "failure_cause": "铆接压力不足",
+      "prevention_control": "铆接压力参数固化",
+      "detection_control": "首检 3 件 / 自检 3 件 / 2h / 末检 3 件",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 2,
+        "detection": 5,
+        "action_priority": "L"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 43
+        }
+      ],
+      "pattern_id": "limiter-pfmea-034"
+    },
+    {
+      "process_step_id": "P30",
+      "process_function": "壳体铆接；按作业指导书要求加工；壳体铆钉漏装",
+      "failure_mode": "壳体铆钉漏装",
+      "failure_effect": "壳体分离、总成失效",
+      "failure_cause": "工装无防漏设计\n后道工序发现滞后",
+      "prevention_control": "工装设计防漏（缺料检测）",
+      "detection_control": "100% 目视检查 + 后道工序确认",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 2,
+        "detection": 5,
+        "action_priority": "L"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 44
+        }
+      ],
+      "pattern_id": "limiter-pfmea-035"
+    },
+    {
+      "process_step_id": "P40",
+      "process_function": "压力；按作业指导书要求加工；压力符合规定范围",
+      "failure_mode": "设备压力超差",
+      "failure_effect": "变形、总成异响\n引起客户抱怨",
+      "failure_cause": "调试人员未按 要求 操作",
+      "prevention_control": "调试参数锁定 / 防错",
+      "detection_control": "工艺参数点检（开班 / 换型）",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": "L"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 45
+        }
+      ],
+      "pattern_id": "limiter-pfmea-036"
+    },
+    {
+      "process_step_id": "P40",
+      "process_function": "距离；按作业指导书要求加工；限位块位置要求",
+      "failure_mode": "限位块位置不正确",
+      "failure_effect": "销轴损坏，总成零件功能失效",
+      "failure_cause": ". 调试人员未按基准定位\n限位块磨损",
+      "prevention_control": "制作位置定位工装",
+      "detection_control": "工艺参数点检（开班 / 换型）",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": "L"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 46
+        }
+      ],
+      "pattern_id": "limiter-pfmea-037"
+    },
+    {
+      "process_step_id": "P40",
+      "process_function": "压入销轴；按作业指导书要求加工；销轴法兰面与支架之间无间隙",
+      "failure_mode": "压入过压",
+      "failure_effect": "销轴变形，导致总成零件寿命降低",
+      "failure_cause": "1. 设备压入行程调试错误\n2. 工装定位偏差\n3. 零件尺寸超差",
+      "prevention_control": "1. 压入行程参数固化\n2. 零件入厂尺寸检验",
+      "detection_control": "首检 3 件 / 自检 2 件 / 2h / 末检 3 件（塞尺 / 目视）",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": "L"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 47
+        }
+      ],
+      "pattern_id": "limiter-pfmea-038"
+    },
+    {
+      "process_step_id": "P40",
+      "process_function": "压入销轴；按作业指导书要求加工；支架、铆钉无变形损伤",
+      "failure_mode": "支架 / 铆钉变形、损伤",
+      "failure_effect": "挡片断裂，总成零件变形，客户抱怨",
+      "failure_cause": "挡片失效",
+      "prevention_control": "1. 调试参数锁定 / 防错\n2. 挡片点检",
+      "detection_control": "开班参数点检 + 100% 目视检查",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": "L"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 48
+        }
+      ],
+      "pattern_id": "limiter-pfmea-039"
+    },
+    {
+      "process_step_id": "P50",
+      "process_function": "接触高度；按作业指导书要求加工；支架、铆钉无变形损伤",
+      "failure_mode": "接触高度超差",
+      "failure_effect": "使用错误铆钉，总成产品功能失效",
+      "failure_cause": "设备调试参数偏移",
+      "prevention_control": "调试参数锁定 / 防错\n开班校准",
+      "detection_control": "100% 设备监控 + 工艺参数点检",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 2,
+        "detection": 3,
+        "action_priority": "L"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 49
+        }
+      ],
+      "pattern_id": "limiter-pfmea-040"
+    },
+    {
+      "process_step_id": "P50",
+      "process_function": "变形高度；按作业指导书要求加工；支架、铆钉无变形损伤",
+      "failure_mode": "变形高度超差",
+      "failure_effect": "铆接变形过大，总成产品功能失效，客户抱怨",
+      "failure_cause": "工装定位偏差",
+      "prevention_control": "工装维护保养",
+      "detection_control": "100% 设备监控 + 工艺参数点检",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 4,
+        "detection": 3,
+        "action_priority": "L"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 50
+        }
+      ],
+      "pattern_id": "limiter-pfmea-041"
+    },
+    {
+      "process_step_id": "P50",
+      "process_function": "铆接时间；按作业指导书要求加工；支架、铆钉无变形损伤",
+      "failure_mode": "铆接时间超差",
+      "failure_effect": "总成功能失效",
+      "failure_cause": "计时器故障",
+      "prevention_control": "1. 铆接时间参数锁定\n2. 设备计时器开班点检",
+      "detection_control": "100% 设备监控 + 工艺参数点检",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 4,
+        "detection": 3,
+        "action_priority": "L"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 51
+        }
+      ],
+      "pattern_id": "limiter-pfmea-042"
+    },
+    {
+      "process_step_id": "P50",
+      "process_function": "铆接压力；按作业指导书要求加工；支架、铆钉无变形损伤",
+      "failure_mode": "铆接压力超差",
+      "failure_effect": "铆接不良，总成功能失效",
+      "failure_cause": "设备调试参数偏移",
+      "prevention_control": "开班点检\n压力表校验",
+      "detection_control": "100% 设备监控 + 工艺参数点检",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 3,
+        "detection": 6,
+        "action_priority": "H"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 52
+        }
+      ],
+      "pattern_id": "limiter-pfmea-043"
+    },
+    {
+      "process_step_id": "P50",
+      "process_function": "对焦高度；按作业指导书要求加工；支架、铆钉无变形损伤",
+      "failure_mode": "对焦高度超差",
+      "failure_effect": "打标模糊，客户抱怨 / 追溯困难",
+      "failure_cause": "调试人员操作失误",
+      "prevention_control": "对焦高度参数固化",
+      "detection_control": "100% 目视 + 工艺参数点检",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 3,
+        "detection": 6,
+        "action_priority": "H"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 53
+        }
+      ],
+      "pattern_id": "limiter-pfmea-044"
+    },
+    {
+      "process_step_id": "P50",
+      "process_function": "打标速度；按作业指导书要求加工；支架、铆钉无变形损伤",
+      "failure_mode": "打标速度超差",
+      "failure_effect": "标识不清 / 零件损伤/客户抱怨",
+      "failure_cause": "1. 设备调试参数未固化\n2. 镜片磨损",
+      "prevention_control": "打标速度参数锁定\n镜头定期检查",
+      "detection_control": "工艺参数点检",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 3,
+        "detection": 6,
+        "action_priority": "M"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 54
+        }
+      ],
+      "pattern_id": "limiter-pfmea-045"
+    },
+    {
+      "process_step_id": "P50",
+      "process_function": "铆接销轴；按作业指导书要求加工；铆接头部无开裂",
+      "failure_mode": "铆接头部开裂",
+      "failure_effect": "客户抱怨 / 总成失效",
+      "failure_cause": "1. 铆接压力 / 时间过大2. 工装定位偏差",
+      "prevention_control": "1. 铆接参数优化2. 工装精度校准",
+      "detection_control": "工艺参数点检 + 100% 目视",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 3,
+        "detection": 6,
+        "action_priority": "M"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 55
+        }
+      ],
+      "pattern_id": "limiter-pfmea-046"
+    },
+    {
+      "process_step_id": "P50",
+      "process_function": "铆接销轴；按作业指导书要求加工；铆接后尺寸 1.2±0.2mm",
+      "failure_mode": "尺寸超差",
+      "failure_effect": "支架变形总成功能失效、客户抱怨",
+      "failure_cause": "工装定位偏差",
+      "prevention_control": "工装维护保养",
+      "detection_control": "100% 设备间接高度控制 + 3 件 / 首末检 + 3 件 / 2h",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 3,
+        "detection": 5,
+        "action_priority": "M"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 56
+        }
+      ],
+      "pattern_id": "limiter-pfmea-047"
+    },
+    {
+      "process_step_id": "P50",
+      "process_function": "铆接销轴；按作业指导书要求加工；限位器外观无缺陷",
+      "failure_mode": "限位器外观缺陷",
+      "failure_effect": "外观不良、客户抱怨",
+      "failure_cause": "1. 工装插片伸出位置不正确\n2. 工装调试失误",
+      "prevention_control": "目视检查工装插片位置\n工装维护保养",
+      "detection_control": "100% 目视检查",
+      "classification": "",
+      "rating_hint": {
+        "severity": 4,
+        "occurrence": 3,
+        "detection": 6,
+        "action_priority": "H"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 57
+        }
+      ],
+      "pattern_id": "limiter-pfmea-048"
+    },
+    {
+      "process_step_id": "P50",
+      "process_function": "铆接销轴；按作业指导书要求加工；生产日期无遗漏，标记清晰、正确",
+      "failure_mode": "标识遗漏 / 模糊 / 错误",
+      "failure_effect": "追溯困难、客户抱怨",
+      "failure_cause": "1. 打标参数调试错误\n2. 打标镜头脏污\n3. 设备未触发打标",
+      "prevention_control": "开班点检",
+      "detection_control": "工艺参数点检 + 3 件 / 首末检 + 3 件 / 2h",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 3,
+        "detection": 5,
+        "action_priority": "M"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 58
+        }
+      ],
+      "pattern_id": "limiter-pfmea-049"
+    },
+    {
+      "process_step_id": "P60",
+      "process_function": "电机检测速度；按作业指导书要求加工；速度正确",
+      "failure_mode": "检测速度超差",
+      "failure_effect": "力矩误判、总成功能异常 / 客户抱怨",
+      "failure_cause": "1. 设备调试错误",
+      "prevention_control": "调试参数锁定 / 防错",
+      "detection_control": "工艺参数点检（开班 / 换型）",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 3,
+        "detection": 6,
+        "action_priority": "M"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 59
+        }
+      ],
+      "pattern_id": "limiter-pfmea-050"
+    },
+    {
+      "process_step_id": "P60",
+      "process_function": "电机检测位置；按作业指导书要求加工；设备正确",
+      "failure_mode": "开始位置超差",
+      "failure_effect": "力矩误判、总成功能异常 / 客户抱怨",
+      "failure_cause": "1. 设备调试错误",
+      "prevention_control": "调试参数锁定 / 防错",
+      "detection_control": "工艺参数点检（开班 / 换型）",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 3,
+        "detection": 6,
+        "action_priority": "M"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 60
+        }
+      ],
+      "pattern_id": "limiter-pfmea-051"
+    },
+    {
+      "process_step_id": "P60",
+      "process_function": "检测力矩；力矩；0.2-1.2Nm",
+      "failure_mode": "将合格件判定为不合格件",
+      "failure_effect": "增加废品数量→生产成本上升→交付延迟",
+      "failure_cause": "1. 力矩感应器校准偏差\n2. 校准砝码精度偏移",
+      "prevention_control": "1. 校准砝码定期重量数值校准\n2. 开班系统校准",
+      "detection_control": "3 件 / 首末检 + 3 件 / 2 小时（力矩复测）",
+      "classification": "SC",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 2,
+        "detection": 2,
+        "action_priority": "L"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 61
+        }
+      ],
+      "pattern_id": "limiter-pfmea-052"
+    },
+    {
+      "process_step_id": "P60",
+      "process_function": "检测力矩；力矩；0.2-1.2Nm",
+      "failure_mode": "将不合格件判定为合格件",
+      "failure_effect": "力矩异常、总成异响 、客户抱怨",
+      "failure_cause": "1. 力矩感应器校准偏差\n2. 校准砝码精度偏移",
+      "prevention_control": "1. 校准砝码定期重量数值校准\n2. 开班系统校准",
+      "detection_control": "3 件 / 首末检 + 3 件 / 2 小时（力矩复测）",
+      "classification": "SC",
+      "rating_hint": {
+        "severity": 7,
+        "occurrence": 2,
+        "detection": 2,
+        "action_priority": "L"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 62
+        }
+      ],
+      "pattern_id": "limiter-pfmea-053"
+    },
+    {
+      "process_step_id": "P60",
+      "process_function": "零件外观；检查零件外观无损伤、无漏装、无错装，表面无明显磨损、标识正确，清晰；零件外观无损伤、无漏装、无错装，表面无明显磨损，标识正确清晰",
+      "failure_mode": "将合格件判定为不合格件",
+      "failure_effect": "增加废品数量→生产成本上升→交付延迟",
+      "failure_cause": "1. 检测人员视觉疲劳\n2、环境干扰",
+      "prevention_control": "1. 定员定岗2. 技能定期培训3. 制定清晰外观检查 SOP",
+      "detection_control": "100% 目视检查，按包装指导书执行",
+      "classification": "",
+      "rating_hint": {
+        "severity": 4,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": "L"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 63
+        }
+      ],
+      "pattern_id": "limiter-pfmea-054"
+    },
+    {
+      "process_step_id": "P70",
+      "process_function": "零件外观；检查零件外观无损伤、无漏装、无错装，表面无明显磨损、标识正确，清晰；零件外观无损伤、无漏装、无错装，表面无明显磨损，标识正确清晰",
+      "failure_mode": "将不合格件判定为合格件",
+      "failure_effect": "外观不良 、客户抱怨",
+      "failure_cause": "1. 检测人员视觉疲劳\n2、环境干扰",
+      "prevention_control": "1. 定员定岗2. 技能定期培训",
+      "detection_control": "3 件 / 首末检 + 3 件 / 2 小时复检",
+      "classification": "",
+      "rating_hint": {
+        "severity": 7,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": "M"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 64
+        }
+      ],
+      "pattern_id": "limiter-pfmea-055"
+    },
+    {
+      "process_step_id": "P70",
+      "process_function": "功能力矩；限位器功能力矩；限位置器功能力矩符合设计要求",
+      "failure_mode": "将合格件判定为不合格件",
+      "failure_effect": "增加废品数量、生产成本上升、交付延迟",
+      "failure_cause": "1. 检测人员误读数据2. 力矩检测设备未校准3. 检验标准不清晰",
+      "prevention_control": "1. 定员定岗\n2. 技能定期培训\n3. 检测设备定期校准",
+      "detection_control": "3 件 / 批抽检",
+      "classification": "SC",
+      "rating_hint": {
+        "severity": 4,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": "L"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 65
+        }
+      ],
+      "pattern_id": "limiter-pfmea-056"
+    },
+    {
+      "process_step_id": "P70",
+      "process_function": "功能力矩；限位器功能力矩；限位置器功能力矩符合设计要求",
+      "failure_mode": "将不合格件判定为合格件",
+      "failure_effect": "力矩异常、客户抱怨",
+      "failure_cause": "1. 检测人员误读数据\n2. 力矩检测设备未校准\n3. 检验标准不清晰",
+      "prevention_control": "1. 定员定岗\n2. 技能定期培训\n3. 检测设备定期校准",
+      "detection_control": "3 件 / 批抽检",
+      "classification": "SC",
+      "rating_hint": {
+        "severity": 7,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": "H"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 66
+        }
+      ],
+      "pattern_id": "limiter-pfmea-057"
+    },
+    {
+      "process_step_id": "P70",
+      "process_function": "包装数量；检查零件包装数量正确；零件包装数量正确",
+      "failure_mode": "包装数量错误",
+      "failure_effect": "数量不符、客户抱怨",
+      "failure_cause": "1. 操作工计数失误2. 无数量防错设计3. 疲劳作业",
+      "prevention_control": "1. 操作工培训2. 制定包装数量 SOP",
+      "detection_control": "巡检二次确认 / 每包",
+      "classification": "",
+      "rating_hint": {
+        "severity": 4,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": "L"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 67
+        }
+      ],
+      "pattern_id": "limiter-pfmea-058"
+    },
+    {
+      "process_step_id": "P70",
+      "process_function": "包装标识；检查外标签正确；外标签内容正确、粘贴规范",
+      "failure_mode": "标签贴错 / 内容错误",
+      "failure_effect": "标识错误、交付投诉",
+      "failure_cause": "1. 操作工拿错标签2. 标签打印错误3. 无防错校验",
+      "prevention_control": "1. 操作工培训2. 制定标签管理 SOP",
+      "detection_control": "巡检二次确认 / 每包",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": "L"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 68
+        }
+      ],
+      "pattern_id": "limiter-pfmea-059"
+    },
+    {
+      "process_step_id": "P70",
+      "process_function": "零件库位；零件摆放到指定库位；按先进先出原则入库",
+      "failure_mode": "未经行先进先出",
+      "failure_effect": "零件锈蚀",
+      "failure_cause": "库房摆放位置及标示不清楚",
+      "prevention_control": "操作者岗前培训",
+      "detection_control": "按库房管理规定标识及摆放零件",
+      "classification": "",
+      "rating_hint": {
+        "severity": 4,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": "L"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 69
+        }
+      ],
+      "pattern_id": "limiter-pfmea-060"
+    },
+    {
+      "process_step_id": "P80",
+      "process_function": "零件库位；零件按数量交付发货；按先进先出原则",
+      "failure_mode": "未经行先进先出",
+      "failure_effect": "零件批次错误",
+      "failure_cause": "库房摆放位置及标示不清楚",
+      "prevention_control": "操作者岗前培训",
+      "detection_control": "按库房管理规定标识及摆放零件",
+      "classification": "",
+      "rating_hint": {
+        "severity": 4,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": "L"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 70
+        }
+      ],
+      "pattern_id": "limiter-pfmea-061"
+    },
+    {
+      "process_step_id": "P90",
+      "process_function": "零件库位；零件按数量交付发货；按先进先出原则",
+      "failure_mode": "未经行先进先出",
+      "failure_effect": "零件批次错误",
+      "failure_cause": "库房摆放位置及标示不清楚",
+      "prevention_control": "操作者岗前培训",
+      "detection_control": "按库房管理规定标识及摆放零件",
+      "classification": "",
+      "rating_hint": {
+        "severity": 4,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": "L"
+      },
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 71
+        }
+      ],
+      "pattern_id": "limiter-pfmea-062"
+    }
+  ],
+  "control_plan_patterns": [
+    {
+      "process_step_id": "P00",
+      "operation": "来料检验",
+      "characteristic": "尺寸",
+      "classification": "",
+      "specification": "入厂检验作业指导书",
+      "measurement_method": "测量器具/工具",
+      "sample_size": "5",
+      "sample_frequency": "每批次",
+      "control_method": "检验记录",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 12
+        }
+      ],
+      "pattern_id": "limiter-control-plan-001"
+    },
+    {
+      "process_step_id": "P00",
+      "operation": "来料检验",
+      "characteristic": "外观",
+      "classification": "",
+      "specification": "入厂检验作业指导书",
+      "measurement_method": "目视",
+      "sample_size": "10",
+      "sample_frequency": "每批次",
+      "control_method": "检验记录",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 13
+        }
+      ],
+      "pattern_id": "limiter-control-plan-002"
+    },
+    {
+      "process_step_id": "P01",
+      "operation": "入库",
+      "characteristic": "零件识别",
+      "classification": "",
+      "specification": "来料检验合格零件",
+      "measurement_method": "目视",
+      "sample_size": "5",
+      "sample_frequency": "每批次",
+      "control_method": "物料标签",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 14
+        }
+      ],
+      "pattern_id": "limiter-control-plan-003"
+    },
+    {
+      "process_step_id": "P01",
+      "operation": "入库",
+      "characteristic": "合理存储",
+      "classification": "",
+      "specification": "先入先出，无锈蚀，打标正确",
+      "measurement_method": "目视",
+      "sample_size": "5",
+      "sample_frequency": "每批次",
+      "control_method": "物料标签",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 15
+        }
+      ],
+      "pattern_id": "limiter-control-plan-004"
+    },
+    {
+      "process_step_id": "P02",
+      "operation": "投料",
+      "characteristic": "零件识别",
+      "classification": "",
+      "specification": "按生产计划投料",
+      "measurement_method": "目视",
+      "sample_size": "5",
+      "sample_frequency": "每批次",
+      "control_method": "物料标签",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 16
+        }
+      ],
+      "pattern_id": "limiter-control-plan-005"
+    },
+    {
+      "process_step_id": "P10",
+      "operation": "10\n壳体涂油",
+      "characteristic": "油脂使用正确性",
+      "classification": "",
+      "specification": "油脂牌号是否正确\nM21 EPK-A",
+      "measurement_method": "目视",
+      "sample_size": "1",
+      "sample_frequency": "首件/2小时/末件",
+      "control_method": "装配产品质量检查表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 17
+        }
+      ],
+      "pattern_id": "limiter-control-plan-006"
+    },
+    {
+      "process_step_id": "P10",
+      "operation": "10\n壳体涂油",
+      "characteristic": "注油量",
+      "classification": "",
+      "specification": "单壳体内涂油量0.1-0.15g",
+      "measurement_method": "电子秤",
+      "sample_size": "3",
+      "sample_frequency": "开班",
+      "control_method": "装配产品质量检查表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 18
+        }
+      ],
+      "pattern_id": "limiter-control-plan-007"
+    },
+    {
+      "process_step_id": "P10",
+      "operation": "10\n壳体涂油",
+      "characteristic": "装配正确性",
+      "classification": "",
+      "specification": "壳体无漏装",
+      "measurement_method": "目视",
+      "sample_size": "3",
+      "sample_frequency": "开班",
+      "control_method": "装配产品质量检查表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 19
+        }
+      ],
+      "pattern_id": "limiter-control-plan-008"
+    },
+    {
+      "process_step_id": "P10",
+      "operation": "10\n壳体涂油",
+      "characteristic": "装配正确性",
+      "classification": "",
+      "specification": "涂油部位无拖拽拉延现象",
+      "measurement_method": "目视",
+      "sample_size": "3",
+      "sample_frequency": "开班",
+      "control_method": "装配产品质量检查表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 20
+        }
+      ],
+      "pattern_id": "limiter-control-plan-009"
+    },
+    {
+      "process_step_id": "P10",
+      "operation": "10\n壳体涂油",
+      "characteristic": "壳体涂油",
+      "classification": "",
+      "specification": "壳体位置正确",
+      "measurement_method": "设备100%自动监控",
+      "sample_size": "1",
+      "sample_frequency": "开班",
+      "control_method": "防错验证检查表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 21
+        }
+      ],
+      "pattern_id": "limiter-control-plan-010"
+    },
+    {
+      "process_step_id": "P10",
+      "operation": "10\n壳体涂油",
+      "characteristic": "壳体涂油",
+      "classification": "",
+      "specification": "壳体有无防错",
+      "measurement_method": "夹具防错",
+      "sample_size": "1",
+      "sample_frequency": "开班",
+      "control_method": "防错验证检查表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 22
+        }
+      ],
+      "pattern_id": "limiter-control-plan-011"
+    },
+    {
+      "process_step_id": "P10",
+      "operation": "10\n壳体涂油",
+      "characteristic": "注油压力",
+      "classification": "",
+      "specification": "5-10Mpa",
+      "measurement_method": "压力表",
+      "sample_size": "1",
+      "sample_frequency": "开班",
+      "control_method": "工艺参数点检表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 23
+        }
+      ],
+      "pattern_id": "limiter-control-plan-012"
+    },
+    {
+      "process_step_id": "P10",
+      "operation": "10\n壳体涂油",
+      "characteristic": "注油泵位置",
+      "classification": "",
+      "specification": "5.9±0.5mm",
+      "measurement_method": "卡板",
+      "sample_size": "1",
+      "sample_frequency": "开班",
+      "control_method": "工艺参数点检表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 24
+        }
+      ],
+      "pattern_id": "limiter-control-plan-013"
+    },
+    {
+      "process_step_id": "P20",
+      "operation": "20\n限位臂注油",
+      "characteristic": "装配正确性",
+      "classification": "",
+      "specification": "限位臂无错装",
+      "measurement_method": "目视+防错样件",
+      "sample_size": "3",
+      "sample_frequency": "开班",
+      "control_method": "装配产品质量检查表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 25
+        }
+      ],
+      "pattern_id": "limiter-control-plan-014"
+    },
+    {
+      "process_step_id": "P20",
+      "operation": "20\n限位臂注油",
+      "characteristic": "注油量",
+      "classification": "",
+      "specification": "限位臂档位&支架孔共0.15-0.25g",
+      "measurement_method": "电子秤每班首检3件\n(3件一起做\n首检检测，取\n值平均油量)",
+      "sample_size": "3",
+      "sample_frequency": "3件/首末检\n3件/2小时",
+      "control_method": "装配产品质量检查表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 26
+        }
+      ],
+      "pattern_id": "limiter-control-plan-015"
+    },
+    {
+      "process_step_id": "P20",
+      "operation": "20\n限位臂注油",
+      "characteristic": "油脂使用正确性",
+      "classification": "",
+      "specification": "油脂牌号是否正确\nM21 EPK-A",
+      "measurement_method": "目视",
+      "sample_size": "1",
+      "sample_frequency": "开班",
+      "control_method": "装配产品质量检查表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 27
+        }
+      ],
+      "pattern_id": "limiter-control-plan-016"
+    },
+    {
+      "process_step_id": "P20",
+      "operation": "20\n限位臂注油",
+      "characteristic": "注油压力",
+      "classification": "",
+      "specification": "5-10Mpa",
+      "measurement_method": "目视",
+      "sample_size": "1",
+      "sample_frequency": "开班",
+      "control_method": "工艺参数点检表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 28
+        }
+      ],
+      "pattern_id": "limiter-control-plan-017"
+    },
+    {
+      "process_step_id": "P20",
+      "operation": "20\n限位臂注油",
+      "characteristic": "注油泵位置",
+      "classification": "",
+      "specification": "6.8±0.5mm\n6±0.5mm\n3.4±0.5mm",
+      "measurement_method": "卡板",
+      "sample_size": "1",
+      "sample_frequency": "开班",
+      "control_method": "工艺参数点检表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 29
+        }
+      ],
+      "pattern_id": "limiter-control-plan-018"
+    },
+    {
+      "process_step_id": "P20",
+      "operation": "20\n限位臂注油",
+      "characteristic": "限位器涂油",
+      "classification": "",
+      "specification": "工件有无检测",
+      "measurement_method": "设备100%自动监控",
+      "sample_size": "1",
+      "sample_frequency": "开班",
+      "control_method": "防错验证检查表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 30
+        }
+      ],
+      "pattern_id": "limiter-control-plan-019"
+    },
+    {
+      "process_step_id": "P20",
+      "operation": "20\n限位臂注油",
+      "characteristic": "限位器涂油",
+      "classification": "",
+      "specification": "限位臂正确",
+      "measurement_method": "设备100%自动监控",
+      "sample_size": "1",
+      "sample_frequency": "开班",
+      "control_method": "防错验证检查表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 31
+        }
+      ],
+      "pattern_id": "limiter-control-plan-020"
+    },
+    {
+      "process_step_id": "P30",
+      "operation": "30\n壳体铆接",
+      "characteristic": "装配正确性",
+      "classification": "",
+      "specification": "铆钉翻边无裂纹，壳体无损伤",
+      "measurement_method": "目视+对比样件",
+      "sample_size": "3",
+      "sample_frequency": "3件/首末检\n3件/2小时",
+      "control_method": "装配产品质量检查表",
+      "reaction_plan": "隔离，报废",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 32
+        }
+      ],
+      "pattern_id": "limiter-control-plan-021"
+    },
+    {
+      "process_step_id": "P30",
+      "operation": "30\n壳体铆接",
+      "characteristic": "",
+      "classification": "",
+      "specification": "弹簧滑块无漏装",
+      "measurement_method": "目视+防错样件",
+      "sample_size": "3",
+      "sample_frequency": "3件/首末检\n3件/2小时",
+      "control_method": "装配产品质量检查表",
+      "reaction_plan": "隔离，报废",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 33
+        }
+      ],
+      "pattern_id": "limiter-control-plan-022"
+    },
+    {
+      "process_step_id": "P30",
+      "operation": "30\n壳体铆接",
+      "characteristic": "",
+      "classification": "",
+      "specification": "壳体接合面间隙≤0.2mm",
+      "measurement_method": "塞尺",
+      "sample_size": "3",
+      "sample_frequency": "3件/首末检\n3件/2小时",
+      "control_method": "装配产品质量检查表",
+      "reaction_plan": "隔离，报废",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 34
+        }
+      ],
+      "pattern_id": "limiter-control-plan-023"
+    },
+    {
+      "process_step_id": "P30",
+      "operation": "30\n壳体铆接",
+      "characteristic": "",
+      "classification": "",
+      "specification": "限位臂放置方向正确",
+      "measurement_method": "目视+自动检测",
+      "sample_size": "1",
+      "sample_frequency": "每班",
+      "control_method": "设备自动监控",
+      "reaction_plan": "隔离，报废",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 35
+        }
+      ],
+      "pattern_id": "limiter-control-plan-024"
+    },
+    {
+      "process_step_id": "P30",
+      "operation": "30\n壳体铆接",
+      "characteristic": "",
+      "classification": "",
+      "specification": "壳体放置方向正确",
+      "measurement_method": "目视+机械防错",
+      "sample_size": "1",
+      "sample_frequency": "每班",
+      "control_method": "设备+夹具",
+      "reaction_plan": "隔离，报废",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 36
+        }
+      ],
+      "pattern_id": "limiter-control-plan-025"
+    },
+    {
+      "process_step_id": "P30",
+      "operation": "30\n壳体铆接",
+      "characteristic": "压入压力",
+      "classification": "",
+      "specification": "0.2-0.4Mpa",
+      "measurement_method": "设备控制面板",
+      "sample_size": "1",
+      "sample_frequency": "开班",
+      "control_method": "工艺参数点检表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 37
+        }
+      ],
+      "pattern_id": "limiter-control-plan-026"
+    },
+    {
+      "process_step_id": "P30",
+      "operation": "30\n壳体铆接",
+      "characteristic": "限位块距离",
+      "classification": "",
+      "specification": "24±0.5mm",
+      "measurement_method": "卡板",
+      "sample_size": "1",
+      "sample_frequency": "开班",
+      "control_method": "工艺参数点检表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 38
+        }
+      ],
+      "pattern_id": "limiter-control-plan-027"
+    },
+    {
+      "process_step_id": "P30",
+      "operation": "30\n壳体铆接",
+      "characteristic": "壳体铆接",
+      "classification": "",
+      "specification": "限位臂正确",
+      "measurement_method": "设备100%自动监控",
+      "sample_size": "1",
+      "sample_frequency": "开班",
+      "control_method": "防错验证检查表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 39
+        }
+      ],
+      "pattern_id": "limiter-control-plan-028"
+    },
+    {
+      "process_step_id": "P40",
+      "operation": "40压入销轴",
+      "characteristic": "装配正确性",
+      "classification": "",
+      "specification": "销轴法兰面与支架之间≤0.2mm",
+      "measurement_method": "塞尺",
+      "sample_size": "3",
+      "sample_frequency": "3件/首末检\n3件/2小时",
+      "control_method": "装配产品质量检查表",
+      "reaction_plan": "隔离，返工",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 40
+        }
+      ],
+      "pattern_id": "limiter-control-plan-029"
+    },
+    {
+      "process_step_id": "P40",
+      "operation": "40压入销轴",
+      "characteristic": "装配正确性",
+      "classification": "",
+      "specification": "支架、铆钉无变形损伤",
+      "measurement_method": "目视+对比样件",
+      "sample_size": "3",
+      "sample_frequency": "3件/首末检\n3件/2小时",
+      "control_method": "装配产品质量检查表",
+      "reaction_plan": "隔离，报废",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 41
+        }
+      ],
+      "pattern_id": "limiter-control-plan-030"
+    },
+    {
+      "process_step_id": "P40",
+      "operation": "40压入销轴",
+      "characteristic": "压入压力",
+      "classification": "",
+      "specification": "0.1-0.4Mpa",
+      "measurement_method": "压力表",
+      "sample_size": "1",
+      "sample_frequency": "开班",
+      "control_method": "工艺参数点检表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 42
+        }
+      ],
+      "pattern_id": "limiter-control-plan-031"
+    },
+    {
+      "process_step_id": "P40",
+      "operation": "40压入销轴",
+      "characteristic": "限位块距离",
+      "classification": "",
+      "specification": "54.5±0.5mm",
+      "measurement_method": "卡板",
+      "sample_size": "1",
+      "sample_frequency": "开班",
+      "control_method": "工艺参数点检表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 43
+        }
+      ],
+      "pattern_id": "limiter-control-plan-032"
+    },
+    {
+      "process_step_id": "P40",
+      "operation": "40压入销轴",
+      "characteristic": "限位器穿销",
+      "classification": "",
+      "specification": "工件有无防错",
+      "measurement_method": "设备100%自动监控",
+      "sample_size": "1",
+      "sample_frequency": "开班",
+      "control_method": "防错验证检查表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 44
+        }
+      ],
+      "pattern_id": "limiter-control-plan-033"
+    },
+    {
+      "process_step_id": "P40",
+      "operation": "40压入销轴",
+      "characteristic": "限位器穿销",
+      "classification": "",
+      "specification": "销轴有无防错",
+      "measurement_method": "设备100%自动监控",
+      "sample_size": "1",
+      "sample_frequency": "开班",
+      "control_method": "防错验证检查表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 45
+        }
+      ],
+      "pattern_id": "limiter-control-plan-034"
+    },
+    {
+      "process_step_id": "P50",
+      "operation": "50\n铆接并打标",
+      "characteristic": "铆接头部高度",
+      "classification": "",
+      "specification": "1.2±0.2mm",
+      "measurement_method": "百分表",
+      "sample_size": "3",
+      "sample_frequency": "3件/首末检\n3件/2小时",
+      "control_method": "装配产品质量检查表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 46
+        }
+      ],
+      "pattern_id": "limiter-control-plan-035"
+    },
+    {
+      "process_step_id": "P50",
+      "operation": "50\n铆接并打标",
+      "characteristic": "铆接头部高度",
+      "classification": "",
+      "specification": "1.2±0.2mm",
+      "measurement_method": "设备控制面板",
+      "sample_size": "1",
+      "sample_frequency": "1",
+      "control_method": "设备自动监控",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 47
+        }
+      ],
+      "continuation_of_source_row": 46,
+      "pattern_id": "limiter-control-plan-036"
+    },
+    {
+      "process_step_id": "P50",
+      "operation": "50\n铆接并打标",
+      "characteristic": "外观",
+      "classification": "",
+      "specification": "铆接头部无开裂",
+      "measurement_method": "目视+对比样件",
+      "sample_size": "3",
+      "sample_frequency": "3件/首末检\n3件/2小时",
+      "control_method": "装配产品质量检查表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 48
+        }
+      ],
+      "pattern_id": "limiter-control-plan-037"
+    },
+    {
+      "process_step_id": "P50",
+      "operation": "50\n铆接并打标",
+      "characteristic": "外观",
+      "classification": "",
+      "specification": "限位器外观无损伤",
+      "measurement_method": "目视+对比样件",
+      "sample_size": "3",
+      "sample_frequency": "3件/首末检\n3件/2小时",
+      "control_method": "装配产品质量检查表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 49
+        }
+      ],
+      "pattern_id": "limiter-control-plan-038"
+    },
+    {
+      "process_step_id": "P50",
+      "operation": "50\n铆接并打标",
+      "characteristic": "外观",
+      "classification": "",
+      "specification": "生产日期无遗漏",
+      "measurement_method": "目视",
+      "sample_size": "3",
+      "sample_frequency": "3件/首末检\n3件/2小时",
+      "control_method": "装配产品质量检查表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 50
+        }
+      ],
+      "pattern_id": "limiter-control-plan-039"
+    },
+    {
+      "process_step_id": "P50",
+      "operation": "50\n铆接并打标",
+      "characteristic": "外观",
+      "classification": "",
+      "specification": "标记清晰、正确",
+      "measurement_method": "目视",
+      "sample_size": "3",
+      "sample_frequency": "3件/首末检\n3件/2小时",
+      "control_method": "装配产品质量检查表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 51
+        }
+      ],
+      "pattern_id": "limiter-control-plan-040"
+    },
+    {
+      "process_step_id": "P50",
+      "operation": "50\n铆接并打标",
+      "characteristic": "接触高度",
+      "classification": "",
+      "specification": "30.6±0.3mm",
+      "measurement_method": "设备自动监控",
+      "sample_size": "1",
+      "sample_frequency": "每班",
+      "control_method": "工艺参数点检表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 52
+        }
+      ],
+      "pattern_id": "limiter-control-plan-041"
+    },
+    {
+      "process_step_id": "P50",
+      "operation": "50\n铆接并打标",
+      "characteristic": "变形高度",
+      "classification": "",
+      "specification": "1.5±0.2mm",
+      "measurement_method": "设备自动监控",
+      "sample_size": "1",
+      "sample_frequency": "每班",
+      "control_method": "工艺参数点检表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 53
+        }
+      ],
+      "pattern_id": "limiter-control-plan-042"
+    },
+    {
+      "process_step_id": "P50",
+      "operation": "50\n铆接并打标",
+      "characteristic": "铆接时间",
+      "classification": "",
+      "specification": "2.0±0.3s",
+      "measurement_method": "设备自动监控",
+      "sample_size": "1",
+      "sample_frequency": "每班",
+      "control_method": "工艺参数点检表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 54
+        }
+      ],
+      "pattern_id": "limiter-control-plan-043"
+    },
+    {
+      "process_step_id": "P50",
+      "operation": "50\n铆接并打标",
+      "characteristic": "铆接压力",
+      "classification": "",
+      "specification": "1.8±0.3Bar",
+      "measurement_method": "设备自动监控",
+      "sample_size": "1",
+      "sample_frequency": "每班",
+      "control_method": "工艺参数点检表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 55
+        }
+      ],
+      "pattern_id": "limiter-control-plan-044"
+    },
+    {
+      "process_step_id": "P50",
+      "operation": "50\n铆接并打标",
+      "characteristic": "对焦高度",
+      "classification": "",
+      "specification": "17.5±2mm",
+      "measurement_method": "设备自动监控",
+      "sample_size": "1",
+      "sample_frequency": "每班",
+      "control_method": "工艺参数点检表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 56
+        }
+      ],
+      "pattern_id": "limiter-control-plan-045"
+    },
+    {
+      "process_step_id": "P50",
+      "operation": "50\n铆接并打标",
+      "characteristic": "打标速度",
+      "classification": "",
+      "specification": "900-1000mm/s",
+      "measurement_method": "设备自动监控",
+      "sample_size": "1",
+      "sample_frequency": "每班",
+      "control_method": "工艺参数点检表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 57
+        }
+      ],
+      "pattern_id": "limiter-control-plan-046"
+    },
+    {
+      "process_step_id": "P50",
+      "operation": "50\n铆接并打标",
+      "characteristic": "铆接打标",
+      "classification": "",
+      "specification": "接触高度正确性有无检测",
+      "measurement_method": "设备100%自动监控",
+      "sample_size": "1",
+      "sample_frequency": "开班",
+      "control_method": "防错验证检查表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 58
+        }
+      ],
+      "pattern_id": "limiter-control-plan-047"
+    },
+    {
+      "process_step_id": "P50",
+      "operation": "50\n铆接并打标",
+      "characteristic": "铆接打标",
+      "classification": "",
+      "specification": "铆接工位工件有无防错",
+      "measurement_method": "设备100%自动监控",
+      "sample_size": "1",
+      "sample_frequency": "开班",
+      "control_method": "防错验证检查表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 59
+        }
+      ],
+      "pattern_id": "limiter-control-plan-048"
+    },
+    {
+      "process_step_id": "P50",
+      "operation": "50\n铆接并打标",
+      "characteristic": "铆接打标",
+      "classification": "",
+      "specification": "打标工位工件正反防错",
+      "measurement_method": "设备100%自动监控",
+      "sample_size": "1",
+      "sample_frequency": "开班",
+      "control_method": "防错验证检查表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 60
+        }
+      ],
+      "pattern_id": "limiter-control-plan-049"
+    },
+    {
+      "process_step_id": "P50",
+      "operation": "50\n铆接并打标",
+      "characteristic": "铆接打标",
+      "classification": "",
+      "specification": "打标工位工件有无防错",
+      "measurement_method": "设备100%自动监控",
+      "sample_size": "1",
+      "sample_frequency": "开班",
+      "control_method": "防错验证检查表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 61
+        }
+      ],
+      "pattern_id": "limiter-control-plan-050"
+    },
+    {
+      "process_step_id": "P60",
+      "operation": "60\n扭力检测",
+      "characteristic": "支架转动力矩",
+      "classification": "SC",
+      "specification": "0.2-1.2Nm",
+      "measurement_method": "扭矩传感器",
+      "sample_size": "1",
+      "sample_frequency": "每班",
+      "control_method": "设备点检表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 62
+        }
+      ],
+      "pattern_id": "limiter-control-plan-051"
+    },
+    {
+      "process_step_id": "P60",
+      "operation": "60\n扭力检测",
+      "characteristic": "支架转动力矩",
+      "classification": "",
+      "specification": "0.2-1.2Nm",
+      "measurement_method": "扭矩传感器+极限样件",
+      "sample_size": "1",
+      "sample_frequency": "每班",
+      "control_method": "工艺参数点检表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 63
+        }
+      ],
+      "continuation_of_source_row": 62,
+      "pattern_id": "limiter-control-plan-052"
+    },
+    {
+      "process_step_id": "P60",
+      "operation": "60\n扭力检测",
+      "characteristic": "支架转动力矩",
+      "classification": "",
+      "specification": "0.2-1.2Nm",
+      "measurement_method": "扭力扳手",
+      "sample_size": "3",
+      "sample_frequency": "3件/首末检\n3件/2小时",
+      "control_method": "装配产品质量检查表",
+      "reaction_plan": "隔离，报废",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 64
+        }
+      ],
+      "continuation_of_source_row": 62,
+      "pattern_id": "limiter-control-plan-053"
+    },
+    {
+      "process_step_id": "P60",
+      "operation": "60\n扭力检测",
+      "characteristic": "电机检测速度",
+      "classification": "SC",
+      "specification": "15°/s-20°/s",
+      "measurement_method": "设备控制面板",
+      "sample_size": "1",
+      "sample_frequency": "开班",
+      "control_method": "工艺参数点检表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 65
+        }
+      ],
+      "pattern_id": "limiter-control-plan-054"
+    },
+    {
+      "process_step_id": "P60",
+      "operation": "60\n扭力检测",
+      "characteristic": "电机检测开始位",
+      "classification": "",
+      "specification": "15°",
+      "measurement_method": "设备控制面板",
+      "sample_size": "1",
+      "sample_frequency": "开班",
+      "control_method": "工艺参数点检表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 66
+        }
+      ],
+      "pattern_id": "limiter-control-plan-055"
+    },
+    {
+      "process_step_id": "P60",
+      "operation": "60\n扭力检测",
+      "characteristic": "电机检测结束位",
+      "classification": "",
+      "specification": "-75°",
+      "measurement_method": "设备控制面板",
+      "sample_size": "1",
+      "sample_frequency": "开班",
+      "control_method": "工艺参数点检表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 67
+        }
+      ],
+      "pattern_id": "limiter-control-plan-056"
+    },
+    {
+      "process_step_id": "P60",
+      "operation": "60\n扭力检测",
+      "characteristic": "力矩开班校准",
+      "classification": "",
+      "specification": "1.91-2.01Nm",
+      "measurement_method": "按校准说明书进行",
+      "sample_size": "1",
+      "sample_frequency": "开班",
+      "control_method": "工艺参数点检表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 68
+        }
+      ],
+      "pattern_id": "limiter-control-plan-057"
+    },
+    {
+      "process_step_id": "P60",
+      "operation": "60\n扭力检测",
+      "characteristic": "扭力检测",
+      "classification": "",
+      "specification": "工件有无防错",
+      "measurement_method": "设备100%自动监控",
+      "sample_size": "1",
+      "sample_frequency": "开班",
+      "control_method": "防错验证检查表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 69
+        }
+      ],
+      "pattern_id": "limiter-control-plan-058"
+    },
+    {
+      "process_step_id": "P60",
+      "operation": "60\n扭力检测",
+      "characteristic": "扭力检测",
+      "classification": "",
+      "specification": "工件正反防错",
+      "measurement_method": "设备100%自动监控",
+      "sample_size": "1",
+      "sample_frequency": "开班",
+      "control_method": "防错验证检查表",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 70
+        }
+      ],
+      "pattern_id": "limiter-control-plan-059"
+    },
+    {
+      "process_step_id": "P70",
+      "operation": "70\n检查+包装",
+      "characteristic": "包装正确性",
+      "classification": "",
+      "specification": "实物，数量与标签一一对应",
+      "measurement_method": "目视",
+      "sample_size": "3",
+      "sample_frequency": "每批次",
+      "control_method": "自检",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 71
+        }
+      ],
+      "pattern_id": "limiter-control-plan-060"
+    },
+    {
+      "process_step_id": "P70",
+      "operation": "70\n检查+包装",
+      "characteristic": "产品外观",
+      "classification": "",
+      "specification": "检查零件外观无损伤、无漏装、无错装，表面无明显磨损、标识正确，清晰",
+      "measurement_method": "目视",
+      "sample_size": "3",
+      "sample_frequency": "3件/首末检\n3件/2小时",
+      "control_method": "装配产品质量检查表",
+      "reaction_plan": "隔离，报废",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 72
+        }
+      ],
+      "pattern_id": "limiter-control-plan-061"
+    },
+    {
+      "process_step_id": "P70",
+      "operation": "70\n检查+包装",
+      "characteristic": "限位器功能力矩",
+      "classification": "SC",
+      "specification": "开一档 30±5",
+      "measurement_method": "限位器力矩测试机",
+      "sample_size": "3",
+      "sample_frequency": "3件/首末检",
+      "control_method": "装配产品质量检查表",
+      "reaction_plan": "隔离，报废",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 73
+        }
+      ],
+      "pattern_id": "limiter-control-plan-062"
+    },
+    {
+      "process_step_id": "P70",
+      "operation": "70\n检查+包装",
+      "characteristic": "限位器功能力矩",
+      "classification": "SC",
+      "specification": "开二档 36±5",
+      "measurement_method": "限位器力矩测试机",
+      "sample_size": "3",
+      "sample_frequency": "3件/首末检",
+      "control_method": "装配产品质量检查表",
+      "reaction_plan": "隔离，报废",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 74
+        }
+      ],
+      "pattern_id": "limiter-control-plan-063"
+    },
+    {
+      "process_step_id": "P70",
+      "operation": "70\n检查+包装",
+      "characteristic": "限位器功能力矩",
+      "classification": "SC",
+      "specification": "开三档 44±5",
+      "measurement_method": "限位器力矩测试机",
+      "sample_size": "3",
+      "sample_frequency": "3件/首末检",
+      "control_method": "装配产品质量检查表",
+      "reaction_plan": "隔离，报废",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 75
+        }
+      ],
+      "pattern_id": "limiter-control-plan-064"
+    },
+    {
+      "process_step_id": "P70",
+      "operation": "70\n检查+包装",
+      "characteristic": "限位器功能力矩",
+      "classification": "SC",
+      "specification": "关三档 44±6",
+      "measurement_method": "限位器力矩测试机",
+      "sample_size": "3",
+      "sample_frequency": "3件/首末检",
+      "control_method": "装配产品质量检查表",
+      "reaction_plan": "隔离，报废",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 76
+        }
+      ],
+      "pattern_id": "limiter-control-plan-065"
+    },
+    {
+      "process_step_id": "P70",
+      "operation": "70\n检查+包装",
+      "characteristic": "限位器功能力矩",
+      "classification": "SC",
+      "specification": "关二档 44±5",
+      "measurement_method": "限位器力矩测试机",
+      "sample_size": "3",
+      "sample_frequency": "3件/首末检",
+      "control_method": "装配产品质量检查表",
+      "reaction_plan": "隔离，报废",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 77
+        }
+      ],
+      "pattern_id": "limiter-control-plan-066"
+    },
+    {
+      "process_step_id": "P70",
+      "operation": "70\n检查+包装",
+      "characteristic": "限位器功能力矩",
+      "classification": "SC",
+      "specification": "关一档 40±5",
+      "measurement_method": "限位器力矩测试机",
+      "sample_size": "3",
+      "sample_frequency": "3件/首末检",
+      "control_method": "装配产品质量检查表",
+      "reaction_plan": "隔离，报废",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 78
+        }
+      ],
+      "pattern_id": "limiter-control-plan-067"
+    },
+    {
+      "process_step_id": "P70",
+      "operation": "70\n检查+包装",
+      "characteristic": "汽车禁用物质",
+      "classification": "CC",
+      "specification": "ELV Test GB/T 30512",
+      "measurement_method": "第三方",
+      "sample_size": "1",
+      "sample_frequency": "一年",
+      "control_method": "试验报告",
+      "reaction_plan": "隔离，报废",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 79
+        }
+      ],
+      "pattern_id": "limiter-control-plan-068"
+    },
+    {
+      "process_step_id": "P80",
+      "operation": "80\n入库",
+      "characteristic": "物料正确性",
+      "classification": "",
+      "specification": "FIFO\n先进先出",
+      "measurement_method": "目视",
+      "sample_size": "3",
+      "sample_frequency": "每批次",
+      "control_method": "自检",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 80
+        }
+      ],
+      "pattern_id": "limiter-control-plan-069"
+    },
+    {
+      "process_step_id": "P90",
+      "operation": "90\n发运",
+      "characteristic": "物料正确性",
+      "classification": "",
+      "specification": "实物，数量与标签一一对应",
+      "measurement_method": "目视",
+      "sample_size": "3",
+      "sample_frequency": "每批次",
+      "control_method": "自检",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 81
+        }
+      ],
+      "pattern_id": "limiter-control-plan-070"
+    }
+  ],
+  "special_characteristic_patterns": [
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "涂油量",
+      "related_process": "壳体涂油",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "4过程流程图 ",
+          "row": 13
+        }
+      ],
+      "pattern_id": "limiter-special-001"
+    },
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "注油压力\n柱塞距离",
+      "related_process": "壳体涂油",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "4过程流程图 ",
+          "row": 13
+        }
+      ],
+      "pattern_id": "limiter-special-002"
+    },
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "涂油量",
+      "related_process": "限位臂注油",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "4过程流程图 ",
+          "row": 16
+        }
+      ],
+      "pattern_id": "limiter-special-003"
+    },
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "注油压力\n柱塞距离",
+      "related_process": "限位臂注油",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "4过程流程图 ",
+          "row": 16
+        }
+      ],
+      "pattern_id": "limiter-special-004"
+    },
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "无裂纹，壳体无损伤",
+      "related_process": "壳体铆接",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "4过程流程图 ",
+          "row": 19
+        }
+      ],
+      "pattern_id": "limiter-special-005"
+    },
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "壳体合装压力/限位块行程",
+      "related_process": "壳体铆接",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "4过程流程图 ",
+          "row": 19
+        }
+      ],
+      "pattern_id": "limiter-special-006"
+    },
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "无间隙",
+      "related_process": "压入销轴",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "4过程流程图 ",
+          "row": 22
+        }
+      ],
+      "pattern_id": "limiter-special-007"
+    },
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "压入压力/限位块行程",
+      "related_process": "压入销轴",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "4过程流程图 ",
+          "row": 22
+        }
+      ],
+      "pattern_id": "limiter-special-008"
+    },
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "铆接高度/打标内容",
+      "related_process": "铆接并打标",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "4过程流程图 ",
+          "row": 25
+        }
+      ],
+      "pattern_id": "limiter-special-009"
+    },
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "铆接时间/铆接压力",
+      "related_process": "铆接并打标",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "4过程流程图 ",
+          "row": 25
+        }
+      ],
+      "pattern_id": "limiter-special-010"
+    },
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "支架力矩",
+      "related_process": "扭力检测",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "4过程流程图 ",
+          "row": 28
+        }
+      ],
+      "pattern_id": "limiter-special-011"
+    },
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "SC",
+      "related_process": "扭力检测",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "4过程流程图 ",
+          "row": 28
+        }
+      ],
+      "pattern_id": "limiter-special-012"
+    },
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "检测速度",
+      "related_process": "扭力检测",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "4过程流程图 ",
+          "row": 28
+        }
+      ],
+      "pattern_id": "limiter-special-013"
+    },
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "FIFO",
+      "related_process": "入库",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "4过程流程图 ",
+          "row": 33
+        }
+      ],
+      "pattern_id": "limiter-special-014"
+    },
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "FIFO",
+      "related_process": "发运",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "4过程流程图 ",
+          "row": 34
+        }
+      ],
+      "pattern_id": "limiter-special-015"
+    },
+    {
+      "kind": "pfmea_classification",
+      "value": "CC",
+      "related_process": "禁用物质检测；GB/T30512；符合标准要求",
+      "related_characteristic": "禁用物质含量超标",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 13
+        }
+      ],
+      "pattern_id": "limiter-special-016"
+    },
+    {
+      "kind": "pfmea_classification",
+      "value": "SC",
+      "related_process": "检测力矩；力矩；0.2-1.2Nm",
+      "related_characteristic": "将合格件判定为不合格件",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 61
+        }
+      ],
+      "pattern_id": "limiter-special-017"
+    },
+    {
+      "kind": "pfmea_classification",
+      "value": "SC",
+      "related_process": "检测力矩；力矩；0.2-1.2Nm",
+      "related_characteristic": "将不合格件判定为合格件",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 62
+        }
+      ],
+      "pattern_id": "limiter-special-018"
+    },
+    {
+      "kind": "pfmea_classification",
+      "value": "SC",
+      "related_process": "功能力矩；限位器功能力矩；限位置器功能力矩符合设计要求",
+      "related_characteristic": "将合格件判定为不合格件",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 65
+        }
+      ],
+      "pattern_id": "limiter-special-019"
+    },
+    {
+      "kind": "pfmea_classification",
+      "value": "SC",
+      "related_process": "功能力矩；限位器功能力矩；限位置器功能力矩符合设计要求",
+      "related_characteristic": "将不合格件判定为合格件",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "6PFMEA ",
+          "row": 66
+        }
+      ],
+      "pattern_id": "limiter-special-020"
+    },
+    {
+      "kind": "control_plan_classification",
+      "value": "SC",
+      "related_process": "60\n扭力检测",
+      "related_characteristic": "支架转动力矩",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 62
+        }
+      ],
+      "pattern_id": "limiter-special-021"
+    },
+    {
+      "kind": "control_plan_classification",
+      "value": "SC",
+      "related_process": "60\n扭力检测",
+      "related_characteristic": "电机检测速度",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 65
+        }
+      ],
+      "pattern_id": "limiter-special-022"
+    },
+    {
+      "kind": "control_plan_classification",
+      "value": "SC",
+      "related_process": "70\n检查+包装",
+      "related_characteristic": "限位器功能力矩",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 73
+        },
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 74
+        },
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 75
+        },
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 76
+        },
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 77
+        },
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 78
+        }
+      ],
+      "pattern_id": "limiter-special-023"
+    },
+    {
+      "kind": "control_plan_classification",
+      "value": "CC",
+      "related_process": "70\n检查+包装",
+      "related_characteristic": "汽车禁用物质",
+      "source_refs": [
+        {
+          "source_id": "limiter:XWQ01000100-限位器",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+          "workbook": "XWQ01000100-限位器.xlsx",
+          "sheet": "7控制计划-过程",
+          "row": 79
+        }
+      ],
+      "pattern_id": "limiter-special-024"
+    }
+  ],
+  "source_refs": [
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx"
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "4过程流程图 ",
+      "row": 10
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "4过程流程图 ",
+      "row": 11
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "4过程流程图 ",
+      "row": 12
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "4过程流程图 ",
+      "row": 13
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "4过程流程图 ",
+      "row": 16
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "4过程流程图 ",
+      "row": 19
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "4过程流程图 ",
+      "row": 22
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "4过程流程图 ",
+      "row": 25
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "4过程流程图 ",
+      "row": 28
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "4过程流程图 ",
+      "row": 30
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "4过程流程图 ",
+      "row": 33
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "4过程流程图 ",
+      "row": 34
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 10
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 11
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 12
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 13
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 14
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 15
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 16
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 17
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 18
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 19
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 20
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 21
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 22
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 23
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 24
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 25
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 26
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 27
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 28
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 29
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 30
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 31
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 32
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 33
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 34
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 35
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 36
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 37
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 38
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 39
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 40
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 41
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 42
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 43
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 44
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 45
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 46
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 47
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 48
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 49
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 50
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 51
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 52
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 53
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 54
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 55
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 56
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 57
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 58
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 59
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 60
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 61
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 62
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 63
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 64
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 65
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 66
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 67
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 68
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 69
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 70
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "6PFMEA ",
+      "row": 71
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 12
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 13
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 14
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 15
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 16
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 17
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 18
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 19
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 20
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 21
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 22
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 23
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 24
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 25
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 26
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 27
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 28
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 29
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 30
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 31
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 32
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 33
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 34
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 35
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 36
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 37
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 38
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 39
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 40
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 41
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 42
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 43
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 44
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 45
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 46
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 47
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 48
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 49
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 50
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 51
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 52
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 53
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 54
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 55
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 56
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 57
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 58
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 59
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 60
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 61
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 62
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 63
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 64
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 65
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 66
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 67
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 68
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 69
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 70
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 71
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 72
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 73
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 74
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 75
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 76
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 77
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 78
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 79
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 80
+    },
+    {
+      "source_id": "limiter:XWQ01000100-限位器",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器\\XWQ01000100-限位器.xlsx",
+      "workbook": "XWQ01000100-限位器.xlsx",
+      "sheet": "7控制计划-过程",
+      "row": 81
+    }
+  ]
+}

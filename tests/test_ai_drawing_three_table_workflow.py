@@ -18,14 +18,21 @@ from minos_core.drawing_input import (
     load_drawing_source,
     render_drawing_pages,
 )
-from minos_core.drawing_to_pfd import infer_process_flow_from_drawing
+from minos_core.drawing_to_pfd import infer_process_flow_from_drawing, normalize_process_flow_steps
 from minos_core.exporters.three_table_workbooks import (
     export_split_three_table_workbooks,
     export_three_table_workbook,
 )
-from minos_core.generate_control_plan import generate_control_plan_from_pfmea
-from minos_core.pfd_to_pfmea_ai import infer_pfmea_from_process_flow
+from minos_core.generate_control_plan import (
+    generate_control_plan_from_pfmea,
+    normalize_control_plan_rows,
+)
+from minos_core.pfd_to_pfmea_ai import (
+    infer_pfmea_from_process_flow,
+    normalize_pfmea_rows,
+)
 from minos_core.pipeline import generate_three_tables_from_drawing
+from minos_core.pipeline_chain import generate_pfd_from_drawing
 from minos_core.cli import main
 from minos_core.schemas import validate_bundle_schema
 
@@ -129,6 +136,28 @@ class AIDrawingThreeTableWorkflowTests(unittest.TestCase):
                 )
             )
 
+    def test_invalid_confidence_is_traceable_in_drawing_gate(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            pages = render_drawing_pages(load_drawing_source(self._write_png(Path(tmpdir) / "drawing.png")))
+            payload = self._analysis_payload()
+            payload["materials"][0]["confidence"] = "not-a-number"
+
+            bundle = analyze_drawing_pages(
+                pages,
+                FakeMultimodalDrawingAnalyzer(json.dumps(payload)),
+            )
+            gate = evaluate_drawing_recognition_gate(bundle)
+
+            self.assertTrue(bundle["materials"][0]["needs_confirmation"])
+            self.assertIn("confidence_parse_errors", bundle["materials"][0])
+            self.assertTrue(gate.evidence_coverage["confidence_parse_error_items"])
+            self.assertTrue(
+                any(
+                    getattr(item, "category", "") == "drawing_confidence_parse_error"
+                    for item in gate.manual_review_items
+                )
+            )
+
     def test_drawing_to_pfd_to_pfmea_to_cp_and_excel_exports(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             pages = render_drawing_pages(load_drawing_source(self._write_png(Path(tmpdir) / "drawing.png")))
@@ -205,6 +234,349 @@ class AIDrawingThreeTableWorkflowTests(unittest.TestCase):
                 self.assertIn("draft_only", text)
                 self.assertIn("requires_engineering_review", text)
                 self.assertIn("not for customer submission", text)
+
+    def test_llm_pfd_generation_normalizes_standard_process_flow_fields(self):
+        llm_payload = {
+            "steps": [
+                {
+                    "process_step_id": "P10",
+                    "operation_type": "加工",
+                    "operation": "冲孔",
+                    "output_result": "冲孔完成",
+                    "process_function": "形成安装孔",
+                    "equipment": "压力机",
+                    "product_characteristics": "",
+                    "product_characteristic_class": "无",
+                    "process_characteristics": "",
+                    "process_characteristic_class": "无",
+                    "special_characteristics": [],
+                    "needs_confirmation": False,
+                },
+                {
+                    "process_step_id": "P20",
+                    "flow_symbol": "检验",
+                    "operation": "过程检验",
+                    "process_function": "确认孔位",
+                    "equipment": "检具",
+                    "special_characteristics": [],
+                    "needs_confirmation": True,
+                },
+            ]
+        }
+
+        with patch("minos_core.pipeline_chain.OpenAITextGenerator") as generator:
+            generator.return_value.generate_structured.return_value = llm_payload
+
+            pfd = generate_pfd_from_drawing({"drawing_identity": {"part_name": "Demo"}})
+
+        material_step, first, second = pfd["steps"]
+        self.assertEqual(material_step["process_step_id"], "P05")
+        self.assertEqual(material_step["operation"], "Demo")
+        self.assertEqual(first["flow_type"], "operation")
+        self.assertEqual(first["flow_symbol"], "operation")
+        self.assertEqual(first["flow_type_display"], "加工")
+        self.assertEqual(first["input_material"], "Demo")
+        self.assertEqual(first["output_result"], "冲孔完成")
+        self.assertEqual(first["previous_step_ids"], ["P05"])
+        self.assertEqual(first["next_step_ids"], ["P20"])
+        self.assertEqual(second["flow_type"], "inspection")
+        self.assertEqual(second["previous_step_ids"], ["P10"])
+        self.assertEqual(second["next_step_ids"], [])
+        for step in pfd["steps"]:
+            for field in (
+                "operation_type",
+                "operation",
+                "input_material",
+                "output_result",
+                "next_step_ids",
+                "previous_step_ids",
+                "equipment",
+                "product_characteristics",
+                "process_characteristics",
+                "needs_confirmation",
+            ):
+                self.assertIn(field, step)
+
+    def test_rule_pfd_inference_outputs_standard_flow_type_fields(self):
+        pfd = infer_process_flow_from_drawing(
+            {
+                "drawing_identity": {"part_name": "DEMO"},
+                "manufacturing_clues": [
+                    {
+                        "process_step_id": "P10",
+                        "operation": "piercing",
+                        "evidence_refs": ["drawing_page_001"],
+                    }
+                ],
+                "evidence": [{"evidence_id": "drawing_page_001"}],
+            }
+        )
+
+        self.assertTrue(pfd["steps"])
+        for step in pfd["steps"]:
+            self.assertIn(step["flow_type"], {"operation", "inspection", "transport", "storage", "rework", "outsourced"})
+            self.assertEqual(step["flow_symbol"], step["flow_type"])
+            self.assertIn("operation_type", step)
+            self.assertIn("input_material", step)
+            self.assertIn("output_result", step)
+            self.assertIsInstance(step["previous_step_ids"], list)
+            self.assertIsInstance(step["next_step_ids"], list)
+
+    def test_normalize_process_flow_steps_preserves_existing_non_linear_links(self):
+        steps = [
+            {
+                "process_step_id": "P10",
+                "operation": "外协加工",
+                "next_step_ids": ["P20", "P30"],
+            },
+            {
+                "process_step_id": "P20",
+                "operation": "返工确认",
+                "previous_step_ids": ["P10", "P30"],
+                "next_step_ids": ["P10"],
+            },
+            {
+                "process_step_id": "P30",
+                "operation": "最终检验",
+            },
+        ]
+
+        normalize_process_flow_steps(steps)
+
+        self.assertEqual(steps[0]["previous_step_ids"], [])
+        self.assertEqual(steps[0]["next_step_ids"], ["P20", "P30"])
+        self.assertEqual(steps[1]["previous_step_ids"], ["P10", "P30"])
+        self.assertEqual(steps[1]["next_step_ids"], ["P10"])
+        self.assertEqual(steps[2]["previous_step_ids"], ["P20"])
+        self.assertEqual(steps[2]["next_step_ids"], [])
+
+    def test_normalize_pfmea_rows_outputs_aiag_vda_form_c_fields(self):
+        rows = [
+            {
+                "pfmea_id": "PFMEA-P10-01",
+                "process_step_id": "P10",
+                "operation": "冲压成形",
+                "process_function": "形成安装面",
+                "failure_mode": "安装面变形",
+                "failure_effect": "装配间隙不满足要求",
+                "failure_cause": "压力机参数不稳定",
+                "severity": 8,
+                "occurrence": 5,
+                "detection": 6,
+                "prevention_control": "锁定压力机参数",
+                "detection_control": "首件和巡检测量安装面",
+                "special_characteristics": ["SC-1"],
+            }
+        ]
+
+        normalize_pfmea_rows(rows, process_steps=[{"process_step_id": "P10", "operation": "冲压成形"}])
+
+        row = rows[0]
+        for field in (
+            "structure_process_item",
+            "structure_process_step",
+            "structure_work_element",
+            "function_process_item",
+            "function_process_step",
+            "function_work_element",
+            "failure_effect",
+            "failure_mode",
+            "failure_cause",
+            "prevention_control",
+            "detection_control",
+            "severity",
+            "occurrence",
+            "detection",
+            "action_priority",
+            "optimization_action",
+            "responsible_person",
+            "target_date",
+            "status",
+            "needs_confirmation",
+        ):
+            self.assertIn(field, row)
+        self.assertEqual(row["structure_process_step"], "冲压成形")
+        self.assertEqual(row["function_process_step"], "形成安装面")
+        self.assertIn(row["action_priority"], {"H", "M", "L"})
+        self.assertIsInstance(row["needs_confirmation"], bool)
+
+    def test_normalize_control_plan_rows_outputs_cp_2024_fields(self):
+        rows = [
+            {
+                "control_plan_id": "CP-P10-01",
+                "process_step_id": "P10",
+                "pfmea_id": "PFMEA-P10-01",
+                "process_name": "冲压成形",
+                "product_process_characteristic": "安装面高度",
+                "specification": "10.0 +/- 0.2 mm",
+                "measurement_method": "高度规",
+                "sample_size": "5 件",
+                "sample_frequency": "每批",
+                "control_method": "首件检验",
+                "reaction_plan": "隔离并调整参数",
+            }
+        ]
+
+        normalize_control_plan_rows(rows)
+
+        row = rows[0]
+        for field in (
+            "control_plan_id",
+            "process_step_id",
+            "pfmea_id",
+            "process_name",
+            "equipment",
+            "characteristic_number",
+            "product_characteristic",
+            "process_characteristic",
+            "special_characteristic_class",
+            "specification_tolerance",
+            "measurement_method",
+            "sample_size",
+            "sample_frequency",
+            "control_method",
+            "reaction_plan",
+            "needs_confirmation",
+        ):
+            self.assertIn(field, row)
+        self.assertEqual(row["product_characteristic"], "安装面高度")
+        self.assertEqual(row["specification_tolerance"], "10.0 +/- 0.2 mm")
+        self.assertIsInstance(row["needs_confirmation"], bool)
+
+    def test_control_plan_generation_prefers_standard_pfmea_fields(self):
+        pfmea_bundle = {
+            "document_type": "pfmea",
+            "rows": [
+                {
+                    "pfmea_id": "PFMEA-P10-01",
+                    "process_step_id": "P10",
+                    "process_step": "旧工序名",
+                    "failure_mode": "孔位偏移",
+                    "severity": 8,
+                    "occurrence": 4,
+                    "detection": 5,
+                    "action_priority": "M",
+                    "product_process_characteristic": "旧合并特性",
+                    "product_characteristic": "标准产品特性",
+                    "process_characteristic": "标准过程特性",
+                    "specification": "旧规格",
+                    "specification_tolerance": "标准规格公差",
+                    "classification": "旧分类",
+                    "special_characteristic_class": "标准特殊分类",
+                }
+            ],
+        }
+
+        cp = generate_control_plan_from_pfmea(pfmea_bundle)
+
+        row = cp["rows"][0]
+        self.assertEqual(row["product_characteristic"], "标准产品特性")
+        self.assertEqual(row["process_characteristic"], "标准过程特性")
+        self.assertEqual(row["product_process_characteristic"], "标准产品特性")
+        self.assertEqual(row["specification_tolerance"], "标准规格公差")
+        self.assertEqual(row["specification"], "标准规格公差")
+        self.assertEqual(row["special_characteristic_class"], "标准特殊分类")
+        self.assertEqual(row["classification"], "标准特殊分类")
+
+    def test_three_table_exports_include_standard_pfmea_and_cp_columns(self):
+        chain = {
+            "process_steps": [
+                {
+                    "process_step_id": "P10",
+                    "operation": "PFD 工序",
+                    "process_function": "PFD 功能",
+                }
+            ],
+            "failure_modes": [
+                {
+                    "pfmea_id": "PFMEA-P10-01",
+                    "process_step_id": "P10",
+                    "structure_process_item": "标准结构过程项",
+                    "structure_process_step": "标准结构过程步骤",
+                    "structure_work_element": "标准结构工作要素",
+                    "function_process_item": "标准功能过程项",
+                    "function_process_step": "标准功能过程步骤",
+                    "function_work_element": "标准功能工作要素",
+                    "process_item": "旧过程项",
+                    "process_step": "旧过程步骤",
+                    "process_work_element": "旧工作要素",
+                    "function_requirement": "旧功能要求",
+                    "failure_mode": "失效模式",
+                    "failure_effect": "失效后果",
+                    "failure_cause": "失效原因",
+                    "severity": 7,
+                    "occurrence": 4,
+                    "detection": 5,
+                    "action_priority": "M",
+                    "optimization_action": "标准优化措施",
+                    "recommended_action": "旧推荐措施",
+                    "responsible_person": "标准责任人",
+                    "responsibility": "旧责任人",
+                    "status": "标准状态",
+                    "action_status": "旧状态",
+                }
+            ],
+            "controls": [
+                {
+                    "control_plan_id": "CP-P10-01",
+                    "process_step_id": "P10",
+                    "pfmea_id": "PFMEA-P10-01",
+                    "process_name": "标准工序名称",
+                    "equipment": "标准设备",
+                    "characteristic_number": "CH-01",
+                    "product_characteristic": "标准产品特性",
+                    "process_characteristic": "标准过程特性",
+                    "special_characteristic_class": "标准特殊分类",
+                    "specification_tolerance": "标准规格公差",
+                    "product_process_characteristic": "旧合并特性",
+                    "specification": "旧规格",
+                    "classification": "旧分类",
+                    "measurement_method": "测量方法",
+                    "sample_frequency": "每批",
+                    "control_method": "控制方法",
+                    "reaction_plan": "反应计划",
+                }
+            ],
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            unified = export_three_table_workbook(
+                chain,
+                Path(tmpdir) / "三表总工作簿.xlsx",
+                export_mode="draft",
+                require_gate=False,
+            )
+            split = export_split_three_table_workbooks(chain, Path(tmpdir) / "split")
+
+            unified_text = self._xlsx_text(unified)
+            split_pfmea_text = self._xlsx_text(split["pfmea"])
+            split_cp_text = self._xlsx_text(split["control_plan"])
+
+        for text in (unified_text, split_pfmea_text):
+            self.assertIn("结构过程项", text)
+            self.assertIn("功能过程项", text)
+            self.assertIn("功能工作要素", text)
+            self.assertIn("标准结构过程项", text)
+            self.assertIn("标准功能过程项", text)
+            self.assertIn("标准功能工作要素", text)
+            self.assertIn("标准优化措施", text)
+            self.assertIn("标准责任人", text)
+            self.assertIn("标准状态", text)
+            self.assertNotIn("旧过程项", text)
+            self.assertNotIn("旧推荐措施", text)
+        for text in (unified_text, split_cp_text):
+            self.assertIn("特性编号", text)
+            self.assertIn("产品特性", text)
+            self.assertIn("过程特性", text)
+            self.assertIn("特殊特性分类", text)
+            self.assertIn("规格和公差", text)
+            self.assertIn("标准设备", text)
+            self.assertIn("CH-01", text)
+            self.assertIn("标准产品特性", text)
+            self.assertIn("标准过程特性", text)
+            self.assertIn("标准特殊分类", text)
+            self.assertIn("标准规格公差", text)
+            self.assertNotIn("旧合并特性", text)
+            self.assertNotIn("旧规格", text)
 
     def test_generated_three_table_user_content_is_chinese(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -537,6 +909,7 @@ class AIDrawingThreeTableWorkflowTests(unittest.TestCase):
                 generate_three_tables_from_drawing(
                     image_path,
                     Path(tmpdir) / "out",
+                    analysis_mode="vision_only",
                     analyzer=FakeMultimodalDrawingAnalyzer("{bad"),
                 )
 
@@ -556,6 +929,7 @@ class AIDrawingThreeTableWorkflowTests(unittest.TestCase):
                         str(Path(tmpdir) / "out"),
                         "--result-output",
                         str(result_path),
+                        "--mode", "vision_only",
                     ]
                 )
 

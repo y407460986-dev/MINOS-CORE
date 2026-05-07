@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from minos_core._text_utils import row_text, string_list, integer, dedupe
+
 
 LOW_CONFIDENCE_THRESHOLD = 0.75
 
@@ -24,7 +26,7 @@ def generate_control_plan_from_pfmea(
         for index, row in enumerate(rows, start=1)
         if isinstance(row, dict)
     ]
-    ai_inferred_items = _dedupe_ai_items(
+    ai_inferred_items = dedupe(
         list(pfmea_bundle.get("ai_inferred_items", []))
         + [
             row["control_plan_id"]
@@ -65,25 +67,27 @@ def _pfmea_rows(pfmea_bundle: dict[str, Any]) -> list[Any]:
 
 
 def _control_row(row: dict[str, Any], index: int) -> dict[str, Any]:
-    pfmea_id = _text(row, "pfmea_id", "id", default=f"PFMEA-{index:03d}")
-    process_step_id = _text(row, "process_step_id", "step_no", "step", default="")
-    classification = _text(
+    pfmea_id = row_text(row, "pfmea_id", "id", default=f"PFMEA-{index:03d}")
+    process_step_id = row_text(row, "process_step_id", "step_no", "step", default="")
+    classification = row_text(
         row,
+        "special_characteristic_class",
         "classification",
         "special_characteristic",
         "special_characteristic_classification",
         default="",
     )
     risk_level = _risk_level(row, classification)
-    direct_specification = _text(
+    direct_specification = row_text(
         row,
+        "specification_tolerance",
         "specification",
         "product_process_requirement",
         "process_requirement",
         "requirement",
         default="",
     )
-    direct_measurement = _text(
+    direct_measurement = row_text(
         row,
         "measurement_method",
         "measurement",
@@ -91,10 +95,10 @@ def _control_row(row: dict[str, Any], index: int) -> dict[str, Any]:
         "detection_method",
         default="",
     )
-    direct_sample_size = _text(row, "sample_size", default="")
-    direct_sample_frequency = _text(row, "sample_frequency", default="")
-    direct_control_method = _text(row, "control_method", default="")
-    direct_reaction_plan = _text(row, "reaction_plan", default="")
+    direct_sample_size = row_text(row, "sample_size", default="")
+    direct_sample_frequency = row_text(row, "sample_frequency", default="")
+    direct_control_method = row_text(row, "control_method", default="")
+    direct_reaction_plan = row_text(row, "reaction_plan", default="")
 
     specification = direct_specification or _derived_specification(row)
     measurement_method = direct_measurement or _default_measurement_method(row)
@@ -116,7 +120,7 @@ def _control_row(row: dict[str, Any], index: int) -> dict[str, Any]:
         row.get("ai_inferred", row.get("created_by_ai", False)) or inferred_fields
     )
     confidence = _confidence(row)
-    evidence_refs = _string_list(row.get("evidence_refs", []))
+    evidence_refs = string_list(row.get("evidence_refs", []))
     needs_confirmation = _needs_confirmation(
         row,
         risk_level=risk_level,
@@ -131,14 +135,27 @@ def _control_row(row: dict[str, Any], index: int) -> dict[str, Any]:
         "process_step_id": process_step_id,
         "pfmea_id": pfmea_id,
         "source_pfmea_id": pfmea_id,
+        "process_name": row_text(row, "process_name", "process_step_name", "operation", default=""),
         "product_process_characteristic": _characteristic(row),
+        "product_characteristic": row_text(row, "product_characteristic", default=""),
+        "process_characteristic": row_text(row, "process_characteristic", default=""),
         "specification": specification,
+        "specification_tolerance": row_text(
+            row, "specification_tolerance", "specification", default=specification
+        ),
         "classification": classification,
+        "special_characteristic_class": row_text(
+            row, "special_characteristic_class", "classification", default=classification
+        ),
         "measurement_method": measurement_method,
         "sample_size": sample_size,
         "sample_frequency": sample_frequency,
         "control_method": control_method,
         "reaction_plan": reaction_plan,
+        "characteristic_number": row_text(row, "characteristic_number", default=""),
+        "equipment": row_text(
+            row, "equipment", "machine_device", "inspection_equipment", default=""
+        ),
         "gauges": _source_gauges(row),
         "inspection_equipment": _inspection_equipment(row),
         "evidence_refs": evidence_refs,
@@ -147,13 +164,13 @@ def _control_row(row: dict[str, Any], index: int) -> dict[str, Any]:
         "needs_confirmation": needs_confirmation,
         "ai_reasoning": _control_reasoning(row, pfmea_id, risk_level, inferred_fields),
         "source_risk_level": risk_level,
-        "source_action_priority": _text(row, "action_priority", default=""),
-        "source_severity": _int(row.get("severity", row.get("S"))),
-        "source_occurrence": _int(row.get("occurrence")),
-        "source_detection": _int(row.get("detection")),
-        "source_failure_cause": _text(row, "failure_cause", "cause", default=""),
-        "source_prevention_control": _text(row, "prevention_control", default=""),
-        "source_detection_control": _text(row, "detection_control", default=""),
+        "source_action_priority": row_text(row, "action_priority", default=""),
+        "source_severity": integer(row.get("severity", row.get("S"))),
+        "source_occurrence": integer(row.get("occurrence")),
+        "source_detection": integer(row.get("detection")),
+        "source_failure_cause": row_text(row, "failure_cause", "cause", default=""),
+        "source_prevention_control": row_text(row, "prevention_control", default=""),
+        "source_detection_control": row_text(row, "detection_control", default=""),
         "source_special_characteristics": _source_special_characteristics(row, classification),
         "source_high_risk": risk_level == "high",
         "inferred_fields": inferred_fields,
@@ -166,7 +183,7 @@ def _control_plan_id(
     process_step_id: str,
     index: int,
 ) -> str:
-    linked_id = _text(row, "linked_control_plan_id", "control_plan_id", default="")
+    linked_id = row_text(row, "linked_control_plan_id", "control_plan_id", default="")
     if linked_id:
         return linked_id
     if pfmea_id:
@@ -177,22 +194,22 @@ def _control_plan_id(
 
 
 def _characteristic(row: dict[str, Any]) -> str:
-    explicit = _text(
+    explicit = row_text(
         row,
-        "product_process_characteristic",
-        "characteristic",
         "product_characteristic",
         "process_characteristic",
+        "product_process_characteristic",
+        "characteristic",
         "special_characteristic",
         "classification",
         default="",
     )
     if explicit:
         return explicit
-    failure_mode = _text(row, "failure_mode", "mode", "failure", default="")
+    failure_mode = row_text(row, "failure_mode", "mode", "failure", default="")
     if failure_mode:
         return f"针对失效模式的控制：{failure_mode}"
-    return _text(row, "process_function", "process", "operation", default="")
+    return row_text(row, "process_function", "process", "operation", default="")
 
 
 def _source_special_characteristics(row: dict[str, Any], classification: str) -> list[str]:
@@ -204,7 +221,7 @@ def _source_special_characteristics(row: dict[str, Any], classification: str) ->
         row.get("process_characteristics", []),
         classification,
     ):
-        for item in _string_list(source):
+        for item in string_list(source):
             if item not in values:
                 values.append(item)
     return values
@@ -218,14 +235,14 @@ def _source_gauges(row: dict[str, Any]) -> list[str]:
         row.get("measurement_devices", []),
         row.get("inspection_equipment", []),
     ):
-        for item in _string_list(source):
+        for item in string_list(source):
             if item not in values:
                 values.append(item)
     return values
 
 
 def _inspection_equipment(row: dict[str, Any]) -> str:
-    explicit = _text(
+    explicit = row_text(
         row,
         "inspection_equipment",
         "gauge",
@@ -242,7 +259,7 @@ def _inspection_equipment(row: dict[str, Any]) -> str:
 
 
 def _derived_specification(row: dict[str, Any]) -> str:
-    requirement = _text(
+    requirement = row_text(
         row,
         "drawing_specification",
         "drawing_requirement",
@@ -252,20 +269,20 @@ def _derived_specification(row: dict[str, Any]) -> str:
     )
     if requirement:
         return requirement
-    failure_mode = _text(row, "failure_mode", "mode", "failure", default="")
+    failure_mode = row_text(row, "failure_mode", "mode", "failure", default="")
     if failure_mode:
         return f"草案控制意图：预防或探测 {failure_mode}"
-    process_function = _text(row, "process_function", "process", default="")
+    process_function = row_text(row, "process_function", "process", default="")
     if process_function:
         return f"草案控制意图：保持 {process_function}"
     return "草案控制意图：待依据受控图纸规格确认"
 
 
 def _default_measurement_method(row: dict[str, Any]) -> str:
-    detection_control = _text(row, "detection_control", "current_detection_control", default="")
+    detection_control = row_text(row, "detection_control", "current_detection_control", default="")
     if detection_control:
         return detection_control
-    detection = _int(row.get("detection"))
+    detection = integer(row.get("detection"))
     if detection >= 8:
         return "按 PFMEA 探测风险执行强化检验或防错验证"
     if detection >= 5:
@@ -274,24 +291,24 @@ def _default_measurement_method(row: dict[str, Any]) -> str:
 
 
 def _control_method(row: dict[str, Any]) -> str:
-    prevention_control = _text(row, "prevention_control", default="")
-    detection_control = _text(row, "detection_control", default="")
+    prevention_control = row_text(row, "prevention_control", default="")
+    detection_control = row_text(row, "detection_control", default="")
     if prevention_control and detection_control:
         return f"预防：{prevention_control}；探测：{detection_control}"
     if prevention_control:
         return prevention_control
     if detection_control:
         return detection_control
-    action_priority = _text(row, "action_priority", default="").upper()
+    action_priority = row_text(row, "action_priority", default="").upper()
     if action_priority in {"H", "M"}:
         return f"针对 AP {action_priority} 的 PFMEA 风险定义控制方法"
     return "定义常规过程控制方法"
 
 
 def _risk_level(row: dict[str, Any], classification: str) -> str:
-    action_priority = _text(row, "action_priority", default="").upper()
-    severity = _int(row.get("severity"))
-    occurrence = _int(row.get("occurrence"))
+    action_priority = row_text(row, "action_priority", default="").upper()
+    severity = integer(row.get("severity"))
+    occurrence = integer(row.get("occurrence"))
     if action_priority == "H" or severity >= 9:
         return "high"
     if classification or action_priority == "M" or severity >= 7 or occurrence >= 7:
@@ -352,7 +369,7 @@ def _control_reasoning(
     risk_level: str,
     inferred_fields: list[str],
 ) -> str:
-    existing = _text(row, "ai_reasoning", default="")
+    existing = row_text(row, "ai_reasoning", default="")
     source = f"控制计划行来源于 PFMEA {pfmea_id}，风险等级：{_risk_level_text(risk_level)}"
     if inferred_fields:
         fields = "、".join(_field_text(field) for field in inferred_fields)
@@ -379,7 +396,7 @@ def _field_text(field_name: str) -> str:
 
 def _ai_is_uncertain(row: dict[str, Any]) -> bool:
     uncertainty_text = " ".join(
-        _text(row, key, default="")
+        row_text(row, key, default="")
         for key in (
             "ai_reasoning",
             "reasoning",
@@ -405,24 +422,6 @@ def _ai_is_uncertain(row: dict[str, Any]) -> bool:
     )
 
 
-def _text(row: dict[str, Any], *keys: str, default: str = "") -> str:
-    for key in keys:
-        value = row.get(key)
-        if value is None:
-            continue
-        text = str(value).strip()
-        if text:
-            return text
-    return default
-
-
-def _int(value: Any) -> int:
-    try:
-        return int(value or 0)
-    except (TypeError, ValueError):
-        return 0
-
-
 def _confidence(row: dict[str, Any]) -> float:
     try:
         return float(row.get("confidence", 0.0))
@@ -430,31 +429,28 @@ def _confidence(row: dict[str, Any]) -> float:
         return 0.0
 
 
-def _string_list(value: Any) -> list[str]:
-    if value is None:
-        return []
-    if isinstance(value, (list, tuple, set)):
-        return [str(item).strip() for item in value if str(item).strip()]
-    text = str(value).strip()
-    return [text] if text else []
+def normalize_control_plan_rows(rows: list[dict[str, Any]]) -> None:
+    """Ensure every control plan row carries the standard CP-2024 field set."""
+    for row in rows:
+        row.setdefault("control_plan_id", "")
+        row.setdefault("process_step_id", "")
+        row.setdefault("pfmea_id", "")
+        row.setdefault("process_name", "")
+        row.setdefault("equipment", row.get("machine_device", ""))
+        row.setdefault("machine_device", row.get("equipment", ""))
+        row.setdefault("characteristic_number", "")
+        row.setdefault("product_characteristic", row.get("product_process_characteristic", ""))
+        row.setdefault("process_characteristic", "")
+        row.setdefault("product_process_characteristic", "")
+        row.setdefault("special_characteristic_class", row.get("classification", ""))
+        row.setdefault("classification", "")
+        row.setdefault("specification_tolerance", row.get("specification", row.get("tolerance", "")))
+        row.setdefault("specification", row.get("tolerance", ""))
+        row.setdefault("evaluation_method", "")
+        row.setdefault("measurement_method", row.get("measurement", ""))
+        row.setdefault("sample_size", "")
+        row.setdefault("sample_frequency", "")
+        row.setdefault("control_method", "")
+        row.setdefault("reaction_plan", "")
+        row.setdefault("needs_confirmation", row.get("ai_inferred", False))
 
-
-def _dedupe_ai_items(values: list[Any]) -> list[Any]:
-    result: list[Any] = []
-    seen: set[str] = set()
-    for value in values:
-        key = _ai_item_key(value)
-        if not key or key in seen:
-            continue
-        result.append(value)
-        seen.add(key)
-    return result
-
-
-def _ai_item_key(value: Any) -> str:
-    if isinstance(value, dict):
-        for field_name in ("control_plan_id", "pfmea_id", "evidence_id", "item_id", "id"):
-            text = str(value.get(field_name, "")).strip()
-            if text:
-                return text
-    return str(value).strip()

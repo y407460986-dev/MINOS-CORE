@@ -214,7 +214,13 @@ class AIConfigTests(unittest.TestCase):
 
             Image.new("RGB", (10, 8), color="white").save(image_path)
             with patch.dict(os.environ, {"MINOS_DISABLE_CODEX_CONFIG": "1"}, clear=True):
-                self.assertEqual(main(["analyze-drawing", "--input", str(image_path)]), 2)
+                self.assertEqual(
+                    main([
+                        "analyze-drawing", "--input", str(image_path),
+                        "--mode", "vision_only",
+                    ]),
+                    2,
+                )
 
 
 if __name__ == "__main__":

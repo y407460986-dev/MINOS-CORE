@@ -63,6 +63,29 @@ class StageResultTests(unittest.TestCase):
         self.assertTrue(result.quality_gate.can_continue)
         self.assertFalse(result.quality_gate.allow_user_export)
 
+    def test_run_stage_generate_pfmea_forwards_blocked_pfd_result(self):
+        from minos_core.stage import run_stage
+
+        process_flow = {
+            "document_type": "process_flow",
+            "steps": [],
+            "evidence": [],
+        }
+
+        pfd_result = run_stage(process_flow, stage="generate_pfd")
+        result = run_stage(process_flow, stage="generate_pfmea")
+
+        self.assertEqual(pfd_result.status, "blocked")
+        self.assertEqual(result.stage, "generate_pfmea")
+        self.assertEqual(result.status, "blocked")
+        self.assertEqual(result.output, pfd_result.output)
+        self.assertEqual(result.pending_fields, pfd_result.pending_fields)
+        self.assertEqual(result.ai_inferred_items, pfd_result.ai_inferred_items)
+        self.assertEqual(
+            result.quality_gate.model_dump(),
+            pfd_result.quality_gate.model_dump(),
+        )
+
     def test_stage_result_exposes_required_fields(self):
         from minos_core.stage import build_stage_context, build_stage_result
 
@@ -251,6 +274,7 @@ class StageResultTests(unittest.TestCase):
         fixture["pfmea"]["rows"][0]["classification"] = ""
         fixture["pfmea"]["rows"][0]["characteristic_refs"] = []
         fixture["control_plan"]["rows"][0]["classification"] = ""
+        fixture["control_plan"]["rows"][0]["characteristic_refs"] = []
         fixture["control_plan"]["rows"][0]["source_special_characteristics"] = []
 
         result = validate_chain(fixture)

@@ -1,5 +1,64 @@
 ## 当前主目标：AI 图纸驱动三表生成工具
 
+## 当前任务：MINOS-CORE 调查审核与问题修复
+
+## 发布前完整验收当前状态
+
+- 已完成：发布前验收主线自动化检查已收口，当前未发现新的 core/platform/desktop API 代码缺陷。
+- 已验证：`python -m pytest tests -q -m "not real_api"`：778 项通过、2 项跳过、61 个 subtests 通过。
+- 已验证：`python -m unittest discover -s tests -v`：719 项通过、1 项跳过。
+- 已验证：`python -m unittest discover -s tests\acceptance -v`：真实 API 验收入口正常，因 `MINOS_RUN_REAL_ACCEPTANCE` 未设置为 `1` 跳过 1 项。
+- 已验证：核心 CLI help、平台 CLI help、桌面 API CLI help 均正常退出。
+- 已验证：合成图纸验收闭环通过：`write-demo-drawing` 生成安全演示 PNG，`generate-three-tables --mode ocr_only` 生成三表草案，`accept-three-tables` 检查四个 xlsx OpenXML 结构均正常。
+- 已验证：桌面 API 聚焦回归 `python -m pytest tests/test_desktop_tauri_app_state.py tests/test_desktop_api_sidecar.py tests/test_desktop_api_v114.py tests/test_desktop_api_ocr_mode.py -q`：16 项通过。
+- 已验证：桌面 sidecar 真实启动 smoke 通过，`/api/health` 返回 `status=ok`，进程已关闭。
+- 已验证：Tauri 前端 `npm run build` 通过；Rust `cargo check` 通过。
+- 已验证：Python 依赖检查 `python -m pip check` 通过；`python -m pip wheel . --no-deps -w dist` 已生成 `dist/minos_core-0.0.0-py3-none-any.whl`。
+- 已发现并修复：Tauri 默认 `bundle.targets = "all"` 在发布打包验收中会拖住流程，长时间不生成安装包；已收口为 `nsis`，并新增 `npm run release:nsis`。
+- 已验证：`npm run release:nsis` 通过，生成安装包 `apps\desktop-tauri\src-tauri\target\release\bundle\nsis\MINOS-CORE_1.14.0_x64-setup.exe`。
+- 剩余发布风险：本轮没有运行真实图纸真实 API 验收，因为 `MINOS_RUN_REAL_ACCEPTANCE` 和 `MINOS_REAL_DRAWING_PATH` 均未设置；NSIS 安装包使用 `--no-sign`，未做代码签名；未做人工安装/卸载和真实 Excel 打开验收。
+
+## 桌面真实运行 PFD 502 修复
+
+- 已定位：用户在桌面端使用 `JLV03000500_001_AC_RR DH ASSY.pdf` 时，图纸 OCR/身份识别已经成功，失败点是链式 PFD 阶段的文本 Responses 调用，原始错误为 `LLM Responses HTTP 502: {"error":{"message":"Upstream request failed","type":"upstream_error"}}`。
+- 已对照：同一张图纸历史 run #13/#14 曾成功生成 PFD；本次失败不是图纸路径、输出目录或 OCR 渲染问题。
+- 已复现验证：用失败 run 保存的 `drawing_analysis` 单独调用 `generate_pfd_from_drawing(...)`，设置 `MINOS_TEXT_LLM_REASONING_EFFORT=medium` 时可在约 51 秒内生成 PFD。
+- 已修复：文本 LLM 默认推理强度从 `high` 收口为 `medium`，保留 `MINOS_TEXT_LLM_REASONING_EFFORT` / `MINOS_OPENAI_TEXT_REASONING_EFFORT` 环境变量覆盖。
+- 已验证：不设置环境变量时，使用同一份 `drawing_analysis` 重新生成 PFD 成功，得到 12 行 PFD。
+- 已验证：`python -m pytest tests/test_llm_text_responses.py -q`：4 项通过。
+- 已验证：`python -m pytest tests/test_desktop_shell.py::DesktopShellTests::test_chain_start_records_pfd_generation_failure_without_batch_fallback tests/test_ai_drawing_three_table_workflow.py::AIDrawingThreeTableWorkflowTests::test_llm_pfd_generation_normalizes_standard_process_flow_fields -q`：2 项通过。
+
+- 已完成：定位真实代码库为 `D:\MINOS-CORE`，当前工作区已有大量并行改动，未回滚任何既有修改。
+- 已完成：只读审核 `minos_core.stage` 与 `minos_core.quality_gates` 包化兼容层，旧公开导入仍可用；`minos_core`、`minos_core.stage`、`minos_core.quality_gates`、`minos_core.pipeline`、`minos_platform.errors` 导入 smoke 通过。
+- 已完成：运行聚焦测试 `python -m pytest tests/test_stage_result.py tests/test_quality_audit.py -q`，结果为 31 项和 4 个 subtests 通过。
+- 已完成：运行生成阶段聚焦测试 `python -m pytest tests/test_analyze_stage.py tests/test_ingest_stage.py tests/test_generate_pfd_stage.py tests/test_generate_pfmea_stage.py tests/test_generate_control_plan_stage.py tests/test_generated_chain_stage.py -q`，结果为 89 项和 6 个 subtests 通过。
+- 已完成：运行扩展聚焦测试 `python -m pytest tests/test_stage_result.py tests/test_quality_audit.py tests/test_export_modes.py tests/test_analyze_stage.py tests/test_ingest_stage.py tests/test_generate_pfd_stage.py tests/test_generate_pfmea_stage.py tests/test_generate_control_plan_stage.py tests/test_generated_chain_stage.py tests/test_pipeline_ocr_first.py tests/test_pipeline_part_family_context.py -q`，结果为 139 项和 10 个 subtests 通过。
+- 已完成：运行非真实 API 全量 pytest `python -m pytest tests -q -m "not real_api"`，修复前基线为 775 项通过、2 项跳过、61 个 subtests 通过；修复后为 778 项通过、2 项跳过、61 个 subtests 通过。
+- 已发现并修复：`python -m minos_platform.cli --help` 会继续进入 `subprocess.run(...)`，且默认 `--port` 以整数 `8000` 传入命令数组，在 Windows 上触发 `TypeError: expected str, bytes or os.PathLike object, not int`。
+- 已新增：`tests/platform/test_cli.py`，覆盖 platform CLI 的 help 不启动服务、默认端口按字符串传参、自定义 host/port 正确传参。
+- 已修改：`minos_platform/cli.py` 改用 `argparse` 解析 `--host`/`--port`，捕获 help 的 `SystemExit` 并返回退出码，传给 uvicorn 子进程的参数全部保持字符串；复核后保留旧默认 host `0.0.0.0`，避免无意收窄平台服务监听范围。
+- 已验证：`python -m pytest tests/platform/test_cli.py -q`：3 项通过。
+- 已验证：`python -m pytest tests/platform -q`：33 项通过。
+- 已验证：`python -m unittest discover -s tests -v`：719 项通过，1 项跳过。
+- 已验证：`python -m minos_platform.cli --help`、`python -m minos_core.cli --help`、`python -m minos_desktop.api.cli --help` 均可正常显示帮助信息。
+- 已同步：按用户最新说明，全局 AGENTS 已取消“失败透明规则”作为硬停止要求；本轮记录改为失败时保留原始现象和影响判断，但不因非关键读取/命令写法错误中断主线。
+
+## Hybrid 图纸识别超时修复当前进度
+
+- 已定位：`hybrid` 模式当前是 OCR 先跑，随后等待视觉 Responses 流式识别；视觉阶段没有 pipeline 级总预算，真实图纸可能一直等到外层命令超时。
+- 进行中：给 `hybrid` 默认视觉 analyzer 设置短预算，超时后保留 OCR 草案并进入人工复核。
+- 进行中：给 Responses SSE 流式读取增加总时限，避免服务端长时间吊住连接。
+- 待验证：补充超时回落测试，并重新运行 `JLV03000500`。
+
+## MINOS v1.8.1 子任务 D 当前进度
+
+- 已完成：读取 `stage.py`、`quality_gates.py` 和相关测试，确认本次只做低风险内部拆分。
+- 已完成：`stage.run_stage` 已拆为私有阶段 helper，主函数保留阶段路由。
+- 已完成：新增 `_stage_result_from_gate`、`_blocked_result_from_stage`、`_evidence_from_bundle`，统一重复的结果组装与上游阻塞转发。
+- 已完成：`quality_gates.evaluate_stage_gate` 已拆出输入规整、质量债务、严格门债务、继续/导出判定、人工复核项组装 helper。
+- 已完成：新增回归测试覆盖 `generate_pfmea` 转发 blocked PFD 结果，以及 review confirmation 继续抑制质量债务。
+- 已验证：`python -m pytest tests/test_stage_result.py tests/test_quality_audit.py -q`：26 项和 4 个 subtests 通过。
+
 - 已完成：将产品目标从“完整 PPAP 平台”收口为“AI 图纸驱动 PFD/PFMEA/CP 三表生成工具”，第一版不做完整 PPAP 18 项、不做客户门户、不做审批流。
 - 已完成：新增 `minos_core/drawing_input.py`，支持 PDF/PNG/JPG 输入识别；PNG/JPG 可生成 `drawing_page_001` 证据，PDF 在未安装 PyMuPDF 时明确失败，不做假渲染。
 - 已完成：新增 `minos_core/adapters/multimodal.py`，定义云端多模态图纸识别 adapter 边界和 fake adapter。
@@ -538,3 +597,235 @@ Phase 6 真实项目试运行已完成代码落地：input_package 接入 genera
 - 已验证：`python -m pytest tests/test_export_modes.py tests/test_edit_patch.py tests/test_ai_drawing_three_table_workflow.py tests/test_demo_acceptance.py tests/test_apqp_rebuild_contract.py -q`：45 项通过。
 - 已验证：`python -m pytest tests/test_legacy_excel_adapter.py -q`：1 项和 3 个 subtests 通过。
 - 已验证：`python -m pytest tests/test_export_modes.py tests/test_demo_acceptance.py -q`：9 项通过。
+
+## MINOS v1.8.1 子任务 B：真实 API 与端到端验收入口
+- 已新增 `tests/acceptance/test_real_api_acceptance.py`。
+- 默认运行时，未设置 `MINOS_RUN_REAL_ACCEPTANCE=1` 会跳过真实验收，不访问外网。
+- 显式设置 `MINOS_RUN_REAL_ACCEPTANCE=1` 后，会要求真实 API key 和 `MINOS_REAL_DRAWING_PATH`；缺失时用失败暴露配置问题，不跳过。
+- 验收入口复用 `OpenAIResponsesMultimodalDrawingAnalyzer` 和 `generate_three_tables_from_drawing(...)`，并检查 Responses payload 的 `stream=true`。
+- 验收入口覆盖真实图纸生成 PFD/PFMEA/CP、统一三表工作簿、三份独立 Excel、AI 预审和 AIAG-VDA 正式审计页结构。
+- 已验证：`python -m unittest discover -s tests\acceptance -v`：1 项跳过，符合默认不触网策略。
+- 已验证：`python -m py_compile tests\acceptance\test_real_api_acceptance.py`：通过。
+
+## MINOS v1.8.1 子任务 B 待真实运行
+/// 1. 设置 `MINOS_RUN_REAL_ACCEPTANCE=1`。
+/// 2. 配置 `MINOS_OPENAI_API_KEY` / `OPENAI_API_KEY` / `ARK_API_KEY`，或确保 Codex auth 可用。
+/// 3. 设置 `MINOS_REAL_DRAWING_PATH` 指向授权可用于验收的真实 PDF/PNG/JPG 图纸。
+/// 4. 可选设置 `MINOS_REAL_ACCEPTANCE_OUTPUT_DIR` 指定输出目录。
+/// 5. 运行 `python -m unittest discover -s tests\acceptance -v`。
+
+## MINOS v1.8.1 子任务 C：静默错误与覆盖缺口
+- 已完成：`domain.from_mapping` 对非 mapping 输入统一抛出 `TypeError`，不再把非 dict 静默变成空对象。
+- 已完成：`drawing_analysis` 对不可解析的 `confidence` 记录 `confidence_parse_errors`，并通过质量门和人工复核项暴露。
+- 已完成：桌面 AI 预审纳入 `quality_gate.review_issues`，同一目标行去重时优先保留带 `issue_id` 的后端问题。
+- 已补测试：domain mapping、drawing confidence parse、xlsx sheet 名、导出器 `quality_gate=None`、quality_matching、platform artifacts/utils、AI 预审空建议。
+- 保留说明：桌面 UI/预检中的宽泛异常包装用于透明展示原始错误，本子任务未收窄。
+- 已验证：`python -m pytest tests\test_domain_mapping.py tests\test_ai_drawing_three_table_workflow.py::AIDrawingThreeTableWorkflowTests::test_invalid_confidence_is_traceable_in_drawing_gate tests\test_export_modes.py tests\test_quality_matching.py tests\test_desktop_table_editor.py::DesktopTableEditorTests::test_automation_review_none_suggestion_does_not_generate_fix_patch tests\platform\test_artifacts_utils.py`：15 项通过。
+- 已验证：`python -m pytest tests\test_desktop_table_editor.py`：23 项通过。
+
+## MINOS v1.9 三表联动 + FMEA 知识库增强
+
+- 已完成：第 0 步 — 流程文档更新，project_flow.mmd 已加入 linkage/registry/knowledge/baseline 新节点。
+- 已完成：第 1 步 — `minos_core/three_table_linkage.py`（build_three_table_linkage_map / evaluate_three_table_linkage / find_linkage_gaps），14 项测试。
+- 已完成：第 2 步 — `quality_gates/__init__.py` 接入 linkage gaps，`StageQualityGate` 新增 linkage_gaps/linkage_summary 字段，linkage blocker 阻止 final export。4 项新测试。
+- 已完成：第 3 步 — `minos_core/characteristic_registry.py`（build_characteristic_registry / attach_characteristics_to_three_tables），15 项测试。
+- 已完成：第 4 步 — `configs/knowledge/fmea_rules.zh-CN.json`（16 条结构化规则，覆盖冲压/焊接/铆接/装配/涂油/表面处理/热处理/检验/包装/特殊特性/高AP/注塑等）。`knowledge_recommendation.py` 增强：新增 process_terms/characteristic_terms/risk/rating_hint/recommended_controls 匹配，多维度推荐拆分。22 项新测试。
+- 已完成：第 5 步 — `edit_patch.py` 增强 accept_recommendation（写入 suggested_fields 到目标行 + linked_control_plan_suggestion 到 CP 行，不覆盖已有字段）。9 项新测试。
+- 已完成：第 6 步 — `change_management.py` 新增 compare_three_table_baseline 和 analyze_linked_change_impacts。20 项新测试。
+- 已完成：第 7 步 — `pipeline.py` 的 generate_three_tables_from_drawing 输出包含 linkage_map/linkage_gaps/characteristic_registry/knowledge_recommendations。`__init__.py` 新增 7 个公开导出。
+
+### 最终测试结果
+- 完整回归：**541 通过，48 subtests 通过，7 失败**
+- 7 项失败均为预存问题（2 项 AI 绘图工作流、4 项 input_package、1 项 phase6 pilot），与本次改动无关
+- 新增约 100 项测试全部通过
+- 旧测试零退化（0 项由本次改动导致的失败）
+
+## MINOS v1.9.1 三表联动与 FMEA 知识库稳定化
+
+- 进行中：步骤一 — 更新基线文档。
+- 待开始：步骤二 — 修回归问题（trace link、pyproject.toml、PFMEA 阈值）。
+- 待开始：步骤三 — 三表联动强化（孤儿 CP blocker、异常不吞）。
+- 待开始：步骤四 — 知识库接入主流程（默认 JSON、拆分推荐字段、空值判断）。
+- 待开始：步骤五 — 特性注册表贯穿三表。
+
+## MINOS v1.10 工程试用打磨目标
+
+- 已确定：短期优先借鉴 Relyence PFMEA 的三表联动、行级追溯和正式导出强门；中期吸收 APIS IQ-Software 的结构化 FMEA 知识复用、评分目录和失效链沉淀。
+- 已确定：MINOS 定位不是复制传统 FMEA 软件，而是 AI 图纸/旧表/知识库驱动的三表草案与复核工作台。
+- 待开始：修正式导出旁路。`export_mode="final"` 且质量门不允许时，不得生成看起来像正式文件的 workbook；桌面端必须显示阻断原因和待处理清单。
+- 待开始：集中清零 known failures，补齐 final export 旁路、generated/human-edited evidence bypass、platform final export、split workbook final mode 的回归测试。
+- 待开始：把人工复核页从只读摘要升级为可处理任务清单，支持分组、跳转目标行、处理后刷新状态。
+- 待开始：把 `linkage_map` 做成桌面联动视图，按 PFD 工序展示 PFMEA 风险、CP 控制、gap 和特殊特性贯穿状态。
+- 待开始：把 `characteristic_registry` 升级为特性主数据页，支持查看特性来源、挂接状态和人工修正后回写三表。
+- 待开始：增强 Excel 追溯矩阵，展示 PFD->PFMEA->CP 链路、gap、确认状态、软删除摘要和知识推荐处理状态。
+
+### v1.10 路线估计
+- 1-2 周目标：达到可控开发内测，核心是正式导出强门、复核任务化、联动跳转和回归清零。
+- 3-5 周目标：达到工程试用，核心是联动工作台、特性主数据、PFD 变更影响、CP 补行建议和真实脱敏样例回归。
+- 2-3 个月目标：推进 APIS 式知识复用，包括 FMEA 模块库、S/O/D/AP catalog、相似模块推荐、功能链/失效链和采纳后知识沉淀。
+
+## V1.9.1 收口状态
+
+- 已完成三个修复：
+  1. registry 提前挂接 -- PFD->PFMEA->CP 每步生成后立即用 attach_characteristics_to_three_tables 挂接特性。
+  2. envelope 顶层三表与 chain 一致 -- process_flow/pfmea/control_plan 和 chain 内部使用同一份已挂接数据。
+  3. apply-review/final export 恢复 -- ai_inferred_item 汇总确认项可用，平台测试恢复通过。
+- 全量回归：588 passed, 1 skipped, 48 subtests passed。
+
+## V1.10 Professional Three-Table Review Loop
+
+- 进行中：工作包 A -- 基线收口。
+- 待开始：工作包 B -- sync_snapshot / sync_issues。
+- 待开始：工作包 C -- risk_structure 风险结构视图。
+- 待开始：工作包 D -- recommendation lifecycle。
+- 待开始：工作包 E -- review_dashboard。
+- 待开始：工作包 F -- final export gate 收紧。
+- 待开始：工作包 G -- 桌面端最小接入。
+- 待开始：工作包 H -- 文档验收。
+
+## V1.12 Knowledge Reuse and Action Closure Loop
+
+- 进行中：工作包 A — 基线记录。
+- 进行中：工作包 B — 本地知识库 v2（knowledge_base.py）。
+- 待开始：工作包 C — 知识推荐接入 v2。
+- 待开始：工作包 D — 推荐应用动作拆分。
+- 进行中：工作包 E — PFMEA 行动项对象（action_tracking.py）。
+- 待开始：工作包 F — 行动项写入与刷新。
+- 待开始：工作包 G — resolve_action_item patch。
+- 待开始：工作包 H — 质量门和 dashboard 收紧。
+- 待开始：工作包 I — 桌面端最小闭环。
+- 待开始：工作包 J — Excel 导出增强。
+- 待开始：工作包 K — 文档验收。
+
+## V1.13 Tauri + React Apple 风格桌面工作台
+
+- 已完成：作为子代理 C，新增 OpenSpec 变更 `v1.13-tauri-apple-desktop`，记录 Define / Specify / Implement / Verify 四步闭环。
+- 已完成：明确 V1.13 桌面迁移目标为 Tauri + React + Apple 风格桌面工作台。
+- 已完成：明确 PySide6 冻结为 legacy，不作为新能力主路径。
+- 已完成：明确 `minos_core` 不引入前端依赖。
+- 已完成：明确 `minos_platform` 不作为本次桌面主后端。
+- 已完成：把 V1.13 开发步骤按 `///` 风格写入 `task_plan.md` 和 OpenSpec tasks。
+- 已完成：把 V1.13 工作流同步到 `project_flow.mmd`。
+- 已完成：安装并验证前端依赖，`npm run build` 通过。
+- 已完成：安装 Rustup、Visual Studio Build Tools C++ 工具链，并验证 Tauri/Rust `cargo check` 通过。
+- 已完成：补齐 Tauri 标准 Rust 结构，新增 `src-tauri/src/lib.rs`，`main.rs` 保持薄入口。
+- 已完成：补齐 Windows resource 所需 `src-tauri/icons/icon.ico`。
+- 待实现：Tauri + React 桌面壳。
+- 待实现：图纸选择、三表生成、三表编辑、联动预览刷新、闭环任务处理和导出入口。
+- 待验证：1280x800 下主要控件和文字无重叠。
+
+### 明确验收
+- 图纸可选择。
+- PFD、PFMEA、CP 三表可生成。
+- PFD、PFMEA、CP 三表可编辑。
+- 联动预览可刷新。
+- 复核、知识推荐、行动项等闭环任务可处理。
+- 导出可用，草案/正式边界清楚。
+- 1280x800 下主要控件和文字无重叠。
+
+## V1.14 Drawing Knowledge Linkage Closure
+
+- 已启动：V1.14 文档与流程 worker 建立图纸识别、知识复用、三表联动、行动闭环的文档基线，后续交由主代理审核。
+- 已完成：确认 OpenSpec 变更目录为 `openspec/changes/v1.14-drawing-knowledge-linkage-closure`。
+- 已完成：V1.14 范围锁定为图纸事实层、知识复用对象、PFD -> PFMEA -> CP 联动视图、行动项闭环和正式导出质量门。
+- 已完成：V1.14 非目标锁定为不重写视觉引擎、不接外部系统、不自动批准 AI 推荐、不替换现有三表顶层 schema。
+- 已完成：三个 XLSX 种子族已转换为本地零件族知识包，默认索引包含 `stamping`、`limiter`、`door_hinge`。
+- 已完成：新增零件族分类、PFD 族上下文推导、PFMEA/CP 知识推荐评分与去重、统一闭环任务、V1.14 desktop API。
+- 已完成：补齐 `/api/knowledge/families` 和 `/api/knowledge/import-seeds`，桌面端版本同步为 `1.14.0`。
+- 已完成：修正 FMEA V2 知识库规则验收口径，默认规则集为 58 条 active 规则，不再沿用旧 16 条硬编码。
+- 已完成：修正 `KR-HIGH-AP-REACTION-015`，增加 `requires_high_ap`，并把全局高 AP 推荐类型独立为 `high_ap_*`，避免挤掉具体工艺规则。
+- 已验证：V1.14 定向测试 `26 tests OK`。
+- 已验证：知识库相关测试 `54 tests OK`。
+- 已验证：全量 Python 单元测试 `711 tests OK`。
+- 已验证：Tauri 前端 `npm run build` 通过。
+- 已验证：Tauri/Rust `cargo check` 通过。
+- 待人工验收：用真实图纸在 Tauri 桌面端跑完整链路，确认真实 GPT 图纸识别、零件族确认、PFD 预览、三表编辑、闭环处理和正式导出体验。
+
+## V1.14.1 OCR-first Drawing Analysis
+
+- 当前状态：V1.14.1 OCR-first / hybrid 图纸分析计划已收口到代码、桌面 API、Tauri UI 和定向验收。
+- 基于状态：V1.14 已具备图纸事实、零件族知识、三表联动、行动闭环和正式导出门；V1.14.1 不推翻这些能力，只补稳定的图纸入口。
+- 已完成：新增 OpenSpec 变更目录 `openspec/changes/v1.14.1-ocr-first-drawing-analysis`。
+- 已完成：proposal/design/tasks 已说明 OCR-first/hybrid 目标、非目标、执行步骤和验收标准。
+- 已完成：`task_plan.md` 已追加 V1.14.1 可执行计划，所有开发步骤使用 `///` 前缀。
+- 已完成：`findings.md` 已记录 GPT 视觉 `stream_read_error` 不能导致整体失败，以及 OCR 结果必须可追溯的原因。
+- 已完成：`project_flow.mmd` 已追加 PDF 渲染、PDF 文字层、RapidOCR、OCR `drawing_analysis`、可选 AI 增强、零件族、PFD、三表、闭环、导出门节点。
+- 已完成：`minos_core/adapters/ocr.py` 提供 PDF 文字层、RapidOCR 和 auto composite OCR adapter，OCR block 保留 page、bbox、confidence、engine、source_ref。
+- 已完成：`minos_core/drawing_ocr_analysis.py` 提供 `analyze_drawing_with_ocr(...)` 公开入口，并把 OCR page/block 转成可追溯 `drawing_analysis_bundle`。
+- 已完成：`generate_three_tables_from_drawing(...)` 支持 `analysis_mode=hybrid|ocr_only|vision_only` 和 `ocr_engine=auto|pdf_text|rapidocr`，hybrid 下 AI 视觉 `stream_read_error` 会记录为 analysis error 并保留 OCR 草案。
+- 已完成：桌面 API `/api/projects` 接收并存储 `analysis_mode`、`ocr_engine`，`DesktopRunService` 创建运行时传给 pipeline。
+- 已完成：Tauri/React 图纸导入页已加入识别模式选择，默认 hybrid，并把 `analysis_mode`、`ocr_engine="auto"` 写入项目 context。
+- 已完成：图纸识别状态区显示 OCR 状态、AI 视觉状态、识别来源和待确认字段数量；`stream_read_error` 主文案改为“AI 视觉识别中断，已保留 OCR 识别结果。”。
+- 已验证：OCR drawing analysis 覆盖 OCR-only 结构、PDF 文字层 fake fitz、RapidOCR 缺依赖清晰错误、公开 OCR 入口可追溯。
+- 已验证：pipeline OCR-first 覆盖 OCR-only 进入三表、hybrid `stream_read_error` 保留 OCR 草案、draft 导出保留 OCR/AI 复核警示、final export 继续阻断。
+
+## V1.14.2 Title Block Family Knowledge
+
+- 当前状态：已启动图框优先零件族识别修正，目标是让“整件名称”优先于“衬套”等局部组件词。
+- 已完成：新增 OpenSpec 变更目录 `openspec/changes/v1.14.2-title-block-family-knowledge`。
+- 已完成：proposal/design/tasks 已明确标题栏强证据、OCR 无标签图框提取、三类零件族线索和验收标准。
+- 已完成：`task_plan.md` 已追加 V1.14.2 可执行计划，开发步骤使用 `///` 前缀。
+- 已完成：`part_family_classifier.py` 增加字段权重、标题栏优先、长词优先和组件词降权；“衬套/bushing/轴套”不再能单独把图纸判为门铰链。
+- 已完成：`drawing_ocr_analysis.py` 增加无标签标题栏提取，可从“图号 + D00R HIMGE/尾门较链”这类短行提取零件名并保留 OCR block evidence。
+- 已完成：`adapters/multimodal.py` 的视觉提示已强化图框优先，要求区分整件零件名和局部组件。
+- 已完成：`configs/knowledge/fmea_rules.zh-CN.json` 新增门铰链、限位器、冲压薄板特征三条规则，并收窄冲压规则避免抢掉旧孔径规则。
+- 已完成：`pipeline.py` 在 hybrid 视觉成功后加入 OCR 身份锁定；高置信 OCR 标题栏会写回最终 `drawing_identity`，合并 OCR evidence，并把 `door_hinge` 等零件族锁定到 `metadata.locked_part_family_classification`。
+- 已验证：标题栏尾门铰链压过衬套、单独衬套不判门铰链、OCR 无标签图框抽取、知识规则加载。
+- 已验证：hybrid 测试覆盖“视觉把整件名写成衬套，但 OCR 标题栏为尾门较链”场景，最终保留 OCR 整件身份和 `door_hinge` 零件族。
+- 已验证：V1.14.2 定向测试 `48 tests OK`，相邻族上下文/PFD/知识推荐测试 `9 tests OK`，知识库 JSON 可解析。
+
+## V1.14.3 Process Inference Knowledge Integration
+
+- 当前状态：已把用户新增的 `configs/knowledge/process_inference` 从静态文件接入默认零件族知识加载和 PFD 推导。
+- 已完成：删除偏系统级/方法论级规则 `KR-STAMPING-AP-METHODOLOGY-063`、`KR-DOOR-SYSTEM-INTEGRATION-FMEA-066`，默认 FMEA 规则从 80 条降为 78 条。
+- 已完成：`part_family_knowledge.py` 默认加载 `door_hinge`、`limiter`、`stamping` 时会读取同族 `process_inference/*.json`，并把 `process_flow_variants` 转成 `process_route_templates`。
+- 已完成：`drawing_to_pfd.py` 会根据图纸文本从多个工艺变体里选择最匹配的一条，避免把同族所有工艺路线一次性展开。
+- 已完成：PFD 保留 `process_inference` 细工序名，不再统一压成“焊接/铆接”等泛化名称。
+- 已验证：`fmea_rules.zh-CN.json` 和三类 `process_inference` JSON 均可解析。
+- 已验证：知识库/PFD/推荐/分类/pipeline 族上下文定向测试 `59 tests OK`。
+
+## V1.14.4 Desktop Interaction State Hardening
+
+- 当前状态：已修复桌面端主要交互状态串台问题，重点覆盖没导入图纸误生成、导入后界面阻塞、按钮空点、最近结果污染当前项目。
+- 已完成：新版工作台启动自动恢复最近结果时只做只读展示，不再写入 `current_project_id`；用户必须导入图纸或点击“打开最近项目”才可生成。
+- 已完成：生成入口统一校验图纸路径、文件存在、文件类型；路径失效时不会先显示“生成中”。
+- 已完成：生成任务使用 `GenerationWorker` + `QThread` 后台执行，运行中锁住导入、生成、打开最近、编辑、保存和导出入口。
+- 已完成：新导入图纸会清空旧运行结果；生成失败后顶部状态改为“失败”，项目页/图纸页保留真实图纸和失败状态。
+- 已完成：项目页、图纸页、设置页从静态假状态改为可刷新状态；设置页默认输出目录可真实保存到 SQLite settings。
+- 已完成：空回调按钮默认禁用；三表状态筛选真实生效且不改变源行号；复核页“查看来源证据”不再误连“跳转三表”。
+- 已完成：横向补齐导出质量门英文键读取，正式导出未放行时桌面入口提前阻止；只读恢复结果显示“仅查看”；设置页和复核闭环按钮纳入运行中锁；三表筛选识别真实编辑元字段；导出页同时统计待确认项和质量门问题。
+- 已完成：Tauri 图纸导入页改为常驻挂载，切到三表、评审、导出或设置页面时只隐藏导入页，不卸载生成中的链式会话状态。
+- 已完成：新增 `tests/test_desktop_tauri_app_state.py`，防止后续把 `DrawingImportPage` 改回条件卸载。
+- 已验证：桌面相关测试与相邻 UI 模型/表格编辑测试 `63 tests OK`，相关 UI 文件 `py_compile` 通过，桌面窗口可启动。
+- 已验证：Tauri App 状态回归测试 `1 test OK`，Tauri 前端 `npm run build` 通过，Tauri/Rust `cargo check` 通过。
+
+## V1.14.5 Staged Three-table Confirmation
+
+- 当前状态：桌面主生成路线已从“一次性生成 PFD/PFMEA/CP”收口为“AI 推理 PFD -> 人工确认 -> AI 推理 PFMEA -> 人工确认 -> AI 推理 CP”。
+- 已完成：新增 `analyze_drawing_for_three_table_chain(...)`，链式启动只做图纸识别，不再先后台跑完整 `generate_three_tables_from_drawing(...)`。
+- 已完成：链式 PFD 推理失败会落库为失败状态并展示原始错误，不再静默 fallback 到模板 PFD。
+- 已完成：链式文本 LLM 统一走 Responses API，结构化输出使用 Responses `text.format=json_schema`，避免图纸识别能跑但 PFMEA/CP 生成走错接口。
+- 已完成：图纸识别得到的零件族和 `process_inference` 路线摘要会传入 PFD 推理上下文。
+- 已完成：编辑 PFD 会清空 PFMEA/CP 并把下游阶段重置为未开始；编辑 PFMEA 会清空 CP 并要求重新生成/确认。
+- 已完成：Tauri 图纸导入页移除“一次性生成”切换，开始生成固定进入链式确认流程。
+- 已完成：旧兼容接口 `POST /api/projects/{id}/runs`、`jobs.run_project(...)`、`DesktopRunService.run_project(...)` 已全部收口到链式流程，不再触发一次性三表生成。
+- 已完成：Tauri API client 删除旧 `createProjectRun(...)` 导出，前端只保留 `startChainRun(...)` 作为生成入口。
+- 已完成：链式阶段确认/重生成失败会把原始错误写回 run；链式状态会随 DB 和磁盘结果一起保存，避免重开后丢失阶段状态。
+- 已完成：确认 PFD/PFMEA/CP 时会同步清除对应表行的待确认标记；失败后重生成成功会清掉旧失败状态。
+- 已完成：文本 LLM 链路默认不再继承 Codex 的 `xhigh` 推理强度，PFD/PFMEA/CP JSON 生成默认使用 `high`，可用 `MINOS_TEXT_LLM_REASONING_EFFORT` 覆盖。
+- 已完成：文本 LLM 读取超时从裸 `The read operation timed out` 改为明确的 PFD/PFMEA/CP 文本模型响应超时，并支持 `MINOS_TEXT_LLM_TIMEOUT_SECONDS` 调整。
+- 已完成：Tauri 导入页根据返回的 `chain_stages.pfd.status` 和 `failure_message` 显示真实状态，不再把 PFD failed 固定显示成“PFD 已生成”。
+- 已完成：Tauri 三表工作台默认先看 PFD，选中 PFD 行即可直接确认；如输入框有修改，会把修改作为 `edit_patch` 随确认一起提交。
+- 已完成：链式确认接口在确认时应用上游修改会同步执行下游失效规则，避免 PFD 修改后继续保留旧 PFMEA/CP 阶段或旧 CP 行。
+- 已完成：PFD 数据从工艺路线清单升级为标准过程流程图字段，PFD LLM/schema、规则推导和桌面表格均包含流程类型、流程符号、输入、输出、前序和后续工序。
+- 已完成：`normalize_process_flow_steps` 只在缺失流向时补线性默认；如果知识库或 LLM 已给出分支、返工或外协回路，会保留已有 `previous_step_ids` / `next_step_ids`。
+- 已完成：Tauri PFD 视图新增节点+箭头流程图，并用标准流程符号区区分加工、检验、运输、存储、返工和外协；点击节点可回选对应 PFD 行。
+- 已完成：清除 PFD 图残余风险。Tauri PFD 图现在通过 `buildProcessFlowLayout` 从 `next_step_ids` 生成 SVG 拓扑边，并用 `data-edge-kind` 区分 `sequence`、`branch`、`backlink`、`rework`，不再只按数组相邻节点横向画箭头。
+- 已验证：`python -m pytest tests/test_ai_drawing_three_table_workflow.py -q`：22 项通过。
+- 已验证：`python -m pytest tests/test_desktop_tauri_app_state.py -q`：5 项通过。
+- 已验证：`python -m pytest tests/test_desktop_table_editor.py -q`：23 项通过。
+- 已验证：`python -m pytest tests/test_desktop_shell.py tests/test_desktop_api_sidecar.py tests/test_desktop_api_ocr_mode.py -q`：29 项通过。
+- 已验证：`python -m pytest tests/test_desktop_tauri_app_state.py tests/test_ai_drawing_three_table_workflow.py tests/test_desktop_table_editor.py -q`：50 项通过。
+- 已验证：`python -m py_compile minos_core/drawing_to_pfd.py minos_core/pipeline_chain.py minos_desktop/table_editor.py`：通过。
+- 已验证：Tauri 前端 `npm run build` 通过。
+- 已验证：同一张 `JLV03000500_001_AC_RR DH ASSY.pdf` 真实 API 链式重跑成功，`run #13` 生成 PFD `12` 行，`8` 项待确认，耗时约 `103` 秒，无 `failure_message`。

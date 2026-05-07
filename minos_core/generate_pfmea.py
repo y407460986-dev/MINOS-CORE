@@ -6,6 +6,7 @@ from collections import defaultdict
 from typing import Any
 
 from .aiag_vda_pfmea import calculate_rpn, normalize_pfmea_row
+from minos_core._text_utils import integer, string_list, text
 
 
 def generate_pfmea_from_candidates(
@@ -65,23 +66,23 @@ def _steps_by_id(candidates_bundle: dict[str, Any]) -> dict[str, dict[str, Any]]
 def _pfmea_row(candidate: dict[str, Any], index: int, step: dict[str, Any]) -> dict[str, Any]:
     step_id = str(candidate.get("process_step_id", "")).strip()
     failure_mode = str(candidate.get("failure_mode", "")).strip()
-    operation = _text(
+    operation = text(
         candidate.get("operation"),
         candidate.get("process_step_name"),
         step.get("operation"),
         step.get("name"),
         default="",
     )
-    process_function = _text(
+    process_function = text(
         candidate.get("process_function"),
         step.get("process_function"),
         step.get("process_purpose"),
         operation,
         default="",
     )
-    severity = _integer(candidate.get("severity"), default=5)
-    occurrence = _integer(candidate.get("occurrence"), default=3)
-    detection = _integer(candidate.get("detection"), default=6)
+    severity = integer(candidate.get("severity"), default=5)
+    occurrence = integer(candidate.get("occurrence"), default=3)
+    detection = integer(candidate.get("detection"), default=6)
     special_characteristics = _merged_string_list(
         candidate.get("special_characteristics", []),
         step.get("special_characteristics", []),
@@ -102,38 +103,38 @@ def _pfmea_row(candidate: dict[str, Any], index: int, step: dict[str, Any]) -> d
             step.get("process_characteristics", []),
         ),
         "failure_mode": failure_mode,
-        "failure_effect": _text(
+        "failure_effect": text(
             candidate.get("failure_effect"),
             "Process output may not meet requirements",
         ),
         "severity": severity,
-        "failure_cause": _text(
+        "failure_cause": text(
             candidate.get("failure_cause"),
             "Cause requires engineering confirmation",
         ),
         "occurrence": occurrence,
-        "prevention_control": _text(
+        "prevention_control": text(
             candidate.get("prevention_control"),
             "Prevention control requires engineering confirmation",
         ),
-        "detection_control": _text(
+        "detection_control": text(
             candidate.get("detection_control"),
             "Detection control requires engineering confirmation",
         ),
         "detection": detection,
-        "action_priority": _text(
+        "action_priority": text(
             candidate.get("action_priority"),
             _action_priority(severity, occurrence, detection),
         ),
         "rpn": calculate_rpn(severity, occurrence, detection),
-        "recommended_action": _text(
+        "recommended_action": text(
             candidate.get("recommended_action"),
             "由工程确认推荐措施、责任人和完成日期",
         ),
-        "responsibility": _text(candidate.get("responsibility"), candidate.get("owner")),
-        "target_date": _text(candidate.get("target_date"), candidate.get("completion_due_date")),
-        "action_status": _text(candidate.get("action_status"), "未制定"),
-        "classification": _text(
+        "responsibility": text(candidate.get("responsibility"), candidate.get("owner")),
+        "target_date": text(candidate.get("target_date"), candidate.get("completion_due_date")),
+        "action_status": text(candidate.get("action_status"), "未制定"),
+        "classification": text(
             candidate.get("classification"),
             ",".join(special_characteristics),
             default="",
@@ -141,7 +142,7 @@ def _pfmea_row(candidate: dict[str, Any], index: int, step: dict[str, Any]) -> d
         "linked_control_plan_id": str(
             candidate.get("linked_control_plan_id", "")
         ).strip(),
-        "evidence_refs": _string_list(candidate.get("evidence_refs", [])),
+        "evidence_refs": string_list(candidate.get("evidence_refs", [])),
         "needs_confirmation": bool(candidate.get("needs_confirmation", True)),
         "source_candidate_id": str(candidate.get("candidate_id", "")).strip(),
         "source_process_step_id": step_id,
@@ -163,37 +164,11 @@ def _action_priority(severity: int, occurrence: int, detection: int) -> str:
     return "L"
 
 
-def _integer(value: Any, default: int) -> int:
-    try:
-        parsed = int(value)
-    except (TypeError, ValueError):
-        return default
-    return parsed if parsed > 0 else default
-
-
-def _text(*values: Any, default: str = "") -> str:
-    for value in values:
-        text = str(value or "").strip()
-        if text:
-            return text
-    return default
-
-
-def _string_list(value: Any) -> list[str]:
-    if isinstance(value, str):
-        values = [value]
-    elif isinstance(value, list):
-        values = value
-    else:
-        values = []
-    return [str(item).strip() for item in values if str(item).strip()]
-
-
 def _merged_string_list(*values: Any) -> list[str]:
     result: list[str] = []
     seen: set[str] = set()
     for value in values:
-        for item in _string_list(value):
+        for item in string_list(value):
             if item not in seen:
                 result.append(item)
                 seen.add(item)

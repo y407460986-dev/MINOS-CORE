@@ -43,8 +43,15 @@ COLUMN_LABELS: dict[str, str] = {
     "process_step_id": "工序编号",
     "sequence": "顺序",
     "operation": "工序名称",
+    "process_name": "工序名称",
     "process_function": "工序目的/过程功能",
     "process_item": "过程项",
+    "structure_process_item": "结构过程项",
+    "structure_process_step": "结构过程步骤",
+    "structure_work_element": "结构工作要素",
+    "function_process_item": "功能过程项",
+    "function_process_step": "功能过程步骤",
+    "function_work_element": "功能工作要素",
     "process_step": "过程步骤",
     "process_work_element": "过程工作要素",
     "function_requirement": "功能/要求",
@@ -52,6 +59,9 @@ COLUMN_LABELS: dict[str, str] = {
     "product_characteristics": "产品特性",
     "process_characteristic": "过程特性",
     "process_characteristics": "过程特性",
+    "characteristic_number": "特性编号",
+    "special_characteristic_class": "特殊特性分类",
+    "specification_tolerance": "规格和公差",
     "equipment": "设备",
     "tooling": "工装",
     "fixture": "工装",
@@ -61,8 +71,15 @@ COLUMN_LABELS: dict[str, str] = {
     "inspection_equipment": "检具",
     "document_refs": "文件",
     "documents": "文件",
+    "flow_symbol": "流程符号",
     "flow_type": "流程类型",
+    "flow_type_display": "流程类型显示",
     "process_type": "流程类型",
+    "operation_type": "工序类型",
+    "input_material": "输入物料",
+    "output_result": "输出结果",
+    "previous_step_ids": "前序工序",
+    "next_step_ids": "后续工序",
     "owner": "责任岗位",
     "input_refs": "输入依据",
     "output_refs": "输出关联",
@@ -82,9 +99,12 @@ COLUMN_LABELS: dict[str, str] = {
     "action_priority": "措施优先级 AP",
     "rpn": "RPN",
     "recommended_action": "推荐措施",
+    "optimization_action": "优化措施",
     "responsibility": "责任人",
+    "responsible_person": "责任人",
     "target_date": "目标完成日期",
     "action_status": "措施状态",
+    "status": "状态",
     "actual_completion_date": "实际完成日期",
     "after_severity": "措施后 S",
     "after_occurrence": "措施后 O",
@@ -142,6 +162,14 @@ TABLE_SPECS: dict[str, TableSpec] = {
             "process_step_id",
             "sequence",
             "operation",
+            "flow_symbol",
+            "flow_type",
+            "flow_type_display",
+            "operation_type",
+            "input_material",
+            "output_result",
+            "previous_step_ids",
+            "next_step_ids",
             "process_function",
             "product_characteristics",
             "process_characteristics",
@@ -149,7 +177,6 @@ TABLE_SPECS: dict[str, TableSpec] = {
             "tooling",
             "gauges",
             "document_refs",
-            "flow_type",
             "owner",
             "evidence_refs",
             "needs_confirmation",
@@ -165,27 +192,36 @@ TABLE_SPECS: dict[str, TableSpec] = {
         columns=(
             "pfmea_id",
             "process_step_id",
-            "operation",
+            "structure_process_item",
+            "structure_process_step",
+            "structure_work_element",
+            "function_process_item",
+            "function_process_step",
+            "function_work_element",
             "process_item",
             "process_step",
             "process_work_element",
             "function_requirement",
+            "operation",
             "product_characteristics",
             "process_characteristics",
             "failure_mode",
             "failure_effect",
-            "severity",
             "failure_cause",
+            "severity",
             "occurrence",
-            "prevention_control",
-            "detection_control",
             "detection",
             "action_priority",
-            "rpn",
+            "optimization_action",
             "recommended_action",
+            "responsible_person",
             "responsibility",
             "target_date",
+            "status",
             "action_status",
+            "prevention_control",
+            "detection_control",
+            "rpn",
             "actual_completion_date",
             "after_severity",
             "after_occurrence",
@@ -209,6 +245,13 @@ TABLE_SPECS: dict[str, TableSpec] = {
             "control_plan_id",
             "process_step_id",
             "pfmea_id",
+            "process_name",
+            "equipment",
+            "characteristic_number",
+            "product_characteristic",
+            "process_characteristic",
+            "special_characteristic_class",
+            "specification_tolerance",
             "failure_mode",
             "product_process_characteristic",
             "specification",
@@ -299,8 +342,42 @@ def new_table_row(
     }
     for column in spec.columns:
         row[column] = _cell_value(values.get(column, False if column == "needs_confirmation" else ""))
+    # Ensure new PFMEA rows carry valid defaults for validated numeric/enum fields.
+    if table_key == "pfmea":
+        if "severity" not in values:
+            row["severity"] = 1
+        if "occurrence" not in values:
+            row["occurrence"] = 1
+        if "detection" not in values:
+            row["detection"] = 1
+        if "action_priority" not in values:
+            row["action_priority"] = "M"
     row[ROW_STATUS_COLUMN] = table_row_status(table_key, row)
     return row
+
+
+def reorder_row(
+    rows: list[dict[str, Any]],
+    from_index: int,
+    to_index: int,
+) -> list[dict[str, Any]]:
+    """Move a row from ``from_index`` to ``to_index`` and renumber sequences."""
+    if from_index == to_index:
+        return list(rows)
+    if from_index < 0 or to_index < 0:
+        return list(rows)
+    n = len(rows)
+    if from_index >= n or to_index >= n:
+        return list(rows)
+    new_rows = list(rows)
+    moved = new_rows.pop(from_index)
+    # When target > source, the list has already shifted after pop.
+    insert_at = to_index if to_index <= from_index else to_index
+    new_rows.insert(insert_at, moved)
+    for i, row in enumerate(new_rows):
+        if isinstance(row, dict):
+            row["sequence"] = (i + 1) * 10
+    return new_rows
 
 
 def soft_delete_table_row(row: dict[str, Any]) -> dict[str, Any]:
@@ -501,6 +578,7 @@ def automation_review_model(result: dict[str, Any]) -> dict[str, Any]:
     else:
         rows.extend(_automation_review_rows_from_tables(result))
         rows.extend(_automation_review_rows_from_manual_review(result))
+        rows.extend(_automation_review_rows_from_review_issues(result))
         rows.extend(_automation_review_rows_from_metadata(result))
     rows = _dedupe_automation_rows(rows)
     return {
@@ -655,22 +733,27 @@ def _suggested_changes_text(row: dict[str, Any]) -> str:
 def action_management_model(result: dict[str, Any], *, today: date | None = None) -> dict[str, Any]:
     today = today or date.today()
     rows: list[dict[str, Any]] = []
+    action_by_pfmea = _action_items_lookup(result)
     for row in _pfmea_rows(result):
         ap = str(row.get("action_priority", row.get("AP", ""))).upper()
-        status = str(row.get("action_status", ""))
+        action = _first_text_nonempty(row.get("optimization_action"), row.get("recommended_action"))
+        responsibility = _first_text_nonempty(row.get("responsible_person"), row.get("responsibility"))
+        status = _first_text_nonempty(row.get("status"), row.get("action_status"))
         target_date = str(row.get("target_date", ""))
         overdue = _is_overdue(target_date, status, today)
         pending_after = bool(_missing_after_evaluation(row))
         pending_action = _pending_action(row, ap)
         pfmea_id = str(row.get("pfmea_id", ""))
+        action_item = action_by_pfmea.get(pfmea_id, {})
         rows.append(
             {
+                "action_id": action_item.get("action_id", ""),
                 "pfmea_id": pfmea_id,
                 "process_step_id": row.get("process_step_id", ""),
                 "failure_mode": row.get("failure_mode", ""),
                 "action_priority": ap,
-                "recommended_action": row.get("recommended_action", ""),
-                "responsibility": row.get("responsibility", ""),
+                "recommended_action": action,
+                "responsibility": responsibility,
                 "target_date": target_date,
                 "action_status": status,
                 "actual_completion_date": row.get("actual_completion_date", ""),
@@ -681,6 +764,7 @@ def action_management_model(result: dict[str, Any], *, today: date | None = None
                 "overdue": overdue,
                 "pending_action": pending_action,
                 "pending_after_evaluation": pending_after,
+                "is_overdue": _is_date_overdue(action_item.get("due_date", ""), today),
                 "status_display": _action_status_display(
                     ap,
                     overdue=overdue,
@@ -694,6 +778,7 @@ def action_management_model(result: dict[str, Any], *, today: date | None = None
     return {
         "title": "措施管理",
         "columns": (
+            "action_id",
             "pfmea_id",
             "process_step_id",
             "failure_mode",
@@ -707,10 +792,12 @@ def action_management_model(result: dict[str, Any], *, today: date | None = None
             "after_occurrence",
             "after_detection",
             "after_ap",
+            "is_overdue",
             "status_display",
             "jump_label",
         ),
         "column_labels": (
+            "行动编号",
             "PFMEA 编号",
             "工序编号",
             "失效模式",
@@ -724,6 +811,7 @@ def action_management_model(result: dict[str, Any], *, today: date | None = None
             "措施后 O",
             "措施后 D",
             "措施后 AP",
+            "行动项逾期",
             "状态",
             "跳转",
         ),
@@ -748,7 +836,7 @@ def filter_pfmea_rows(result: dict[str, Any], filter_key: str, *, today: date | 
     filtered: list[dict[str, Any]] = []
     for row in rows:
         ap = str(row.get("action_priority", row.get("AP", ""))).upper()
-        status = str(row.get("action_status", ""))
+        status = _first_text_nonempty(row.get("status"), row.get("action_status"))
         row_id = str(row.get("pfmea_id", ""))
         if filter_key == "AP 高" and ap == "H":
             filtered.append(row)
@@ -988,6 +1076,25 @@ def manual_review_text(result: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def review_dashboard_text(result: dict[str, Any]) -> str:
+    """将 review_dashboard.next_actions 格式化为可读中文文本。
+
+    用于 V1.10 复核页面顶部的“下一步建议”区域。
+    旧数据没有 review_dashboard 字段时返回空字符串，调用方降级显示旧摘要。
+    """
+    dashboard = result.get("review_dashboard", {}) if isinstance(result, dict) else {}
+    if not isinstance(dashboard, dict) or not dashboard:
+        return ""
+    lines = [f"状态：{dashboard.get('status_display', '未知')}"]
+    next_actions = dashboard.get("next_actions", [])
+    if isinstance(next_actions, list) and next_actions:
+        lines.append("")
+        lines.append("下一步建议：")
+        for i, action in enumerate(next_actions, 1):
+            lines.append(f"  {i}. {action}")
+    return "\n".join(lines)
+
+
 def _ensure_automation_model(result_or_model: dict[str, Any]) -> dict[str, Any]:
     if isinstance(result_or_model, dict) and "summary" in result_or_model and "rows" in result_or_model:
         return result_or_model
@@ -1126,6 +1233,18 @@ def _automation_review_rows_from_manual_review(result: dict[str, Any]) -> list[d
     return rows
 
 
+def _automation_review_rows_from_review_issues(result: dict[str, Any]) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for issue in _review_issue_lookup(result).values():
+        issue_id = str(issue.get("issue_id", "")).strip()
+        if not issue_id or issue_id in seen:
+            continue
+        seen.add(issue_id)
+        rows.append(_automation_review_row(issue, result))
+    return rows
+
+
 def _automation_review_rows_from_metadata(result: dict[str, Any]) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for item in unresolved_recommendations(_knowledge_recommendations(result)):
@@ -1196,7 +1315,21 @@ def _dedupe_automation_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             str(row.get("target_id", "") or row.get("issue_id", "")),
         )
         existing = by_key.get(key)
-        if existing is None or priority.get(str(row.get("review_category")), 0) > priority.get(str(existing.get("review_category")), 0):
+        row_priority = priority.get(str(row.get("review_category")), 0)
+        existing_priority = (
+            priority.get(str(existing.get("review_category")), 0)
+            if existing is not None
+            else -1
+        )
+        if (
+            existing is None
+            or row_priority > existing_priority
+            or (
+                row_priority == existing_priority
+                and row.get("issue_id")
+                and not existing.get("issue_id")
+            )
+        ):
             by_key[key] = row
     return list(by_key.values())
 
@@ -1353,7 +1486,7 @@ def _evidence_lookup(result: dict[str, Any]) -> dict[str, dict[str, Any]]:
 
 
 def _missing_after_evaluation(row: dict[str, Any]) -> list[str]:
-    status = str(row.get("action_status", "")).strip()
+    status = _first_text_nonempty(row.get("status"), row.get("action_status"))
     if status not in {"已完成", "已验证", "已关闭"}:
         return []
     return [
@@ -1364,10 +1497,12 @@ def _missing_after_evaluation(row: dict[str, Any]) -> list[str]:
 
 
 def _pending_action(row: dict[str, Any], ap: str) -> bool:
-    if ap == "H" and not str(row.get("recommended_action", "")).strip():
+    action = _first_text_nonempty(row.get("optimization_action"), row.get("recommended_action"))
+    responsibility = _first_text_nonempty(row.get("responsible_person"), row.get("responsibility"))
+    if ap == "H" and not action:
         return True
     if ap in {"H", "M"}:
-        return not str(row.get("responsibility", "")).strip() or not str(row.get("target_date", "")).strip()
+        return not responsibility or not str(row.get("target_date", "")).strip()
     return False
 
 
@@ -1378,6 +1513,36 @@ def _is_overdue(target_date: str, status: str, today: date) -> bool:
         return bool(target_date) and date.fromisoformat(target_date[:10]) < today
     except ValueError:
         return False
+
+
+def _is_date_overdue(due_date_str: str, today: date) -> bool:
+    """检查 action_item 的 due_date 是否已过期（仅比较日期）。"""
+    if not due_date_str or not due_date_str.strip():
+        return False
+    try:
+        return date.fromisoformat(due_date_str[:10]) < today
+    except ValueError:
+        return False
+
+
+def _action_items_lookup(result: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """从 result 中提取 action_items 并构建 pfmea_id -> item 的查找表。"""
+    metadata = result.get("metadata", {}) if isinstance(result, dict) else {}
+    items = metadata.get("action_items", []) if isinstance(metadata, dict) else []
+    if not items:
+        try:
+            from minos_core.action_tracking import build_action_items
+            items = build_action_items(result)
+        except ImportError:
+            return {}
+    lookup: dict[str, dict[str, Any]] = {}
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        pfmea_id = str(item.get("source_pfmea_id", "")).strip()
+        if pfmea_id:
+            lookup[pfmea_id] = item
+    return lookup
 
 
 def _action_status_display(
@@ -1445,11 +1610,43 @@ def _with_inherited_display_fields(
                 "process_characteristic",
             ),
         )
+        _copy_alias_fields(
+            enriched,
+            (
+                ("structure_process_item", "process_item"),
+                ("process_item", "structure_process_item"),
+                ("structure_process_step", "process_step", "operation"),
+                ("process_step", "structure_process_step", "operation"),
+                ("structure_work_element", "process_work_element", "equipment"),
+                ("process_work_element", "structure_work_element", "equipment"),
+                ("function_process_item", "function_requirement", "process_function"),
+                ("function_process_step", "function_requirement", "process_function"),
+                ("function_requirement", "function_process_step", "process_function"),
+                ("function_work_element", "function_requirement", "process_function"),
+                ("optimization_action", "recommended_action"),
+                ("recommended_action", "optimization_action"),
+                ("responsible_person", "responsibility", "owner"),
+                ("responsibility", "responsible_person", "owner"),
+                ("status", "action_status"),
+                ("action_status", "status"),
+            ),
+        )
         return enriched
     if spec.key == "control_plan":
         pfmea_row = _pfmea_lookup(result).get(str(row.get("pfmea_id", "")))
         _mark_inherited_issue(enriched, result, spec.key, pfd_row=pfd_row, pfmea_row=pfmea_row)
         _copy_missing_fields(enriched, pfmea_row, ("failure_mode", "classification"))
+        _copy_missing_fields(
+            enriched,
+            pfmea_row,
+            (
+                "product_characteristic",
+                "process_characteristic",
+                "special_characteristic_class",
+                "specification_tolerance",
+            ),
+        )
+        _copy_cp_standard_characteristics(enriched, pfmea_row=pfmea_row, pfd_row=pfd_row)
         if not enriched.get("product_process_characteristic"):
             enriched["product_process_characteristic"] = _first_nonempty(
                 enriched.get("characteristic"),
@@ -1457,9 +1654,38 @@ def _with_inherited_display_fields(
                 pfmea_row.get("process_characteristics") if pfmea_row else "",
                 pfd_row.get("product_characteristics") if pfd_row else "",
                 pfd_row.get("process_characteristics") if pfd_row else "",
+                enriched.get("product_characteristic"),
+                enriched.get("process_characteristic"),
+                pfmea_row.get("product_characteristic") if pfmea_row else "",
+                pfmea_row.get("process_characteristic") if pfmea_row else "",
+                pfd_row.get("product_characteristic") if pfd_row else "",
+                pfd_row.get("process_characteristic") if pfd_row else "",
             )
-        _copy_missing_fields(enriched, pfd_row, ("operation", "process_function", "gauges", "inspection_equipment"))
+        _copy_missing_fields(
+            enriched,
+            pfd_row,
+            (
+                "operation",
+                "process_function",
+                "process_name",
+                "equipment",
+                "product_characteristic",
+                "process_characteristic",
+                "gauges",
+                "inspection_equipment",
+            ),
+        )
         _override_cp_from_pfd_master(enriched, pfd_row)
+        _copy_alias_fields(
+            enriched,
+            (
+                ("process_name", "operation", "process_step"),
+                ("specification_tolerance", "specification", "tolerance"),
+                ("specification", "specification_tolerance", "tolerance"),
+                ("special_characteristic_class", "classification"),
+                ("classification", "special_characteristic_class"),
+            ),
+        )
         return enriched
     return enriched
 
@@ -1467,20 +1693,31 @@ def _with_inherited_display_fields(
 def _override_from_pfd_master(target: dict[str, Any], pfd_row: dict[str, Any] | None) -> None:
     if not pfd_row:
         return
-    mappings = (
+    override_mappings = (
         ("operation", "operation"),
         ("operation", "process_step"),
         ("process_function", "process_function"),
         ("process_function", "function_requirement"),
         ("equipment", "process_work_element"),
+        ("owner", "responsibility"),
         ("product_characteristics", "product_characteristics"),
         ("process_characteristics", "process_characteristics"),
+    )
+    for source_field, target_field in override_mappings:
+        value = pfd_row.get(source_field)
+        if value not in ("", None, [], {}):
+            target[target_field] = copy.deepcopy(value)
+    missing_only_mappings = (
+        ("operation", "structure_process_step"),
+        ("process_function", "function_process_step"),
+        ("equipment", "structure_work_element"),
+        ("owner", "responsible_person"),
         ("product_characteristic", "product_characteristic"),
         ("process_characteristic", "process_characteristic"),
     )
-    for source_field, target_field in mappings:
+    for source_field, target_field in missing_only_mappings:
         value = pfd_row.get(source_field)
-        if value not in ("", None, [], {}):
+        if target.get(target_field) in ("", None, [], {}) and value not in ("", None, [], {}):
             target[target_field] = copy.deepcopy(value)
 
 
@@ -1489,6 +1726,7 @@ def _override_cp_from_pfd_master(target: dict[str, Any], pfd_row: dict[str, Any]
         return
     for source_field, target_field in (
         ("operation", "operation"),
+        ("process_name", "process_name"),
         ("process_function", "process_function"),
         ("gauges", "gauges"),
         ("inspection_equipment", "inspection_equipment"),
@@ -1496,6 +1734,43 @@ def _override_cp_from_pfd_master(target: dict[str, Any], pfd_row: dict[str, Any]
         value = pfd_row.get(source_field)
         if value not in ("", None, [], {}):
             target[target_field] = copy.deepcopy(value)
+    for source_field, target_field in (
+        ("operation", "process_name"),
+        ("equipment", "equipment"),
+        ("product_characteristic", "product_characteristic"),
+        ("process_characteristic", "process_characteristic"),
+    ):
+        value = pfd_row.get(source_field)
+        if target.get(target_field) in ("", None, [], {}) and value not in ("", None, [], {}):
+            target[target_field] = copy.deepcopy(value)
+
+
+def _copy_cp_standard_characteristics(
+    target: dict[str, Any],
+    *,
+    pfmea_row: dict[str, Any] | None,
+    pfd_row: dict[str, Any] | None,
+) -> None:
+    if not target.get("product_characteristic"):
+        target["product_characteristic"] = _first_text_nonempty(
+            target.get("product_characteristic"),
+            pfmea_row.get("product_characteristic") if pfmea_row else "",
+            pfd_row.get("product_characteristic") if pfd_row else "",
+            pfmea_row.get("product_characteristics") if pfmea_row else "",
+            pfd_row.get("product_characteristics") if pfd_row else "",
+            target.get("product_process_characteristic"),
+            target.get("characteristic"),
+        )
+    if not target.get("process_characteristic"):
+        target["process_characteristic"] = _first_text_nonempty(
+            target.get("process_characteristic"),
+            pfmea_row.get("process_characteristic") if pfmea_row else "",
+            pfd_row.get("process_characteristic") if pfd_row else "",
+            pfmea_row.get("process_characteristics") if pfmea_row else "",
+            pfd_row.get("process_characteristics") if pfd_row else "",
+            target.get("product_process_characteristic"),
+            target.get("characteristic"),
+        )
 
 
 def _mark_inherited_issue(
@@ -1559,6 +1834,79 @@ def _open_change_impacts_for_row(
     ]
 
 
+def compute_related_row_ids(
+    table_key: str,
+    row_id: str,
+    result: dict[str, Any],
+) -> dict[str, set[str]]:
+    """Given a table_key and row_id, return sets of related row IDs for each other table.
+
+    Returns a dict mapping table keys ("process_flow", "pfmea", "control_plan") to
+    sets of row IDs that are related to the given row.  The relation follows the
+    PFD -> PFMEA -> CP hierarchy via process_step_id and pfmea_id fields.
+    """
+    if not row_id:
+        return {}
+
+    pfd_steps = _process_step_lookup(result)
+    pfmea_rows_by_id = _pfmea_lookup(result)
+    cp_rows = _control_plan_rows(result)
+
+    if table_key == "process_flow":
+        # Find all PFMEA and CP rows linked to this PFD step.
+        related: dict[str, set[str]] = {"pfmea": set(), "control_plan": set()}
+        for pf_row in pfmea_rows_by_id.values():
+            if str(pf_row.get("process_step_id", "")) == row_id:
+                related["pfmea"].add(str(pf_row.get("pfmea_id", "")))
+        for cp_row in cp_rows:
+            if str(cp_row.get("process_step_id", "")) == row_id:
+                related["control_plan"].add(str(cp_row.get("control_plan_id", "")))
+        return {k: v for k, v in related.items() if v}
+
+    if table_key == "pfmea":
+        pf_row = pfmea_rows_by_id.get(row_id)
+        if pf_row is None:
+            return {}
+        step_id = str(pf_row.get("process_step_id", ""))
+        related = {}
+        if step_id:
+            related["process_flow"] = {step_id}
+        cp_ids: set[str] = set()
+        for cp_row in cp_rows:
+            if str(cp_row.get("pfmea_id", "")) == row_id:
+                cp_ids.add(str(cp_row.get("control_plan_id", "")))
+        if cp_ids:
+            related["control_plan"] = cp_ids
+        return related
+
+    if table_key == "control_plan":
+        cp_row = None
+        for row in cp_rows:
+            if str(row.get("control_plan_id", "")) == row_id:
+                cp_row = row
+                break
+        if cp_row is None:
+            return {}
+        pfmea_id = str(cp_row.get("pfmea_id", ""))
+        related = {}
+        if pfmea_id:
+            related["pfmea"] = {pfmea_id}
+            pf_row = pfmea_rows_by_id.get(pfmea_id)
+            if pf_row is not None:
+                step_id = str(pf_row.get("process_step_id", ""))
+                if step_id:
+                    related["process_flow"] = {step_id}
+        return related
+
+    return {}
+
+
+def _control_plan_rows(result: dict[str, Any]) -> list[dict[str, Any]]:
+    document = result.get("control_plan", {}) if isinstance(result, dict) else {}
+    rows = document.get("rows", []) if isinstance(document, dict) else []
+    return [row for row in rows if isinstance(row, dict)]
+
+
 def _process_step_lookup(result: dict[str, Any]) -> dict[str, dict[str, Any]]:
     document = result.get("process_flow", {}) if isinstance(result, dict) else {}
     rows = document.get("steps", []) if isinstance(document, dict) else []
@@ -1591,10 +1939,38 @@ def _copy_missing_fields(
             target[field] = copy.deepcopy(source[field])
 
 
+def _copy_alias_fields(
+    target: dict[str, Any],
+    mappings: tuple[tuple[str, ...], ...],
+) -> None:
+    for fields in mappings:
+        if not fields or target.get(fields[0]):
+            continue
+        value = _first_nonempty(*(target.get(field) for field in fields[1:]))
+        if value not in ("", None, [], {}):
+            target[fields[0]] = value
+
+
 def _first_nonempty(*values: Any) -> Any:
     for value in values:
         if value not in ("", None, [], {}):
             return copy.deepcopy(value)
+    return ""
+
+
+def _first_text_nonempty(*values: Any) -> str:
+    for value in values:
+        if value in ("", None, [], {}):
+            continue
+        if isinstance(value, list):
+            for item in value:
+                text = str(item).strip()
+                if text:
+                    return text
+            continue
+        text = str(value).strip()
+        if text:
+            return text
     return ""
 
 
@@ -1651,3 +2027,32 @@ def _effective_row_id(
     normalized: dict[str, Any],
 ) -> str:
     return str(row.get(META_ROW_ID) or normalized.get(spec.row_id_field) or "")
+
+
+# ---------------------------------------------------------------------------
+# V1.11 工作包 E：联动预览辅助
+# ---------------------------------------------------------------------------
+
+def build_temp_edit_patch(
+    rows_by_table: dict[str, list[dict[str, Any]]],
+) -> dict[str, Any]:
+    """从当前表格行数据构建临时 edit patch，用于联动预览。
+
+    与 ``table_rows_to_edit_patch`` 相同，但不会持久化。
+    """
+    return table_rows_to_edit_patch(rows_by_table)
+
+
+def try_preview_live_linkage(
+    before: dict[str, Any],
+    rows_by_table: dict[str, list[dict[str, Any]]],
+) -> dict:
+    """尝试预览联动影响；失败时返回空 dict（降级安全）。"""
+    patch = build_temp_edit_patch(rows_by_table)
+    if not patch.get("items"):
+        return {}
+    try:
+        from minos_core.live_linkage import preview_live_linkage_impacts
+        return preview_live_linkage_impacts(before, patch)
+    except (ImportError, Exception):
+        return {}

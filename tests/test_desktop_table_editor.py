@@ -61,10 +61,18 @@ def _result():
                 {
                     "pfmea_id": "PFMEA-P10-001",
                     "process_step_id": "P10",
+                    "structure_process_item": "制造过程",
+                    "function_process_item": "制造过程满足客户和产品要求",
+                    "optimization_action": "确认来料检验方法",
+                    "responsible_person": "IQC",
+                    "status": "待执行",
                     "process_item": "制造过程",
                     "process_step": "Incoming inspection",
                     "process_work_element": "Inspection bench",
                     "function_requirement": "Check material",
+                    "product_characteristic": "Material grade",
+                    "process_characteristic": "Inspection coverage",
+                    "special_characteristic_class": "SC",
                     "failure_mode": "Wrong material accepted",
                     "severity": 8,
                     "occurrence": 3,
@@ -89,6 +97,7 @@ def _result():
                     "control_plan_id": "CP-P10-001",
                     "process_step_id": "P10",
                     "pfmea_id": "PFMEA-P10-001",
+                    "characteristic_number": "P10-CH-01",
                     "specification": "2.00 +/- 0.10 mm",
                     "measurement_method": "Caliper check",
                     "sample_frequency": "Each lot",
@@ -194,14 +203,33 @@ class DesktopTableEditorTests(unittest.TestCase):
     def test_pfmea_model_displays_inherited_pfd_context(self):
         model = three_table_to_table_model(_result(), "pfmea")
 
+        self.assertLess(
+            model["columns"].index("structure_process_item"),
+            model["columns"].index("process_item"),
+        )
+        self.assertLess(
+            model["columns"].index("optimization_action"),
+            model["columns"].index("recommended_action"),
+        )
         self.assertIn("operation", model["columns"])
         self.assertIn("process_item", model["columns"])
+        self.assertIn("structure_process_item", model["columns"])
         self.assertIn("process_work_element", model["columns"])
+        self.assertIn("function_process_step", model["columns"])
         self.assertIn("function_requirement", model["columns"])
         self.assertIn("product_characteristics", model["columns"])
         self.assertIn("process_characteristics", model["columns"])
+        self.assertEqual(
+            model["column_labels"][model["columns"].index("structure_process_item")],
+            "结构过程项",
+        )
         self.assertEqual(model["rows"][0]["operation"], "Incoming inspection")
+        self.assertEqual(model["rows"][0]["structure_process_step"], "Incoming inspection")
+        self.assertEqual(model["rows"][0]["function_process_step"], "Check material")
         self.assertEqual(model["rows"][0]["function_requirement"], "Check material")
+        self.assertEqual(model["rows"][0]["optimization_action"], "确认来料检验方法")
+        self.assertEqual(model["rows"][0]["responsible_person"], "IQC")
+        self.assertEqual(model["rows"][0]["status"], "待执行")
         self.assertEqual(model["rows"][0]["product_characteristics"], ["Material grade"])
 
     def test_pfmea_model_refreshes_when_pfd_master_fields_change(self):
@@ -228,6 +256,20 @@ class DesktopTableEditorTests(unittest.TestCase):
         model = three_table_to_table_model(_result(), "control_plan")
 
         self.assertIn("pfmea_id", model["columns"])
+        self.assertLess(
+            model["columns"].index("process_name"),
+            model["columns"].index("failure_mode"),
+        )
+        self.assertLess(
+            model["columns"].index("specification_tolerance"),
+            model["columns"].index("specification"),
+        )
+        self.assertIn("process_name", model["columns"])
+        self.assertIn("characteristic_number", model["columns"])
+        self.assertIn("product_characteristic", model["columns"])
+        self.assertIn("process_characteristic", model["columns"])
+        self.assertIn("special_characteristic_class", model["columns"])
+        self.assertIn("specification_tolerance", model["columns"])
         self.assertIn("failure_mode", model["columns"])
         self.assertIn("product_process_characteristic", model["columns"])
         self.assertIn("measurement_method", model["columns"])
@@ -235,10 +277,71 @@ class DesktopTableEditorTests(unittest.TestCase):
         self.assertIn("reaction_plan", model["columns"])
         self.assertIn("gauges", model["columns"])
         self.assertEqual(model["column_labels"][model["columns"].index("pfmea_id")], "PFMEA 编号")
+        self.assertEqual(
+            model["column_labels"][model["columns"].index("specification_tolerance")],
+            "规格和公差",
+        )
+        self.assertEqual(model["rows"][0]["process_name"], "Incoming inspection")
+        self.assertEqual(model["rows"][0]["equipment"], "Inspection bench")
+        self.assertEqual(model["rows"][0]["characteristic_number"], "P10-CH-01")
+        self.assertEqual(model["rows"][0]["product_characteristic"], "Material grade")
+        self.assertEqual(model["rows"][0]["process_characteristic"], "Inspection coverage")
+        self.assertEqual(model["rows"][0]["special_characteristic_class"], "SC")
+        self.assertEqual(model["rows"][0]["specification_tolerance"], "2.00 +/- 0.10 mm")
         self.assertEqual(model["rows"][0]["failure_mode"], "Wrong material accepted")
         self.assertEqual(model["rows"][0]["product_process_characteristic"], ["Material grade"])
         self.assertEqual(model["rows"][0]["measurement_method"], "Caliper check")
         self.assertEqual(model["rows"][0]["gauges"], ["Caliper"])
+
+    def test_desktop_models_prefer_standard_fields_when_aliases_conflict(self):
+        result = _result()
+        result["process_flow"]["steps"][0].update(
+            {
+                "operation": "PFD 工序",
+                "process_function": "PFD 功能",
+                "equipment": "PFD 设备",
+                "product_characteristic": "PFD 产品特性",
+                "process_characteristic": "PFD 过程特性",
+            }
+        )
+        result["pfmea"]["rows"][0].update(
+            {
+                "structure_process_step": "PFMEA 标准结构步骤",
+                "function_process_step": "PFMEA 标准功能步骤",
+                "structure_work_element": "PFMEA 标准工作要素",
+                "responsible_person": "PFMEA 标准责任人",
+                "process_step": "旧 PFMEA 步骤",
+                "function_requirement": "旧 PFMEA 功能",
+                "process_work_element": "旧 PFMEA 工作要素",
+                "responsibility": "旧 PFMEA 责任人",
+            }
+        )
+        result["control_plan"]["rows"][0].update(
+            {
+                "process_name": "CP 标准工序",
+                "equipment": "CP 标准设备",
+                "product_characteristic": "CP 标准产品特性",
+                "process_characteristic": "CP 标准过程特性",
+                "specification_tolerance": "CP 标准规格",
+                "product_process_characteristic": "旧 CP 合并特性",
+                "specification": "旧 CP 规格",
+            }
+        )
+
+        pfmea_model = three_table_to_table_model(result, "pfmea")
+        cp_model = three_table_to_table_model(result, "control_plan")
+
+        pfmea_row = pfmea_model["rows"][0]
+        self.assertEqual(pfmea_row["structure_process_step"], "PFMEA 标准结构步骤")
+        self.assertEqual(pfmea_row["function_process_step"], "PFMEA 标准功能步骤")
+        self.assertEqual(pfmea_row["structure_work_element"], "PFMEA 标准工作要素")
+        self.assertEqual(pfmea_row["responsible_person"], "PFMEA 标准责任人")
+        cp_row = cp_model["rows"][0]
+        self.assertEqual(cp_row["process_name"], "CP 标准工序")
+        self.assertEqual(cp_row["equipment"], "CP 标准设备")
+        self.assertEqual(cp_row["product_characteristic"], "CP 标准产品特性")
+        self.assertEqual(cp_row["process_characteristic"], "CP 标准过程特性")
+        self.assertEqual(cp_row["specification_tolerance"], "CP 标准规格")
 
     def test_pfmea_and_control_plan_rows_hide_when_pfd_step_deleted(self):
         result = _result()
@@ -396,6 +499,30 @@ class DesktopTableEditorTests(unittest.TestCase):
         )
         self.assertFalse(automation_fix_suggestion_patch(row)["items"])
 
+    def test_automation_review_none_suggestion_does_not_generate_fix_patch(self):
+        result = _result_without_open_change_impacts()
+        result["quality_gate"] = {
+            "review_issues": [
+                {
+                    "issue_id": "RI-no-suggestion",
+                    "category": "人工确认",
+                    "message": "该问题只能人工判断。",
+                    "severity": "review",
+                    "target": "process_step:P10",
+                    "suggested_changes": None,
+                }
+            ]
+        }
+
+        review = automation_review_model(result)
+        row = next(item for item in review["rows"] if item["issue_id"] == "RI-no-suggestion")
+
+        self.assertEqual(
+            row["suggested_changes_display"],
+            "暂无可一键采纳的字段修改；请按预审说明人工确认或在对应表格中修改。",
+        )
+        self.assertFalse(automation_fix_suggestion_patch(row)["items"])
+
     def test_automation_review_expands_review_issue_to_concrete_row(self):
         result = _result_without_open_change_impacts()
         issue_id = "RI-ai-batch-blocker"
@@ -476,6 +603,7 @@ class DesktopTableEditorTests(unittest.TestCase):
     def test_action_management_model_flags_pending_and_filters_pfmea(self):
         result = _result()
         result["pfmea"]["rows"][0]["action_priority"] = "H"
+        result["pfmea"]["rows"][0]["optimization_action"] = ""
         result["pfmea"]["rows"][0]["recommended_action"] = ""
 
         model = action_management_model(result)
@@ -483,6 +611,27 @@ class DesktopTableEditorTests(unittest.TestCase):
 
         self.assertEqual(model["rows"][0]["status_display"], "待制定措施")
         self.assertEqual(filtered[0]["pfmea_id"], "PFMEA-P10-001")
+
+    def test_action_management_model_prefers_standard_pfmea_action_fields(self):
+        result = _result()
+        result["pfmea"]["rows"][0].update(
+            {
+                "action_priority": "H",
+                "optimization_action": "标准优化措施",
+                "responsible_person": "标准责任人",
+                "status": "标准状态",
+                "recommended_action": "",
+                "responsibility": "",
+                "action_status": "",
+            }
+        )
+
+        model = action_management_model(result)
+
+        self.assertFalse(model["rows"][0]["pending_action"])
+        self.assertEqual(model["rows"][0]["recommended_action"], "标准优化措施")
+        self.assertEqual(model["rows"][0]["responsibility"], "标准责任人")
+        self.assertEqual(model["rows"][0]["action_status"], "标准状态")
 
     def test_knowledge_and_change_models_build_metadata_patch_items(self):
         result = _result()

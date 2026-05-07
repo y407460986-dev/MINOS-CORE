@@ -39,6 +39,18 @@ def main(argv: list[str] | None = None) -> int:
         default="{}",
         help="Optional JSON object with part family or project context",
     )
+    analyze_drawing_parser.add_argument(
+        "--mode",
+        choices=("ocr_only", "vision_only", "hybrid"),
+        default="hybrid",
+        help="Drawing analysis mode; hybrid tries OCR before multimodal AI",
+    )
+    analyze_drawing_parser.add_argument(
+        "--ocr-engine",
+        choices=("auto", "pdf_text", "rapidocr"),
+        default="auto",
+        help="OCR engine for ocr_only/hybrid modes",
+    )
 
     generate_three_parser = subparsers.add_parser(
         "generate-three-tables",
@@ -60,6 +72,18 @@ def main(argv: list[str] | None = None) -> int:
         choices=("draft", "final"),
         default="draft",
         help="Export draft by default; final is blocked unless the quality gate allows it",
+    )
+    generate_three_parser.add_argument(
+        "--mode",
+        choices=("ocr_only", "vision_only", "hybrid"),
+        default="hybrid",
+        help="Drawing analysis mode; hybrid tries OCR before multimodal AI",
+    )
+    generate_three_parser.add_argument(
+        "--ocr-engine",
+        choices=("auto", "pdf_text", "rapidocr"),
+        default="auto",
+        help="OCR engine for ocr_only/hybrid modes",
     )
 
     demo_drawing_parser = subparsers.add_parser(
@@ -224,6 +248,8 @@ def main(argv: list[str] | None = None) -> int:
             args.output,
             args.pages_output_dir,
             args.context_json,
+            args.mode,
+            args.ocr_engine,
         )
     if args.command == "generate-three-tables":
         return _generate_three_tables(
@@ -232,6 +258,8 @@ def main(argv: list[str] | None = None) -> int:
             args.result_output,
             args.context_json,
             args.export_mode,
+            args.mode,
+            args.ocr_engine,
         )
     if args.command == "write-demo-drawing":
         return _write_demo_drawing(args.output)
@@ -294,19 +322,53 @@ def _analyze_drawing(
     output: str | None,
     pages_output_dir: str | None,
     context_json: str,
+    analysis_mode: str,
+    ocr_engine: str,
 ) -> int:
     from .adapters.multimodal import OpenAIMultimodalError, OpenAIResponsesMultimodalDrawingAnalyzer
     from .drawing_analysis import DrawingAnalysisError, analyze_drawing_pages
     from .drawing_input import DrawingInputError, load_drawing_source, render_drawing_pages
+    from .pipeline import (
+        _analyze_drawing_pages_for_mode,
+        _attach_analysis_metadata,
+        _effective_analysis_mode,
+        _effective_ocr_engine,
+    )
 
     context = _parse_context_json(context_json)
     try:
+        active_analysis_mode = _effective_analysis_mode(analysis_mode, context)
+        active_ocr_engine = _effective_ocr_engine(ocr_engine, context)
+        context["analysis_mode"] = active_analysis_mode
+        context["ocr_engine"] = active_ocr_engine
         source = load_drawing_source(drawing_input)
         pages = render_drawing_pages(source, pages_output_dir)
-        bundle = analyze_drawing_pages(
+        target_dir = (
+            Path(pages_output_dir)
+            if pages_output_dir
+            else Path(output).parent
+            if output
+            else Path(drawing_input).resolve().parent
+        )
+        bundle, warnings, analysis_source, errors = _analyze_drawing_pages_for_mode(
+            source,
             pages,
-            OpenAIResponsesMultimodalDrawingAnalyzer(),
+            target_dir,
             context,
+            analysis_mode=active_analysis_mode,
+            ocr_engine=active_ocr_engine,
+            ocr_adapter=None,
+            analyzer=None,
+            default_analyzer_factory=OpenAIResponsesMultimodalDrawingAnalyzer,
+            analyze_drawing_pages=analyze_drawing_pages,
+        )
+        _attach_analysis_metadata(
+            bundle,
+            analysis_mode=active_analysis_mode,
+            ocr_engine=active_ocr_engine,
+            analysis_source=analysis_source,
+            warnings=warnings,
+            errors=errors,
         )
     except (
         DrawingInputError,
@@ -314,6 +376,8 @@ def _analyze_drawing(
         OpenAIMultimodalError,
         FileNotFoundError,
         json.JSONDecodeError,
+        RuntimeError,
+        ValueError,
     ) as exc:
         print(f"图纸分析失败：{exc}")
         return 2
@@ -342,6 +406,8 @@ def _generate_three_tables(
     result_output: str | None,
     context_json: str,
     export_mode: str,
+    analysis_mode: str,
+    ocr_engine: str,
 ) -> int:
     from .adapters.multimodal import OpenAIMultimodalError
     from .drawing_analysis import DrawingAnalysisError
@@ -354,6 +420,8 @@ def _generate_three_tables(
             output_dir,
             context=_parse_context_json(context_json),
             export_mode=export_mode,
+            analysis_mode=analysis_mode,
+            ocr_engine=ocr_engine,
         )
     except (
         DrawingInputError,

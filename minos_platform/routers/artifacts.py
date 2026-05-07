@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from minos_platform import db
+from minos_platform import config, db
 from minos_platform.errors import NotFoundError
 from minos_platform.models import ArtifactSummary
 
@@ -39,12 +39,22 @@ async def download_artifact(
     if artifact is None:
         raise NotFoundError("artifact", artifact_id)
 
-    path = Path(artifact.file_path)
+    path = Path(artifact.file_path).resolve()
     if not path.exists():
         raise HTTPException(
             status_code=404,
             detail=f"Artifact file not found on disk: {artifact.file_path}",
         )
+
+    artifacts_root = config.get_artifacts_dir().resolve()
+    try:
+        path.relative_to(artifacts_root)
+    except ValueError:
+        raise HTTPException(
+            status_code=403,
+            detail="Artifact path is outside the permitted artifacts directory",
+        )
+
     return FileResponse(
         path=path,
         filename=path.name,

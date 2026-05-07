@@ -87,7 +87,7 @@ async def generate_review_template(
         project.status = "review_template_ready"
         await session.commit()
 
-    except Exception as exc:  # noqa: BLE001
+    except (OSError, ValueError, TypeError, RuntimeError, KeyError, AttributeError) as exc:
         api_err = map_core_error(exc)
         raise HTTPException(status_code=api_err.status_code, detail=api_err.message) from exc
 

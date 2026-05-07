@@ -113,7 +113,7 @@ async def apply_review(
             apply_run.status = "blocked"
             apply_run.error_message = "Review applied but export gate did not clear"
 
-    except Exception as exc:  # noqa: BLE001
+    except (OSError, ValueError, TypeError, RuntimeError, KeyError, AttributeError) as exc:
         apply_run.status = "blocked"
         apply_run.error_message = str(exc)
         project.status = "blocked"

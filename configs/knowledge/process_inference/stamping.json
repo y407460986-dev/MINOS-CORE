@@ -1,0 +1,220 @@
+{
+  "schema_version": "minos-core.process_inference.v1",
+  "family_key": "stamping",
+  "family_name": "冲压件",
+  "description": "金属板材通过冲压模具在压力机上加工成形的零件。典型特征：平板/弯曲/拉深形状、冲孔、切边、翻边、筋条。材料以冷轧/热轧钢板为主，料厚0.5-6mm。",
+  "drawing_recognition_clues": {
+    "typical_shapes": ["平板件", "弯曲件", "拉深件", "覆盖件", "支架类", "加强件"],
+    "typical_materials": ["SPCC", "SPHC", "DC01", "DC04", "SAPH370", "SAPH440", "Q235", "45钢", "SUS304"],
+    "typical_thickness": "0.5-6mm",
+    "typical_features": ["冲孔", "翻边", "翻孔", "压筋", "切口", "百叶窗", "沉孔", "凸包", "压印"],
+    "surface_requirements": ["无毛刺", "无划伤", "无开裂", "无起皱", "无压印"],
+    "tolerance_level": "IT12-IT14 (普通冲压), IT9-IT11 (精冲)"
+  },
+  "process_flow_variants": {
+    "simple_flat_part": {
+      "description": "简单平板冲压件（如垫片、挡圈）",
+      "process_sequence": [
+        { "seq": 10, "operation": "来料检验", "equipment": "检具/量具", "key_check": "材质、料厚、表面质量" },
+        { "seq": 20, "operation": "落料冲孔", "equipment": "开式压力机 (60-160T)", "key_check": "外形尺寸、孔位置度、毛刺高度" },
+        { "seq": 30, "operation": "去毛刺", "equipment": "振动光饰机/砂带机", "key_check": "毛刺去除干净、无碰伤" },
+        { "seq": 40, "operation": "表面处理", "equipment": "电镀/磷化/涂装线", "key_check": "膜厚、附着力、盐雾" },
+        { "seq": 50, "operation": "完工检验", "equipment": "检具/CMM/通止规", "key_check": "全尺寸、外观、性能" },
+        { "seq": 60, "operation": "包装入库", "equipment": "包装台/打码机", "key_check": "数量、标识、防锈" }
+      ]
+    },
+    "bending_part": {
+      "description": "弯曲成形件（如支架、托架、铰链页板）",
+      "process_sequence": [
+        { "seq": 10, "operation": "来料检验", "equipment": "检具/量具", "key_check": "材质、料厚、表面质量" },
+        { "seq": 20, "operation": "下料", "equipment": "剪板机", "key_check": "下料尺寸、对角线" },
+        { "seq": 30, "operation": "落料冲孔", "equipment": "压力机 (100-250T)", "key_check": "冲孔位置度、毛刺" },
+        { "seq": 40, "operation": "弯曲成形", "equipment": "折弯机/压力机+弯曲模", "key_check": "弯曲角度、回弹量、R角" },
+        { "seq": 50, "operation": "去毛刺", "equipment": "振动光饰机/砂带机", "key_check": "毛刺去除" },
+        { "seq": 60, "operation": "表面处理", "equipment": "电镀/磷化/涂装线", "key_check": "膜厚、附着力、盐雾" },
+        { "seq": 70, "operation": "完工检验", "equipment": "检具/CMM/角度尺", "key_check": "全尺寸、角度、外观" },
+        { "seq": 80, "operation": "包装入库", "equipment": "包装台/打码机", "key_check": "数量、标识、防锈" }
+      ]
+    },
+    "drawing_part": {
+      "description": "拉深成形件（如壳体、杯形件、覆盖件）",
+      "process_sequence": [
+        { "seq": 10, "operation": "来料检验", "equipment": "检具/量具", "key_check": "材质、料厚、n值/r值(拉深性能)" },
+        { "seq": 20, "operation": "开卷落料", "equipment": "开卷线+落料压力机", "key_check": "坯料尺寸、排样" },
+        { "seq": 30, "operation": "拉延成形", "equipment": "液压机/双动压力机 (400-2000T)", "key_check": "无开裂/起皱、减薄率、型面精度" },
+        { "seq": 40, "operation": "切边", "equipment": "压力机+切边模", "key_check": "切边线轮廓度、毛刺" },
+        { "seq": 50, "operation": "冲孔", "equipment": "压力机+冲孔模", "key_check": "孔位置度、孔径" },
+        { "seq": 60, "operation": "翻边/整形", "equipment": "压力机+翻边模/整形模", "key_check": "翻边高度、角度、无开裂" },
+        { "seq": 70, "operation": "去毛刺/清洗", "equipment": "清洗机/光饰机", "key_check": "清洁度、无毛刺" },
+        { "seq": 80, "operation": "表面处理", "equipment": "电泳/涂装/电镀线", "key_check": "膜厚、附着力、盐雾" },
+        { "seq": 90, "operation": "完工检验", "equipment": "检具/CMM/油石打磨", "key_check": "全尺寸、型面、外观、AUDIT" },
+        { "seq": 100, "operation": "包装入库", "equipment": "包装台/打码机", "key_check": "数量、标识、防锈" }
+      ]
+    },
+    "progressive_die_part": {
+      "description": "级进模（连续模）冲压件——多工序集成在一副模具中高效生产",
+      "process_sequence": [
+        { "seq": 10, "operation": "来料检验", "equipment": "检具/量具", "key_check": "材质、料厚、卷料宽度" },
+        { "seq": 20, "operation": "开卷校平", "equipment": "开卷校平机", "key_check": "板形、表面清洁" },
+        { "seq": 30, "operation": "级进模冲压", "equipment": "精密压力机 (100-400T)", "key_check": "各工位成形状态、步距精度、送料顺畅" },
+        { "seq": 40, "operation": "去毛刺清洗", "equipment": "超声波清洗/碳氢清洗", "key_check": "清洁度、无毛刺" },
+        { "seq": 50, "operation": "表面处理", "equipment": "按需(电镀/磷化/达克罗)", "key_check": "膜厚、附着力" },
+        { "seq": 60, "operation": "完工检验", "equipment": "检具/视觉检测/CMM", "key_check": "全尺寸、外观" },
+        { "seq": 70, "operation": "包装入库", "equipment": "包装台/打码机", "key_check": "数量、标识" }
+      ]
+    }
+  },
+  "feature_to_operation": {
+    "flat_contour": { "operation": "落料", "equipment": "压力机+落料模", "note": "封闭轮廓冲切" },
+    "hole_round": { "operation": "冲孔", "equipment": "压力机+冲孔模", "note": "凸凹模间隙为料厚6-12%" },
+    "hole_shaped": { "operation": "冲孔(异形)", "equipment": "压力机+异形冲孔模", "note": "考虑冲头强度" },
+    "bend_single": { "operation": "弯曲", "equipment": "折弯机/压力机+弯曲模", "note": "考虑回弹补偿" },
+    "bend_multiple": { "operation": "多道弯曲", "equipment": "压力机+弯曲模/级进模", "note": "弯曲顺序影响精度" },
+    "deep_draw": { "operation": "拉延", "equipment": "双动压力机/液压机", "note": "压边力+拉延筋控制" },
+    "flange_edge": { "operation": "翻边", "equipment": "压力机+翻边模", "note": "预冲孔→翻边，拉伸率计算" },
+    "flange_hole": { "operation": "翻孔", "equipment": "压力机+翻孔冲头", "note": "用于攻丝底孔加强" },
+    "bead_rib": { "operation": "压筋", "equipment": "压力机+压筋模", "note": "增加刚度" },
+    "louver": { "operation": "冲百叶窗", "equipment": "压力机+百叶窗模", "note": "通风散热" },
+    "emboss": { "operation": "凸包/压印", "equipment": "压力机+成形模", "note": "局部成形" },
+    "trim_edge": { "operation": "切边", "equipment": "压力机+切边模", "note": "拉延后修边" },
+    "notch": { "operation": "切口", "equipment": "压力机+切口模", "note": "非封闭轮廓冲切" },
+    "restrike": { "operation": "整形", "equipment": "压力机+整形模", "note": "提高尺寸精度、减小R角" },
+    "thread_hole": { "operation": "攻丝", "equipment": "攻丝机/钻攻中心", "note": "翻孔后攻丝" },
+    "deburr": { "operation": "去毛刺", "equipment": "振动光饰/砂带/热爆", "note": "去除冲裁毛刺" },
+    "surface_coating": { "operation": "表面处理", "equipment": "电镀/磷化/电泳/达克罗", "note": "按客户要求" }
+  },
+  "engineering_parameters": {
+    "tool_materials": {
+      "bending_punch": { "material": "Cr12MoV", "hardness": "HRC 58-62", "finish": "Ra <0.4μm" },
+      "flanging_punch": { "material": "W18Cr4V (高速钢)", "hardness": "HRC 62-65" },
+      "blanking_punch_die": { "material": "SKD11/DC53/Cr12MoV", "hardness": "HRC 58-62" },
+      "die_wear_blocks": { "material": "YG15 硬质合金", "note": "螺栓固定可更换" },
+      "die_shoes": { "material": "HT300 铸钢/45钢", "note": "四导柱结构保证刚性" },
+      "drawing_die": { "material": "TD钢/硬质合金/球墨铸铁", "note": "拉深模需高耐磨+低摩擦" },
+      "fine_blanking_punch_coating": { "material": "PVD涂层(TiN/TiAlN)", "note": "精冲凸模标配涂层延长寿命" }
+    },
+    "die_design_parameters": {
+      "punch_die_clearance": "料厚5-10% (普通冲裁), 料厚1% (精冲), 料厚6-12% (冲孔)",
+      "bend_springback_compensation": "弯角处负间隙0.05-0.1mm, 过弯法或coining补偿",
+      "flange_punch_gap": "1.05-1.1 × 料厚",
+      "pre_pierce_hole_diameter": "d₀ = d - 2h (翻边孔预冲孔, d=成品径, h=翻边高度)",
+      "pilot_clearance": "0.005-0.01mm (导正销与导正孔)",
+      "strip_guide_clearance": "0.1-0.2mm (导料板与条料)",
+      "step_feed_accuracy": "±0.01mm (伺服送料+导正销补偿)",
+      "min_bend_radius": "≥0.5t (低碳钢), ≥1.5t (高强钢/消除各向异性开裂)",
+      "draw_bead_radius": "凹模圆角≈4×料厚, 凸模圆角≤凹模圆角 (FEA设计准则)",
+      "max_wall_thinning": "≤13% (FEA验证阈值, 超过需增加工序或退火)",
+      "draw_ratio_initial": "前期工位需更大拉深比以控制减薄 (FEA验证)"
+    },
+    "force_formulas": {
+      "blanking_force": "F = K × L × t × τ (K=1.3, L=剪切周长, t=料厚, τ=抗剪强度≈300MPa低碳钢)",
+      "bending_force_free": "Fz = 0.7 × b × t² × σb / (r + t) (b=弯曲线长度, σb=抗拉强度, r=弯曲半径)",
+      "stripping_force": "F卸 ≈ 0.03-0.06 × F冲裁 (厚料取0.03, 薄料取0.06)",
+      "ejection_force": "F推 ≈ 0.04-0.07 × F冲裁",
+      "total_press_capacity": "F总 = F冲裁 + F卸 + F推 + F弯曲 + 20-30%余量",
+      "drawing_force_table": {
+        "aluminum": { "39%": "88kN", "43%": "101kN", "47%": "113kN", "50%": "126kN" },
+        "brass": { "39%": "117kN", "43%": "134kN", "47%": "151kN", "50%": "168kN" },
+        "cold_rolled_steel": { "39%": "127kN", "43%": "145kN", "47%": "163kN", "50%": "181kN" },
+        "stainless_steel": { "39%": "166kN", "43%": "190kN", "47%": "214kN", "50%": "238kN" }
+      }
+    },
+    "bending_k_factor": {
+      "description": "K因子=中性轴距内表面距离/料厚。影响弯曲展开尺寸计算。",
+      "typical_range": "0.3-0.5",
+      "air_bending_formula": "K = log(min(100, max(20R,T)/T)) / (2×log(100))",
+      "bend_allowance": "BA = A × (π/180) × (R + K×T) (A=弯曲角度°)",
+      "bend_deduction_90": "BD = R×(2-A) + T×(2-K×A)",
+      "air_bending_accuracy": "±0.5° (V开口宽=6T~12T)",
+      "three_point_bending_accuracy": "±0.25° (伺服调节,高端应用)"
+    },
+    "production_rates": {
+      "progressive_die": "800+ 件/分钟 (简单件), 40-200 SPM (汽车结构件)",
+      "transfer_press": "比级进模慢, 但可做深拉深(深度>直径)和需脱离带料的工艺",
+      "fine_blanking": "略慢于普通冲裁, 1000-20000件起量(经济批量)",
+      "manual_single_die": "适合小批量试制"
+    },
+    "quality_guidelines": {
+      "wear_block_inspection": "每50000冲次检查, 磨损>0.02mm更换",
+      "bend_punch_inspection": "每20000冲次CMM检查, 偏差>0.03mm返修",
+      "burr_height_control": "非喷涂件≤0.07mm, 喷涂件基材≤0.05mm, 精冲件可≤0.01mm",
+      "burr_indicator": "毛刺高度是判断模具磨损的重要指标 (Blanking and piercing)",
+      "die_roll_description": "冲裁时材料先被压缩产生die roll(圆角), 再剪切~10%料厚, 最后断裂产生毛刺",
+      "springback_mitigation": "FEA预测→过弯补偿/coining/底压法, 神经网络预测(ROM-AI)",
+      "simulation_tools": "AutoForm/DYNAFORM/PAM-STAMP, FEA非线性分析预测开裂/起皱/回弹/减薄"
+    },
+    "lubrication": {
+      "types": ["植物/矿物油基", "动物脂肪", "石墨基", "肥皂/丙烯酸干膜", "聚合物合成润滑剂(无油,最新技术)"],
+      "deep_drawing": "重负荷乳化液、磷酸盐、白铅、蜡膜",
+      "trend": "水基合成润滑剂(环保+易清洗)替代传统油基"
+    }
+  },
+  "feature_to_operation_extended": {
+    "lance": { "operation": "冲切弯(Lancing)", "equipment": "压力机+lancing模", "note": "冲切+弯曲一步完成,用于tab/vent/louver,不需去除材料" },
+    "perforate": { "operation": "密集冲孔(Perforating)", "equipment": "压力机+多冲头模", "note": "大量密集小孔一次冲出" },
+    "nibble": { "operation": "步冲(Nibbling)", "equipment": "步冲机(300-900次/分)", "note": "连续重叠切口形成复杂轮廓,适合无专用模具的小批量" },
+    "shave": { "operation": "修边(Shaving)", "equipment": "压力机+修边模", "note": "精修已落料件边缘,精度可达±0.025mm,用于钟表/仪表零件" },
+    "fine_blank": { "operation": "精冲(Fine Blanking)", "equipment": "精冲压力机(三动)", "note": "间隙≈1%料厚,无断裂带,公差±0.0076-0.05mm,PVD涂层凸模" },
+    "coin_flat": { "operation": "精压/压印(Coining)", "equipment": "压力机+coining模(5-30倍弯曲力)", "note": "≤30%料厚,回弹几乎为零,两面可不同特征" },
+    "iron": { "operation": "变薄拉深(Ironing)", "equipment": "压力机+变薄模", "note": "≤30%料厚减薄,用于饮料罐/弹壳" },
+    "neck": { "operation": "缩口(Necking)", "equipment": "压力机+缩口模", "note": "管件端口缩径" },
+    "bulge": { "operation": "胀形(Bulging)", "equipment": "压力机+胀形模/液压胀形", "note": "管件中部直径扩大" },
+    "cold_head": { "operation": "冷镦(Cold Heading)", "equipment": "冷镦机", "note": "一端镦粗形成圆柱膨出部,用于铰链轴孔" },
+    "heat_treat": { "operation": "热处理", "equipment": "退火炉/调质炉", "note": "工序间退火恢复塑性,最终调质提高强度" },
+    "two_shot_mold": { "operation": "二色注塑(Two-Shot)", "equipment": "二色注塑机+旋转模", "note": "2种树脂同机注塑,化学结合力强,>10000件适用" },
+    "insert_mold": { "operation": "嵌件注塑(Insert Molding)", "equipment": "注塑机+嵌件放置", "note": "金属嵌件放入模内注塑包覆,中小批量适用" },
+    "hot_runner_mold": { "operation": "热流道注塑", "equipment": "注塑机+热流道模", "note": "防树脂过早冷却堵浇口,无冷流道废料" }
+  },
+  "process_flow_variants_extended": {
+    "fine_blanking_part": {
+      "description": "精冲件——高精度无断裂带冲裁,公差可达±0.01mm级",
+      "process_sequence": [
+        { "seq": 10, "operation": "来料检验", "equipment": "检具/量具", "key_check": "材质、料厚(0.5-19mm)、表面" },
+        { "seq": 20, "operation": "精冲(三动:冲裁+压边+反压)", "equipment": "精冲压力机", "key_check": "间隙≈1%料厚, 无断裂带, 平面度高" },
+        { "seq": 30, "operation": "去毛刺/清洗", "equipment": "清洗机", "key_check": "边缘质量" },
+        { "seq": 40, "operation": "表面处理", "equipment": "按需", "key_check": "按客户标准" },
+        { "seq": 50, "operation": "完工检验", "equipment": "CMM/轮廓仪", "key_check": "公差±0.0076-0.05mm" }
+      ]
+    },
+    "forged_part": {
+      "description": "锻造成形件——丸钢棒或钢坯热锻,强度远超冲压件,用于铰链等高载荷件",
+      "process_sequence": [
+        { "seq": 10, "operation": "来料检验", "equipment": "光谱仪", "key_check": "钢棒材质/直径" },
+        { "seq": 20, "operation": "加热", "equipment": "中频感应炉", "key_check": "950-1350°C" },
+        { "seq": 30, "operation": "热锻成形+切边", "equipment": "热模锻压力机", "key_check": "无折叠/裂纹" },
+        { "seq": 40, "operation": "热处理", "equipment": "调质炉", "key_check": "硬度/金相" },
+        { "seq": 50, "operation": "抛丸清洗", "equipment": "抛丸机", "key_check": "表面清洁" },
+        { "seq": 60, "operation": "机加工+表面处理", "equipment": "CNC+涂装线", "key_check": "安装面精度" }
+      ]
+    },
+    "overmolded_metal_plastic_part": {
+      "description": "金属嵌件包塑件——金属骨架注塑包覆,兼具强度与表面功能",
+      "process_sequence": [
+        { "seq": 10, "operation": "金属嵌件冲压/机加工", "equipment": "压力机/CNC", "key_check": "嵌件尺寸、去毛刺" },
+        { "seq": 20, "operation": "嵌件表面处理", "equipment": "磷化/喷砂/底涂", "key_check": "增加塑料结合力" },
+        { "seq": 30, "operation": "1次射出(结构层)", "equipment": "注塑机(PA66+GF等)", "key_check": "包覆完整" },
+        { "seq": 40, "operation": "2次射出(功能层,可选)", "equipment": "二色注塑机(POM/TPE等)", "key_check": "表面功能层均匀" },
+        { "seq": 50, "operation": "去飞边检验", "equipment": "视觉检测", "key_check": "无缩痕/气泡/剥离" }
+      ]
+    }
+  },
+  "references": [
+    {"title": "冲压工艺与模具设计", "url": "https://wenku.baidu.com/", "type": "textbook"},
+    {"title": "汽车门铰链座冲压工艺改进及级进模设计", "url": "https://www.mmsonline.com.cn/info/121082.shtml", "type": "article"},
+    {"title": "CN104438598A - 一种新型轻型卡车车门铰链支架加工工艺", "url": "https://patents.google.com/patent/CN104438598A/zh", "type": "patent"},
+    {"title": "冲压外覆盖件生产过程的质量控制", "url": "http://chinaforge.com.cn/news/show1_4538.html", "type": "article"},
+    {"title": "冲压件常见缺陷及措施", "url": "http://www.1cae.com/a/autoform/51/tech-8282.htm", "type": "article"},
+    {"title": "Wikipedia - Progressive stamping", "url": "https://en.wikipedia.org/wiki/Progressive_stamping", "type": "encyclopedia"},
+    {"title": "Wikipedia - Stamping (metalworking)", "url": "https://en.wikipedia.org/wiki/Stamping_(metalworking)", "type": "encyclopedia"},
+    {"title": "Wikipedia - Deep drawing", "url": "https://en.wikipedia.org/wiki/Deep_drawing", "type": "encyclopedia"},
+    {"title": "Wikipedia - Die (manufacturing)", "url": "https://en.wikipedia.org/wiki/Die_(manufacturing)", "type": "encyclopedia"},
+    {"title": "Wikipedia - Bending (metalworking)", "url": "https://en.wikipedia.org/wiki/Bending_(metalworking)", "type": "encyclopedia"},
+    {"title": "Wikipedia - Blanking and piercing", "url": "https://en.wikipedia.org/wiki/Blanking_and_piercing", "type": "encyclopedia"},
+    {"title": "R&D Update: Sequence design for progressive dies (The Fabricator)", "url": "https://www.thefabricator.com/thefabricator/article/bending/r-d-update-sequence-design-for-progressive-dies", "type": "article"},
+    {"title": "Principles for Stamping Process Sequencing (HT Tool)", "url": "https://www.httool-die.com/news/principles-for-stamping-process-sequencing-85173751.html", "type": "article"},
+    {"title": "US 20060021414 - Progressive stamping die with coining biasing mechanism", "url": "https://www.sumobrain.com/patents/usapp/Progressive-stamping-die/20060021414.html", "type": "patent"},
+    {"title": "GB/T 30572-2014 精密冲裁件 工艺编制原则", "url": "https://www.bzchaxun.com/view/8061061005000000.html", "type": "national_standard"},
+    {"title": "GB/T 15055-2021 冲压件未注公差尺寸极限偏差", "url": "https://m.antpedia.com/standard/1185222375-10.html", "type": "national_standard"},
+    {"title": "Kalpakjian & Schmid, Manufacturing Engineering and Technology, 5th ed.", "url": "https://en.wikipedia.org/wiki/Progressive_stamping", "type": "textbook"}
+  ]
+}

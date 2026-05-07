@@ -121,16 +121,18 @@ python -m minos_core.cli audit --input tests\fixtures\apqp_chain
 python -m minos_core.cli export --input tests\fixtures\apqp_chain --output out.xlsx
 ```
 
-## Windows 桌面业务闭环 MVP
+## Tauri 桌面工作台
 
-桌面端作为可选依赖提供，不影响 core 和 platform 的默认测试环境：
+桌面主界面现在只有 `apps/desktop-tauri` 这条主线，透过本地 sidecar API 和 core 服务层协作，不再保留 PySide/Qt 主界面。
 
 ```powershell
-pip install -e ".[desktop]"
-minos-desktop
+cd apps/desktop-tauri
+npm run build
 ```
 
-当前桌面端包含：项目、图纸导入、AI 识别结果、PFD 草案、PFMEA 草案、CP 草案、人工复核、导出、设置。桌面端通过 `minos_desktop/services.py` 调用 `generate_three_tables_from_drawing(...)`，不把图纸识别、质量门和导出逻辑写进 UI。
+当前桌面端包含：项目、图纸导入、AI 识别结果、PFD 草案、PFMEA 草案、CP 草案、人工复核、导出、设置。Tauri UI 通过 `minos_desktop/api` sidecar 启动链式确认流程：先做图纸识别并由 AI 推理 PFD，人工确认 PFD 后再推理 PFMEA，人工确认 PFMEA 后再推理 CP。UI 不把图纸识别、质量门和导出逻辑写进前端。
+
+桌面端兼容旧接口 `POST /api/projects/{id}/runs`，但它现在也会进入链式确认流程；`POST /api/projects/{id}/chain-runs` 是显式链式入口。Tauri 前端不再导出旧的一次性生成 client。
 
 桌面端默认使用 SQLite 数据库：
 
@@ -142,17 +144,15 @@ out/desktop/minos_desktop.sqlite3
 
 - `DesktopSettingsStore`：管理 AI 配置状态和默认输出目录；设置页不显示、不保存明文 API key。
 - `DesktopProjectStore`：创建和更新桌面项目。
-- `DesktopRunService`：后台运行 core pipeline，保存 run 记录和导出记录。
+- `DesktopRunService`：后台运行图纸识别、链式 PFD/PFMEA/CP 推理、编辑保存和导出服务，保存 run 记录和导出记录。
 - `DesktopRunState`、`DesktopRunRecord`、`DesktopExportRecord`：记录运行状态、运行结果和导出产物。
 
-Qt UI 通过服务层刷新 AI/PFD/PFMEA/CP/复核/导出页面。运行失败时，桌面端会保留原始错误、原因判断和三种处理方案，且包含“放弃任务”。
-
-如果没有安装 PySide6，`minos-desktop` 会明确提示安装 `.[desktop]`，不会影响命令行和测试。
+Tauri UI 通过服务层刷新 AI/PFD/PFMEA/CP/复核/导出页面。链式生成不会在 PFD、PFMEA 或 CP 推理失败时静默回退到旧模板；运行失败时，桌面端会保留原始错误、原因判断和三种处理方案，且包含“放弃任务”。
 
 桌面端测试：
 
 ```powershell
-python -m unittest tests.test_desktop_shell tests.test_qt_app_helpers -v
+python -m pytest tests/test_llm_text_responses.py tests/test_desktop_shell.py tests/test_desktop_undo.py -q
 ```
 
 ## 下一阶段：真实桌面试跑与交付验收
@@ -174,12 +174,12 @@ python -m minos_core.cli ai-config
 python -m minos_core.cli write-demo-drawing --output out\desktop_acceptance\safe_demo_drawing.png
 python -m minos_core.cli generate-three-tables --input out\desktop_acceptance\safe_demo_drawing.png --output-dir out\desktop_acceptance\cli_smoke
 python -m minos_core.cli accept-three-tables --result out\desktop_acceptance\cli_smoke\three_table_generation_result.json
-python -m minos_desktop.cli --smoke --output-dir out\desktop_acceptance\preflight --db-path out\desktop_acceptance\preflight\minos_desktop.sqlite3
+python -m minos_desktop.api.cli --db-path out\desktop_acceptance\api\minos_desktop.sqlite3 --output-dir out\desktop_acceptance\api
 python -m unittest discover -s tests -v
 python -m pytest tests/platform -q
 ```
 
-`write-demo-drawing` 生成的是合成 PNG，只用于验收链路；`accept-three-tables` 会检查结果 JSON、manifest、AI evidence refs、PFD/PFMEA/CP 内容和四个 xlsx 的 OpenXML zip 基础结构。它能作为交付前体检，但不等同于真实 Excel 自动打开验证。真实打开桌面 UI 的人工验收仍通过 `minos-desktop` 完成。
+`write-demo-drawing` 生成的是合成 PNG，只用于验收链路；`accept-three-tables` 会检查结果 JSON、manifest、AI evidence refs、PFD/PFMEA/CP 内容和四个 xlsx 的 OpenXML zip 基础结构。它能作为交付前体检，但不等同于真实 Excel 自动打开验证。真实打开桌面 UI 的人工验收通过 `apps/desktop-tauri` 完成。
 
 ## Demo input package CLI 端到端流程
 

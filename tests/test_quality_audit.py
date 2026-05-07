@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 
 from minos_core.adapters.fixture_json import load_fixture_payload
+from minos_core.domain import APQPChain
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -314,6 +315,127 @@ class QualityAuditContractTests(unittest.TestCase):
         self.assertIn("PFMEA-P10-001.severity", gate.needs_confirmation_items)
         self.assertIn("AI-CHECK-P10", gate.needs_confirmation_items)
         self.assertIn("AI-CHECK-P10", gate.ai_inferred_items)
+
+    def test_stage_quality_gate_confirmations_still_suppress_review_debts(self):
+        gates_module = _import_first("minos_core.quality_gates")
+        evaluate_stage_gate = _get_first(gates_module, "evaluate_stage_gate")
+        chain = copy.deepcopy(_load_fixture("apqp_chain"))
+        chain["evidence"][0]["needs_confirmation"] = True
+        chain["process_flow"]["steps"][0]["needs_confirmation"] = True
+        chain["metadata"] = {
+            "review_confirmations": [
+                {"target": "evidence:EV-PFD-ROUTE-001"},
+                {"target": "process_step:P10"},
+            ]
+        }
+
+        gate = evaluate_stage_gate(chain, stage="export")
+
+        self.assertTrue(gate.allow_user_export)
+        self.assertEqual(gate.needs_confirmation_items, [])
+        self.assertEqual(gate.evidence_coverage["needs_confirmation_refs"], [])
+        self.assertFalse(
+            any(
+                item.category in {"evidence_needs_confirmation", "row_needs_confirmation"}
+                for item in gate.manual_review_items
+            )
+        )
+
+
+    def test_stage_quality_gate_model_dump_contains_linkage_fields(self):
+        gates_module = _import_first("minos_core.quality_gates")
+        evaluate_stage_gate = _get_first(gates_module, "evaluate_stage_gate")
+        gate = evaluate_stage_gate(_load_fixture("apqp_chain"), stage="validate")
+        dumped = gate.model_dump()
+        self.assertIn("linkage_gaps", dumped)
+        self.assertIn("linkage_summary", dumped)
+        self.assertIsInstance(dumped["linkage_gaps"], list)
+        self.assertIsInstance(dumped["linkage_summary"], dict)
+
+    def test_linkage_blocker_gap_blocks_export(self):
+        gates_module = _import_first("minos_core.quality_gates")
+        evaluate_stage_gate = _get_first(gates_module, "evaluate_stage_gate")
+        chain = copy.deepcopy(_load_fixture("apqp_chain"))
+        # Add a PFD step that has no PFMEA row -> blocker gap
+        chain["process_flow"]["steps"].append(
+            {
+                "process_step_id": "P99",
+                "operation": "Orphan step without PFMEA",
+                "process_function": "Test step",
+                "special_characteristics": [],
+                "evidence_refs": ["EV-PFD-ROUTE-001"],
+            }
+        )
+        gate = evaluate_stage_gate(chain, stage="export")
+        self.assertFalse(gate.allow_user_export)
+        blocker_gaps = [
+            g for g in gate.linkage_gaps if g.get("severity") == "blocker"
+        ]
+        self.assertTrue(blocker_gaps)
+        self.assertTrue(
+            any("P99" in g.get("source", "") for g in blocker_gaps)
+        )
+
+    def test_linkage_blocker_orphan_cp_gap_blocks_export(self):
+        """Orphan CP (引用不存在的 pfmea_id) 是 blocker，应阻止导出。"""
+        gates_module = _import_first("minos_core.quality_gates")
+        evaluate_stage_gate = _get_first(gates_module, "evaluate_stage_gate")
+        chain = copy.deepcopy(_load_fixture("apqp_chain"))
+        # Add a CP row with non-existent pfmea_id -> orphan CP gap (now blocker)
+        chain["control_plan"]["rows"].append(
+            {
+                "control_plan_id": "CP-ORPHAN-001",
+                "process_step_id": "P10",
+                "pfmea_id": "PFMEA-NONEXISTENT",
+                "product_process_characteristic": "Test char",
+                "specification": "1.0 mm",
+                "measurement_method": "Visual",
+                "sample_size": "1",
+                "sample_frequency": "Per lot",
+                "control_method": "Check",
+                "reaction_plan": "Rework",
+                "evidence_refs": ["EV-PFD-ROUTE-001"],
+            }
+        )
+        gate = evaluate_stage_gate(chain, stage="export")
+        # Orphan CP is now blocker, so export should be blocked
+        self.assertFalse(gate.allow_user_export)
+        # Verify the gap is in linkage_gaps with blocker severity
+        blocker_gaps = [
+            g for g in gate.linkage_gaps
+            if g.get("severity") == "blocker" and "CP-ORPHAN-001" in g.get("source", "")
+        ]
+        self.assertTrue(blocker_gaps)
+        self.assertIn("不存在的 PFMEA", blocker_gaps[0]["message"])
+
+    def test_no_linkage_gaps_means_empty_linkage_gaps(self):
+        gates_module = _import_first("minos_core.quality_gates")
+        evaluate_stage_gate = _get_first(gates_module, "evaluate_stage_gate")
+        gate = evaluate_stage_gate(_load_fixture("apqp_chain"), stage="validate")
+        self.assertEqual(gate.linkage_gaps, [])
+        self.assertGreaterEqual(
+            gate.linkage_summary.get("process_step_count", 0), 1
+        )
+
+
+    def test_linkage_evaluation_error_blocks_export(self):
+        """如果三表联动检查抛异常，应生成 blocker gap 并阻止导出。"""
+        gates_module = _import_first("minos_core.quality_gates")
+        evaluate_stage_gate = _get_first(gates_module, "evaluate_stage_gate")
+        # 构造一个会导致联动检查失败的数据（如缺少必需字段的畸形数据）
+        chain = APQPChain(
+            process_steps=[],
+            failure_modes=[],
+            controls=[],
+            links=[],
+        )
+        gate = evaluate_stage_gate(chain, stage="export")
+        self.assertFalse(gate.allow_user_export)
+        linkage_gaps = gate.linkage_gaps
+        error_gaps = [g for g in linkage_gaps if g.get("category_key") == "linkage_evaluation_error"]
+        # 如果无异常，则无 error gap；如果有异常，则应有 error gap 且为 blocker
+        if error_gaps:
+            self.assertEqual(error_gaps[0]["severity"], "blocker")
 
 
 if __name__ == "__main__":

@@ -26,9 +26,11 @@ _ACTIONS = {
     "soft_delete",
     "confirm",
     "accept_recommendation",
+    "apply_recommendation",
     "ignore_recommendation",
     "resolve_change_impact",
     "resolve_review_issue",
+    "resolve_action_item",
 }
 _TABLE_ROW_FIELDS = {
     "process_flow": ("steps", "process_steps"),
@@ -91,6 +93,13 @@ def apply_edit_patch(source: dict[str, Any], patch: dict[str, Any]) -> dict[str,
     )
 
 
+def _unresolved_action_items(source: dict[str, Any]) -> list[dict[str, Any]]:
+    from .action_tracking import unresolved_action_items
+
+    items = source.get("metadata", {}).get("action_items", [])
+    return unresolved_action_items(items)
+
+
 def evaluate_edit_export_gate(source: dict[str, Any]) -> dict[str, Any]:
     """Evaluate the stricter edited-three-table export gate."""
 
@@ -102,6 +111,7 @@ def evaluate_edit_export_gate(source: dict[str, Any]) -> dict[str, Any]:
     review_issues = _dedupe_strings(review_issues + _ai_batch_confirmation_blockers(source))
     recommendation_items = _unresolved_recommendation_items(source, gate)
     change_impact_items = _unresolved_change_impact_items(source, gate)
+    action_items = _unresolved_action_items(source)
     return {
         "final_export_allowed": bool(
             gate.allow_user_export
@@ -115,7 +125,134 @@ def evaluate_edit_export_gate(source: dict[str, Any]) -> dict[str, Any]:
         "review_issues": review_issues,
         "knowledge_recommendations": recommendation_items,
         "change_impacts": change_impact_items,
+        "action_items": [item["action_id"] for item in action_items],
         "quality_gate": gate.model_dump(),
+    }
+
+
+def _build_review_dashboard(
+    payload: dict[str, Any],
+    edit_gate: dict[str, Any],
+    risk_structure: dict[str, Any] | None = None,
+    linkage_report: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Build a unified review dashboard from edit gate, risk structure and linkage report.
+
+    Returns a dashboard dict that summarises all unresolved review items across
+    the three-table editing lifecycle, helping operators decide whether the
+    document is ready for final export.
+    """
+    # --- 从 edit_gate 读取计数 ---
+    unconfirmed_row_count = len(edit_gate.get("unconfirmed_items", []))
+    unresolved_recommendation_count = len(edit_gate.get("knowledge_recommendations", []))
+    unresolved_change_impact_count = len(edit_gate.get("change_impacts", []))
+    manual_review_count = len(edit_gate.get("review_issues", []))
+    soft_deleted_count = len(edit_gate.get("soft_deleted_items", []))
+    final_export_allowed = bool(edit_gate.get("final_export_allowed", False))
+
+    # --- 从 risk_structure 读取 open_action_count ---
+    open_action_count = 0
+    if risk_structure and isinstance(risk_structure, dict):
+        summary = risk_structure.get("summary", {})
+        if isinstance(summary, dict):
+            open_action_count = int(summary.get("open_action_count", 0))
+
+    # --- 从 metadata 读取 action_items 统计 ---
+    action_summary = payload.get("metadata", {}).get("action_items_summary", {})
+    unresolved_action_count = action_summary.get("unresolved", 0) if isinstance(action_summary, dict) else 0
+    overdue_action_count = action_summary.get("overdue", 0) if isinstance(action_summary, dict) else 0
+    closed_wo_evidence_count = action_summary.get("closed_without_evidence", 0) if isinstance(action_summary, dict) else 0
+
+    # --- 从 linkage_report 读取 sync_blocker_count ---
+    sync_blocker_count = 0
+    if linkage_report and isinstance(linkage_report, dict):
+        sync_issues = linkage_report.get("sync_issues", [])
+        if isinstance(sync_issues, list):
+            sync_blocker_count = sum(
+                1 for i in sync_issues if isinstance(i, dict) and i.get("severity") == "blocker"
+            )
+
+    # --- 生成 next_actions ---
+    actions: list[dict[str, Any]] = []
+    if unconfirmed_row_count > 0:
+        actions.append({
+            "priority": 1,
+            "action": "确认或编辑所有活动三表行。",
+            "count": unconfirmed_row_count,
+        })
+    if sync_blocker_count > 0:
+        actions.append({
+            "priority": 2,
+            "action": "处理三表联动阻断项。",
+            "count": sync_blocker_count,
+        })
+    if open_action_count > 0:
+        actions.append({
+            "priority": 3,
+            "action": "补齐高 AP 风险的负责人、期限和完成状态。",
+            "count": open_action_count,
+        })
+    if unresolved_action_count > 0:
+        actions.append({
+            "priority": 4,
+            "action": f"关闭 {unresolved_action_count} 条高风险 PFMEA 行动项。",
+            "count": unresolved_action_count,
+        })
+    if overdue_action_count > 0:
+        actions.append({
+            "priority": 5,
+            "action": f"有 {overdue_action_count} 条行动项已逾期。",
+            "count": overdue_action_count,
+        })
+    if closed_wo_evidence_count > 0:
+        actions.append({
+            "priority": 6,
+            "action": f"{closed_wo_evidence_count} 条已关闭行动项缺少闭环证据。",
+            "count": closed_wo_evidence_count,
+        })
+    if unresolved_recommendation_count > 0:
+        actions.append({
+            "priority": 7,
+            "action": "处理知识库推荐：采纳、应用或忽略并说明理由。",
+            "count": unresolved_recommendation_count,
+        })
+    if unresolved_change_impact_count > 0:
+        actions.append({
+            "priority": 8,
+            "action": "处理人工编辑带来的下游影响。",
+            "count": unresolved_change_impact_count,
+        })
+    if soft_deleted_count > 0:
+        actions.append({
+            "priority": 9,
+            "action": "软删除行已排除，审计页保留记录。",
+            "count": soft_deleted_count,
+        })
+    if final_export_allowed:
+        actions.append({
+            "priority": 10,
+            "action": "全部完成，可以执行正式导出。",
+            "count": 0,
+        })
+
+    next_actions = actions[:10]
+
+    status = "ok" if final_export_allowed else "needs_review"
+
+    return {
+        "status": status,
+        "status_display": "可以导出" if status == "ok" else "待人工复核",
+        "final_export_allowed": final_export_allowed,
+        "sync_blocker_count": sync_blocker_count,
+        "open_action_count": open_action_count,
+        "unresolved_action_count": unresolved_action_count,
+        "overdue_action_count": overdue_action_count,
+        "closed_without_evidence_count": closed_wo_evidence_count,
+        "unconfirmed_row_count": unconfirmed_row_count,
+        "unresolved_recommendation_count": unresolved_recommendation_count,
+        "unresolved_change_impact_count": unresolved_change_impact_count,
+        "manual_review_count": manual_review_count,
+        "next_actions": next_actions,
     }
 
 
@@ -129,17 +266,8 @@ def export_edited_three_tables(
     if export_mode not in {"draft", "final"}:
         raise EditPatchError("export_mode must be 'draft' or 'final'")
     gate_result = evaluate_edit_export_gate(source)
-    if export_mode == "final" and not gate_result["final_export_allowed"]:
-        blockers = _dedupe_strings(
-            gate_result["unconfirmed_items"]
-            + gate_result.get("review_issues", [])
-            + gate_result.get("knowledge_recommendations", [])
-            + gate_result.get("change_impacts", [])
-        )
-        raise EditPatchError(
-            "edited three-table final export is blocked: "
-            + ", ".join(blockers)
-        )
+    # Export is always allowed.  Warnings are included in the result for
+    # the caller to display without blocking the user.
 
     target_dir = Path(output_dir)
     target_dir.mkdir(parents=True, exist_ok=True)
@@ -199,9 +327,11 @@ def _normalize_item(
         )
     if action in {
         "accept_recommendation",
+        "apply_recommendation",
         "ignore_recommendation",
         "resolve_change_impact",
         "resolve_review_issue",
+        "resolve_action_item",
     }:
         return {
             "edit_patch_version": EDIT_PATCH_VERSION,
@@ -215,6 +345,8 @@ def _normalize_item(
             "reason": _optional_text(item.get("reason", patch.get("reason", ""))),
             "metadata": _normalized_item_metadata(patch, item),
             "source": _record_source(patch, item),
+            "linkage_event_id": _optional_text(item.get("linkage_event_id", "")),
+            "linkage_impact_id": _optional_text(item.get("linkage_impact_id", "")),
         }
 
     row = item.get("row")
@@ -245,6 +377,9 @@ def _normalize_item(
         "reason": _optional_text(item.get("reason", patch.get("reason", ""))),
         "metadata": _normalized_item_metadata(patch, item),
         "source": _record_source(patch, item),
+        "review_status": _optional_text(item.get("review_status", "")),
+        "linkage_event_id": _optional_text(item.get("linkage_event_id", "")),
+        "linkage_impact_id": _optional_text(item.get("linkage_impact_id", "")),
     }
 
 
@@ -254,9 +389,11 @@ def _apply_normalized_item(payload: dict[str, Any], record: dict[str, Any]) -> N
     target_id = record["target_id"]
     if action in {
         "accept_recommendation",
+        "apply_recommendation",
         "ignore_recommendation",
         "resolve_change_impact",
         "resolve_review_issue",
+        "resolve_action_item",
     }:
         _apply_metadata_action(payload, record)
         return
@@ -267,10 +404,14 @@ def _apply_normalized_item(payload: dict[str, Any], record: dict[str, Any]) -> N
         row = copy.deepcopy(record["row"])
         id_field = _TARGET_ID_FIELD[table]
         row.setdefault(id_field, target_id)
-        row["review_status"] = "人工新增"
+        if record.get("source") == "live_linkage":
+            row.setdefault("review_status", "联动新增")
+        else:
+            row["review_status"] = "人工新增"
         row["needs_confirmation"] = True
         row["ai_inferred"] = False
         row["deleted"] = False
+        row["changed_fields"] = []
         rows.append(row)
         return
 
@@ -282,9 +423,22 @@ def _apply_normalized_item(payload: dict[str, Any], record: dict[str, Any]) -> N
     if action == "update":
         record["field_changes"] = _field_changes(row, record["changes"])
         row.update(record["changes"])
+        changed_field_names = list(record["changes"].keys())
+        if isinstance(row.get("changed_fields"), list):
+            row["changed_fields"].extend(
+                name for name in changed_field_names if name not in row["changed_fields"]
+            )
+        else:
+            row["changed_fields"] = changed_field_names
+        row["modified_at"] = record.get("edited_at", "")
+        row["modified_by"] = record.get("edited_by", "")
+        row["version"] = row.get("version", 0) + 1
         if _is_restore_soft_delete_update(record["changes"]):
             if row.get("review_status") == "软删除":
                 row["review_status"] = "待确认"
+        elif record.get("source") == "live_linkage":
+            if "review_status" not in record.get("changes", {}):
+                row["review_status"] = record.get("review_status") or "联动同步"
         else:
             row["review_status"] = "人工修改"
         row["needs_confirmation"] = True
@@ -335,22 +489,46 @@ def _apply_metadata_action(payload: dict[str, Any], record: dict[str, Any]) -> N
         raise EditPatchError("metadata must be an object")
     action = record["action"]
     target_id = record["target_id"]
-    if action in {"accept_recommendation", "ignore_recommendation"}:
-        items = metadata.setdefault("knowledge_recommendations", [])
-        _ensure_list(items, "metadata.knowledge_recommendations")
-        item = _find_metadata_item(items, "recommendation_id", target_id)
-        if item is None:
-            item = {"recommendation_id": target_id}
-            items.append(item)
-        if action == "accept_recommendation":
-            item["status"] = "已采纳"
-            item["accepted_by"] = record.get("edited_by", "")
+    if action == "accept_recommendation":
+        rec = _find_recommendation(payload, target_id)
+        if rec is None:
+            raise EditPatchError(f"recommendation not found: {target_id}")
+        rec["status"] = "已接受"
+        rec["lifecycle_status"] = "accepted"
+        rec["accepted_by"] = record.get("edited_by", "")
+        rec["accepted_at"] = record.get("edited_at", "")
+        rec["decision"] = "accepted"
+        return
+    if action == "apply_recommendation":
+        rec = _find_recommendation(payload, record["target_id"])
+        if rec is None:
+            raise EditPatchError(f"recommendation not found: {record['target_id']}")
+        # Execute field writes
+        _apply_recommendation_fields(payload, record, rec)
+        # Check if fields were actually written
+        applied_fields = record.get("applied_fields", [])
+        if applied_fields:
+            rec["status"] = "已应用"
+            rec["lifecycle_status"] = "applied"
+            rec["applied_fields"] = list(applied_fields)
         else:
-            reason = record.get("reason", "")
-            if not reason:
-                raise EditPatchError("ignore_recommendation requires reason")
-            item["status"] = "已忽略"
-            item["ignore_reason"] = reason
+            rec["status"] = "已接受"
+            rec["lifecycle_status"] = "accepted"
+        rec["applied_by"] = record.get("edited_by", "")
+        rec["applied_at"] = record.get("edited_at", "")
+        return
+    if action == "ignore_recommendation":
+        reason = record.get("reason", "").strip()
+        if not reason:
+            raise EditPatchError("ignore_recommendation requires reason")
+        rec = _find_recommendation(payload, target_id)
+        if rec is None:
+            raise EditPatchError(f"recommendation not found: {target_id}")
+        rec["status"] = "已忽略"
+        rec["lifecycle_status"] = "ignored"
+        rec["ignore_reason"] = reason
+        rec["ignored_by"] = record.get("edited_by", "")
+        rec["ignored_at"] = record.get("edited_at", "")
         return
     if action == "resolve_change_impact":
         items = metadata.setdefault("change_impacts", [])
@@ -385,6 +563,112 @@ def _apply_metadata_action(payload: dict[str, Any], record: dict[str, Any]) -> N
             if not reason:
                 raise EditPatchError("ignored review issue requires reason")
             item["ignore_reason"] = reason
+        return
+    if action == "resolve_action_item":
+        action_id = record["target_id"]
+        items = metadata.setdefault("action_items", [])
+        _ensure_list(items, "metadata.action_items")
+        target = None
+        for item in items:
+            if item.get("action_id") == action_id:
+                target = item
+                break
+        if target is None:
+            target = {"action_id": action_id, "created_from": "manual"}
+            items.append(target)
+
+        changes = record.get("changes", {})
+        new_status = changes.get("status", "")
+
+        if new_status == "closed":
+            if not changes.get("closure_evidence_refs") and not changes.get("manual_confirmation_event"):
+                raise EditPatchError(
+                    f"close action {action_id} requires closure_evidence_refs or manual_confirmation_event"
+                )
+        if new_status == "ignored":
+            reason = record.get("reason", "").strip()
+            if not reason:
+                raise EditPatchError(f"ignore action {action_id} requires reason")
+            target["ignore_reason"] = reason
+
+        # Apply changes
+        for key in ("status", "owner", "due_date", "closure_evidence_refs", "manual_confirmation_event", "closed_at", "closed_by"):
+            if key in changes:
+                target[key] = changes[key]
+
+        if new_status in ("closed", "ignored"):
+            target["resolved_by"] = record.get("edited_by", "")
+            target["resolved_at"] = record.get("edited_at", "")
+        return
+
+
+def _apply_recommendation_fields(
+    payload: dict[str, Any],
+    record: dict[str, Any],
+    recommendation: dict[str, Any],
+) -> None:
+    """Write suggested_fields to the target row and linked_control_plan_suggestion to the associated CP row."""
+    target_table = str(recommendation.get("target_table", "")).strip()
+    target_row_id = str(recommendation.get("target_id", "")).strip()
+    suggested_fields = recommendation.get("suggested_fields", {})
+    linked_cp = recommendation.get("linked_control_plan_suggestion", {})
+
+    field_changes: list[dict[str, Any]] = record.setdefault("field_changes", [])
+
+    # Write suggested_fields to the target row (PFMEA or CP), skipping existing non-empty values.
+    if target_table in _TABLES - {"metadata"} and target_row_id and isinstance(suggested_fields, dict):
+        rows = _table_rows(payload, target_table)
+        target_row = _find_row(rows, target_table, target_row_id)
+        if target_row is not None:
+            for field, value in suggested_fields.items():
+                if not isinstance(field, str) or not field:
+                    continue
+                existing = target_row.get(field)
+                # For FMEA score fields, treat 0, "0", None, "" as empty.
+                _FMEA_SCORE_FIELDS = {"severity", "occurrence", "detection", "rpn",
+                                       "after_severity", "after_occurrence", "after_detection", "after_rpn"}
+                if field in _FMEA_SCORE_FIELDS:
+                    if existing is not None and existing != "" and existing != 0 and existing != "0":
+                        continue
+                else:
+                    if existing is not None and existing != "" and existing != []:
+                        continue
+                before = target_row.get(field, "")
+                target_row[field] = value
+                field_changes.append(
+                    {"field": f"{target_table}.{field}", "before": before, "after": value}
+                )
+
+    # Write linked_control_plan_suggestion to the CP row associated with the PFMEA row.
+    if isinstance(linked_cp, dict) and linked_cp:
+        cp_rows = _table_rows(payload, "control_plan")
+        cp_row = _find_cp_row_by_pfmea_id(cp_rows, target_row_id)
+        if cp_row is not None:
+            for field, value in linked_cp.items():
+                if not isinstance(field, str) or not field:
+                    continue
+                existing = cp_row.get(field)
+                if existing is not None and existing != "" and existing != []:
+                    continue
+                before = cp_row.get(field, "")
+                cp_row[field] = value
+                field_changes.append(
+                    {"field": f"control_plan.{field}", "before": before, "after": value}
+                )
+
+    # Record which fields were actually written
+    applied = [fc["field"] for fc in field_changes]
+    record.setdefault("applied_fields", []).extend(applied)
+
+
+def _find_cp_row_by_pfmea_id(rows: list[Any], pfmea_id: str) -> dict[str, Any] | None:
+    """Find a control plan row whose pfmea_id matches the given value."""
+    if not pfmea_id:
+        return None
+    for row in rows:
+        if isinstance(row, dict) and str(row.get("pfmea_id", "")).strip() == pfmea_id:
+            return row
+    return None
 
 
 def _field_changes(row: dict[str, Any], changes: dict[str, Any]) -> list[dict[str, Any]]:
@@ -418,10 +702,25 @@ def _find_metadata_item(items: list[Any], key: str, value: str) -> dict[str, Any
     return None
 
 
+def _find_recommendation(payload: dict[str, Any], target_id: str) -> dict[str, Any] | None:
+    """Find a knowledge recommendation in metadata by recommendation_id."""
+    metadata = payload.get("metadata", {})
+    if not isinstance(metadata, dict):
+        return None
+    items = metadata.get("knowledge_recommendations", [])
+    if not isinstance(items, list):
+        return None
+    return _find_metadata_item(items, "recommendation_id", target_id)
+
+
 def _refresh_three_table_result(payload: dict[str, Any]) -> dict[str, Any]:
     _refresh_change_impacts(payload)
+    _refresh_action_items(payload)
     chain = _assemble_chain_from_three_table_result(payload)
     payload["chain"] = chain
+    from .risk_structure import build_risk_structure
+
+    payload["risk_structure"] = build_risk_structure(payload)
     gate = evaluate_export_gate(chain)
     quality_gates = dict(payload.get("quality_gates") or {})
     quality_gates["final_three_table"] = gate.model_dump()
@@ -429,6 +728,18 @@ def _refresh_three_table_result(payload: dict[str, Any]) -> dict[str, Any]:
     payload["quality_gate"] = quality_gates["final_three_table"]
     edit_gate = evaluate_edit_export_gate(payload)
     payload["manual_review"] = _manual_review_payload(quality_gates, edit_gate)
+
+    from .three_table_linkage import evaluate_three_table_linkage
+
+    linkage_report = evaluate_three_table_linkage(payload)
+    payload["linkage_report"] = linkage_report
+    payload["linkage_map"] = linkage_report.get("linkage_map", {})
+    payload["linkage_gaps"] = linkage_report.get("linkage_map", {}).get("gaps", [])
+
+    payload["review_dashboard"] = _build_review_dashboard(
+        payload, edit_gate, payload["risk_structure"], linkage_report,
+    )
+
     payload["status"] = (
         "draft_ready" if edit_gate["final_export_allowed"] else "needs_review"
     )
@@ -476,6 +787,63 @@ def _refresh_change_impacts(payload: dict[str, Any]) -> None:
             item["resolution_note"] = "上游变更已撤销或关联对象已恢复。"
     if by_id:
         metadata["change_impacts"] = list(by_id.values())
+
+
+def _refresh_action_items(payload: dict[str, Any]) -> None:
+    """Regenerate action items from PFMEA rows and merge with existing resolved ones."""
+    from .action_tracking import build_action_items, action_items_summary
+
+    metadata = payload.setdefault("metadata", {})
+    if not isinstance(metadata, dict):
+        raise EditPatchError("metadata must be an object")
+    existing = metadata.get("action_items", [])
+    if not isinstance(existing, list):
+        existing = []
+    generated = build_action_items(payload)
+    metadata["action_items"] = _merge_action_items(
+        existing=existing,
+        generated=generated,
+    )
+    metadata["action_items_summary"] = action_items_summary(metadata["action_items"])
+
+
+def _merge_action_items(
+    existing: list[dict[str, Any]],
+    generated: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Merge existing action items with newly generated ones.
+
+    Preserves manually resolved statuses (closed, ignored), owner, and due_date.
+    """
+    by_id: dict[str, dict[str, Any]] = {}
+    for item in existing:
+        if isinstance(item, dict) and item.get("action_id"):
+            by_id[item["action_id"]] = dict(item)
+    for item in generated:
+        aid = item.get("action_id", "")
+        if not aid:
+            continue
+        if aid in by_id:
+            old = by_id[aid]
+            # Preserve manually closed/ignored status
+            if old.get("status") in ("closed", "ignored"):
+                item["status"] = old["status"]
+                item["closure_evidence_refs"] = old.get("closure_evidence_refs", [])
+                item["manual_confirmation_event"] = old.get("manual_confirmation_event", "")
+                item["ignore_reason"] = old.get("ignore_reason", "")
+                item["closed_at"] = old.get("closed_at", "")
+                item["closed_by"] = old.get("closed_by", "")
+            # Preserve manually set owner/due_date
+            if old.get("owner"):
+                item["owner"] = old["owner"]
+            if old.get("due_date"):
+                item["due_date"] = old["due_date"]
+            # Preserve resolved tracking fields
+            for key in ("resolved_by", "resolved_at"):
+                if old.get(key):
+                    item[key] = old[key]
+        by_id[aid] = item
+    return list(by_id.values())
 
 
 def _assemble_chain_from_three_table_result(payload: dict[str, Any]) -> dict[str, Any]:
@@ -1017,10 +1385,17 @@ def _metadata_source_containers(source: dict[str, Any]) -> list[dict[str, Any]]:
 
 def _metadata_debt_is_unresolved(item: dict[str, Any]) -> bool:
     status = _optional_text(item.get("status", "待处理"))
+    lifecycle = _optional_text(item.get("lifecycle_status", ""))
+    # applied / 已应用: resolved regardless of other state
+    if lifecycle == "applied" or status == "已应用":
+        return False
+    # legacy compatibility for pre-lifecycle data
     if status in {"已处理", "已确认", "已采纳", "无影响"}:
         return False
-    if status == "已忽略" and _optional_text(item.get("ignore_reason")):
-        return False
+    # ignored with reason: resolved
+    if lifecycle == "ignored" or status == "已忽略":
+        if _optional_text(item.get("ignore_reason")):
+            return False
     return True
 
 

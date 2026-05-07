@@ -21,6 +21,7 @@ REQUIRED_SHEETS = [
     "摘要",
     "质量门状态",
     "正式导出审计",
+    "知识推荐与行动闭环",
     "过程流程图",
     "PFMEA",
     "控制计划",
@@ -381,7 +382,7 @@ class XlsxExportContractTests(unittest.TestCase):
             with zipfile.ZipFile(xlsx_path) as archive:
                 gate_sheet = archive.read("xl/worksheets/sheet2.xml").decode("utf-8")
                 audit_sheet = archive.read("xl/worksheets/sheet3.xml").decode("utf-8")
-                review_sheet = archive.read("xl/worksheets/sheet8.xml").decode("utf-8")
+                review_sheet = archive.read("xl/worksheets/sheet9.xml").decode("utf-8")
 
         self.assertIn("允许用户导出", gate_sheet)
         self.assertIn("证据充分", gate_sheet)

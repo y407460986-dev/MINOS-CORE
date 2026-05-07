@@ -1,0 +1,177 @@
+{
+  "schema_version": "minos-core.process_inference.v1",
+  "family_key": "deep_drawn_part",
+  "family_name": "拉深件",
+  "description": "金属板材通过拉深(deep drawing)工艺在压力机上成形为杯形/筒形/盒形空心零件的统称。当拉深深度超过零件直径时称为深拉深(deep drawing)，常需多道次拉深+中间退火完成。典型产品：油底壳(oil pan)、端盖(end cap)、杯形件(cup)、壳形件(housing)、套管(sleeve)、筒形件(can/cartridge)。按拉深道次分为单道拉深(浅拉深,LDR≤2.0)和多道深拉深(含中间退火)。核心工艺：落料坯料→拉深成形→再拉深→变薄拉伸(ironing)→切边→冲孔→缩口等。材料以冷轧深冲钢(DC04/SPCE)、不锈钢(SUS304)、铝合金(5052/5754)、黄铜为主，料厚0.3-3.0mm。",
+  "drawing_recognition_clues": {
+    "typical_shapes": [
+      "杯形/圆筒形(轴对称回转体)",
+      "盒形/矩形壳(非轴对称)",
+      "阶梯筒形(直径递减)",
+      "锥形壳体(conical shell)",
+      "油底壳/油底盒(复杂深型腔)",
+      "端盖/封盖(浅拉深)",
+      "半球形/椭圆形壳体",
+      "缩口管状件"
+    ],
+    "typical_materials_metal": [
+      "DC04(深冲冷轧钢,n值≥0.18,r值≥1.5)",
+      "DC06(超深冲冷轧钢,n值≥0.22,r值≥1.8)",
+      "SPCE(深冲钢)",
+      "SPCD(冲压钢)",
+      "SUS304(奥氏体不锈钢)",
+      "SUS316L(耐蚀不锈钢)",
+      "5052-H32(Al-Mg铝合金)",
+      "5754-H22(铝合金)",
+      "C2680/C2600(黄铜)",
+      "C1100(紫铜/纯铜)"
+    ],
+    "typical_materials_plastic": [],
+    "typical_thickness": "0.3-3.0mm(拉深毛坯),变薄拉伸后壁厚可至0.05mm(如饮料罐/DWI罐),典型壁厚0.5-1.5mm",
+    "typical_features": [
+      "拉深圆角(底部内R≥3t,口部外R≥5t)",
+      "法兰边(保留为安装面或切除)",
+      "变薄壁厚(ironing:壁厚从3.0mm→0.15mm)",
+      "缩口/扩口(necking:端部直径渐变缩小)",
+      "底部冲孔/侧壁冲孔",
+      "翻边/卷边(curling:口部卷入O形圈座)",
+      "加强筋/凸筋(beading:圆周或纵向)",
+      "O形圈槽(密封槽)",
+      "螺纹(旋压成形或攻丝)",
+      "压印标记(零件号/日期码)"
+    ],
+    "surface_requirements": [
+      "无开裂(底部R角处/侧壁传递应力区)",
+      "无起皱(法兰压边区/侧壁,油石打磨检查)",
+      "无拉伤痕/划伤(模具表面Ra≤0.2μm)",
+      "壁厚减薄率≤25%(单道安全值),累计≤40%",
+      "型面精度±0.2mm(按蓝光扫描比对)",
+      "口部平面度(安装密封面)",
+      "拉深筋压痕可控"
+    ],
+    "tolerance_level": "IT11-IT13(拉深主体),IT9-IT11(切边/冲孔/翻边后精整),变薄拉伸壁厚±0.02-0.05mm",
+    "typical_standards": [
+      "DIN 8584-3 (深拉深工艺分类)",
+      "GB/T 15825 金属薄板成形性能与试验方法",
+      "GB/T 228 金属材料拉伸试验",
+      "AIAG & VDA FMEA Handbook",
+      "IATF 16949"
+    ]
+  },
+  "process_flow_variants": {
+    "single_draw": {
+      "description": "单道次拉深——适用于拉深比(LDR=坯料直径/凸模直径)≤2.0的浅拉深零件，如端盖、浅杯形件、壳形盖板。通过一次拉深即可达到所需深度和形状。可能同时包含拉深+成形(局部胀形/压筋)的复合工序。采用双动液压机或单动机械压力机+压边圈(blank holder)控制法兰起皱。设备投资和模具成本适中，适合中小批量。",
+      "match_keywords": [
+        "单道拉深", "single draw", "single-stage draw",
+        "浅拉深", "shallow draw", "LDR ≤ 2.0",
+        "端盖", "end cap", "杯形件", "cup",
+        "压边圈", "blank holder", "单动/双动",
+        "拉深比小", "low draw ratio"
+      ],
+      "process_sequence": [
+        {"seq": 10, "operation": "来料检验", "equipment": "光谱仪/拉伸试验机/杯突试验机(Erichsen)", "key_check": "材质(DC04/SPCE等)确认、n值(加工硬化指数≥0.18)、r值(塑性应变比≥1.5,深冲核心指标)、杯突IE值≥10mm、料厚公差±8%、表面清洁无锈蚀"},
+        {"seq": 20, "operation": "开卷落料(坯料制备)", "equipment": "开卷校平线+落料压力机(100-250T)", "key_check": "坯料直径(等面积法+5-10%修边余量)、坯料圆度/外形、排样利用率≥65%、边缘毛刺≤0.05mm"},
+        {"seq": 30, "operation": "涂油润滑", "equipment": "辊涂/喷涂润滑装置(自动定量)", "key_check": "拉深润滑油膜均匀(黏度40-100mm²/s@40°C)、双面涂覆、拉深筋区域重点润滑(减少摩擦/防止划伤)"},
+        {"seq": 40, "operation": "拉深成形", "equipment": "双动液压机/单动机械压力机(200-800T)+拉深模", "key_check": "压边力调控(钢5-15N/mm²/铝3-8N/mm²,分阶段控制)、拉深速度(液压机10-50mm/s)、凸凹模间隙(1.05-1.3t)、底角R≥5t无开裂、法兰区无起皱(poka-yoke:压力传感器实时监控压边力)"},
+        {"seq": 50, "operation": "切边/修边", "equipment": "压力机(100-200T)+切边模", "key_check": "口部切边轮廓度±0.2mm、毛刺≤0.05mm、切边后口部无变形(口部夹持切割)"},
+        {"seq": 60, "operation": "底部冲孔(如需要)", "equipment": "压力机+冲孔模", "key_check": "孔位置度±0.15mm、孔径精度、冲头行程避免冲伤对侧壁"},
+        {"seq": 70, "operation": "翻边/卷边(如需要)", "equipment": "压力机+翻边模/卷边模(curling die)", "key_check": "翻边高度/角度、卷边圆度(如O形圈座,ϕ公差±0.2mm)、无开裂(预切边后卷边)"},
+        {"seq": 80, "operation": "清洗去油", "equipment": "超声波清洗/碳氢清洗/水基清洗线", "key_check": "表面清洁度(达因值≥38mN/m涂料前)、无清洗剂残留、干燥度(水分≤0.1%)"},
+        {"seq": 90, "operation": "表面处理", "equipment": "电泳/喷漆/电镀/阳极氧化/化学钝化(按材料)", "key_check": "膜厚、附着力(百格≤1级)、盐雾试验(≥72-240h按图纸)、外观无缺陷"},
+        {"seq": 100, "operation": "完工检验(终检)", "equipment": "CMM三坐标/检具/壁厚千分尺/粗糙度仪/氦气检漏仪(密封件)", "key_check": "全尺寸(首件+过程SPC)、壁厚多点测量(关键区最低壁厚)、型面比对(CAD overlay)、气密性测试(≤图纸泄漏率)、外观AUDIT"},
+        {"seq": 110, "operation": "包装入库", "equipment": "包装台/打码机/专用托盘", "key_check": "数量核对、标识(零件号/批号/日期)、防锈/VCI包装、防碰撞(定制吸塑托盘)、出货报告"}
+      ]
+    },
+    "multi_stage_deep_draw_with_annealing": {
+      "description": "多道次深拉深(含中间退火)——适用于拉深比>2.0的深拉深零件，如油底壳(多阶梯深型腔)、长筒形件、精密套管。通过2-6道拉深逐步缩小直径、增加深度，中间穿插退火工序恢复材料塑性。可采用多工位传递模(transfer die,机械手指传递零件)或单工序模分步生产。传递模效率高(15-40 SPM)，适合批量>5万件/年。变薄拉伸(ironing)可在最后道次实现精确壁厚控制。冷轧钢退火温度680-720°C(球化退火/再结晶退火)，铝合金退火温度340-400°C。",
+      "match_keywords": [
+        "多道拉深", "再拉深", "redraw", "multi-stage draw",
+        "中间退火", "退火", "annealing", "消除加工硬化",
+        "传递模", "transfer die", "transfer press",
+        "变薄拉伸", "ironing", "wall thinning",
+        "油底壳", "oil pan", "深筒", "deep cylinder",
+        "LDR > 2.0", "深拉深", "deep drawing",
+        "精密拉深", "critical draw"
+      ],
+      "process_sequence": [
+        {"seq": 10, "operation": "来料检验", "equipment": "光谱仪/拉伸试验机/测厚仪/杯突试验机", "key_check": "材质(DC06超深冲/SUS304/5052等)，n值≥0.22(DC06超深冲要求)/r值≥1.8，杯突IE≥12mm(DC06)，料厚公差±5%，表面无缺陷"},
+        {"seq": 20, "operation": "开卷落料(坯料制备)", "equipment": "开卷校平线+落料压力机", "key_check": "坯料直径精确计算(含每道拉深后切边余量,成形仿真确认)、排样优化、坯料清洁"},
+        {"seq": 30, "operation": "涂油润滑", "equipment": "辊涂/喷涂润滑装置", "key_check": "拉深专用润滑油(高黏度80-150mm²/s@40°C或干膜润滑剂)、双面均匀涂覆、拉深筋区域重点润滑"},
+        {"seq": 40, "operation": "第1道拉深(首道拉深)", "equipment": "双动液压机/传递压力机(400-2000T)+拉深模", "key_check": "拉深比≤2.0(首道)、压边力精密控制(钢10-15N/mm²)、凸模R≥5t、无开裂/无起皱(自工程完結:全检)、壁厚减薄率≤20%"},
+        {"seq": 50, "operation": "第2道再拉深", "equipment": "传递模+再拉深工位(站2)/独立压力机+再拉深模", "key_check": "再拉深比≤1.3(每道)、拉深方向(正拉深/反拉深-reverse draw减少加工硬化)、锥形凹模导入角30-45°、传递精度(同轴度)、零件导向(poka-yoke:定位夹具)"},
+        {"seq": 60, "operation": "第3道再拉深/变薄拉伸", "equipment": "传递模+拉深/变薄工位(站3)", "key_check": "继续缩减直径(再拉深比≤1.3)或变薄壁厚(ironing减薄率≤30%/道)、变薄拉伸凹模表面Ra≤0.1μm(polished)、壁厚在线测量(超声/涡流)"},
+        {"seq": 70, "operation": "中间退火(按材料状态判定)", "equipment": "可控气氛退火炉(N2+H2保护)/真空退火炉/连续退火炉", "key_check": "退火温度:钢680-720°C球化退火/600-680°C再结晶退火,铝340-400°C、保温时间(按壁厚/装炉量)、气氛控制(露点≤-40°C防氧化脱碳)、退火后硬度HV≤120(合格判定:poka-yoke不达标不流入下道)"},
+        {"seq": 80, "operation": "后续再拉深(第4-6道)", "equipment": "传递模+拉深工位(站4-6)/独立压力机", "key_check": "继续缩减直径/增加深度至图纸尺寸、每道次后尺寸检测(直径/壁厚/深度)、传递精度保持(同轴度≤0.05mm)"},
+        {"seq": 90, "operation": "切边(最终口部修边)", "equipment": "切边模(传递模内或独立工序)", "key_check": "口部切边轮廓度±0.15mm、毛刺≤0.03mm、口部无变形(internal support during trimming)"},
+        {"seq": 100, "operation": "冲孔/侧冲孔", "equipment": "冲孔模/CAM侧冲机构(斜楔滑块)", "key_check": "底部孔/侧壁孔位置度±0.1mm、孔径精度、防漏冲检测(传感器计孔数:poka-yoke)、侧冲CAM角度/行程按图纸"},
+        {"seq": 110, "operation": "缩口/翻边/卷边/滚筋(按图纸)", "equipment": "缩口机(卧式rotary)/压力机+滚筋模/卷边模", "key_check": "缩口比≤1.3(单道)/≤2.0(多道)、翻边/卷边成形质量(密封槽精度)、O形圈槽尺寸"},
+        {"seq": 120, "operation": "清洗去油", "equipment": "超声波清洗/碳氢清洗/水基清洗线(多槽式)", "key_check": "表面清洁度(达因笔38-42mN/m)、无油污残留、干燥度"},
+        {"seq": 130, "operation": "表面处理", "equipment": "电泳/喷漆/电镀/阳极氧化/钝化/粉体涂装", "key_check": "膜厚/附着力/盐雾试验(底盘件≥240h)/外观缺陷(流挂/气泡/露底/色差)"},
+        {"seq": 140, "operation": "完工检验(终检)", "equipment": "CMM三坐标/蓝光全尺寸扫描/壁厚千分尺/气密性试验机/氦检漏仪/硬度计", "key_check": "全尺寸(含壁厚多点网格测量)、型面全尺寸比对CAD(蓝光扫描)、气密性/泄漏率(≤图纸值,cc/min)、硬度、表面粗糙度、外观AUDIT、关键特性Cpk≥1.33"},
+        {"seq": 150, "operation": "包装入库", "equipment": "自动包装线/打码机/专用托盘", "key_check": "数量核对、标识完整(零件号/批号/日期/炉号追溯)、防锈/VCI包装、防碰撞(定制吸塑/EPE托盘)、出货报告"}
+      ]
+    }
+  },
+  "feature_to_operation": {
+    "blank_preparation": {"operation": "开卷落料(坯料)", "equipment": "开卷校平机+落料压力机", "note": "坯料直径=等面积法+修边余量5-10%,排样利用率最大化"},
+    "first_draw": {"operation": "首道拉深", "equipment": "双动液压机/压力机+拉深模(带压边圈)", "note": "LDR≤2.0,底角R≥5t,压边力是防起皱关键(poka-yoke压力监控)"},
+    "redraw": {"operation": "再拉深(redrawing)", "equipment": "传递模/压力机+再拉深模", "note": "每道再拉深比≤1.3,可选正拉深或反拉深(反拉深减少加工硬化)"},
+    "ironing": {"operation": "变薄拉伸(ironing)", "equipment": "传递模/凸轮驱动压力机+变薄拉伸模", "note": "减薄率≤30%/道,凹模镜面Ra≤0.1μm,Wikipedia:Used for beverage cans and ammunition cartridge cases"},
+    "annealing": {"operation": "中间退火", "equipment": "可控气氛退火炉(钟罩式/连续式)", "note": "钢680-720°C球化退火/铝340-400°C再结晶退火,消除加工硬化,恢复n/r值"},
+    "trimming": {"operation": "切边(trimming)", "equipment": "压力机+切边模/激光切边", "note": "切除法兰多余材料,口部轮廓度±0.15mm,内支撑防变形"},
+    "bottom_piercing": {"operation": "底部冲孔", "equipment": "压力机+冲孔模", "note": "底部冲圆孔/异形孔,孔边距≥2t,冲头行程避免伤对面壁"},
+    "side_piercing": {"operation": "侧壁冲孔", "equipment": "压力机+CAM侧冲机构(斜楔)", "note": "侧壁孔/开窗,斜楔角度25-45°,回程弹簧/氮气复位"},
+    "necking": {"operation": "缩口(necking)", "equipment": "缩口机(旋转式)/旋压缩口机", "note": "Wikipedia:gradually reduce the diameter of the open end,缩口比≤1.3单道,多道可达≤2.0"},
+    "curling": {"operation": "卷边(curling)", "equipment": "压力机+卷边模(curling die)", "note": "口部卷成圆形边缘(铰链筒/O形圈座),Wikipedia:Door hinges are a common example"},
+    "beading": {"operation": "滚筋/压筋(beading)", "equipment": "旋压机/压力机+滚筋模", "note": "圆周或轴向凸筋,增刚度/定位,深度≤30%t"},
+    "bulging": {"operation": "胀形(bulging)", "equipment": "液压胀形机/压力机+胀形模", "note": "局部扩大直径,用于中间段凸出,用橡胶/液体介质或分瓣模"},
+    "coining": {"operation": "精压(coining)", "equipment": "压力机+精压模", "note": "局部形状精密成形(如密封面/O形圈底),深度≤30%t"},
+    "extruding_hole": {"operation": "翻孔(extruding)", "equipment": "压力机+翻孔冲头(阶梯式)", "note": "预冲底孔→挤孔扩大→翻孔竖壁,增加螺纹有效长度,用于攻丝强化"},
+    "surface_treat": {"operation": "表面处理", "equipment": "电泳/电镀/喷涂/阳极氧化线", "note": "按材料选工艺,盐雾≥图纸要求(通常72-480h),膜厚均匀"}
+  },
+  "engineering_parameters": {
+    "tool_materials": {
+      "draw_punch": {"material": "Cr12MoV/SKD11(中批量)/YG15硬质合金(大批量)", "hardness": "HRC 58-62", "finish": "Ra<0.2μm", "note": "凸模圆角R≥5t(首道),≥3t(再拉深)"},
+      "draw_die": {"material": "Cr12MoV/SKD11/YG15", "hardness": "HRC 60-64", "finish": "Ra<0.1μm(变薄拉伸≤0.05μm)", "note": "凹模圆角R≥8t(首道),拉深筋SUS304可拆卸"},
+      "blankholder": {"material": "Cr12MoV/合金铸铁(FC250)", "hardness": "HRC 55-58", "finish": "Ra<0.4μm", "note": "压边面平面度0.01mm,防起皱"},
+      "ironing_ring": {"material": "YG8/YG15硬质合金或金刚石涂层", "hardness": "HRA 89-93", "finish": "Ra<0.05μm(镜面)", "note": "变薄拉伸核心工具,寿命可达200万件(硬质合金)"},
+      "draw_beads": {"material": "SUS304/SKD11(热处理HRC55)", "note": "拉深筋(round/half-round/square),控制材料流入,可调式(poka-yoke:压入深度标准化)"}
+    },
+    "die_parameters": {
+      "punch_die_clearance_draw": "1.05-1.30×t(拉深,随材料/拉深深度调整)",
+      "punch_die_clearance_ironing": "0.85-0.95×t(变薄拉伸,最终壁厚=间隙)",
+      "blankholder_pressure": "钢:5-15 N/mm²,铝:2-8 N/mm²,不锈钢:10-20 N/mm²",
+      "min_draw_radius_punch": "首道≥5t,再拉深≥3t,末道≥1.5t(按最终形状)",
+      "min_draw_radius_die": "首道≥8t,再拉深≥4t,末道≥2t",
+      "limiting_draw_ratio_LDR": "DC04:2.0, DC06:2.2, SUS304:1.8, Al5052:1.7, Brass:1.9",
+      "ironing_reduction_per_pass": "低碳钢≤30%,不锈钢≤20%,铝合金≤25%,黄铜≤35%",
+      "draw_bead_height": "0.5-3mm(按材料/料厚/压边力需求调整)"
+    },
+    "force_formulas": {
+      "draw_force_cylindrical": "F_draw = π×d1×t×σb×(D/d1 - C),C=0.6-0.7(经验系数),d1=凸模直径",
+      "blankholder_force": "F_bh = (D²-(d1+2rd)²)×π/4×p, p=单位压边力(钢5-15N/mm²)",
+      "ironing_force": "F_iron = π×d×t_out×σs×ln(t_in/t_out)",
+      "stripping_force": "≈10% of drawing force",
+      "total_press_capacity": "F_draw + F_bh + F_iron + 20-30% safety margin"
+    },
+    "quality_checks": {
+      "draw_die_radius_wear": "每10000件检查凹模圆角R,磨损>0.03mm返修或更换",
+      "ironing_ring_wear": "每5000件检查内径,磨损>0.01mm更换(壁厚超差风险)",
+      "wall_thinning_limit": "单道次≤25%(安全),累计≤40%,关键区≤20%",
+      "wrinkling_inspection": "油石打磨(stoning)检查法兰区/侧壁起皱(轻微起皱即不合格)",
+      "crack_inspection": "目视+渗透探伤(PT)检查底角R区/侧壁/口部开裂",
+      "first_off_inspection": "每批次/模具更换后首件100%全尺寸检测(CMM+蓝光扫描)",
+      "in_process_SPC": "关键特性(Xbar-R控制图,Cpk≥1.33),每2小时抽检5件",
+      "leak_test": "壳体类零件100%气密性测试(氦检漏/压降法,泄漏率≤图纸值)"
+    }
+  },
+  "references": [
+    {"title": "Wikipedia - Deep drawing", "url": "https://en.wikipedia.org/wiki/Deep_drawing", "type": "encyclopedia"},
+    {"title": "DIN 8584-3 Manufacturing processes forming under tension - Deep drawing", "url": "", "type": "standard"},
+    {"title": "Wikipedia - Ironing (metalworking)", "url": "https://en.wikipedia.org/wiki/Ironing_(metalworking)", "type": "encyclopedia"},
+    {"title": "Trans-Matic - Deep Draw Process for Precision Metal Components", "url": "https://web.archive.org/web/20180428050206/http://transmatic.com/capabilities/deep-draw-process/", "type": "industry_reference"},
+    {"title": "GB/T 15825 金属薄板成形性能与试验方法", "url": "https://std.samr.gov.cn/gb/", "type": "national_standard"},
+    {"title": "Todd, Allen & Alting - Manufacturing Processes Reference Guide (pp. 284-290)", "url": "", "type": "textbook"},
+    {"title": "Kalpakjian & Schmid - Manufacturing Engineering and Technology (4th ed.)", "url": "", "type": "textbook"}
+  ]
+}

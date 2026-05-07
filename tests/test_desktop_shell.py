@@ -1,19 +1,17 @@
-import io
-import builtins
 import os
 import tempfile
 import unittest
-from contextlib import redirect_stdout
 from unittest.mock import patch
 
 from minos_desktop.app_state import (
-    DESKTOP_PAGES,
+    ChainStageStates,
     DesktopProjectState,
+    DesktopRunState,
+    StageConfirmState,
     desktop_run_state_from_result,
     summarize_generation_result,
 )
-from minos_desktop.cli import main
-from minos_desktop.qt_app import build_export_summary, build_settings_status
+from minos_desktop.api.schemas import settings_to_dict
 from minos_desktop.services import (
     DesktopKnowledgeStore,
     DesktopProjectStore,
@@ -21,30 +19,14 @@ from minos_desktop.services import (
     DesktopSettingsStore,
     format_desktop_failure,
 )
-from minos_desktop.table_editor import ROW_STATUS_COLUMN, three_table_to_table_model
+from minos_desktop.table_editor import (
+    ROW_STATUS_COLUMN,
+    build_edit_patch,
+    three_table_to_table_model,
+)
 
 
 class DesktopShellTests(unittest.TestCase):
-    def test_desktop_pages_match_three_table_workflow(self):
-        self.assertEqual(
-            [page.key for page in DESKTOP_PAGES],
-            [
-                "project",
-                "drawing_import",
-                "drawing_analysis",
-                "pfd",
-                "pfmea",
-                "control_plan",
-                "actions",
-                "change_impacts",
-                "knowledge",
-                "automation_review",
-                "review",
-                "export",
-                "settings",
-            ],
-        )
-
     def test_generation_result_summary_extracts_export_and_review_state(self):
         summary = summarize_generation_result(
             {
@@ -138,10 +120,7 @@ class DesktopShellTests(unittest.TestCase):
             self.assertEqual(loaded.raw_result["status"], "needs_review")
             self.assertTrue(os.path.exists(os.path.join(updated.output_dir, "three_table_generation_result.json")))
 
-    def test_desktop_run_service_records_formatted_failure(self):
-        def failing_runner(*args, **kwargs):
-            raise RuntimeError("OPENAI_API_KEY missing")
-
+    def test_run_project_compat_entry_uses_chain_and_records_failure(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = os.path.join(tmpdir, "desktop.sqlite3")
             project = DesktopProjectStore(db_path).create_project(
@@ -151,12 +130,603 @@ class DesktopShellTests(unittest.TestCase):
                     output_dir=tmpdir,
                 )
             )
-            run = DesktopRunService(db_path, runner=failing_runner).run_project(project)
+            with patch(
+                "minos_desktop.services.analyze_drawing_for_three_table_chain",
+                side_effect=RuntimeError("OPENAI_API_KEY missing"),
+            ):
+                run = DesktopRunService(db_path).run_project(project)
 
         self.assertEqual(run.state.status, "failed")
+        self.assertEqual(run.state.chain_stages.pipeline_mode, "chain")
         self.assertIn("原始错误：OPENAI_API_KEY missing", run.failure_message)
         self.assertIn("原因判断：AI 配置可能缺失或不可用。", run.failure_message)
         self.assertIn("放弃任务", run.failure_message)
+
+    def test_chain_start_records_pfd_generation_failure_without_batch_fallback(self):
+        analysis_result = {
+            "drawing_analysis": {
+                "document_type": "drawing_analysis_bundle",
+                "drawing_identity": {"part_name": "尾门铰链"},
+                "metadata": {},
+            },
+            "drawing_gate": type("Gate", (), {"can_continue": True, "model_dump": lambda self: {"ok": True}})(),
+            "part_family_classification": {"family_key": "door_hinge"},
+            "family_context": {"family_key": "door_hinge"},
+        }
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = os.path.join(tmpdir, "desktop.sqlite3")
+            project = DesktopProjectStore(db_path).create_project(
+                DesktopProjectState(
+                    project_name="链式项目",
+                    drawing_path="drawing.pdf",
+                    output_dir=tmpdir,
+                    context={"analysis_mode": "ocr_only"},
+                )
+            )
+            with patch(
+                "minos_desktop.services.analyze_drawing_for_three_table_chain",
+                return_value=analysis_result,
+            ) as analyze_mock:
+                with patch(
+                    "minos_core.pipeline_chain.generate_pfd_from_drawing",
+                    side_effect=RuntimeError("PFD LLM failed"),
+                ):
+                    run = DesktopRunService(db_path).start_chain_run(project)
+
+        self.assertEqual(run.state.status, "failed")
+        self.assertEqual(run.state.blocked_stage, "pfd")
+        self.assertIn("PFD LLM failed", run.failure_message)
+        self.assertIn("放弃任务", run.failure_message)
+        self.assertEqual(run.current_result["process_flow"], {"steps": []})
+        analyze_mock.assert_called_once()
+
+    def test_pfd_confirm_returns_immediately_and_pfmea_generation_runs_separately(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = os.path.join(tmpdir, "desktop.sqlite3")
+            service = DesktopRunService(db_path)
+            chain_stages = ChainStageStates(
+                pfd=StageConfirmState(status="generated", row_count=1, pending_count=1),
+                pipeline_mode="chain",
+            )
+            run = service.save_chain_run(
+                None,
+                DesktopRunState(
+                    status="needs_review",
+                    status_display="待人工确认",
+                    blocked_stage="",
+                    exports=(),
+                    manifest_path="",
+                    manifest_run_id="",
+                    manual_review_required=False,
+                    manual_review_count=0,
+                    manual_review_raw_count=0,
+                    manual_review_items=(),
+                    chain_stages=chain_stages,
+                ),
+                tmpdir,
+                {
+                    "document_type": "three_table_generation_result",
+                    "status": "needs_review",
+                    "drawing_analysis": {"drawing_identity": {"part_name": "尾门铰链"}},
+                    "process_flow": {
+                        "steps": [
+                            {
+                                "process_step_id": "P10",
+                                "operation": "来料检验",
+                                "needs_confirmation": True,
+                            }
+                        ]
+                    },
+                    "pfmea": {"rows": []},
+                    "control_plan": {"rows": []},
+                    "manual_review": {"required": False, "items": []},
+                },
+                "",
+                chain_stages,
+            )
+
+            with patch(
+                "minos_core.pipeline_chain.generate_pfmea_from_confirmed_pfd",
+                side_effect=AssertionError("PFMEA generation must not run inside confirm"),
+            ):
+                confirmed = service.confirm_pfd_stage(run.id, confirmed_by="qe")
+
+            self.assertEqual(confirmed.state.chain_stages.pfd.status, "confirmed")
+            self.assertEqual(confirmed.state.chain_stages.pfmea.status, "running")
+            self.assertEqual(confirmed.current_result["pfmea"], {"rows": []})
+            self.assertEqual(
+                confirmed.current_result["process_flow"]["steps"][0]["review_status"],
+                "已确认",
+            )
+
+            def fake_generate_pfmea(_drawing_analysis, confirmed_pfd):
+                return {
+                    "rows": [
+                        {
+                            "pfmea_id": "F1",
+                            "process_step_id": "P10",
+                            "operation_seen_by_pfmea": confirmed_pfd["steps"][0]["operation"],
+                        }
+                    ]
+                }
+
+            with patch(
+                "minos_core.pipeline_chain.generate_pfmea_from_confirmed_pfd",
+                fake_generate_pfmea,
+            ):
+                generated = service.generate_pfmea_for_confirmed_pfd(run.id)
+
+            self.assertEqual(generated.state.chain_stages.pfmea.status, "generated")
+            self.assertEqual(generated.current_result["pfmea"]["rows"][0]["pfmea_id"], "F1")
+
+    def test_background_pfmea_generation_failure_is_persisted(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = os.path.join(tmpdir, "desktop.sqlite3")
+            service = DesktopRunService(db_path)
+            chain_stages = ChainStageStates(
+                pfd=StageConfirmState(status="confirmed", row_count=1),
+                pfmea=StageConfirmState(status="running"),
+                pipeline_mode="chain",
+            )
+            run = service.save_chain_run(
+                None,
+                DesktopRunState(
+                    status="needs_review",
+                    status_display="待人工确认",
+                    blocked_stage="",
+                    exports=(),
+                    manifest_path="",
+                    manifest_run_id="",
+                    manual_review_required=False,
+                    manual_review_count=0,
+                    manual_review_raw_count=0,
+                    manual_review_items=(),
+                    chain_stages=chain_stages,
+                ),
+                tmpdir,
+                {
+                    "document_type": "three_table_generation_result",
+                    "status": "needs_review",
+                    "drawing_analysis": {},
+                    "process_flow": {"steps": [{"process_step_id": "P10"}]},
+                    "pfmea": {"rows": []},
+                    "control_plan": {"rows": []},
+                    "manual_review": {"required": False, "items": []},
+                },
+                "",
+                chain_stages,
+            )
+
+            with patch(
+                "minos_core.pipeline_chain.generate_pfmea_from_confirmed_pfd",
+                side_effect=RuntimeError("PFMEA background failed"),
+            ):
+                failed = service.generate_pfmea_for_confirmed_pfd(run.id)
+
+        self.assertEqual(failed.state.status, "failed")
+        self.assertEqual(failed.state.blocked_stage, "pfmea")
+        self.assertEqual(failed.state.chain_stages.pfmea.status, "failed")
+        self.assertIn("PFMEA background failed", failed.failure_message)
+
+    def test_background_cp_generation_failure_is_persisted(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = os.path.join(tmpdir, "desktop.sqlite3")
+            service = DesktopRunService(db_path)
+            chain_stages = ChainStageStates(
+                pfd=StageConfirmState(status="confirmed", row_count=1),
+                pfmea=StageConfirmState(status="confirmed", row_count=1),
+                cp=StageConfirmState(status="running"),
+                pipeline_mode="chain",
+            )
+            run = service.save_chain_run(
+                None,
+                DesktopRunState(
+                    status="needs_review",
+                    status_display="待人工确认",
+                    blocked_stage="",
+                    exports=(),
+                    manifest_path="",
+                    manifest_run_id="",
+                    manual_review_required=False,
+                    manual_review_count=0,
+                    manual_review_raw_count=0,
+                    manual_review_items=(),
+                    chain_stages=chain_stages,
+                ),
+                tmpdir,
+                {
+                    "document_type": "three_table_generation_result",
+                    "status": "needs_review",
+                    "drawing_analysis": {},
+                    "process_flow": {"steps": [{"process_step_id": "P10"}]},
+                    "pfmea": {"rows": [{"pfmea_id": "F1", "process_step_id": "P10"}]},
+                    "control_plan": {"rows": []},
+                    "manual_review": {"required": False, "items": []},
+                },
+                "",
+                chain_stages,
+            )
+
+            with patch(
+                "minos_core.pipeline_chain.generate_cp_from_confirmed_pfmea",
+                side_effect=RuntimeError("CP background failed"),
+            ):
+                failed = service.generate_cp_for_confirmed_pfmea(run.id)
+
+        self.assertEqual(failed.state.status, "failed")
+        self.assertEqual(failed.state.blocked_stage, "cp")
+        self.assertEqual(failed.state.chain_stages.cp.status, "failed")
+        self.assertIn("CP background failed", failed.failure_message)
+
+    def test_process_flow_edit_invalidates_downstream_chain_stages(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = os.path.join(tmpdir, "desktop.sqlite3")
+            run_service = DesktopRunService(db_path)
+            chain_stages = ChainStageStates(
+                pfd=StageConfirmState(status="confirmed", row_count=1),
+                pfmea=StageConfirmState(status="confirmed", row_count=1),
+                cp=StageConfirmState(status="generated", row_count=1),
+                pipeline_mode="chain",
+            )
+            run = run_service.save_chain_run(
+                None,
+                desktop_run_state_from_result(
+                    {
+                        "status": "needs_review",
+                        "manual_review": {"required": False, "items": []},
+                    }
+                ),
+                tmpdir,
+                {
+                    "document_type": "three_table_generation_result",
+                    "status": "needs_review",
+                    "process_flow": {
+                        "steps": [
+                            {
+                                "process_step_id": "P10",
+                                "operation": "来料检验",
+                                "needs_confirmation": False,
+                            }
+                        ]
+                    },
+                    "pfmea": {"rows": [{"pfmea_id": "F1", "process_step_id": "P10"}]},
+                    "control_plan": {"rows": [{"control_plan_id": "C1", "process_step_id": "P10"}]},
+                    "manual_review": {"required": False, "items": []},
+                },
+                "",
+                chain_stages,
+            )
+            updated = run_service.apply_edit_patch_to_run(
+                run.id,
+                build_edit_patch(
+                    [
+                        {
+                            "action": "update",
+                            "table": "process_flow",
+                            "target_id": "P10",
+                            "changes": {"operation": "更新后的工序"},
+                        }
+                    ]
+                ),
+            )
+
+        self.assertEqual(updated.current_result["pfmea"], {"rows": []})
+        self.assertEqual(updated.current_result["control_plan"], {"rows": []})
+        self.assertEqual(updated.state.chain_stages.pfd.status, "generated")
+        self.assertEqual(updated.state.chain_stages.pfmea.status, "not_started")
+        self.assertEqual(updated.state.chain_stages.cp.status, "not_started")
+        self.assertIn(
+            "pfmea",
+            updated.current_result["metadata"]["chain_invalidated_stages"],
+        )
+        self.assertIn(
+            "control_plan",
+            updated.current_result["metadata"]["chain_invalidated_stages"],
+        )
+
+    def test_pfmea_edit_invalidates_control_plan_only(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = os.path.join(tmpdir, "desktop.sqlite3")
+            run_service = DesktopRunService(db_path)
+            chain_stages = ChainStageStates(
+                pfd=StageConfirmState(status="confirmed", row_count=1),
+                pfmea=StageConfirmState(status="confirmed", row_count=1),
+                cp=StageConfirmState(status="confirmed", row_count=1),
+                pipeline_mode="chain",
+            )
+            run = run_service.save_chain_run(
+                None,
+                desktop_run_state_from_result(
+                    {
+                        "status": "needs_review",
+                        "manual_review": {"required": False, "items": []},
+                    }
+                ),
+                tmpdir,
+                {
+                    "document_type": "three_table_generation_result",
+                    "status": "needs_review",
+                    "process_flow": {"steps": [{"process_step_id": "P10"}]},
+                    "pfmea": {
+                        "rows": [
+                            {
+                                "pfmea_id": "F1",
+                                "process_step_id": "P10",
+                                "failure_mode": "尺寸偏差",
+                            }
+                        ]
+                    },
+                    "control_plan": {"rows": [{"control_plan_id": "C1", "process_step_id": "P10"}]},
+                    "manual_review": {"required": False, "items": []},
+                },
+                "",
+                chain_stages,
+            )
+            updated = run_service.apply_edit_patch_to_run(
+                run.id,
+                build_edit_patch(
+                    [
+                        {
+                            "action": "update",
+                            "table": "pfmea",
+                            "target_id": "F1",
+                            "changes": {"failure_mode": "孔位偏差"},
+                        }
+                    ]
+                ),
+            )
+
+        self.assertEqual(updated.current_result["control_plan"], {"rows": []})
+        self.assertEqual(updated.state.chain_stages.pfd.status, "confirmed")
+        self.assertEqual(updated.state.chain_stages.pfmea.status, "generated")
+        self.assertEqual(updated.state.chain_stages.cp.status, "not_started")
+        self.assertEqual(
+            updated.current_result["metadata"]["chain_invalidated_stages"],
+            ["control_plan"],
+        )
+
+    def test_confirm_pfd_marks_rows_confirmed_and_generates_pfmea(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = os.path.join(tmpdir, "desktop.sqlite3")
+            run_service = DesktopRunService(db_path)
+            run = run_service.save_chain_run(
+                None,
+                desktop_run_state_from_result(
+                    {
+                        "status": "needs_review",
+                        "manual_review": {"required": False, "items": []},
+                    }
+                ),
+                tmpdir,
+                {
+                    "document_type": "three_table_generation_result",
+                    "status": "needs_review",
+                    "drawing_analysis": {},
+                    "process_flow": {
+                        "steps": [
+                            {
+                                "process_step_id": "P10",
+                                "operation": "来料检验",
+                                "needs_confirmation": True,
+                                "ai_inferred": True,
+                            }
+                        ]
+                    },
+                    "pfmea": {"rows": []},
+                    "control_plan": {"rows": []},
+                    "manual_review": {"required": False, "items": []},
+                },
+                "",
+                ChainStageStates(
+                    pfd=StageConfirmState(status="generated", row_count=1, pending_count=1),
+                    pipeline_mode="chain",
+                ),
+            )
+            updated = run_service.confirm_pfd_stage(run.id, confirmed_by="qe")
+
+        step = updated.current_result["process_flow"]["steps"][0]
+        self.assertFalse(step["needs_confirmation"])
+        self.assertFalse(step["ai_inferred"])
+        self.assertEqual(step["review_status"], "已确认")
+        self.assertEqual(step["confirmed_by"], "qe")
+        self.assertEqual(updated.state.chain_stages.pfd.status, "confirmed")
+        self.assertEqual(updated.state.chain_stages.pfmea.status, "running")
+        self.assertEqual(updated.current_result["pfmea"], {"rows": []})
+
+    def test_confirm_pfd_applies_edit_patch_before_generating_pfmea(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = os.path.join(tmpdir, "desktop.sqlite3")
+            run_service = DesktopRunService(db_path)
+            run = run_service.save_chain_run(
+                None,
+                desktop_run_state_from_result(
+                    {
+                        "status": "needs_review",
+                        "manual_review": {"required": False, "items": []},
+                    }
+                ),
+                tmpdir,
+                {
+                    "document_type": "three_table_generation_result",
+                    "status": "needs_review",
+                    "drawing_analysis": {},
+                    "process_flow": {
+                        "steps": [
+                            {
+                                "process_step_id": "P10",
+                                "operation": "原始工序",
+                                "needs_confirmation": True,
+                                "ai_inferred": True,
+                            }
+                        ]
+                    },
+                    "pfmea": {"rows": []},
+                    "control_plan": {"rows": []},
+                    "manual_review": {"required": False, "items": []},
+                },
+                "",
+                ChainStageStates(
+                    pfd=StageConfirmState(status="generated", row_count=1, pending_count=1),
+                    pipeline_mode="chain",
+                ),
+            )
+            updated = run_service.confirm_pfd_stage(
+                run.id,
+                confirmed_by="qe",
+                edit_patch=build_edit_patch(
+                    [
+                        {
+                            "action": "update",
+                            "table": "process_flow",
+                            "target_id": "P10",
+                            "changes": {"operation": "修改后的工序"},
+                        }
+                    ]
+                ),
+            )
+
+        step = updated.current_result["process_flow"]["steps"][0]
+        self.assertEqual(step["operation"], "修改后的工序")
+        self.assertEqual(step["review_status"], "已确认")
+        self.assertEqual(step["confirmed_by"], "qe")
+        self.assertEqual(updated.state.chain_stages.pfd.status, "confirmed")
+        self.assertEqual(updated.state.chain_stages.pfmea.status, "running")
+        self.assertEqual(updated.current_result["pfmea"], {"rows": []})
+
+    def test_confirm_pfd_with_edit_patch_drops_stale_control_plan(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = os.path.join(tmpdir, "desktop.sqlite3")
+            run_service = DesktopRunService(db_path)
+            run = run_service.save_chain_run(
+                None,
+                desktop_run_state_from_result(
+                    {
+                        "status": "needs_review",
+                        "manual_review": {"required": False, "items": []},
+                    }
+                ),
+                tmpdir,
+                {
+                    "document_type": "three_table_generation_result",
+                    "status": "needs_review",
+                    "drawing_analysis": {},
+                    "process_flow": {
+                        "steps": [
+                            {
+                                "process_step_id": "P10",
+                                "operation": "原始工序",
+                                "needs_confirmation": True,
+                                "ai_inferred": True,
+                            }
+                        ]
+                    },
+                    "pfmea": {
+                        "rows": [
+                            {
+                                "pfmea_id": "OLD-F1",
+                                "process_step_id": "P10",
+                                "failure_mode": "旧失效模式",
+                            }
+                        ]
+                    },
+                    "control_plan": {
+                        "rows": [
+                            {
+                                "control_plan_id": "OLD-C1",
+                                "pfmea_id": "OLD-F1",
+                                "control_method": "旧控制方法",
+                            }
+                        ]
+                    },
+                    "manual_review": {"required": False, "items": []},
+                },
+                "",
+                ChainStageStates(
+                    pfd=StageConfirmState(status="generated", row_count=1, pending_count=1),
+                    pfmea=StageConfirmState(status="confirmed", row_count=1),
+                    cp=StageConfirmState(status="confirmed", row_count=1),
+                    pipeline_mode="chain",
+                ),
+            )
+            updated = run_service.confirm_pfd_stage(
+                run.id,
+                confirmed_by="qe",
+                edit_patch=build_edit_patch(
+                    [
+                        {
+                            "action": "update",
+                            "table": "process_flow",
+                            "target_id": "P10",
+                            "changes": {"operation": "修改后的工序"},
+                        }
+                    ]
+                ),
+            )
+
+        self.assertEqual(updated.current_result["pfmea"], {"rows": []})
+        self.assertEqual(updated.current_result["control_plan"], {"rows": []})
+        self.assertEqual(updated.state.chain_stages.pfmea.status, "running")
+        self.assertEqual(updated.state.chain_stages.cp.status, "not_started")
+
+    def test_regenerate_pfmea_clears_previous_failed_run_status(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = os.path.join(tmpdir, "desktop.sqlite3")
+            run_service = DesktopRunService(db_path)
+            run = run_service.save_chain_run(
+                None,
+                DesktopRunState(
+                    status="failed",
+                    status_display="失败",
+                    blocked_stage="pfmea",
+                    exports=(),
+                    manifest_path="",
+                    manifest_run_id="",
+                    manual_review_required=False,
+                    manual_review_count=0,
+                    manual_review_raw_count=0,
+                    chain_stages=ChainStageStates(
+                        pfd=StageConfirmState(status="confirmed", row_count=1),
+                        pfmea=StageConfirmState(status="failed"),
+                        pipeline_mode="chain",
+                    ),
+                ),
+                tmpdir,
+                {
+                    "document_type": "three_table_generation_result",
+                    "status": "failed",
+                    "blocked_stage": "pfmea",
+                    "drawing_analysis": {},
+                    "process_flow": {"steps": [{"process_step_id": "P10"}]},
+                    "pfmea": {"rows": []},
+                    "control_plan": {"rows": []},
+                    "manual_review": {"required": False, "items": []},
+                },
+                "原始错误：PFMEA failed",
+                ChainStageStates(
+                    pfd=StageConfirmState(status="confirmed", row_count=1),
+                    pfmea=StageConfirmState(status="failed"),
+                    pipeline_mode="chain",
+                ),
+            )
+            with patch(
+                "minos_core.pipeline_chain.generate_pfmea_from_confirmed_pfd",
+                return_value={
+                    "rows": [
+                        {
+                            "pfmea_id": "F1",
+                            "process_step_id": "P10",
+                            "needs_confirmation": False,
+                        }
+                    ]
+                },
+            ):
+                updated = run_service.regenerate_pfmea_stage(run.id)
+
+        self.assertEqual(updated.state.status, "needs_review")
+        self.assertEqual(updated.failure_message, "")
+        self.assertEqual(updated.state.chain_stages.pfmea.status, "generated")
+        self.assertEqual(updated.current_result["blocked_stage"], None)
 
     def test_desktop_failure_explains_unknown_drawing_evidence_refs(self):
         report = format_desktop_failure(
@@ -526,7 +1096,7 @@ class DesktopShellTests(unittest.TestCase):
         self.assertIn("unified_workbook", result["exports"])
         self.assertIn("quality_gate", result)
 
-    def test_desktop_ai_settings_status_uses_chinese_model_labels(self):
+    def test_desktop_api_settings_dict_does_not_expose_plain_api_key(self):
         with patch.dict(
             os.environ,
             {
@@ -536,35 +1106,17 @@ class DesktopShellTests(unittest.TestCase):
             },
             clear=True,
         ):
-            status = build_settings_status()
+            with tempfile.TemporaryDirectory() as tmpdir:
+                store = DesktopSettingsStore(os.path.join(tmpdir, "desktop.sqlite3"))
+                settings = settings_to_dict(
+                    store.get_default_output_dir(),
+                    store.get_ai_config_state(),
+                )
 
-        self.assertEqual(status["模型"], "gpt-acceptance")
-        self.assertTrue(status["模型已配置"])
-        self.assertEqual(status["模型来源"], "MINOS_OPENAI_MODEL")
-        self.assertNotIn("secret-value", str(status))
-
-    def test_export_summary_reports_final_export_blockers_and_allowed_state(self):
-        blocked = build_export_summary(
-            {
-                "status": "needs_review",
-                "manual_review": {"required": True, "items": [{"id": "MR-1"}]},
-                "quality_gate": {
-                    "final_export_allowed": False,
-                    "needs_confirmation_items": ["pfmea:PFMEA-P10-001"],
-                },
-            }
-        )
-        allowed = build_export_summary(
-            {
-                "status": "draft_ready",
-                "manual_review": {"required": False, "items": []},
-                "quality_gate": {"final_export_allowed": True},
-            }
-        )
-
-        self.assertFalse(blocked["正式导出允许"])
-        self.assertEqual(blocked["质量门"]["待确认项"], ["pfmea:PFMEA-P10-001"])
-        self.assertTrue(allowed["正式导出允许"])
+        self.assertEqual(settings["ai_config"]["model"], "gpt-acceptance")
+        self.assertTrue(settings["ai_config"]["model_configured"])
+        self.assertEqual(settings["ai_config"]["model_source"], "MINOS_OPENAI_MODEL")
+        self.assertNotIn("secret-value", str(settings))
 
     def test_recent_runs_list_and_restore_latest_current_result(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -638,23 +1190,6 @@ class DesktopShellTests(unittest.TestCase):
         self.assertIn("原因判断：输出目录或输入文件可能没有访问权限。", message)
         self.assertIn("处理方案：", message)
         self.assertIn("放弃任务", message)
-
-    def test_desktop_cli_reports_missing_pyside6_without_breaking_core_tests(self):
-        real_import = builtins.__import__
-
-        def fake_import(name, globals=None, locals=None, fromlist=(), level=0):
-            if name == "minos_desktop.qt_app" or (level == 1 and name == "qt_app"):
-                raise ModuleNotFoundError("No module named 'PySide6'", name="PySide6")
-            return real_import(name, globals, locals, fromlist, level)
-
-        buffer = io.StringIO()
-        with patch("builtins.__import__", side_effect=fake_import):
-            with redirect_stdout(buffer):
-                code = main([])
-
-        self.assertEqual(code, 2)
-        self.assertIn("PySide6 is not installed", buffer.getvalue())
-
 
 if __name__ == "__main__":
     unittest.main()

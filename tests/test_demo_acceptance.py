@@ -41,6 +41,7 @@ class DemoAcceptanceTests(unittest.TestCase):
             result = generate_three_tables_from_drawing(
                 drawing_path,
                 root / "out",
+                analysis_mode="vision_only",
                 analyzer=FakeMultimodalDrawingAnalyzer(json.dumps(_analysis_payload())),
             )
 
@@ -67,6 +68,7 @@ class DemoAcceptanceTests(unittest.TestCase):
             result = generate_three_tables_from_drawing(
                 drawing_path,
                 root / "out",
+                analysis_mode="vision_only",
                 analyzer=FakeMultimodalDrawingAnalyzer(json.dumps(_analysis_payload())),
             )
 
@@ -101,6 +103,7 @@ class DemoAcceptanceTests(unittest.TestCase):
             result = generate_three_tables_from_drawing(
                 drawing_path,
                 root / "out",
+                analysis_mode="vision_only",
                 analyzer=FakeMultimodalDrawingAnalyzer(json.dumps(_analysis_payload())),
             )
             result_path = root / "out" / "three_table_generation_result.json"

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from minos_core._text_utils import text
+
 
 ACTION_STATUS_OPEN = {"未制定", "待执行", "执行中", "已逾期"}
 ACTION_STATUS_DONE = {"已完成", "已验证", "已关闭"}
@@ -47,9 +49,9 @@ def normalize_pfmea_row(row: dict[str, Any], process_step: dict[str, Any] | None
 
     process_step = process_step or {}
     normalized = dict(row)
-    process_step_id = _text(normalized.get("process_step_id"), process_step.get("process_step_id"))
-    operation = _text(normalized.get("operation"), normalized.get("process_step_name"), process_step.get("operation"))
-    process_function = _text(
+    process_step_id = text(normalized.get("process_step_id"), process_step.get("process_step_id"))
+    operation = text(normalized.get("operation"), normalized.get("process_step_name"), process_step.get("operation"))
+    process_function = text(
         normalized.get("process_function"),
         process_step.get("process_function"),
         process_step.get("process_purpose"),
@@ -58,19 +60,19 @@ def normalize_pfmea_row(row: dict[str, Any], process_step: dict[str, Any] | None
     severity = bounded_rating(normalized.get("severity", normalized.get("S")), default=5)
     occurrence = bounded_rating(normalized.get("occurrence", normalized.get("O")), default=3)
     detection = bounded_rating(normalized.get("detection", normalized.get("D")), default=6)
-    ap = _text(normalized.get("action_priority"), normalized.get("AP"), calculate_ap(severity, occurrence, detection)).upper()
+    ap = text(normalized.get("action_priority"), normalized.get("AP"), calculate_ap(severity, occurrence, detection)).upper()
 
     normalized.update(
         {
-            "process_item": _text(normalized.get("process_item"), "制造过程"),
-            "process_step": _text(normalized.get("process_step"), operation, process_step_id),
-            "process_work_element": _text(
+            "process_item": text(normalized.get("process_item"), "制造过程"),
+            "process_step": text(normalized.get("process_step"), operation, process_step_id),
+            "process_work_element": text(
                 normalized.get("process_work_element"),
                 process_step.get("equipment"),
                 process_step.get("tooling"),
                 "人员/设备/工装/方法",
             ),
-            "function_requirement": _text(normalized.get("function_requirement"), process_function),
+            "function_requirement": text(normalized.get("function_requirement"), process_function),
             "S": severity,
             "severity": severity,
             "O": occurrence,
@@ -80,11 +82,11 @@ def normalize_pfmea_row(row: dict[str, Any], process_step: dict[str, Any] | None
             "AP": ap,
             "action_priority": ap,
             "rpn": calculate_rpn(severity, occurrence, detection),
-            "action_status": _text(normalized.get("action_status"), normalized.get("status"), "未制定"),
-            "responsibility": _text(normalized.get("responsibility"), normalized.get("owner")),
-            "target_date": _text(normalized.get("target_date"), normalized.get("completion_due_date")),
-            "actual_completion_date": _text(normalized.get("actual_completion_date"), normalized.get("completion_date")),
-            "remarks": _text(normalized.get("remarks"), normalized.get("note")),
+            "action_status": text(normalized.get("action_status"), normalized.get("status"), "未制定"),
+            "responsibility": text(normalized.get("responsibility"), normalized.get("owner")),
+            "target_date": text(normalized.get("target_date"), normalized.get("completion_due_date")),
+            "actual_completion_date": text(normalized.get("actual_completion_date"), normalized.get("completion_date")),
+            "remarks": text(normalized.get("remarks"), normalized.get("note")),
         }
     )
     after_s = normalized.get("after_severity", normalized.get("severity_after"))
@@ -97,7 +99,7 @@ def normalize_pfmea_row(row: dict[str, Any], process_step: dict[str, Any] | None
     if after_d not in {None, ""}:
         normalized["after_detection"] = bounded_rating(after_d, default=detection)
     if all(normalized.get(field) not in {None, ""} for field in ("after_severity", "after_occurrence", "after_detection")):
-        normalized["after_ap"] = _text(
+        normalized["after_ap"] = text(
             normalized.get("after_ap"),
             calculate_ap(
                 normalized["after_severity"],
@@ -111,11 +113,3 @@ def normalize_pfmea_row(row: dict[str, Any], process_step: dict[str, Any] | None
             normalized["after_detection"],
         )
     return normalized
-
-
-def _text(*values: Any) -> str:
-    for value in values:
-        text = str(value or "").strip()
-        if text:
-            return text
-    return ""

@@ -1,0 +1,199 @@
+{
+  "schema_version": "minos-core.process_inference.v1",
+  "family_key": "cold_headed_part",
+  "family_name": "冷镦件",
+  "description": "冷镦(cold heading/cold forging)在室温下将盘圆线材(wire rod/coil)通过多工位冷镦机逐工位进行切断、镦粗(upsetting)、正挤压(forward extrusion)、反挤压(backward extrusion)、冲孔、修边等工序成形为近净形(near net shape)零件。核心优势:(1)材料利用率≥95%(无切屑产生);(2)金属纤维流线(flow line)连续不切断,强度比切削件高10-30%;(3)生产效率60-400件/分;(4)冷作硬化提高屈服强度20-50%;(5)表面光洁度好(Ra≤3.2μm)。典型产品:球头销(ball stud)、台阶螺栓(step bolt)、半空心铆钉(semi-tubular rivet)、轮毂螺栓(wheel stud)、轴承销(bearing pin)、火花塞壳体(spark plug shell)、电机轴毛坯(motor shaft blank)。工艺限制:镦锻比(线材自由段长度/直径)≤2.5:1(无约束)/≤4.5:1(有弹簧套约束)。典型材料:冷镦碳钢SWRCH35K/SWCH10R、合金钢SCM435/10B21/20MnB4、不锈钢SUS304/SUSXM7、铝合金5052/6061,线径∮3-25mm。",
+  "drawing_recognition_clues": {
+    "typical_shapes": [
+      "圆柱阶梯轴(多段直径变化)",
+      "球头+杆部(ball stud,球头销)",
+      "法兰头+杆部(flanged bolt,法兰螺栓/轮毂螺栓)",
+      "中空筒形(火花塞壳体/套筒/管状铆钉)",
+      "杯形/帽形(cap/cup,盖型螺母坯)",
+      "异形截面头(六角/四角/Torx/梅花)",
+      "半空心铆钉(semi-tubular,头部实心+杆部中空)",
+      "管状铆钉(full tubular,全中空)"
+    ],
+    "typical_materials_metal": [
+      "SWRCH35K(冷镦碳钢,最常用)",
+      "SWRCH45K",
+      "SWCH10R(冷镦镇静钢,优良冷镦性)",
+      "SWCH18A",
+      "SCM415(铬钼合金钢,渗碳用)",
+      "SCM435(铬钼合金钢,调质用,高强度螺栓)",
+      "SCM440",
+      "10B21(硼钢,高强度紧固件)",
+      "10B28",
+      "20MnB4(硼锰钢)",
+      "ML20MnTiB(GB标准冷镦硼钢)",
+      "SUS304(不锈钢,冷镦用W2级别,软质化处理)",
+      "SUSXM7(不锈钢,添加Cu改善冷镦加工性)",
+      "SUS430",
+      "5052-H32(铝合金)",
+      "6061-T6(铝合金)",
+      "C5191(磷青铜)"
+    ],
+    "typical_materials_plastic": [],
+    "typical_thickness": "线径∮3-25mm(常用范围),成形后最大径:最小径≤4:1(镦锻成形比),杆部长径比≤16:1",
+    "typical_features": [
+      "球头(SR球形面,表面粗糙度Ra≤0.4μm)",
+      "法兰/凸缘(flange,盘状或六角)",
+      "台阶(多次径变化)",
+      "环槽(annular groove,卡环槽/O形圈槽)",
+      "头部(bolt head:六角/四角/梅花/十字槽)",
+      "内六角孔(hex socket,反挤压成形)",
+      "螺纹(thread,后续滚轧,不属冷镦范畴但在同一零件上)",
+      "花键(spline,挤压成形或后续滚轧)",
+      "中心孔/锥坑(center drill)",
+      "滚花(knurled surface)",
+      "倒角(chamfer,所有边缘)"
+    ],
+    "surface_requirements": [
+      "冷镦表面光滑(无拉伤/裂纹/折叠/galling)",
+      "模具表面Ra<0.2μm(防止粘着/拉伤)",
+      "磷化膜均匀完全(重量≥4g/m²,目视灰黑色,无遗漏亮斑)",
+      "无冷镦微裂纹(磁粉探伤MT/渗透探伤PT,安全件100%)",
+      "球头圆度≤0.02mm(球头销类关键特性)",
+      "杆部直线度≤0.05mm/100mm",
+      "脱碳层≤0.05mm"
+    ],
+    "tolerance_level": "冷镦外径IT11-IT13(直接成形),IT8-IT10(精整/二次加工后),长度±0.1-0.2mm,同轴度≤0.05-0.15mm",
+    "typical_standards": [
+      "GB/T 2899 冷镦用碳素钢和合金钢",
+      "JIS B 1051 螺栓/螺丝/螺柱机械性能",
+      "ISO 898-1 碳钢/合金钢紧固件机械性能",
+      "DIN 267-2 紧固件技术交货条件",
+      "IATF 16949",
+      "AIAG & VDA FMEA Handbook"
+    ]
+  },
+  "process_flow_variants": {
+    "single_die_cold_heading": {
+      "description": "单工位冷镦(1-die 2-blow)——使用单模双冲(single die, two blows)冷镦机，线材经送料→切断→第一冲(预镦粗)→第二冲(终镦成形)完成。适合形状简单的零件（普通螺栓/铆钉/销轴），年产量>20万件。设备较简单、投资低，但成形能力有限(只1个模具站,复杂几何需多道成形)。镦锻比≤3:1(线径:杆径)、头部直径扩大量≤2.5倍线径。",
+      "match_keywords": [
+        "单模冷镦", "1-die 2-blow",
+        "single die", "简单冷镦",
+        "单工位", "single station",
+        "普通螺栓", "standard bolt",
+        "铆钉", "rivet", "销", "pin",
+        "低复杂度", "simple geometry",
+        "少量多样", "small batch variety"
+      ],
+      "process_sequence": [
+        {"seq": 10, "operation": "来料检验(线材)", "equipment": "光谱仪/拉伸试验机/涡流探伤/金相显微镜/线径激光测量", "key_check": "线材材质牌号(光谱确认)、线径公差±0.02-0.05mm、表面质量(无裂纹/折叠/脱碳层/锈蚀/划伤)、球化退火组织级别(球化率≥90%,片状珠光体→冷镦开裂高风险)、抗拉强度/断面收缩率(按材料标准)"},
+        {"seq": 20, "operation": "线材磷化润滑处理(皮膜)", "equipment": "磷化线(酸洗→水洗→表调→磷化→水洗→中和→皂化/涂MoS2)", "key_check": "锌系磷化膜重量≥4g/m²(线径3-10mm)、皂化润滑层(硬脂酸钠反应形成金属皂)、无磷化遗漏(目视:灰黑色均匀无亮斑,亮斑=无润滑→冷镦拉伤/卡模)、烘干温度≤150°C(防皂化膜分解)、皮膜质量抽检(减重法测膜重,poka-yoke:皮膜不达标不投入冷镦)"},
+        {"seq": 30, "operation": "线材校直/定尺送料", "equipment": "校直机(辊式矫直)+伺服送料装置(精度±0.05mm)", "key_check": "直线度≤0.3mm/m(影响切断长度一致性)、送料长度精度±0.05mm(自工程完結:每100件抽检送料长度)、校直后无表面划伤(辊轮材质/硬度管理)"},
+        {"seq": 40, "operation": "工位0:切断", "equipment": "套筒刀(shearing bush)+切断刀(cut-off knife,SKH51/M42高速钢)", "key_check": "断面平整度(斜度≤0.15mm)、切断毛刺≤0.10mm、切断长度±0.05mm、切断刀与套筒间隙0.02-0.05mm(间隙大→毛刺/斜切;间隙小→刀具过快磨损)"},
+        {"seq": 50, "operation": "工位1第一冲:预镦粗(1st Blow)", "equipment": "冷镦机第一冲滑块+预镦冲模", "key_check": "预镦比(本冲直径增量≤40%线径)、冲模入口圆角R≥1mm(避免材料折叠内卷)、无折叠/无裂纹(目视+必要时剖检)、顶出力稳定(poka-yoke:顶出杆传感器检测顶出到位/防卡模)"},
+        {"seq": 60, "operation": "工位1第二冲:终镦成形(2nd Blow)", "equipment": "冷镦机第二冲滑块+终镦冲模(成形头型/法兰)", "key_check": "终镦比(本冲直径增量≤30%)、头部外形完整(六角/凸缘/法兰)、头部尺寸精度(外径±0.05mm)、球头圆度≤0.02mm(球头销类)、表面无拉伤/刮痕(模具表面Ra<0.2μm+充足润滑)"},
+        {"seq": 70, "operation": "出料+外观筛选", "equipment": "零件收集器+CCD视觉检测(在线)", "key_check": "外观缺陷自动分选:裂纹/折叠/拉伤/缺料/头部不完整、尺寸在线检测(杆径/头径/长度)、NG品自动剔除(poka-yoke:不良品隔离不混入良品)、模具更换后首件全尺寸检测(100%全特征)"},
+        {"seq": 80, "operation": "退火(如需要:消除冷作硬化)", "equipment": "保护气氛连续退火炉(球化退火/软化退火)", "key_check": "球化退火:Ac1+(30-50°C)保温→缓冷(用于后续二次冷镦或机加工);软化退火:650-720°C保温→空冷(用于单纯消除应力);脱碳层≤0.05mm;无氧化色(保护气氛露点≤-40°C);退火后硬度(按图纸:通常HV<120)"},
+        {"seq": 90, "operation": "后加工(滚螺纹/铣花键/攻丝)", "equipment": "螺纹滚轧机(平模/圆模)/花键滚轧机/攻丝机", "key_check": "滚螺纹前外径=螺纹中径;螺纹精度6g/6H、通止规全检;花键参数(模数/齿数/齿厚/齿形精度);加工后尺寸精度首件+SPC"},
+        {"seq": 100, "operation": "清洗除油", "equipment": "超声波清洗/碳氢清洗/水基清洗线", "key_check": "表面无油污(达因笔≥38mN/m)、无磷化残渣(影响涂装/电镀)、清洁度≤1mg/件(精密/安全件)"},
+        {"seq": 110, "operation": "热处理(调质/渗碳淬火/高频淬火)", "equipment": "可控气氛热处理炉/真空炉/高频淬火设备", "key_check": "调质:HRC 25-35(普通螺栓)/HRC 32-39(高强度螺栓,SCM435);渗碳淬火:表面HRC≥58,渗层0.15-0.40mm(紧定螺钉)/0.5-1.2mm(重载件),心部HRC 30-45;高频淬火:表面HRC 50-62,淬硬层0.8-2.5mm;变形≤0.05mm;氢脆去氢处理(热处理后≤4h内烘烤200°C×4h,poka-yoke:时间/温度记录追溯)"},
+        {"seq": 120, "operation": "表面处理", "equipment": "电镀锌/镀锌镍/达克罗/Geomet/磷化线", "key_check": "镀锌层5-25μm,盐雾≥72h白锈;达克罗/Geomet 8-15μm,盐雾≥480h红锈;必须去氢处理!(200°C×4h,电镀后立即执行);螺纹部位镀前预留尺寸(保证镀后通止规合格);氢脆风险材料(≥HRC 32)必须去氢"},
+        {"seq": 130, "operation": "完工检验(终检)", "equipment": "CMM三坐标/轮廓仪/粗糙度仪/硬度计(HRC/HV)/螺纹通止规/磁粉探伤(MT,安全件)/万能材料试验机", "key_check": "全尺寸(关键特性100%、重要特性SPC抽检)、螺纹通止规100%、硬度(图纸要求)、磁粉探伤100%(安全件/球头销/轮毂螺栓:无微裂纹)、球头圆度/粗糙度(Ra≤0.4μm)、外观无缺陷、拉伸试验(按批次/按标准:≥材料最小抗拉载荷)、关键特性Cpk≥1.67(安全件)"},
+        {"seq": 140, "operation": "防锈包装入库", "equipment": "自动包装机/封箱机/打码机/称重计数器", "key_check": "涂防锈油/防锈纸(VCI)、数量核对(称重计数或光电计数)、批次号关联线材炉号(可追溯至原料熔炼批)、防磕碰包装(塑盘/EPE衬垫/纸格分隔)、出货检验报告"}
+      ]
+    },
+    "multi_station_progressive_cold_forming": {
+      "description": "多工位渐进冷镦成形——使用4-6工位冷镦机(multi-die cold header/part former)，盘圆线材经校直→送料→切断→工位1(预镦)→工位2(镦头+正挤)→工位3(反挤+冲孔)→工位4(修边+精整)→工位5(二次精压/切边)→工位6(最终出料)。每工位通过不同的冲模/母模组合完成特定成形任务，零件在各工位间由夹钳(transfer fingers)自动传递。适合形状复杂的精密零件（球头销/火花塞壳体/中空铆钉/花键轴坯），年产量>50万件。关键:(1)镦锻比控制(每工位直径增量≤30-50%、断面缩减率≤50%/工位);(2)磷化润滑皮膜质量;(3)模具材质(超硬合金+TiCN/TiAlN涂层);(4)变化点管理(线材批次/模具寿命/润滑状态)自动化监控。",
+      "match_keywords": [
+        "多工位冷镦", "multi-die cold header",
+        "multi-station cold forging",
+        "渐进冷镦", "progressive cold forming",
+        "part former", "chucker",
+        "球头销", "ball stud", "spark plug shell",
+        "中空件", "hollow part",
+        "高产能", "high volume",
+        "复杂形状", "complex geometry",
+        "精密冷镦", "precision cold heading",
+        "boltmaker", "nut former"
+      ],
+      "process_sequence": [
+        {"seq": 10, "operation": "来料检验(线材)", "equipment": "光谱仪/拉伸试验机/涡流探伤/金相显微镜/激光线径测量仪", "key_check": "材质牌号(光谱)、线径公差±0.02-0.05mm、表面质量(无裂纹/折叠/脱碳层/锈蚀)、球化率≥90%(关键:对复杂冷镦尤为重要)、抗拉强度/断面收缩率(按标准)、炉号追溯登录MES系统"},
+        {"seq": 20, "operation": "线材磷化润滑处理(皮膜)", "equipment": "自动磷化线(酸洗→水洗→表调→磷化→水洗→中和→皂化→烘干)", "key_check": "锌系磷化膜重4-8g/m²(线径3-10mm)或8-12g/m²(线径>10mm);皂化层均匀(硬脂酸钠反应);无遗漏亮斑(poka-yoke:全数目视或CCD检测);烘干控制(T≤150°C防皂化膜分解);每批次检验:减重法测膜重+扫描电镜SEM测结晶形态"},
+        {"seq": 30, "operation": "线材校直/定尺送料", "equipment": "校直机(多辊矫直)+伺服送料装置", "key_check": "直线度≤0.3mm/m、送料长度精度±0.03mm(伺服控制;精密冷镦要求更高)、校直辊轮定期更换(磨损后划伤线材表面→冷镦缺陷)"},
+        {"seq": 40, "operation": "工位0:切断", "equipment": "套筒刀+切断刀(超硬合金/M42高速钢)", "key_check": "断面平整度(斜度≤0.10mm,精密冷镦要求更严)、切断毛刺≤0.08mm、切断长度±0.03mm、切断刀寿命管理(每50000-100000件更换刃磨)"},
+        {"seq": 50, "operation": "工位1:预镦粗(Pre-Upsetting)", "equipment": "冷镦机工位1:预镦冲模(semi-spherical punch)+母模", "key_check": "预镦比(直径增量≤40%、断面缩减率≤30%)、球面预成形(球头销类关键:为终镦球头做准备)、材料居中导向(poka-yoke:材料不在母模中心→冲模偏载→模具破损→停检)"},
+        {"seq": 60, "operation": "工位2:镦头/正挤(Heading + Forward Extrusion)", "equipment": "冷镦机工位2:成形冲模+母模(含正挤腔)", "key_check": "头部成形/法兰成形:直径增量≤50%(本工位,有约束下);正挤压:断面缩减率≤50%/工位、杆部长度控制(±0.05mm)、冲模冷却/润滑(雾化润滑,防止过热→模具软化→粘着)"},
+        {"seq": 70, "operation": "工位3:反挤/冲孔(Backward Extrusion + Piercing)", "equipment": "冷镦机工位3:反挤冲头(高速钢+涂层)+母模", "key_check": "反挤压:杯深/壁厚均匀性(壁厚偏差≤0.05mm)、反挤冲头刚度(冲头L/D≤6:1防折弯);冲孔:冲孔冲头对中、冲孔毛刺≤0.10mm;中空铆钉冲孔:壁厚均匀度≤10%;夹钳传递精度(零件中心偏差≤0.05mm)"},
+        {"seq": 80, "operation": "工位4-5:修边/精整/二次成形", "equipment": "冷镦机工位4-5:修边模+精整冲模+精压模", "key_check": "修边:凸缘/法兰外缘修边(飞边≤0.10mm);精整:最终外径±0.025-0.05mm;球头最终精压:圆度≤0.015mm(球头销精密级);六角头/四角头精压:对角/对边尺寸精度;内六角孔精整(如有);模具内传感器:检测零件是否转移到位(poka-yoke motion-step:夹钳传递确认,缺件停机)"},
+        {"seq": 90, "operation": "出料/在线全检筛选", "equipment": "零件收集器+CCD多角度视觉检测+涡流/磁粉探伤(安全件在线)+激光测径", "key_check": "外观缺陷AI自动分选(裂纹/折叠/拉伤/缺料/模具痕)、尺寸在线检测100%(杆径/头径/长度/圆度)、NG品自动剔除隔离(poka-yoke防混入良品箱);变化点管理:模具更换后首件100%全特征CMM检测;SPC数据实时监控:关键尺寸Xbar-R控制图"},
+        {"seq": 100, "operation": "退火(如需要:去应力)", "equipment": "保护气氛连续退火炉(真空/钟罩式)", "key_check": "球化退火:Ac1+30-50°C保温缓冷(后续二次冷镦或大量机加工);软化退火:650-720°C保温空冷(去除应力);脱碳层≤0.03mm(精密件);表面无氧化(露点≤-45°C);退火后硬度/金相抽检(每炉/每批次)"},
+        {"seq": 110, "operation": "后加工(滚螺纹/滚花键/钻横孔/磨削)", "equipment": "螺纹滚轧机(圆模CNC)/花键冷滚轧机(rack rolling)/CNC钻铣/无心磨床", "key_check": "滚螺纹:螺纹精度6g/6H(通止规100%、螺纹轮廓仪抽检)、滚前外径=螺纹中径(±0.01mm);花键滚轧:渐开线花键/矩形花键(齿形/齿厚/齿距);磨削:杆部/球头磨削(圆度≤0.005mm,精密级);CNC加工:横孔/油孔/键槽定位精度"},
+        {"seq": 120, "operation": "清洗除油", "equipment": "超声波清洗/碳氢清洗(密闭式)/真空干噪", "key_check": "表面清洁度(达因值≥40mN/m,涂料/电镀前)、清洁度≤0.5mg/件(精密/安全件,称重法)、无清洗剂残留(尤其碳氢:必须完全干燥)"},
+        {"seq": 130, "operation": "热处理(调质/渗碳淬火/高频淬火/时效)", "equipment": "可控气氛多用炉/连续渗碳炉/真空淬火炉/高频淬火设备/时效炉(铝)", "key_check": "调质(SCM435/SCM440螺栓):淬火850-870°C→回火450-550°C,HRC 32-39;渗碳淬火(SCM415/20MnB4):渗碳880-930°C→淬火820-860°C→回火150-200°C,表面HRC≥58/渗层按图纸;去氢处理(热处理后≤4h内200°C×4h,HRC≥32高强度件必须);变形≤0.03mm(精密件);每炉金相/硬度/渗层抽检"},
+        {"seq": 140, "operation": "表面处理", "equipment": "电镀锌镍/达克罗/Geomet/磷化/锌铝涂覆线(自动)", "key_check": "镀锌镍12-15μm,盐雾≥720h红锈(高耐蚀规格);达克罗/Geomet 8-15μm,盐雾≥480-1000h;氢脆去氢(电镀后立即200°C×4-8h烘烤);螺纹镀前尺寸预留(保证镀后通止规合格);镀层附着力(热震试验/划格法);poka-yoke:去氢烘烤时间/温度记录:不满足不流转"},
+        {"seq": 150, "operation": "完工检验(终检,安全件/精密件强化)", "equipment": "CMM三坐标/轮廓仪/粗糙度仪/硬度计(HRC/HV)/螺纹通止规/磁粉探伤(MT,全自动荧光)/万能材料试验机/圆度仪", "key_check": "全尺寸100%(安全件关键特性)/SPC抽检(非安全件);螺纹通止规100%;硬度100%(安全件)或抽检;磁粉探伤100%(安全件/球头销/轮毂螺栓:表面微裂纹0容忍);球头圆度≤0.015mm(精密级)/≤0.02mm(标准级);拉力试验(按批次/标准:≥最小抗拉载荷);金相(每批次/每炉:脱碳层/表面硬度/渗层深度/心部硬度);关键特性Cpk≥1.67(安全件);外观全检"},
+        {"seq": 160, "operation": "防锈包装/腔库入库", "equipment": "自动包装+称重计数+打码+贴标+封箱+码垛", "key_check": "防锈油/防锈纸(VCI)涂布、数量100%核对(称重+光电双重验证)、批次标识(零件号/批号/日期/线材炉号=全追溯链)、防磕碰包装(定制吸塑托盘/EPE衬垫/分隔格)、出货检验报告附批号"}
+      ]
+    }
+  },
+  "feature_to_operation": {
+    "cutoff_blank": {"operation": "线材切断", "equipment": "冷镦机套筒刀+切断刀(SKH51/M42/超硬合金)", "note": "切断长度L=零件体积折算/线材截面积+端面修整余量3-5%;断面倾斜≤0.10mm"},
+    "upsetting_pre": {"operation": "预镦粗(Pre-Upsetting)", "equipment": "冷镦机+预镦冲模(球面/锥形)", "note": "预镦比≤40%直径增量;冲模入口圆角≥R1mm防折叠;球头销:预成形为半球形"},
+    "upsetting_final": {"operation": "终镦粗/镦头(Heading)", "equipment": "冷镦机+终镦冲模(成形头型/法兰)", "note": "Wikipedia:forging+extruding+upsetting;终镦比≤30%直径增量;头部完全充填模腔"},
+    "forward_extrusion": {"operation": "正挤压(Forward Extrusion)", "equipment": "冷镦机+正挤母模+冲模", "note": "材料向前流动缩小直径;断面缩减率≤50%/工位;杆部长度±0.05mm"},
+    "backward_extrusion": {"operation": "反挤压(Backward Extrusion)", "equipment": "冷镦机+反挤冲头(高速钢/TiCN涂层)", "note": "材料反向流动形成中空;冲头L/D≤6:1;壁厚均匀度≤10%板厚;用于内六角/中空铆钉"},
+    "piercing": {"operation": "冲孔(Piercing)", "equipment": "冷镦机+冲孔冲头", "note": "中空铆钉/火花塞壳体冲孔;冲孔毛刺≤0.10mm;壁厚均匀±0.05mm"},
+    "trimming": {"operation": "修边(Trimming)", "equipment": "冷镦机+修边模(切削刃口)", "note": "法兰/凸缘外缘飞边切除;飞边≤0.10mm;修边面平整"},
+    "coining_sizing": {"operation": "精压/精整(Coining/Sizing)", "equipment": "冷镦机+精整冲模(耐磨合金+涂层)", "note": "最终尺寸精度:外径±0.025-0.05mm;球头圆度≤0.015mm(精密级)"},
+    "phosphate_coating": {"operation": "磷化润滑皮膜", "equipment": "自动磷化线(酸洗+磷化+皂化)", "note": "冷镦前线材表面处理;锌系磷化膜重4-8g/m²;皂化层保证润滑连续性;冷镦三要素之一"},
+    "annealing_intermediate": {"operation": "中间退火", "equipment": "保护气氛退火炉(真空/钟罩)", "note": "消除冷镦加工硬化恢复塑性;球化退火Ac1+(30-50°C);软化退火650-720°C"},
+    "thread_rolling": {"operation": "滚螺纹(Thread Rolling)", "equipment": "螺纹滚轧机(平模/圆模/行星式)", "note": "冷滚轧成形螺纹;滚前外径=螺纹中径±0.01mm;螺纹精度6g/6H;金属纤维连续→强度↑"},
+    "spline_rolling": {"operation": "滚花键(Spline Rolling)", "equipment": "花键冷滚轧机(rack roller/in-feed)", "note": "渐开线花键/矩形花键冷滚轧;齿形精度/齿厚/齿距100%检测"},
+    "heat_treatment": {"operation": "热处理(调质/渗碳/高频)", "equipment": "多用炉/连续渗碳炉/高频淬火机", "note": "调质(SCM435):淬火850-870°C+回火450-550°C→HRC32-39;渗碳淬火:表面≥HRC58"},
+    "hydrogen_deembrittlement": {"operation": "去氢处理", "equipment": "烘箱(200°C强制对流)", "note": "电镀/酸洗后≤4h内执行,200°C×4-8h;HRC≥32高强度件必须;时间温度记录追溯(poka-yoke防遗漏)"},
+    "surface_plating": {"operation": "表面处理(电镀/达克罗)", "equipment": "电镀线/达克罗涂覆线/Geomet线", "note": "镀锌/镀锌镍/达克罗/Geomet;膜厚+盐雾按图纸;螺纹预留电镀余量"},
+    "inspection_final": {"operation": "完工检验(终检)", "equipment": "CMM/轮廓仪/磁粉探伤(MT)/通止规/拉力机", "note": "全尺寸/螺纹/硬度/磁粉探伤(安全件100%)/拉力(批次);Cpk≥1.67(安全件)"}
+  },
+  "engineering_parameters": {
+    "tool_materials": {
+      "cutoff_knife": {"material": "SKH51/M42高速钢或超硬合金", "hardness": "HRC 62-66", "note": "切断刀;间隙0.02-0.05mm与套筒刀"},
+      "upsetting_punch": {"material": "SKH51/SKH55高速钢+TiCN涂层", "hardness": "HRC 60-64", "finish": "Ra <0.2μm", "note": "镦粗冲模;承受高压应力;每次冲程检查润滑"},
+      "extrusion_punch": {"material": "SKH55/粉末高速钢ASP23+TiAlN涂层", "hardness": "HRC 62-66", "finish": "Ra <0.1μm", "note": "挤压冲头(正挤/反挤);L/D≤6:1防止折弯;最高应力区需FEM分析"},
+      "die_insert": {"material": "超硬合金(WC-Co,例如YG15/G10)+TiCN涂层", "hardness": "HRA 89-93", "finish": "Ra <0.1μm", "note": "母模嵌块(模芯);承受径向膨胀应力;预紧套预压(过盈量0.1-0.3%)"},
+      "die_case": {"material": "SKD61/H13热作工具钢 (HRC 46-50)", "note": "母模外筒(预紧套);热装或压装预紧模芯;提供径向约束抗裂"},
+      "transfer_fingers": {"material": "SKD11/Cr12MoV (HRC 56-60)+TiN涂层", "note": "夹钳手指;传递精度(中心偏差≤0.05mm)"}
+    },
+    "process_parameters": {
+      "upsetting_ratio_free": "≤2.5:1(线材无约束自由镦锻时自由段L/D≤2.5)",
+      "upsetting_ratio_guided": "≤4.5:1(有弹簧套/导套约束时可达L/D≤4.5)",
+      "extrusion_ratio_per_station": "≤2.0(断面缩减率≤50%每工位)",
+      "heading_diameter_increase": "≤2.5×线径(头部最大直径 vs 线径)",
+      "phosphate_coating_weight": "4-8 g/m²(线径3-10mm,锌系);8-12 g/m²(线径>10mm)",
+      "soap_lubricant_type": "硬脂酸钠(金属皂,与磷化层化学结合形成润滑膜)",
+      "cutoff_blade_life": "50,000-100,000切断/刃磨;200,000-500,000切断/报废更换",
+      "punch_life_upsetting": "100,000-300,000件/套(视材料/负荷);修磨周期:每50,000件",
+      "die_insert_life": "200,000-1,000,000件/套(超硬合金+涂层);检查:每100,000件"
+    },
+    "force_formulas": {
+      "upsetting_force_cylindrical": "F_ups = σf × A1 × (1 + μ × D1/(3 × h1));σf=流动应力(MPa),A1=最终截面积,D1=最终直径,h1=高度,μ=摩擦系数(0.05-0.10)",
+      "forward_extrusion_force": "F_fwd = σf × A0 × ε × (1 + 2μ × L/D);A0=原始截面积,ε=真实应变=ln(A0/A1),L=模腔长度,D=直径",
+      "backward_extrusion_force": "F_bwd = σf × A_punch × (2 + 0.5 × D_punch/h_wall);A_punch=冲头面积,D_punch=冲头直径,h_wall=壁厚",
+      "upset_energy": "E = (F_ups × stroke) + 摩擦损耗15-25%"
+    },
+    "quality_checks": {
+      "phosphate_quality": "每批次:减重法测膜重(≥4g/m²)、目视灰黑色均匀无亮斑、扫描电镜(SEM)结晶形态(磷酸锌针状结晶,长3-10μm,均匀覆盖)",
+      "upset_fold_inspection": "每班/每模具更换/每批次首件:剖检或CT扫描检查折叠(最危险冷镦缺陷)",
+      "surface_crack_inspection": "安全件/球头销100%磁粉探伤(MT)或渗透探伤(PT);非安全件:每批次抽检5件",
+      "dimensional_SPC": "关键特性:100%在线检测+SPC(Xbar-R/Cpk);重要特性:每100件抽检5件",
+      "decarburization_check": "每炉/每批次:金相法检测脱碳层≤0.05mm(精密件)/≤0.10mm(普通件)",
+      "hardness_check": "每炉热处理后:100%检测(安全件)或每炉5件(非安全件);硬度偏差±2HRC以内",
+      "hydrogen_embrittlement_test": "电镀后每批次:氢脆试验(拉伸至75%破断载荷保持48h不破断,安全件必须)"
+    }
+  },
+  "references": [
+    {"title": "Wikipedia - Heading (metalworking)", "url": "https://en.wikipedia.org/wiki/Heading_(metalworking)", "type": "encyclopedia"},
+    {"title": "Wikipedia - Forging (冷间锻造)", "url": "https://en.wikipedia.org/wiki/Forging", "type": "encyclopedia"},
+    {"title": "GB/T 2899 冷镦用碳素钢和合金钢 技术条件", "url": "https://std.samr.gov.cn/gb/", "type": "national_standard"},
+    {"title": "JIS B 1051 螺栓/螺丝/螺柱 机械性能", "url": "https://www.jisc.go.jp/", "type": "foreign_standard"},
+    {"title": "ISO 898-1 碳钢和合金钢紧固件 机械性能 螺栓/螺钉/螺柱", "url": "https://www.iso.org/", "type": "international_standard"},
+    {"title": "DIN 267-2 紧固件 技术交货条件", "url": "https://www.din.de/", "type": "foreign_standard"},
+    {"title": "Slidematic - Why Cold Heading (advantages: grain flow, speed, minimal scrap)", "url": "http://slidematic.com/learn-more/why-cold-heading/", "type": "industry_reference"},
+    {"title": "Carpenter Technology - Heading Hints: About Cold Heading (L/D ratio, buckling)", "url": "https://web.archive.org/web/20040504054410/http://crswnew.cartech.com/wnew/techarticles/TA00043.html", "type": "industry_technical_article"},
+    {"title": "AIAG & VDA FMEA Handbook (2019)", "url": "https://www.aiag.org/", "type": "industry_standard"},
+    {"title": "Kalpakjian & Schmid - Manufacturing Engineering and Technology (4th ed.)", "url": "", "type": "textbook"}
+  ]
+}

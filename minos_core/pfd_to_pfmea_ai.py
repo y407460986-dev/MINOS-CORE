@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from .aiag_vda_pfmea import normalize_pfmea_row
+from minos_core._text_utils import row_text, string_list
 
 
 def infer_pfmea_from_process_flow(process_flow_bundle: dict[str, Any]) -> dict[str, Any]:
@@ -43,11 +44,11 @@ def infer_pfmea_from_process_flow(process_flow_bundle: dict[str, Any]) -> dict[s
 
 
 def _rows_for_step(step: dict[str, Any]) -> list[dict[str, Any]]:
-    step_id = _text(step, "process_step_id", default="P00")
-    operation = _text(step, "operation", default="")
-    process_function = _text(step, "process_function", default=f"执行{operation}")
-    refs = _string_list(step.get("evidence_refs", []))
-    special_characteristics = _string_list(step.get("special_characteristics", []))
+    step_id = row_text(step, "process_step_id", default="P00")
+    operation = row_text(step, "operation", default="")
+    process_function = row_text(step, "process_function", default=f"执行{operation}")
+    refs = string_list(step.get("evidence_refs", []))
+    special_characteristics = string_list(step.get("special_characteristics", []))
     confidence = _bounded_confidence(step.get("confidence", 0.0), cap=0.9)
     context = {
         "process_step_id": step_id,
@@ -86,20 +87,20 @@ def _rows_for_step(step: dict[str, Any]) -> list[dict[str, Any]]:
                 "pfmea_id": f"PFMEA-{step_id}-{index:03d}",
                 "process_step_name": operation,
                 "process_step_operation": operation,
-                "product_characteristics": _string_list(step.get("product_characteristics", [])),
-                "process_characteristics": _string_list(step.get("process_characteristics", [])),
-                "equipment": _text(step, "equipment", default=""),
-                "tooling": _text(step, "tooling", "fixture", default=""),
-                "gauges": _string_list(
+                "product_characteristics": string_list(step.get("product_characteristics", [])),
+                "process_characteristics": string_list(step.get("process_characteristics", [])),
+                "equipment": row_text(step, "equipment", default=""),
+                "tooling": row_text(step, "tooling", "fixture", default=""),
+                "gauges": string_list(
                     step.get(
                         "gauges",
                         step.get("inspection_gauges", step.get("measurement_devices", [])),
                     )
                 ),
-                "documents": _string_list(
+                "documents": string_list(
                     step.get("documents", step.get("document_refs", step.get("files", [])))
                 ),
-                "flow_type": _text(step, "flow_type", "process_type", default=""),
+                "flow_type": row_text(step, "flow_type", "process_type", default=""),
                 "failure_mode": risk["failure_mode"],
                 "failure_effect": risk["failure_effect"],
                 "S": severity,
@@ -137,6 +138,17 @@ def _rows_for_step(step: dict[str, Any]) -> list[dict[str, Any]]:
     return rows
 
 
+def _confidence_occurrence(base: int, confidence: float) -> int:
+    """Adjust occurrence based on confidence."""
+    if confidence >= 0.9:
+        return max(1, base - 1)
+    if confidence >= 0.75:
+        return base
+    if confidence >= 0.5:
+        return base + 1
+    return min(10, base + 2)
+
+
 def _risk_templates_for_step(
     *,
     operation: str,
@@ -153,7 +165,7 @@ def _risk_templates_for_step(
             failure_effect="下游装配、功能、配合或客户要求可能不满足",
             failure_cause="设备设定、作业方法、工装状态或过程参数不正确",
             severity=7 if special_characteristics else 6,
-            occurrence=4 if confidence >= 0.75 else 5,
+            occurrence=_confidence_occurrence(4, confidence),
             detection=6 if evidence_refs else 7,
             prevention_control="生产前确认设备设定、工装状态和作业指导书",
             detection_control="工序完成后按过程要求检查输出结果",
@@ -165,7 +177,7 @@ def _risk_templates_for_step(
             failure_effect="错误版本、材料或零件状态可能流入后续工序",
             failure_cause="零件标识、工艺路线或批次隔离未确认",
             severity=6,
-            occurrence=3,
+            occurrence=_confidence_occurrence(4, confidence),
             detection=5,
             prevention_control="在工序中使用流转卡、零件标识和批次隔离检查",
             detection_control="首件或交接时确认零件号、版本和批次状态",
@@ -175,7 +187,7 @@ def _risk_templates_for_step(
     ]
 
     risks.extend(
-        risk
+        dict(risk, occurrence=_confidence_occurrence(risk["occurrence"], confidence))
         for keywords, risk in _OPERATION_RISKS
         if any(keyword in operation_l for keyword in keywords)
     )
@@ -187,7 +199,7 @@ def _risk_templates_for_step(
                 failure_effect="客户要求、安全法规要求或装配/功能要求可能受影响",
                 failure_cause="影响该特殊特性的过程参数、工装特征或检验方法未确认",
                 severity=9,
-                occurrence=4 if confidence >= 0.75 else 5,
+                occurrence=_confidence_occurrence(4, confidence),
                 detection=6,
                 prevention_control=(
                     f"锁定影响特殊特性 {characteristic} 的设备设定和过程控制"
@@ -300,7 +312,7 @@ _OPERATION_RISKS: tuple[tuple[tuple[str, ...], dict[str, Any]], ...] = (
             failure_effect="成品功能、保持力或客户安装要求可能不满足",
             failure_cause="人工作业错误、防错缺失、扭矩不正确或零件混料",
             severity=7,
-            occurrence=5,
+            occurrence=4,
             detection=5,
             prevention_control="采用配套发料、目视指导、扭矩控制和必要防错",
             detection_control="装配后确认零件有无、方向、扭矩或保持力",
@@ -456,22 +468,60 @@ def _bounded_confidence(value: Any, *, cap: float) -> float:
     return max(0.0, min(confidence, cap))
 
 
-def _text(row: dict[str, Any], *keys: str, default: str = "") -> str:
-    for key in keys:
-        value = row.get(key)
-        if value is None:
-            continue
-        text = str(value).strip()
-        if text:
-            return text
-    return default
+def normalize_pfmea_rows(
+    rows: list[dict[str, Any]], process_steps: list[dict[str, Any]] | None = None
+) -> None:
+    """Ensure every PFMEA row carries the AIAG-VDA Form C field set."""
+    step_map: dict[str, dict[str, Any]] = {}
+    if process_steps:
+        for step in process_steps:
+            sid = step.get("process_step_id", "")
+            if sid:
+                step_map[sid] = step
 
+    for row in rows:
+        row.setdefault("structure_process_item", "")
+        row.setdefault("structure_process_step", "")
+        row.setdefault("structure_work_element", "")
+        row.setdefault("function_process_item", "")
+        row.setdefault("function_process_step", "")
+        row.setdefault("function_work_element", "")
 
-def _string_list(value: Any) -> list[str]:
-    if isinstance(value, str):
-        values = [value]
-    elif isinstance(value, list):
-        values = value
-    else:
-        values = []
-    return [str(item).strip() for item in values if str(item).strip()]
+        sid = row.get("process_step_id", "")
+        if sid and sid in step_map:
+            step = step_map[sid]
+            if not row.get("structure_process_step"):
+                row["structure_process_step"] = str(step.get("operation", ""))
+            if not row.get("function_process_step"):
+                row["function_process_step"] = str(
+                    step.get("process_function")
+                    or row.get("process_function", "")
+                )
+
+        row.setdefault("failure_effect", row.get("effect", ""))
+        row.setdefault("failure_mode", row.get("failure_mode", ""))
+        row.setdefault("failure_cause", row.get("cause", ""))
+        row.setdefault("prevention_control", row.get("prevention", ""))
+        row.setdefault("detection_control", row.get("detection", ""))
+
+        row.setdefault("severity", 0)
+        row.setdefault("occurrence", 0)
+        row.setdefault("detection", 0)
+
+        sev = row.get("severity", 0) or 0
+        occ = row.get("occurrence", 0) or 0
+        det = row.get("detection", 0) or 0
+        ap = "L"
+        if sev >= 7 and occ >= 3:
+            ap = "H"
+        elif sev >= 5 and det >= 5:
+            ap = "M"
+        row.setdefault("action_priority", ap)
+        row.setdefault("action_priority_was", "")
+
+        row.setdefault("optimization_action", "")
+        row.setdefault("responsible_person", "")
+        row.setdefault("target_date", "")
+        row.setdefault("status", "")
+        row.setdefault("needs_confirmation", row.get("ai_inferred", False))
+

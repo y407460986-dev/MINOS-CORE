@@ -1,0 +1,73 @@
+{
+  "schema_version": "minos-core.process_inference.v1",
+  "family_key": "injection_molded",
+  "family_name": "注塑件",
+  "description": "塑料注射成型零件——将热塑性或热固性塑料粒料加热熔融后，通过螺杆高压注射入模具型腔，冷却固化后脱模成形。广泛用于汽车内外饰夹子(clips)、卡扣(retainers)、壳体(housings)、盖板(covers)、支架(brackets)、连接器等。按工艺分为单材注塑、双色/包覆注塑(overmolding)、气辅注塑等。典型材料：PP、PA6/66、POM、ABS、PC、PC+ABS、PBT、PPS、TPE/TPV。常见缺陷：缩痕(sink marks)、飞边(flash)、熔接线(weld/knit lines)、短射(short shot)、烧焦(burn marks)、气泡/空洞(voids)、翘曲(warpage)、银纹(splay marks)、分层(delamination)、喷射痕(jetting)、拉丝(stringiness)、裂纹(cracks)。",
+  "drawing_recognition_clues": {
+    "typical_shapes": ["壳体/罩盖类薄壁结构", "卡扣/弹性卡爪", "定位销/定位柱", "加强筋网格", "Boss柱(螺钉安装柱)", "卡槽/导轨", "铰链一体式活页", "密封槽", "等壁厚壳体(0.5-4mm)"],
+    "typical_materials_metal": [],
+    "typical_materials_plastic": ["PP", "PP+GF20/30", "PA6", "PA66", "PA66+GF30", "POM", "ABS", "PC", "PC+ABS", "PBT", "PBT+GF30", "PPS+GF40", "ASA", "TPE", "TPV", "TPU", "PMMA", "PE"],
+    "typical_thickness": "0.5-4.0mm（壳体/结构件），0.3-1.5mm（薄壁卡扣），壁厚尽量均匀，变化不超过名义壁厚的25%",
+    "typical_features": ["卡扣(snap-fit clip)", "Boss柱/螺钉柱(含嵌件螺母孔)", "加强筋(rib,高度≤3×壁厚)", "定位销/定位孔", "密封槽/密封面", "焊接筋(超声波/振动焊)", "卡槽/滑道", "活铰链(living hinge,PP)", "倒扣(undercut,需滑块/斜顶)", "顶针痕迹(ejector pin mark)", "浇口痕迹(gate mark)", "分型线(parting line)", "狗窝(doghouse,用于固定金属夹)"],
+    "surface_requirements": ["外观面无缩痕、熔接线、流痕(A级面)", "分型面毛边≤0.05mm", "顶针痕迹高度≤0.1mm(非外观面)", "无烧焦、无银纹、无气泡", "皮纹/咬花均匀", "颜色与色板一致(ΔE≤1.0)"],
+    "tolerance_level": "GB/T 14486-2008 MT3-MT5 (一般注塑), MT1-MT2 (精密注塑), 典型±0.05-0.3mm",
+    "typical_standards": ["GB/T 14486-2008 塑料模塑件尺寸公差", "IATF 16949", "DIN 16901", "SPI Mold Finish Guide"]
+  },
+  "process_flow_variants": {
+    "standard_single_material": {
+      "description": "标准单材注塑工艺——单种热塑性塑料一次注射成形，适用于卡扣、壳体、盖板、支架等通用注塑件。适合大批量生产(年产>10万件)。",
+      "match_keywords": ["PP", "PA6", "PA66", "POM", "ABS", "PC", "PBT", "单材注塑", "single material", "injection molding", "single shot", "热塑性", "thermoplastic"],
+      "process_sequence": [
+        {"seq": 10, "operation": "来料检验", "equipment": "水分测定仪/熔融指数仪/密度计", "key_check": "材料牌号、含水率(PA≤0.2%/PC≤0.02%)、颜色批次、熔融指数符合性"},
+        {"seq": 20, "operation": "原料干燥", "equipment": "除湿干燥机/热风干燥机", "key_check": "干燥温度(PA:80-100°C/PC:120°C)、干燥时间(2-4h)、露点≤-30°C"},
+        {"seq": 30, "operation": "模具安装与预热", "equipment": "行车/模温机", "key_check": "模具对中、模温(PP:20-80°C/PA:80-120°C/PC:80-120°C)、顶出系统检查"},
+        {"seq": 40, "operation": "注射成形", "equipment": "注塑机(80-1600T)+单腔/多腔模具", "key_check": "熔体温度(PP:200-280°C/PA6:230-290°C/PC:280-320°C)、注射压力80-150MPa、注射速度(填充95-98%转保压)、保压压力60-100MPa、保压时间(浇口封闭)、冷却时间"},
+        {"seq": 50, "operation": "开模顶出", "equipment": "注塑机顶出系统+机械手", "key_check": "顶出平稳、无白化/顶白、无拉伤/粘模、机械手取件无碰伤"},
+        {"seq": 60, "operation": "浇口/流道切除", "equipment": "气动剪/热切刀/超声波切浇口", "key_check": "浇口残留高度≤0.3mm(外观面≤0.1mm)、无拉伤/撕裂"},
+        {"seq": 70, "operation": "去毛边/修整", "equipment": "修边刀/冷冻去毛边机", "key_check": "分型线毛边≤0.05mm、顶针位无凸起"},
+        {"seq": 80, "operation": "外观检查", "equipment": "目视/标准光源灯箱", "key_check": "缩痕、熔接线、流痕、烧焦、银纹、气泡、颜色、光泽度"},
+        {"seq": 90, "operation": "尺寸检验", "equipment": "CMM/影像测量仪/检具/通止规", "key_check": "关键尺寸(CTF/SC)全检或首件/末件+SPC抽样、配合尺寸CPK≥1.33"},
+        {"seq": 100, "operation": "功能测试", "equipment": "拉力机/卡扣插拔力测试仪/跌落试验台", "key_check": "卡扣插拔力/保持力、组装配合、强度测试"},
+        {"seq": 110, "operation": "后处理(按需)", "equipment": "超声波焊接机/热熔机/激光打标机", "key_check": "焊接强度、打标清晰度、无虚焊/过焊"},
+        {"seq": 120, "operation": "包装入库", "equipment": "包装台/打包机/条码打印机", "key_check": "数量、标识/批次号、防刮擦包装、防潮(PA件需密封)"}
+      ]
+    },
+    "two_shot_overmolding": {
+      "description": "双色/包覆注塑工艺——在双色注塑机上用两种材料或两种颜色分两次注射成形。第一次注射基体(硬胶)，模具旋转或移动后第二次注射软胶/不同颜色材料包覆在基体上。适用于软硬胶结合件(如密封件+壳体)、双色按键、TPE包覆手柄等。",
+      "match_keywords": ["双色注塑", "包覆注塑", "overmolding", "two-shot", "2K molding", "double injection", "TPE", "TPV", "软硬胶", "双物料", " multi-shot"],
+      "process_sequence": [
+        {"seq": 10, "operation": "来料检验", "equipment": "水分测定仪/熔融指数仪", "key_check": "两种材料牌号、含水率、颜色、批次一致性"},
+        {"seq": 20, "operation": "原料干燥", "equipment": "除湿干燥机", "key_check": "分别干燥(基体材料与包覆材料参数不同)、露点控制"},
+        {"seq": 30, "operation": "模具安装与调试", "equipment": "行车/模温机/双色注塑机", "key_check": "模具对中(转盘精度±0.02mm)、两套热流道温度独立控制、模温差<5°C"},
+        {"seq": 40, "operation": "第一射注射(基体)", "equipment": "双色注塑机-第一注射单元", "key_check": "熔体温度(基体材料)、注射速度/压力、填充完成度100%(不含软胶区域)、保压时间(基体浇口封闭)"},
+        {"seq": 50, "operation": "模具旋转/滑移(转位)", "equipment": "双色注塑机-转盘/滑台", "key_check": "转位精度±0.02mm、无卡滞、基体不移位/无脱落"},
+        {"seq": 60, "operation": "第二射注射(包覆)", "equipment": "双色注塑机-第二注射单元", "key_check": "熔体温度(包覆材料如TPE:170-220°C)、注射压力低于基体材料避免冲变形、化学或机械结合(需界面熔融)"},
+        {"seq": 70, "operation": "保压冷却", "equipment": "双色注塑机-保压系统+模温机", "key_check": "包覆层保压、冷却时间(避免收缩不均)、模温均衡"},
+        {"seq": 80, "operation": "开模顶出", "equipment": "注塑机顶出+机械手", "key_check": "无二次材料剥离、包覆结合牢固、无顶白/拉伤"},
+        {"seq": 90, "operation": "浇口/流道切除", "equipment": "气动剪/超声波切刀", "key_check": "两处浇口分别处理、残留达标"},
+        {"seq": 100, "operation": "外观检查", "equipment": "目视/灯箱/显微镜", "key_check": "双色分界线清晰无混色、包覆面无气泡/剥离/皱褶"},
+        {"seq": 110, "operation": "结合力测试", "equipment": "拉力机/剥离试验机", "key_check": "软硬胶结合力(剥离强度≥材料本体强度的80%)"},
+        {"seq": 120, "operation": "尺寸检验", "equipment": "CMM/影像测量仪/检具", "key_check": "关键尺寸、两材料收缩率差异导致的变形检查"},
+        {"seq": 130, "operation": "包装入库", "equipment": "包装台/打包机", "key_check": "数量、标识、防刮擦、防潮"}
+      ]
+    },
+    "gas_assisted": {
+      "description": "气辅注塑工艺——在注射过程中向熔体内注入高压氮气(100-300bar)，利用气体推动熔体填充并形成中空通道。适用于厚壁/变壁厚结构件(如把手、扶手、大型壳体)、需要减少缩痕和降低重量的零件。可节省材料10-30%，减少锁模力需求。",
+      "match_keywords": ["气辅", "gas assist", "gas-assisted", "氮气注塑", "中空", "厚壁注塑", "减重", "GIT", "internal gas"],
+      "process_sequence": [
+        {"seq": 10, "operation": "来料检验", "equipment": "水分测定仪/熔融指数仪", "key_check": "材料牌号、含水率、适合气辅的牌号(流动性好的PP/PA/ABS)"},
+        {"seq": 20, "operation": "原料干燥", "equipment": "除湿干燥机", "key_check": "干燥温度与时间按材料要求"},
+        {"seq": 30, "operation": "模具安装与气路连接", "equipment": "行车/模温机/氮气发生器/气辅控制单元", "key_check": "气针位置、气道设计检查、氮气纯度≥99.5%、气压设定(100-300bar)"},
+        {"seq": 40, "operation": "短射注射(欠料注射)", "equipment": "注塑机(含气辅接口)", "key_check": "熔体填充至模腔体积的70-95%(短射量精确控制)、熔体温度高于常规5-15°C以利气体穿透"},
+        {"seq": 50, "operation": "气体注入穿透", "equipment": "气辅控制单元+氮气发生器", "key_check": "气体延迟时间(0.1-2s)、注气压力(100-300bar)、注气时间(1-20s)、气道穿透完整无吹穿/指形效应"},
+        {"seq": 60, "operation": "气体保压冷却", "equipment": "气辅控制单元+注塑机保压系统", "key_check": "气压保持(低锁模力)、冷却时间(内外同步冷却)、气体回收(环保/节约)"},
+        {"seq": 70, "operation": "气体释放", "equipment": "气辅控制单元-排气阀", "key_check": "排气彻底(气体释放至常压)、无残留压力致开模喷溅"},
+        {"seq": 80, "operation": "开模顶出", "equipment": "注塑机顶出+机械手", "key_check": "顶出平稳、无变形、气道末端壁厚检查"},
+        {"seq": 90, "operation": "浇口切除", "equipment": "气动剪/热切刀", "key_check": "浇口残留达标"},
+        {"seq": 100, "operation": "外观与尺寸检查", "equipment": "CMM/影像测量仪/灯箱", "key_check": "气道无吹穿/塌陷、表面无缩痕、关键尺寸、壁厚(超声测厚)"},
+        {"seq": 110, "operation": "截面切开验证(抽检)", "equipment": "切割机/显微镜", "key_check": "中空通道截面形态、壁厚均匀性、无内壁起泡"},
+        {"seq": 120, "operation": "包装入库", "equipment": "包装台", "key_check": "数量、标识、防刮擦"}
+      ]
+    }
+  }
+}

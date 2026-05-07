@@ -142,7 +142,7 @@ def _image_page_evidence(
             image.verify()
         with Image.open(image_path) as image:
             width, height = image.size
-    except Exception as exc:  # noqa: BLE001 - preserve original image failure context
+    except (OSError, ValueError) as exc:
         raise DrawingInputError(f"drawing image cannot be opened: {image_path}: {exc}") from exc
 
     digest = sha256_file(image_path)
@@ -179,7 +179,7 @@ def _render_pdf_pages(
             image_path = target_dir / f"{Path(source.file_name).stem}_page_{index:03d}.png"
             pixmap.save(str(image_path))
             pages.append(_image_page_evidence(source, image_path, index))
-    except Exception as exc:  # noqa: BLE001 - keep renderer errors explicit
+    except (OSError, ValueError, RuntimeError) as exc:
         raise DrawingInputError(f"PDF rendering failed for {source.path}: {exc}") from exc
     if not pages:
         raise DrawingInputError(f"PDF rendering produced no pages: {source.path}")

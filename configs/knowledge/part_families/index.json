@@ -1,0 +1,86 @@
+{
+  "schema_version": "minos-core.part_family_index.v1",
+  "families": [
+    {
+      "family_key": "stamping",
+      "family_name": "冲压件",
+      "knowledge_path": "stamping.json",
+      "default_seed_dir": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件",
+      "default_seed_workbook": "1004258-冲压件.xlsx"
+    },
+    {
+      "family_key": "limiter",
+      "family_name": "限位器",
+      "knowledge_path": "limiter.json",
+      "default_seed_dir": "C:\\Users\\fgtan\\Desktop\\知识库种子\\限位器",
+      "default_seed_workbook": "XWQ01000100-限位器.xlsx"
+    },
+    {
+      "family_key": "door_hinge",
+      "family_name": "门铰链",
+      "knowledge_path": "door_hinge.json",
+      "default_seed_dir": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链",
+      "default_seed_workbook": "JLH01000300-门铰链.xlsx"
+    },
+    {
+      "family_key": "stamping_bracket",
+      "family_name": "冲压支架",
+      "knowledge_path": "stamping_bracket.json"
+    },
+    {
+      "family_key": "deep_drawn_part",
+      "family_name": "拉深件",
+      "knowledge_path": "deep_drawn_part.json"
+    },
+    {
+      "family_key": "spot_welded_part",
+      "family_name": "点焊组件",
+      "knowledge_path": "spot_welded_part.json"
+    },
+    {
+      "family_key": "cold_headed_part",
+      "family_name": "冷镦件",
+      "knowledge_path": "cold_headed_part.json"
+    },
+    {
+      "family_key": "injection_molded",
+      "family_name": "注塑件",
+      "knowledge_path": "injection_molded.json"
+    },
+    {
+      "family_key": "insert_molded",
+      "family_name": "嵌件注塑",
+      "knowledge_path": "insert_molded.json"
+    },
+    {
+      "family_key": "die_cast_part",
+      "family_name": "压铸件",
+      "knowledge_path": "die_cast_part.json"
+    },
+    {
+      "family_key": "rubber_bonded",
+      "family_name": "橡胶硫化件",
+      "knowledge_path": "rubber_bonded.json"
+    },
+    {
+      "family_key": "welded_assembly",
+      "family_name": "焊接总成",
+      "knowledge_path": "welded_assembly.json"
+    },
+    {
+      "family_key": "machined_shaft",
+      "family_name": "机加工轴类",
+      "knowledge_path": "machined_shaft.json"
+    },
+    {
+      "family_key": "machined_housing",
+      "family_name": "机加工壳体",
+      "knowledge_path": "machined_housing.json"
+    },
+    {
+      "family_key": "assembly_module",
+      "family_name": "装配模块",
+      "knowledge_path": "assembly_module.json"
+    }
+  ]
+}

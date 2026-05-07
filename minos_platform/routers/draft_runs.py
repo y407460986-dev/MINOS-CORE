@@ -100,7 +100,7 @@ async def trigger_draft_run(
         else:
             run.status = "draft_ready"
 
-    except Exception as exc:  # noqa: BLE001
+    except (OSError, ValueError, TypeError, RuntimeError, KeyError, AttributeError) as exc:
         run.status = "blocked"
         run.error_message = str(exc)
         project.status = "blocked"

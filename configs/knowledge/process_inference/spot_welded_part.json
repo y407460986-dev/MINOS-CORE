@@ -1,0 +1,180 @@
+{
+  "schema_version": "minos-core.process_inference.v1",
+  "family_key": "spot_welded_part",
+  "family_name": "点焊组件",
+  "description": "电阻点焊(resistance spot welding, RSW)将2-4层金属板材在搭接处通过电阻热熔化、在压力下凝固形成焊核(nugget)实现冶金连接。是白车身(body-in-white, BIW)制造中最重要的连接工艺，一台轿车约3000-6000个焊点。典型产品：车身侧围总成、车门内板总成、地板总成、前端模块总成、电池包壳体、仪表台骨架支架。按自动化程度分为手工点焊(低产量/补焊/试制)和机器人自动点焊(高产线/主线)。焊核直径4-8mm(依板厚)，焊接时间100-400ms，电极压力1.5-4.5kN。焊点质量通过凿子试验、剥离试验、宏观金相验证。核心参数:电流(8-20kA)、通电时间(100-600ms)、加压力(2-6kN)、电极冷却水(≥4L/min)。典型焊接方式:MFDC中频直流/IFDC逆变直流/AC工频/电容储能(CD)。材料以低碳钢/镀锌钢/高强钢/铝合金板材为主，单板厚0.5-3.0mm。",
+  "drawing_recognition_clues": {
+    "typical_shapes": [
+      "多层板搭接总成(2-4层stack-up)",
+      "点焊接头凸缘(overlap flange,搭接宽度16-25mm)",
+      "翻边搭接面(flanged overlap joint)",
+      "焊核表面电极压痕(圆形凹坑,直径5-8mm)",
+      "焊接装配图(标注焊点位置/点数/间距/焊接符号)",
+      "盒形/罩盖形封闭结构",
+      "L形/Z形折弯搭接支架",
+      "焊接定位孔(∮6-15mm,夹具基准)"
+    ],
+    "typical_materials_metal": [
+      "CR低碳钢(SPCC/SPCD/SPCE,0.5-2.0mm)",
+      "GA合金化热镀锌钢(镀层45-60g/m²)",
+      "GI热浸镀锌钢",
+      "HSLA高强低合金钢(SAPH370/440/590)",
+      "DP双相钢(DP590/780/980)",
+      "BH烘烤硬化钢(B180H2)",
+      "热成形钢(22MnB5,AlSi涂层)",
+      "SUS304/SUS409L/SUS430不锈钢",
+      "5754/5182/6016铝合金"
+    ],
+    "typical_materials_plastic": [],
+    "typical_thickness": "单板0.5-3.0mm,搭接总厚1.0-6.0mm(4层),板厚比≤1:3(薄板:厚板)",
+    "typical_features": [
+      "焊点标记(十字/圆点+编号)",
+      "搭接面(重叠区域,宽度≥16mm)",
+      "焊点中心距标注(30-50mm)",
+      "焊点数量标注(图纸计数)",
+      "密封胶槽/密封胶珠(点焊密封剂)",
+      "膨胀胶槽(防振胶,anti-flutter mastic)",
+      "焊接定位孔(pilot hole,∮6-15mm,精度±0.05mm)",
+      "夹具定位基准面(S面/A面标注)",
+      "导电面要求(清洁/无涂层/无氧化皮)",
+      "焊点间距≥25mm(钢)/≥40mm(铝)",
+      "焊点最小边距≥12mm"
+    ],
+    "surface_requirements": [
+      "焊点表面无烧穿(burn-through)",
+      "无可见裂纹(焊核/热影响区HAZ/母材表面)",
+      "电极压痕深度≤20%单层板厚",
+      "焊接飞溅不严重影响后工序(密封/涂装)",
+      "焊点外观均匀(银灰/淡黄色,无蓝紫/黑色过烧)",
+      "表面无铜污染(电极粘铜残留)",
+      "搭接面间隙≤0.3mm(焊接前)",
+      "焊后总成变形≤1.0mm/m"
+    ],
+    "tolerance_level": "焊点位置±3mm(标准)/±1.5mm(铝),焊核直径±1mm,总成轮廓IT13-IT15,安装孔位置度±0.3mm",
+    "typical_standards": [
+      "AWS D8.9 汽车点焊评估",
+      "ISO 18278-2 电阻点焊可焊性评估",
+      "ISO 10447 点焊剥离/凿子试验",
+      "AWS D8.1M 汽车电阻点焊规范",
+      "AIAG CQI-15 焊接过程审核",
+      "GB/T 32480 电阻焊点焊工艺评定",
+      "IATF 16949"
+    ]
+  },
+  "process_flow_variants": {
+    "manual_spot_welding_low_volume": {
+      "description": "手工点焊——适合年产量≤5万件的低产量、试制、样车生产、在线补焊或大型结构无法上自动线的场景。操作工手持C型/X型手动焊钳或使用固定式点焊机(踏板操作)，按焊接顺序图逐点定位焊接。灵活柔性(焊点顺序可调)，但焊点一致性依赖操作工技能和疲劳程度。需要透明防护面罩(OSHA 1910.252要求:飞溅防护)。每20-30点检查电极状态，每100点抽检凿子试验。",
+      "match_keywords": [
+        "手工点焊", "manual spot welding",
+        "手动点焊", "hand-held gun",
+        "C型焊钳", "X型焊钳",
+        "低产量", "low volume",
+        "试制", "prototype",
+        "补焊", "repair welding",
+        "固定式点焊机", "stationary welder",
+        "操作工", "operator",
+        "手动加压", "manual pressure"
+      ],
+      "process_sequence": [
+        {"seq": 10, "operation": "来料检验(冲压单件)", "equipment": "检具/通止规/测厚仪/粗糙度仪/膜厚仪", "key_check": "冲压件:材质、料厚、搭接面平面度≤0.3mm、表面清洁(无油污/锈/氧化皮,影响接触电阻)、镀锌层类型(GA/GI)和厚度"},
+        {"seq": 20, "operation": "焊接夹具定位组装", "equipment": "焊接工装(定位销/基准块)+快速夹钳(气动/手动)", "key_check": "夹具定位精度±0.3mm、夹紧力充足(板间间隙≤0.3mm,过大导致压痕深/飞溅/未熔合)、电极对中度检查、poka-yoke:定位销防错装/传感器检测漏装"},
+        {"seq": 30, "operation": "焊接参数设定/验证", "equipment": "焊接控制器(带电流/电压/时间数字显示)+焊接试样板", "key_check": "焊接参数按WPS(焊接工艺卡):电流8-14kA(钢)/电流18-25kA(铝)、电极压力2-4kN、焊接时间120-400ms、保压时间200-600ms;首焊试样做凿子试验验证焊核直径≥4√t_min(如2mm板→≥5.6mm)"},
+        {"seq": 40, "operation": "手工逐点点焊", "equipment": "固定式点焊机(50-200kVA)+手持焊钳(C型/X型)+水冷系统", "key_check": "操作工按焊接顺序图(从内向外/从中心向对角减少变形)逐点焊接;每焊点确保:电极垂直板面(倾斜→飞溅)、焊点间距25-50mm(钢)/≥40mm(铝)、焊点到边缘≥12mm;3阶段:(1)Squeeze预压0.2-0.5s→(2)Weld通电0.1-0.4s→(3)Hold保压0.2-0.3s;焊接计数:核对焊点总数(poka-yoke防遗漏)"},
+        {"seq": 50, "operation": "电极修磨/更换", "equipment": "手动电极修磨器(车削式)/量规/电极扳手", "key_check": "电极端面直径(ϕ5-8mm按焊接规范)、端面平行度、无粘铜/凹陷/过热变色(蓝色→水冷不足);修磨周期:钢每100-200点修磨、镀锌钢每50-100点修磨、铝每30-50点修磨;修磨后做首件凿子试验确认;电极更换:端面直径增大>20%时换帽"},
+        {"seq": 60, "operation": "在线质量检查", "equipment": "凿子(专用剥离凿)+锤子/游标卡尺/目视", "key_check": "凿子试验:每100点抽检1-2点(从两层板间凿入检查焊核直径≥4√t_min,焊核应撕裂在母材侧);目视检查:无烧穿/表面裂纹/飞溅过量/电极压痕过深(>20%板厚)/焊点遗漏"},
+        {"seq": 70, "operation": "焊接完成卸件/变形检查", "equipment": "卸件夹具/检具/平台+高度尺", "key_check": "卸件防变形(大型薄板件多支点支撑);焊接变形检查:轮廓度/平面度≤1.0mm/m;安装孔位置度±0.3mm;零件标识(焊接日期/操作工号:可追溯)"},
+        {"seq": 80, "operation": "最终破坏性检验", "equipment": "剥离试验台/万能材料试验机+金相显微镜(实验室)", "key_check": "每批次/每500焊点至少1点全破坏:剥离试验(焊核完整撕裂)、拉伸-剪切试验(强度≥母材×0.6)、宏观金相截面(焊核直径/熔深/HAZ宽度/无裂纹/缩孔)"},
+        {"seq": 90, "operation": "表面处理(电泳/喷涂)", "equipment": "清洗线+电泳/喷漆/磷化线", "key_check": "焊点周围清洁(飞溅/氧化皮/铜残留清除,否则影响涂装附着力);膜厚/附着力/盐雾按图纸要求;点焊搭接面缝隙电泳浸透力(覆盖性检查)"},
+        {"seq": 100, "operation": "完工检验(终检)", "equipment": "检具/CMM/通止规/外观检查灯箱", "key_check": "全尺寸/安装孔位置度/焊点数核对/外观(无锈/流挂/露底)/标识确认"},
+        {"seq": 110, "operation": "包装入库", "equipment": "专用料架/EPE衬垫/打码机", "key_check": "防碰撞包装、数量核对、标识(零件号/焊接日期/操作者/批号)、防锈(VCI袋如需要)、出货报告"}
+      ]
+    },
+    "robotic_spot_welding_high_volume": {
+      "description": "机器人自动点焊——白车身(Body-in-White, BIW)主线焊接工艺，使用六轴工业机器人(如KUKA KR360/FANUC R2000/ABB IRB 6700)搭载伺服/气动焊钳(C型/X型)，自动完成焊点定位、加压、通电焊接。配备MFDC/IFDC中频直流焊接控制器(1000Hz)实时监控电流/电压/电阻曲线，自适应调节(adaptive control)补偿镀层厚度变化/电极磨损/板材间隙。传统主线节拍60-90JPH(Jobs Per Hour)，机器人可达2-3秒/焊点。配备自动电极修磨器(Tip Dresser)每50-100点自动修磨，自动换帽器(Tip Changer)每5000-10000点更换。使用柔性焊接工装适应多车型共线(Flexible Manufacturing)。焊接参数MES系统全程追溯。",
+      "match_keywords": [
+        "机器人点焊", "robotic spot welding",
+        "自动点焊", "automated welding",
+        "白车身", "body-in-white", "BIW",
+        "焊接机器人", "KUKA", "FANUC", "ABB",
+        "伺服焊钳", "servo gun",
+        "MFDC", "中频直流", "IFDC",
+        "自适应控制", "adaptive control",
+        "自动修磨", "tip dresser", "tip changer",
+        "高产线", "JPH", "mass production",
+        "焊接MES", "weld data traceability"
+      ],
+      "process_sequence": [
+        {"seq": 10, "operation": "来料检验(冲压单件IQC)", "equipment": "自动检测系统(CCD视觉+激光测厚)+检具/拉伸试验机/光谱仪", "key_check": "冲压单件:关键尺寸Cpk≥1.33、料厚(激光在线测量)、材料强度(抽检)、搭接面平面度≤0.3mm、表面清洁度(接触电阻一致性<±10%)、镀层类型/厚度(GA/GI/EG)"},
+        {"seq": 20, "operation": "自动装配站(Geo Station)", "equipment": "装配机器人+柔性焊接夹具(气动/液压夹紧)+视觉定位系统(3D Vision)", "key_check": "零件自动上料(视觉引导或机械定位)、夹具夹紧顺序(先定位基准销→再主夹紧→再辅助夹紧,poka-yoke:顺序控制)、板间间隙实时检测(激光/视觉测间隙≤0.3mm,过大时触发报警停线:防错)"},
+        {"seq": 30, "operation": "焊接参数编程/上位机管理", "equipment": "焊接控制器(MFDC,1000Hz)+MES系统+焊接数据库(Weld Server)", "key_check": "焊接程序(Weld Schedule)按焊接工艺规范自动调用:按板厚/材质/层数/镀层自动匹配参数;参数版本管理(变更审批+旧版锁定);所有焊点数据追溯(实时上传MES:日期/时间/电流/电压/电阻/电极压力/焊点编号)"},
+        {"seq": 40, "operation": "机器人自动点焊(主线焊接)", "equipment": "六轴工业机器人+伺服焊钳(400-1000kg)+中频直流焊接控制器(100-200kVA)+冷却水循环系统(≥4L/min,≤30°C)", "key_check": "机器人TCP精度±0.5mm;3阶段焊接:(1)Squeeze预压0.2-0.5s/压力2-6kN→(2)Weld通电0.1-0.6s/电流8-20kA(低碳钢1+1mm≈10kA/0.2s)→(3)Hold保压0.1-0.3s;实时监控:电流/电压/电阻波形与标准对比(偏差>10%标记NG);力反馈监控(±50N精度,poka-yoke:压力偏差自动停焊);焊接飞溅声发射监控(异常飞溅标记NG);冷却水温/流量监控(水冷不足→电极寿命骤降)"},
+        {"seq": 50, "operation": "自适应焊接控制(在线)", "equipment": "焊接自适应控制器(Adaptive Weld Controller)+电极磨损补偿(Stepper)+噪声/振动传感器", "key_check": "自适应补偿:检测到电阻异常变化(镀层变异/板材间隙/电极磨损)时自动调整电流/时间,确保焊核质量一致性;电极磨损补偿:每焊点电极步进→直径增大>1mm时触发修磨;声发射监控:飞溅量级超阈值→自动标记NG;焊点计数:poka-yoke防遗漏(每个焊点计数/位置关联)"},
+        {"seq": 60, "operation": "电极自动修磨+换帽", "equipment": "自动修磨器(Tip Dresser,旋转切削+吹气)+自动换帽器(Tip Changer)+电极帽库", "key_check": "修磨周期:钢50-100点/镀锌钢30-50点/铝20-30点;修磨后电极端面直径ϕ5-8mm(按规范)、端面平行度<0.1mm、无粘铜/损伤;修磨记数管理(poka-yoke:到期强制修磨,不经修磨无法继续焊接);换帽周期:5000-10000点或端面直径磨损>1mm;自动换帽:机器人自动卸旧帽/装新帽/对中校正(精度±0.1mm)"},
+        {"seq": 70, "operation": "涂密封胶/结构胶(如需要)", "equipment": "自动涂胶机器人+供胶泵+视觉胶路检测", "key_check": "胶路位置±1mm、胶条直径/宽度按图纸、涂胶量(cc/焊点或g/m)、无断胶/溢胶(视觉在线检测,断胶报警停线:poka-yoke)、胶为可焊接型密封剂(weldable sealer)"},
+        {"seq": 80, "operation": "在线超声波无损检测", "equipment": "超声波焊点检测仪(UT Spot,相控阵)+涡流检测", "key_check": "在线100%或抽检:焊核直径/内部飞溅/未熔合/缩孔(每点约2-5秒);不合格焊点自动标记(喷墨/数据记录);不合格品→降级站(Repair Loop:人工补焊或凿子切除后补焊);数据上传MES:焊点质量数据库"},
+        {"seq": 90, "operation": "焊接件卸料/转运", "equipment": "搬运机器人(带真空/夹爪)+EMS/摩擦线输送+转运台车", "key_check": "卸料防变形:机器人多点支撑/吸盘均衡、焊接变形监控(三维视觉/激光扫描与CAD比对,变形超差→降级校正站)、件标识(RFID/条码关联至MES)"},
+        {"seq": 100, "operation": "破坏性检验(批次/常规)", "equipment": "剥离试验台/万能材料试验机+宏观金相实验室(切割/镶嵌/研磨/显微镜)", "key_check": "每班/每500件至少1件全破坏:剥离试验(焊核在母材侧撕裂、焊核直径≥4√t_min)、拉伸-剪切试验(1组5点,强度≥母材×0.6)、宏观金相截面(焊核直径/熔深比0.7-1.3/HAZ无裂纹/缩孔≤0.2mm)、十字拉伸试验(评估焊点韧性)"},
+        {"seq": 110, "operation": "焊后清洁/防锈", "equipment": "清洗站(吹气/刷光)+防锈油喷涂", "key_check": "焊点周围清洁(飞溅/氧化皮/铜残留清除:影响涂装附着力,不清洁不流入涂装)、焊后48小时内防锈处理(钢铁件:喷涂水基防锈剂)"},
+        {"seq": 120, "operation": "最终检验/转涂装", "equipment": "CMM三坐标/蓝光扫描/专用检具/外观AUDIT灯箱", "key_check": "关键特性Cpk≥1.33;全尺寸(抽检S-1级或S-2级按图纸);外观:无飞溅/烧穿/裂纹/漏焊/电极压痕过深;标识/批次可追溯;合格后转涂装线"},
+        {"seq": 130, "operation": "包装入库", "equipment": "AGV自动导引车/专用器具/打码机/标签打印机", "key_check": "专用防碰撞器具(EPE/吸塑/布衬);MES系统记录完整(零件号/焊接日期/班次/焊点参数/检验数据/操作者);合格证/出货检验报告;防锈(如不立即涂装)"}
+      ]
+    }
+  },
+  "feature_to_operation": {
+    "weld_nugget": {"operation": "点焊熔核形成", "equipment": "点焊机/机器人焊钳+焊接控制器(MFDC/AC)", "note": "焊核直径≥4√t_min(通常5-6mm for 1.5mm板),熔核形貌对称(两侧熔深比0.7-1.3),无裂纹/缩孔/气孔"},
+    "electrode_squeeze": {"operation": "电极加压(Squeeze)", "equipment": "铜合金电极(CuCrZr,RWMA Class 2)+水冷系统", "note": "电极压力1.5-6kN,接触电阻稳定化;电极冷却水温≤30°C,流量≥4L/min"},
+    "electrode_dressing": {"operation": "电极修磨", "equipment": "自动/手动修磨器(Tip Dresser)+量规", "note": "电极端面ϕ5-8mm、平行度<0.1mm;周期:钢50-100点/镀锌30-50点/铝20-30点;每5000-10000点换帽"},
+    "chisel_test": {"operation": "凿子试验(半破坏)", "equipment": "凿子+锤子/气动凿", "note": "在两层板间凿入检查焊核:焊核直径≥4√t_min,焊核应留在母材侧"},
+    "peel_test": {"operation": "剥离试验(破坏)", "equipment": "剥离试验台/万能材料试验机", "note": "焊点剥离后焊核截面无裂纹/缩孔,焊核直径≥标准值,母材撕裂为合格"},
+    "tensile_shear": {"operation": "拉伸-剪切试验", "equipment": "万能材料试验机+拉力传感器", "note": "单点拉伸剪切强度≥母材抗拉×板厚×焊核周长×0.6(经验值),按AWS/ISO标准"},
+    "macro_metallography": {"operation": "宏观金相(破坏)", "equipment": "金相切割/镶嵌/研磨抛光/光学显微镜", "note": "焊核横截面:焊核直径/熔深比/HAZ宽度/无裂纹/缩孔/未熔合"},
+    "ultrasonic_ndt": {"operation": "超声波无损检测(UT)", "equipment": "超声点焊检测仪(NDT,相控阵或单晶)", "note": "在线/离线:检测焊核直径/内部飞溅/未熔合,约2-5秒/点,适合100%检测"},
+    "fixture_locator": {"operation": "焊接夹具定位", "equipment": "焊接工装(定位销/基准块/气动夹钳)", "note": "3-2-1定位原则、板间间隙≤0.3mm、poka-yoke:定位销防错装/传感器防漏装"},
+    "sealer_apply": {"operation": "涂可焊密封胶", "equipment": "自动/手动涂胶+供胶泵", "note": "焊接前涂胶(点焊密封剂)、胶路/胶量控制、焊接时不破坏密封性"},
+    "post_weld_clean": {"operation": "焊后清洁/防锈", "equipment": "钢丝刷/吹气/磨光机+防锈喷涂", "note": "清除飞溅/氧化皮/铜残留(影响涂装附着力)、焊后48h内防锈"},
+    "weld_counting": {"operation": "焊点计数防错", "equipment": "焊接计数器(自动/手动)+MES", "note": "poka-yoke(fixed-value/constant number):焊点数与图纸不符时报警,防漏焊/多焊"}
+  },
+  "engineering_parameters": {
+    "electrode_materials": {
+      "standard_steel": {"material": "CuCrZr(铬锆铜,RWMA Class 2)", "conductivity": "≥80% IACS", "hardness": "HRB 75-85", "softening_temp": "500°C"},
+      "coated_steel_galvanized": {"material": "CuCrZr+弥散强化氧化铝(DS Cu,Class 2+)", "note": "镀锌钢:Zn-Cu表面合金化加速电极磨损,修磨频率提高至每30-50点"},
+      "high_strength_steel": {"material": "CuCrZr+弥散强化(Class 2+)", "note": "DP/HSLA:更高电极压力需电极抗变形,电极寿命缩短30-50%"},
+      "aluminum": {"material": "CuCrZr(特殊设计:球面电极R50-100mm)", "note": "铝焊接:电流2-3倍钢,电极修磨每20-30点,电极寿命极短"}
+    },
+    "welding_parameters_reference": {
+      "steel_1p0_plus_1p0mm": {"current": "8-10 kA", "force": "2.0-2.5 kN", "weld_time": "120-180 ms", "nugget_dia": "4-5 mm"},
+      "steel_1p5_plus_1p5mm": {"current": "10-12 kA", "force": "2.5-3.5 kN", "weld_time": "180-300 ms", "nugget_dia": "5-6 mm"},
+      "steel_2p0_plus_2p0mm": {"current": "12-15 kA", "force": "3.5-4.5 kN", "weld_time": "250-400 ms", "nugget_dia": "6-8 mm"},
+      "GA_1p0_plus_1p0mm": {"current": "9-12 kA(+10-15% vs CR)", "force": "2.5-3.0 kN(+20-30% vs CR)", "weld_time": "150-200 ms", "note": "镀锌层先熔融成Zn-Fe合金(耗能)"},
+      "aluminum_1p0_plus_1p0mm": {"current": "18-28 kA(2-3x steel)", "force": "3.0-4.0 kN", "weld_time": "100-200 ms(短高通)", "note": "铝:高导电/导热→需极高电流短时间,电极寿命极短(30-50点修磨)"}
+    },
+    "nugget_quality_criteria": {
+      "nugget_diameter": "≥4√t_min(标准)或≥5√t_min(安全件/关键件),t_min=最薄板厚mm",
+      "nugget_penetration_ratio": "两侧熔深比0.7-1.3(避免单侧熔深过大/过小导致应力集中)",
+      "electrode_indentation_limit": "单侧≤20%板厚,双侧总和≤30%板厚",
+      "internal_defects": "焊核内裂纹≤0.3mm(允许),缩孔≤0.2mm(允许),气孔≤0.1mm(允许)",
+      "surface_defects": "表面裂纹:不允许(0件);飞溅:轻度可接受(不影响后工序);烧穿:0容忍",
+      "shear_strength": "≥0.6×σb(母材)×t_min×π×d_nugget(近似值,实际按标准试验)"
+    },
+    "quality_checks": {
+      "chisel_test_freq": "钢:每班/每500焊点≥1点;铝:每班/每200焊点≥1点;参数变更/电极修磨后:首件≥1点",
+      "tensile_shear_freq": "每批次/每5000焊点≥1组(5点)拉伸剪切试验+剥离试验",
+      "macro_test_freq": "新程序/参数变更/材料变更/每10000焊点≥1点金相截面",
+      "ultrasonic_test_freq": "在线100%检测(机器人自动线,如可行);离线抽检(手工线:每100点抽2-5点)",
+      "electrode_wear_inspection": "手工:每20-30焊点目视;自动:每焊点力/位移监控+定时修磨",
+      "cooling_water_monitor": "流量≥4 L/min、水温≤30°C、每班/持续在线监控(poka-yoke:水冷异常停焊)"
+    }
+  },
+  "references": [
+    {"title": "Wikipedia - Spot welding", "url": "https://en.wikipedia.org/wiki/Spot_welding", "type": "encyclopedia"},
+    {"title": "Wikipedia - Welding", "url": "https://en.wikipedia.org/wiki/Welding", "type": "encyclopedia"},
+    {"title": "Wikipedia - Resistance welding", "url": "https://en.wikipedia.org/wiki/Electric_resistance_welding", "type": "encyclopedia"},
+    {"title": "AWS D8.9 汽车点焊评估标准", "url": "https://pubs.aws.org/", "type": "industry_standard"},
+    {"title": "ISO 18278-2 电阻点焊可焊性评估与熔核剥离试验", "url": "https://www.iso.org/", "type": "international_standard"},
+    {"title": "ISO 10447 电阻点焊剥离/凿子试验方法", "url": "https://www.iso.org/", "type": "international_standard"},
+    {"title": "AIAG CQI-15 焊接过程审核", "url": "https://www.aiag.org/", "type": "industry_standard"},
+    {"title": "AIAG & VDA FMEA Handbook (2019)", "url": "https://www.aiag.org/", "type": "industry_standard"},
+    {"title": "RWMA Resistance Welding Manual (4th ed.)", "url": "https://www.rwma.org/", "type": "industry_handbook"},
+    {"title": "GB/T 32480 电阻焊 点焊 焊接工艺评定", "url": "https://std.samr.gov.cn/gb/", "type": "national_standard"}
+  ]
+}

@@ -1,0 +1,3444 @@
+{
+  "schema_version": "minos-core.part_family_knowledge.v1",
+  "family_key": "door_hinge",
+  "family_name": "门铰链",
+  "process_route_templates": [
+    {
+      "process_step_id": "P00",
+      "sequence": 0,
+      "operation": "来料检验",
+      "process_function": "产品检验",
+      "special_characteristics": [],
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "过程流程图",
+          "row": 8
+        }
+      ],
+      "template_id": "door_hinge-route-001"
+    },
+    {
+      "process_step_id": "P01",
+      "sequence": 1,
+      "operation": "入库",
+      "process_function": "合格产品入库",
+      "special_characteristics": [],
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "过程流程图",
+          "row": 9
+        }
+      ],
+      "template_id": "door_hinge-route-002"
+    },
+    {
+      "process_step_id": "P02",
+      "sequence": 2,
+      "operation": "投料",
+      "process_function": "发料进行生产",
+      "special_characteristics": [],
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "过程流程图",
+          "row": 10
+        }
+      ],
+      "template_id": "door_hinge-route-003"
+    },
+    {
+      "process_step_id": "P10",
+      "sequence": 10,
+      "operation": "衬套预装并压入精整",
+      "process_function": "将衬套预穿后放入夹具中压入、精整",
+      "special_characteristics": [],
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "过程流程图",
+          "row": 11
+        }
+      ],
+      "template_id": "door_hinge-route-004"
+    },
+    {
+      "process_step_id": "P10",
+      "sequence": 10,
+      "operation": "衬套预装并压入精整",
+      "process_function": "对尺寸进行检查",
+      "special_characteristics": [
+        "精整后孔径/衬套无漏装"
+      ],
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "过程流程图",
+          "row": 12
+        }
+      ],
+      "template_id": "door_hinge-route-005"
+    },
+    {
+      "process_step_id": "P10",
+      "sequence": 10,
+      "operation": "衬套预装并压入精整",
+      "process_function": "完成后进入下一工序",
+      "special_characteristics": [],
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "过程流程图",
+          "row": 13
+        }
+      ],
+      "template_id": "door_hinge-route-006"
+    },
+    {
+      "process_step_id": "P20",
+      "sequence": 20,
+      "operation": "压印",
+      "process_function": "对车门件进行标记压印打标",
+      "special_characteristics": [
+        "无漏压印",
+        "限位块行程"
+      ],
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "过程流程图",
+          "row": 14
+        }
+      ],
+      "template_id": "door_hinge-route-007"
+    },
+    {
+      "process_step_id": "P20",
+      "sequence": 20,
+      "operation": "压印",
+      "process_function": "对压印内容进行检查",
+      "special_characteristics": [
+        "刻印内容正确、清晰"
+      ],
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "过程流程图",
+          "row": 15
+        }
+      ],
+      "template_id": "door_hinge-route-008"
+    },
+    {
+      "process_step_id": "P20",
+      "sequence": 20,
+      "operation": "压印",
+      "process_function": "完成后进入下一工序",
+      "special_characteristics": [],
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "过程流程图",
+          "row": 16
+        }
+      ],
+      "template_id": "door_hinge-route-009"
+    },
+    {
+      "process_step_id": "P30",
+      "sequence": 30,
+      "operation": "压入销轴",
+      "process_function": "将车身件、车门件预装穿入销轴后放入工装进行滚花压入",
+      "special_characteristics": [],
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "过程流程图",
+          "row": 17
+        }
+      ],
+      "template_id": "door_hinge-route-010"
+    },
+    {
+      "process_step_id": "P30",
+      "sequence": 30,
+      "operation": "压入销轴",
+      "process_function": "对尺寸进行检查",
+      "special_characteristics": [
+        "无明显间隙/车门件无变形",
+        "压入行程\n压入压力"
+      ],
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "过程流程图",
+          "row": 18
+        }
+      ],
+      "template_id": "door_hinge-route-011"
+    },
+    {
+      "process_step_id": "P30",
+      "sequence": 30,
+      "operation": "压入销轴",
+      "process_function": "完成后进入下一工序",
+      "special_characteristics": [],
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "过程流程图",
+          "row": 19
+        }
+      ],
+      "template_id": "door_hinge-route-012"
+    },
+    {
+      "process_step_id": "P40",
+      "sequence": 40,
+      "operation": "总成铆接",
+      "process_function": "将上述零件放入夹具进行销轴铆接。",
+      "special_characteristics": [
+        "铆接高度",
+        "铆接时间\n铆接压力"
+      ],
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "过程流程图",
+          "row": 20
+        }
+      ],
+      "template_id": "door_hinge-route-013"
+    },
+    {
+      "process_step_id": "P40",
+      "sequence": 40,
+      "operation": "总成铆接",
+      "process_function": "对尺寸进行检查",
+      "special_characteristics": [
+        "转动力矩"
+      ],
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "过程流程图",
+          "row": 21
+        }
+      ],
+      "template_id": "door_hinge-route-014"
+    },
+    {
+      "process_step_id": "P40",
+      "sequence": 40,
+      "operation": "总成铆接",
+      "process_function": "完成后进入下一工序",
+      "special_characteristics": [],
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "过程流程图",
+          "row": 22
+        }
+      ],
+      "template_id": "door_hinge-route-015"
+    },
+    {
+      "process_step_id": "P50",
+      "sequence": 50,
+      "operation": "包装",
+      "process_function": "产品包装",
+      "special_characteristics": [],
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "过程流程图",
+          "row": 23
+        }
+      ],
+      "template_id": "door_hinge-route-016"
+    },
+    {
+      "process_step_id": "P60",
+      "sequence": 60,
+      "operation": "入库",
+      "process_function": "入库",
+      "special_characteristics": [
+        "FIFO"
+      ],
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "过程流程图",
+          "row": 24
+        }
+      ],
+      "template_id": "door_hinge-route-017"
+    }
+  ],
+  "pfmea_patterns": [
+    {
+      "process_step_id": "P00",
+      "process_function": "00 来料检测",
+      "failure_mode": "零件尺寸错误",
+      "failure_effect": "影响装配及性能",
+      "failure_cause": "供应商工艺不当",
+      "prevention_control": "供应商每批来料自检报告",
+      "detection_control": "按照外协件检查规程抽检",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 16
+        }
+      ],
+      "pattern_id": "door_hinge-pfmea-001"
+    },
+    {
+      "process_step_id": "P00",
+      "process_function": "00 来料检测",
+      "failure_mode": "材料、机械性能不符合要求",
+      "failure_effect": "影响客户装车及客户抱怨",
+      "failure_cause": "供应商选用材料错误",
+      "prevention_control": "验供方质保书及每年提交一次第三方实验报告",
+      "detection_control": "供应商每批订单材质证明",
+      "classification": "",
+      "rating_hint": {
+        "severity": 8,
+        "occurrence": 1,
+        "detection": 9,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 17
+        }
+      ],
+      "pattern_id": "door_hinge-pfmea-002"
+    },
+    {
+      "process_step_id": "P01",
+      "process_function": "01 入库",
+      "failure_mode": "批次管理混乱",
+      "failure_effect": "造成投料时间过长",
+      "failure_cause": "操作者失误",
+      "prevention_control": "操作者岗前培训",
+      "detection_control": "入库时检查标签",
+      "classification": "",
+      "rating_hint": {
+        "severity": 2,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 18
+        }
+      ],
+      "pattern_id": "door_hinge-pfmea-003"
+    },
+    {
+      "process_step_id": "P01",
+      "process_function": "01 入库",
+      "failure_mode": "零件未按时入库",
+      "failure_effect": "导致生产计划变更",
+      "failure_cause": "缺少相应文件",
+      "prevention_control": "对供应商送货管理规定",
+      "detection_control": "核对零件到货数量和到货单",
+      "classification": "",
+      "rating_hint": {
+        "severity": 2,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 19
+        }
+      ],
+      "pattern_id": "door_hinge-pfmea-004"
+    },
+    {
+      "process_step_id": "P01",
+      "process_function": "01 入库",
+      "failure_mode": "标签漏帖",
+      "failure_effect": "造成生产延误",
+      "failure_cause": "操作者失误",
+      "prevention_control": "操作者岗前培训",
+      "detection_control": "入库时检查标签",
+      "classification": "",
+      "rating_hint": {
+        "severity": 2,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 20
+        }
+      ],
+      "pattern_id": "door_hinge-pfmea-005"
+    },
+    {
+      "process_step_id": "P01",
+      "process_function": "01 入库",
+      "failure_mode": "标签错帖",
+      "failure_effect": "生产出错误零件",
+      "failure_cause": "操作者失误",
+      "prevention_control": "操作者岗前培训",
+      "detection_control": "标签和实物核对",
+      "classification": "",
+      "rating_hint": {
+        "severity": 2,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 21
+        }
+      ],
+      "pattern_id": "door_hinge-pfmea-006"
+    },
+    {
+      "process_step_id": "P02",
+      "process_function": "02 投料",
+      "failure_mode": "批次管理混乱",
+      "failure_effect": "造成投料时间过长",
+      "failure_cause": "操作者失误",
+      "prevention_control": "操作者岗前培训",
+      "detection_control": "出库时检查标签",
+      "classification": "",
+      "rating_hint": {
+        "severity": 2,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 22
+        }
+      ],
+      "pattern_id": "door_hinge-pfmea-007"
+    },
+    {
+      "process_step_id": "P02",
+      "process_function": "02 投料",
+      "failure_mode": "零件未投放到指定区域",
+      "failure_effect": "造成生产延误",
+      "failure_cause": "ERP信息未及时更新",
+      "prevention_control": "生产变更管理规定",
+      "detection_control": "生产班组长核对投料",
+      "classification": "",
+      "rating_hint": {
+        "severity": 2,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 23
+        }
+      ],
+      "pattern_id": "door_hinge-pfmea-008"
+    },
+    {
+      "process_step_id": "P02",
+      "process_function": "02 投料",
+      "failure_mode": "投放的零件错误",
+      "failure_effect": "导致后续生产返工",
+      "failure_cause": "未对出库单和零件核对",
+      "prevention_control": "库房管理规定",
+      "detection_control": "投放前核对标签与实物",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 24
+        }
+      ],
+      "pattern_id": "door_hinge-pfmea-009"
+    },
+    {
+      "process_step_id": "P02",
+      "process_function": "02 投料",
+      "failure_mode": "投料数量多",
+      "failure_effect": "形成余料，造成物料混料并引起后道工序停线",
+      "failure_cause": "计量工具失效",
+      "prevention_control": "计量工具定期标定",
+      "detection_control": "班组长核对投料数量",
+      "classification": "",
+      "rating_hint": {
+        "severity": 4,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 25
+        }
+      ],
+      "pattern_id": "door_hinge-pfmea-010"
+    },
+    {
+      "process_step_id": "P02",
+      "process_function": "02 投料",
+      "failure_mode": "投料数量少",
+      "failure_effect": "造成生产完成延误",
+      "failure_cause": "计量工具失效",
+      "prevention_control": "计量工具定期标定",
+      "detection_control": "班组长核对投料数量",
+      "classification": "",
+      "rating_hint": {
+        "severity": 2,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 26
+        }
+      ],
+      "pattern_id": "door_hinge-pfmea-011"
+    },
+    {
+      "process_step_id": "P02",
+      "process_function": "02 投料",
+      "failure_mode": "零件表面损伤",
+      "failure_effect": "造成部分零件需要返工或报废",
+      "failure_cause": "使用的工具未考虑到对零件的防护",
+      "prevention_control": "投料操作规范",
+      "detection_control": "生产操作工在线检查",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 27
+        }
+      ],
+      "pattern_id": "door_hinge-pfmea-012"
+    },
+    {
+      "process_step_id": "P02",
+      "process_function": "02 投料",
+      "failure_mode": "零件表面锈蚀",
+      "failure_effect": "影响产品外观及产品性能",
+      "failure_cause": "未按FIFO原则存储",
+      "prevention_control": "库房管理规定",
+      "detection_control": "目视检查",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 2,
+        "detection": 8,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 28
+        }
+      ],
+      "pattern_id": "door_hinge-pfmea-013"
+    },
+    {
+      "process_step_id": "P02",
+      "process_function": "02 投料",
+      "failure_mode": "零件表面锈蚀",
+      "failure_effect": "影响产品外观及产品性能",
+      "failure_cause": "存储不当",
+      "prevention_control": "库房管理规定",
+      "detection_control": "定期检查",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 29
+        }
+      ],
+      "pattern_id": "door_hinge-pfmea-014"
+    },
+    {
+      "process_step_id": "P10",
+      "process_function": "10 衬套预装并压入精整",
+      "failure_mode": "设备压力超差",
+      "failure_effect": "影响后道工序加工",
+      "failure_cause": "设备调试错误",
+      "prevention_control": "调试指定人员",
+      "detection_control": "设备点检",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 30
+        }
+      ],
+      "pattern_id": "door_hinge-pfmea-015"
+    },
+    {
+      "process_step_id": "P10",
+      "process_function": "10 衬套预装并压入精整",
+      "failure_mode": "衬套漏装",
+      "failure_effect": "影响后道工序加工",
+      "failure_cause": "操作工失误",
+      "prevention_control": "员工培训",
+      "detection_control": "100% 目视检查",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 3,
+        "detection": 7,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 31
+        }
+      ],
+      "pattern_id": "door_hinge-pfmea-016"
+    },
+    {
+      "process_step_id": "P10",
+      "process_function": "10 衬套预装并压入精整",
+      "failure_mode": "衬套破损",
+      "failure_effect": "影响车身件转动性能",
+      "failure_cause": "工装调试失误",
+      "prevention_control": "调试指定人员",
+      "detection_control": "100% 目视检查",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 3,
+        "detection": 7,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 32
+        }
+      ],
+      "pattern_id": "door_hinge-pfmea-017"
+    },
+    {
+      "process_step_id": "P10",
+      "process_function": "10 衬套预装并压入精整",
+      "failure_mode": "精整棒使用不正确",
+      "failure_effect": "影响产品性能",
+      "failure_cause": "工装调试失误",
+      "prevention_control": "调试指定人员",
+      "detection_control": "首检：3件\n自检：2件/h\n末检：3件",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 3,
+        "detection": 7,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 33
+        }
+      ],
+      "pattern_id": "door_hinge-pfmea-018"
+    },
+    {
+      "process_step_id": "P20",
+      "process_function": "20 压印",
+      "failure_mode": "刻印不清晰",
+      "failure_effect": "影响产品追溯",
+      "failure_cause": "设备调试错误",
+      "prevention_control": "开班点检",
+      "detection_control": "设备点检",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 34
+        },
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 35
+        },
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 36
+        }
+      ],
+      "pattern_id": "door_hinge-pfmea-019"
+    },
+    {
+      "process_step_id": "P20",
+      "process_function": "20 压印",
+      "failure_mode": "刻字内容不清晰",
+      "failure_effect": "影响产品追溯",
+      "failure_cause": "设备调试失误",
+      "prevention_control": "开班点检",
+      "detection_control": "100%目视检查",
+      "classification": "",
+      "rating_hint": {
+        "severity": 4,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 37
+        }
+      ],
+      "pattern_id": "door_hinge-pfmea-020"
+    },
+    {
+      "process_step_id": "P20",
+      "process_function": "20 压印",
+      "failure_mode": "刻字内容错误",
+      "failure_effect": "影响产品追溯",
+      "failure_cause": "设备调试失误",
+      "prevention_control": "开班防错验证",
+      "detection_control": "100%检目视\n夹具防错",
+      "classification": "",
+      "rating_hint": {
+        "severity": 4,
+        "occurrence": 2,
+        "detection": 4,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 38
+        }
+      ],
+      "pattern_id": "door_hinge-pfmea-021"
+    },
+    {
+      "process_step_id": "P20",
+      "process_function": "20 压印",
+      "failure_mode": "刻字内容缺失",
+      "failure_effect": "影响产品追溯",
+      "failure_cause": "操作失误",
+      "prevention_control": "开班防错验证",
+      "detection_control": "100%目测\n首检：3件\n自检：2件/h\n末检：3件",
+      "classification": "",
+      "rating_hint": {
+        "severity": 4,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 39
+        }
+      ],
+      "pattern_id": "door_hinge-pfmea-022"
+    },
+    {
+      "process_step_id": "P30",
+      "process_function": "30 压入销轴",
+      "failure_mode": "销轴不到位，铆接推出力不满足&过压零件损坏",
+      "failure_effect": "影响产品性能",
+      "failure_cause": "设备调试失误",
+      "prevention_control": "开班点检",
+      "detection_control": "开班点检",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 2,
+        "detection": 5,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 40
+        },
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 41
+        },
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 42
+        }
+      ],
+      "pattern_id": "door_hinge-pfmea-023"
+    },
+    {
+      "process_step_id": "P30",
+      "process_function": "30 压入销轴",
+      "failure_mode": "零件放入错误",
+      "failure_effect": "无法完成工序",
+      "failure_cause": "操作失误",
+      "prevention_control": "工装机械防错",
+      "detection_control": "首检：3件\n自检：2件/h\n末检：3件",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 2,
+        "detection": 4,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 43
+        }
+      ],
+      "pattern_id": "door_hinge-pfmea-024"
+    },
+    {
+      "process_step_id": "P30",
+      "process_function": "30 压入销轴",
+      "failure_mode": "零件不合格",
+      "failure_effect": "影响产品性能",
+      "failure_cause": "设备行程调试失误",
+      "prevention_control": "开班点检",
+      "detection_control": "首检：3件\n自检：2件/h\n末检：3件",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 2,
+        "detection": 4,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 44
+        }
+      ],
+      "pattern_id": "door_hinge-pfmea-025"
+    },
+    {
+      "process_step_id": "P30",
+      "process_function": "30 压入销轴",
+      "failure_mode": "零件不合格",
+      "failure_effect": "影响产品性能",
+      "failure_cause": "操作人员失误",
+      "prevention_control": "员工培训",
+      "detection_control": "首检：3件\n自检：2件/h\n末检：3件",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 45
+        }
+      ],
+      "pattern_id": "door_hinge-pfmea-026"
+    },
+    {
+      "process_step_id": "P40",
+      "process_function": "40 总成铆接",
+      "failure_mode": "铆接推出力不满足",
+      "failure_effect": "影响产品性能",
+      "failure_cause": "设备铆接时间调试不合格",
+      "prevention_control": "设备100%自动检测",
+      "detection_control": "开班点检\n100%设备自动监控",
+      "classification": "SC",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 2,
+        "detection": 5,
+        "action_priority": "M"
+      },
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 46
+        }
+      ],
+      "pattern_id": "door_hinge-pfmea-027"
+    },
+    {
+      "process_step_id": "P40",
+      "process_function": "40 总成铆接",
+      "failure_mode": "铆接推出力不满足",
+      "failure_effect": "影响产品性能",
+      "failure_cause": "设备设定高度调试不合格",
+      "prevention_control": "设备100%自动检测",
+      "detection_control": "开班点检\n100%设备自动监控",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 2,
+        "detection": 5,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 47
+        }
+      ],
+      "pattern_id": "door_hinge-pfmea-028"
+    },
+    {
+      "process_step_id": "P40",
+      "process_function": "40 总成铆接",
+      "failure_mode": "铆接推出力不满足",
+      "failure_effect": "影响产品性能",
+      "failure_cause": "设备设定行程调试不合格",
+      "prevention_control": "设备100%自动检测",
+      "detection_control": "开班点检\n100%设备自动监控",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 2,
+        "detection": 5,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 48
+        },
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 49
+        }
+      ],
+      "pattern_id": "door_hinge-pfmea-029"
+    },
+    {
+      "process_step_id": "P40",
+      "process_function": "40 总成铆接",
+      "failure_mode": "铆接推出力不满足",
+      "failure_effect": "影响产品性能",
+      "failure_cause": "设备设定压力调试不合格",
+      "prevention_control": "设备100%自动检测",
+      "detection_control": "开班点检\n100%设备自动监控",
+      "classification": "SC",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 2,
+        "detection": 4,
+        "action_priority": "M"
+      },
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 50
+        }
+      ],
+      "pattern_id": "door_hinge-pfmea-030"
+    },
+    {
+      "process_step_id": "P40",
+      "process_function": "40 总成铆接",
+      "failure_mode": "铆接推出力不满足",
+      "failure_effect": "影响产品性能",
+      "failure_cause": "设备输入气压调试不合格",
+      "prevention_control": "开班点检",
+      "detection_control": "开班点检",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 2,
+        "detection": 5,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 51
+        }
+      ],
+      "pattern_id": "door_hinge-pfmea-031"
+    },
+    {
+      "process_step_id": "P40",
+      "process_function": "40 总成铆接",
+      "failure_mode": "零件放入错误",
+      "failure_effect": "无法完成工序",
+      "failure_cause": "操作失误",
+      "prevention_control": "工装机械防错",
+      "detection_control": "100%设备防错\n首检：3件\n自检：2件/h\n末检：3件",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 2,
+        "detection": 4,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 52
+        }
+      ],
+      "pattern_id": "door_hinge-pfmea-032"
+    },
+    {
+      "process_step_id": "P40",
+      "process_function": "40 总成铆接",
+      "failure_mode": "铆钉铆接高度：1.5（+0.5,-0）mm",
+      "failure_effect": "影响产品性能",
+      "failure_cause": "设备调试失误",
+      "prevention_control": "设备100%自动监控",
+      "detection_control": "100%设备检测\n首检：3件\n自检：2件/h\n末检：3件",
+      "classification": "SC",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 2,
+        "detection": 4,
+        "action_priority": "M"
+      },
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 53
+        }
+      ],
+      "pattern_id": "door_hinge-pfmea-033"
+    },
+    {
+      "process_step_id": "P40",
+      "process_function": "40 总成铆接",
+      "failure_mode": "转动1.5-4Nm",
+      "failure_effect": "影响产品性能",
+      "failure_cause": "设备调试失误",
+      "prevention_control": "设备100%自动监控",
+      "detection_control": "首检：3件\n自检：2件/h\n末检：3件",
+      "classification": "SC",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 2,
+        "detection": 4,
+        "action_priority": "M"
+      },
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 54
+        }
+      ],
+      "pattern_id": "door_hinge-pfmea-034"
+    },
+    {
+      "process_step_id": "P50",
+      "process_function": "50 包装",
+      "failure_mode": "数量错误",
+      "failure_effect": "引起客户抱怨",
+      "failure_cause": "操作工失误",
+      "prevention_control": "操作工培训",
+      "detection_control": "100%检查，按包装指导书执行",
+      "classification": "",
+      "rating_hint": {
+        "severity": 4,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 55
+        }
+      ],
+      "pattern_id": "door_hinge-pfmea-035"
+    },
+    {
+      "process_step_id": "P50",
+      "process_function": "50 包装",
+      "failure_mode": "标签贴错",
+      "failure_effect": "影响客户装车",
+      "failure_cause": "操作工失误",
+      "prevention_control": "操作工培训",
+      "detection_control": "100%检查，按包装指导书执行",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 56
+        }
+      ],
+      "pattern_id": "door_hinge-pfmea-036"
+    },
+    {
+      "process_step_id": "P50",
+      "process_function": "50 包装",
+      "failure_mode": "包材损坏",
+      "failure_effect": "引起客户抱怨",
+      "failure_cause": "操作工失误",
+      "prevention_control": "库房管理规定",
+      "detection_control": "100%检查，按包装指导书执行",
+      "classification": "",
+      "rating_hint": {
+        "severity": 4,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 57
+        }
+      ],
+      "pattern_id": "door_hinge-pfmea-037"
+    },
+    {
+      "process_step_id": "P60",
+      "process_function": "60 入库",
+      "failure_mode": "未经行先进先出",
+      "failure_effect": "零件锈蚀",
+      "failure_cause": "库房摆放位置及标示不清楚",
+      "prevention_control": "操作者岗前培训",
+      "detection_control": "按库房管理规定标识及摆放零件",
+      "classification": "",
+      "rating_hint": {
+        "severity": 4,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 58
+        }
+      ],
+      "pattern_id": "door_hinge-pfmea-038"
+    }
+  ],
+  "control_plan_patterns": [
+    {
+      "process_step_id": "P00",
+      "operation": "进货检验 \n车身件\n JLH01000301",
+      "characteristic": "材料",
+      "classification": "CC",
+      "specification": "SAPH440\n5.0±0.19",
+      "measurement_method": "目测",
+      "sample_size": "3",
+      "sample_frequency": "每炉批",
+      "control_method": "供方质保书",
+      "reaction_plan": "ARAC-GL-QA-001 AA 入厂检验管理规定",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 16
+        }
+      ],
+      "pattern_id": "door_hinge-control-plan-001"
+    },
+    {
+      "process_step_id": "P00",
+      "operation": "进货检验 \n车身件\n JLH01000301",
+      "characteristic": "孔径",
+      "classification": "SC",
+      "specification": "8+0.05\n0",
+      "measurement_method": "卡尺",
+      "sample_size": "3",
+      "sample_frequency": "每批次",
+      "control_method": "ERP 进货检验",
+      "reaction_plan": "ARAC-GL-QA-001 AA 入厂检验管理规定",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 17
+        }
+      ],
+      "pattern_id": "door_hinge-control-plan-002"
+    },
+    {
+      "process_step_id": "P00",
+      "operation": "进货检验 \n车身件\n JLH01000301",
+      "characteristic": "宽度",
+      "classification": "SC",
+      "specification": "52±0.2",
+      "measurement_method": "卡尺",
+      "sample_size": "3",
+      "sample_frequency": "每批次",
+      "control_method": "ERP 进货检验",
+      "reaction_plan": "ARAC-GL-QA-001 AA 入厂检验管理规定",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 18
+        }
+      ],
+      "pattern_id": "door_hinge-control-plan-003"
+    },
+    {
+      "process_step_id": "P00",
+      "operation": "进货检验 \n车身件\n JLH01000301",
+      "characteristic": "孔径",
+      "classification": "SC",
+      "specification": "14+0.5\n0",
+      "measurement_method": "卡尺",
+      "sample_size": "3",
+      "sample_frequency": "每批次",
+      "control_method": "ERP 进货检验",
+      "reaction_plan": "ARAC-GL-QA-001 AA 入厂检验管理规定",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 19
+        }
+      ],
+      "pattern_id": "door_hinge-control-plan-004"
+    },
+    {
+      "process_step_id": "P00",
+      "operation": "进货检验 \n车身件\n JLH01000301",
+      "characteristic": "孔径",
+      "classification": "SC",
+      "specification": "16+0.5\n0",
+      "measurement_method": "卡尺",
+      "sample_size": "3",
+      "sample_frequency": "每批次",
+      "control_method": "ERP 进货检验",
+      "reaction_plan": "ARAC-GL-QA-001 AA 入厂检验管理规定",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 20
+        }
+      ],
+      "pattern_id": "door_hinge-control-plan-005"
+    },
+    {
+      "process_step_id": "P00",
+      "operation": "进货检验 \n车身件\n JLH01000301",
+      "characteristic": "孔径",
+      "classification": "SC",
+      "specification": "16+0.1\n0",
+      "measurement_method": "卡尺",
+      "sample_size": "3",
+      "sample_frequency": "每批次",
+      "control_method": "ERP 进货检验",
+      "reaction_plan": "ARAC-GL-QA-001 AA 入厂检验管理规定",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 21
+        },
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 23
+        }
+      ],
+      "pattern_id": "door_hinge-control-plan-006"
+    },
+    {
+      "process_step_id": "P00",
+      "operation": "进货检验 \n车身件\n JLH01000301",
+      "characteristic": "孔径",
+      "classification": "SC",
+      "specification": "14+0.1\n0",
+      "measurement_method": "卡尺",
+      "sample_size": "3",
+      "sample_frequency": "每批次",
+      "control_method": "ERP 进货检验",
+      "reaction_plan": "ARAC-GL-QA-001 AA 入厂检验管理规定",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 22
+        }
+      ],
+      "pattern_id": "door_hinge-control-plan-007"
+    },
+    {
+      "process_step_id": "P00",
+      "operation": "进货检验 \n车身件\n JLH01000301",
+      "characteristic": "外观",
+      "classification": "",
+      "specification": "无划伤\n无锈蚀\n包装无偏移突出",
+      "measurement_method": "目测",
+      "sample_size": "10",
+      "sample_frequency": "每批次",
+      "control_method": "ERP 进货检验",
+      "reaction_plan": "ARAC-GL-QA-001 AA 入厂检验管理规定",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 24
+        }
+      ],
+      "pattern_id": "door_hinge-control-plan-008"
+    },
+    {
+      "process_step_id": "P00",
+      "operation": "进货检验 \n盖件\n JLH01000302",
+      "characteristic": "材料",
+      "classification": "CC",
+      "specification": "GB/T 1591 Q355B",
+      "measurement_method": "目测",
+      "sample_size": "3",
+      "sample_frequency": "每炉批",
+      "control_method": "供方质保书",
+      "reaction_plan": "ARAC-GL-QA-001 AA 入厂检验管理规定",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 25
+        }
+      ],
+      "pattern_id": "door_hinge-control-plan-009"
+    },
+    {
+      "process_step_id": "P00",
+      "operation": "进货检验 \n盖件\n JLH01000302",
+      "characteristic": "直径",
+      "classification": "SC",
+      "specification": "最小4.7",
+      "measurement_method": "卡尺",
+      "sample_size": "3",
+      "sample_frequency": "每批次",
+      "control_method": "ERP 进货检验",
+      "reaction_plan": "ARAC-GL-QA-001 AA 入厂检验管理规定",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 26
+        }
+      ],
+      "pattern_id": "door_hinge-control-plan-010"
+    },
+    {
+      "process_step_id": "P00",
+      "operation": "进货检验 \n盖件\n JLH01000302",
+      "characteristic": "孔径",
+      "classification": "SC",
+      "specification": "21.5+0.5\n0",
+      "measurement_method": "卡尺",
+      "sample_size": "3",
+      "sample_frequency": "每批次",
+      "control_method": "ERP 进货检验",
+      "reaction_plan": "ARAC-GL-QA-001 AA 入厂检验管理规定",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 27
+        }
+      ],
+      "pattern_id": "door_hinge-control-plan-011"
+    },
+    {
+      "process_step_id": "P00",
+      "operation": "进货检验 \n盖件\n JLH01000302",
+      "characteristic": "孔径",
+      "classification": "SC",
+      "specification": "11.5+0.1\n0",
+      "measurement_method": "卡尺",
+      "sample_size": "3",
+      "sample_frequency": "每批次",
+      "control_method": "ERP 进货检验",
+      "reaction_plan": "ARAC-GL-QA-001 AA 入厂检验管理规定",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 28
+        }
+      ],
+      "pattern_id": "door_hinge-control-plan-012"
+    },
+    {
+      "process_step_id": "P00",
+      "operation": "进货检验 \n盖件\n JLH01000302",
+      "characteristic": "孔径",
+      "classification": "SC",
+      "specification": "11.5+0.5\n0",
+      "measurement_method": "卡尺",
+      "sample_size": "3",
+      "sample_frequency": "每批次",
+      "control_method": "ERP 进货检验",
+      "reaction_plan": "ARAC-GL-QA-001 AA 入厂检验管理规定",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 29
+        }
+      ],
+      "pattern_id": "door_hinge-control-plan-013"
+    },
+    {
+      "process_step_id": "P00",
+      "operation": "进货检验 \n盖件\n JLH01000302",
+      "characteristic": "位置度",
+      "classification": "SC",
+      "specification": "0.4",
+      "measurement_method": "三坐标",
+      "sample_size": "3",
+      "sample_frequency": "每批次",
+      "control_method": "ERP 进货检验",
+      "reaction_plan": "ARAC-GL-QA-001 AA 入厂检验管理规定",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 30
+        }
+      ],
+      "pattern_id": "door_hinge-control-plan-014"
+    },
+    {
+      "process_step_id": "P00",
+      "operation": "进货检验 \n盖件\n JLH01000302",
+      "characteristic": "圆",
+      "classification": "SC",
+      "specification": "10+0.05\n0",
+      "measurement_method": "卡尺",
+      "sample_size": "3",
+      "sample_frequency": "每批次",
+      "control_method": "ERP 进货检验",
+      "reaction_plan": "ARAC-GL-QA-001 AA 入厂检验管理规定",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 31
+        }
+      ],
+      "pattern_id": "door_hinge-control-plan-015"
+    },
+    {
+      "process_step_id": "P00",
+      "operation": "进货检验 \n盖件\n JLH01000302",
+      "characteristic": "宽度",
+      "classification": "SC",
+      "specification": "50±0.1",
+      "measurement_method": "卡尺",
+      "sample_size": "3",
+      "sample_frequency": "每批次",
+      "control_method": "ERP 进货检验",
+      "reaction_plan": "ARAC-GL-QA-001 AA 入厂检验管理规定",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 32
+        }
+      ],
+      "pattern_id": "door_hinge-control-plan-016"
+    },
+    {
+      "process_step_id": "P00",
+      "operation": "进货检验 \n盖件\n JLH01000302",
+      "characteristic": "外观",
+      "classification": "",
+      "specification": "无划伤\n无锈蚀\n包装无偏移突出",
+      "measurement_method": "目测",
+      "sample_size": "10",
+      "sample_frequency": "每批次",
+      "control_method": "ERP 进货检验",
+      "reaction_plan": "ARAC-GL-QA-001 AA 入厂检验管理规定",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 33
+        }
+      ],
+      "pattern_id": "door_hinge-control-plan-017"
+    },
+    {
+      "process_step_id": "P00",
+      "operation": "进货检验 \n铰链销\nBZJ01007900",
+      "characteristic": "材料",
+      "classification": "CC",
+      "specification": "GB/T3077 20MnTiB",
+      "measurement_method": "目测",
+      "sample_size": "3",
+      "sample_frequency": "每炉批",
+      "control_method": "供方质保书",
+      "reaction_plan": "ARAC-GL-QA-001 AA 入厂检验管理规定",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 34
+        }
+      ],
+      "pattern_id": "door_hinge-control-plan-018"
+    },
+    {
+      "process_step_id": "P00",
+      "operation": "进货检验 \n铰链销\nBZJ01007900",
+      "characteristic": "直径",
+      "classification": "SC",
+      "specification": "8 -0.036\n0",
+      "measurement_method": "卡尺",
+      "sample_size": "3",
+      "sample_frequency": "每批次",
+      "control_method": "ERP 进货检验",
+      "reaction_plan": "ARAC-GL-QA-001 AA 入厂检验管理规定",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 35
+        }
+      ],
+      "pattern_id": "door_hinge-control-plan-019"
+    },
+    {
+      "process_step_id": "P00",
+      "operation": "进货检验 \n铰链销\nBZJ01007900",
+      "characteristic": "长度",
+      "classification": "",
+      "specification": "64+0.5\n0",
+      "measurement_method": "卡尺",
+      "sample_size": "3",
+      "sample_frequency": "每批次",
+      "control_method": "ERP 进货检验",
+      "reaction_plan": "ARAC-GL-QA-001 AA 入厂检验管理规定",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 36
+        }
+      ],
+      "pattern_id": "door_hinge-control-plan-020"
+    },
+    {
+      "process_step_id": "P00",
+      "operation": "进货检验 \n铰链销\nBZJ01007900",
+      "characteristic": "圆",
+      "classification": "",
+      "specification": "12±0.3",
+      "measurement_method": "卡尺",
+      "sample_size": "3",
+      "sample_frequency": "每批次",
+      "control_method": "ERP 进货检验",
+      "reaction_plan": "ARAC-GL-QA-001 AA 入厂检验管理规定",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 37
+        }
+      ],
+      "pattern_id": "door_hinge-control-plan-021"
+    },
+    {
+      "process_step_id": "P00",
+      "operation": "进货检验 \n铰链销\nBZJ01007900",
+      "characteristic": "圆",
+      "classification": "",
+      "specification": "8.2+0.2\n0",
+      "measurement_method": "卡尺",
+      "sample_size": "3",
+      "sample_frequency": "每批次",
+      "control_method": "ERP 进货检验",
+      "reaction_plan": "ARAC-GL-QA-001 AA 入厂检验管理规定",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 38
+        }
+      ],
+      "pattern_id": "door_hinge-control-plan-022"
+    },
+    {
+      "process_step_id": "P00",
+      "operation": "进货检验 \n铰链销\nBZJ01007900",
+      "characteristic": "外观",
+      "classification": "",
+      "specification": "无划伤\n无锈蚀\n包装无偏移突出",
+      "measurement_method": "目测",
+      "sample_size": "10",
+      "sample_frequency": "每批次",
+      "control_method": "ERP 进货检验",
+      "reaction_plan": "ARAC-GL-QA-001 AA 入厂检验管理规定",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 39
+        }
+      ],
+      "pattern_id": "door_hinge-control-plan-023"
+    },
+    {
+      "process_step_id": "P00",
+      "operation": "进货检验 \n衬套\nBZJ01004500",
+      "characteristic": "材料",
+      "classification": "CC",
+      "specification": "刚背+PTFE",
+      "measurement_method": "目测",
+      "sample_size": "3",
+      "sample_frequency": "每炉批",
+      "control_method": "供方质保书",
+      "reaction_plan": "ARAC-GL-QA-001 AA 入厂检验管理规定",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 40
+        }
+      ],
+      "pattern_id": "door_hinge-control-plan-024"
+    },
+    {
+      "process_step_id": "P00",
+      "operation": "进货检验 \n衬套\nBZJ01004500",
+      "characteristic": "尺寸",
+      "classification": "SC",
+      "specification": "1±0.02",
+      "measurement_method": "卡尺",
+      "sample_size": "3",
+      "sample_frequency": "每批次",
+      "control_method": "ERP 进货检验",
+      "reaction_plan": "ARAC-GL-QA-001 AA 入厂检验管理规定",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 41
+        }
+      ],
+      "pattern_id": "door_hinge-control-plan-025"
+    },
+    {
+      "process_step_id": "P00",
+      "operation": "进货检验 \n衬套\nBZJ01004500",
+      "characteristic": "外圆",
+      "classification": "",
+      "specification": "14±0.25",
+      "measurement_method": "卡尺",
+      "sample_size": "3",
+      "sample_frequency": "每批次",
+      "control_method": "ERP 进货检验",
+      "reaction_plan": "ARAC-GL-QA-001 AA 入厂检验管理规定",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 42
+        }
+      ],
+      "pattern_id": "door_hinge-control-plan-026"
+    },
+    {
+      "process_step_id": "P00",
+      "operation": "进货检验 \n衬套\nBZJ01004500",
+      "characteristic": "圆",
+      "classification": "",
+      "specification": "10",
+      "measurement_method": "卡尺",
+      "sample_size": "3",
+      "sample_frequency": "每批次",
+      "control_method": "ERP 进货检验",
+      "reaction_plan": "ARAC-GL-QA-001 AA 入厂检验管理规定",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 43
+        }
+      ],
+      "pattern_id": "door_hinge-control-plan-027"
+    },
+    {
+      "process_step_id": "P00",
+      "operation": "进货检验 \n衬套\nBZJ01004500",
+      "characteristic": "高度",
+      "classification": "",
+      "specification": "7±0.2mm",
+      "measurement_method": "卡尺",
+      "sample_size": "3",
+      "sample_frequency": "每批次",
+      "control_method": "ERP 进货检验",
+      "reaction_plan": "ARAC-GL-QA-001 AA 入厂检验管理规定",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 44
+        }
+      ],
+      "pattern_id": "door_hinge-control-plan-028"
+    },
+    {
+      "process_step_id": "P00",
+      "operation": "进货检验 \n衬套\nBZJ01004500",
+      "characteristic": "外观",
+      "classification": "",
+      "specification": "无划伤\n无锈蚀\n包装无偏移突出",
+      "measurement_method": "目测",
+      "sample_size": "10",
+      "sample_frequency": "每批次",
+      "control_method": "ERP 进货检验",
+      "reaction_plan": "ARAC-GL-QA-001 AA 入厂检验管理规定",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 45
+        }
+      ],
+      "pattern_id": "door_hinge-control-plan-029"
+    },
+    {
+      "process_step_id": "P01",
+      "operation": "入库",
+      "characteristic": "FIFO\nERP系统条码管理",
+      "classification": "",
+      "specification": "使用条码核对标签、库位",
+      "measurement_method": "条码设备",
+      "sample_size": "1",
+      "sample_frequency": "每批次",
+      "control_method": "ERP 仓库管理",
+      "reaction_plan": "ARAP-CX-OD-021AA仓库管理程序",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 46
+        }
+      ],
+      "pattern_id": "door_hinge-control-plan-030"
+    },
+    {
+      "process_step_id": "P02",
+      "operation": "投料",
+      "characteristic": "零件数量/种类",
+      "classification": "",
+      "specification": "按生产计划投料（BOM清单）",
+      "measurement_method": "目视",
+      "sample_size": "1",
+      "sample_frequency": "每批次",
+      "control_method": "ERP生产领料清单",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 47
+        }
+      ],
+      "pattern_id": "door_hinge-control-plan-031"
+    },
+    {
+      "process_step_id": "P10",
+      "operation": "衬套预装并压入精整",
+      "characteristic": "外观",
+      "classification": "",
+      "specification": "衬套无漏装、无破损",
+      "measurement_method": "目视",
+      "sample_size": "3",
+      "sample_frequency": "每批次",
+      "control_method": "首/末检.巡检1次/h",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 48
+        }
+      ],
+      "pattern_id": "door_hinge-control-plan-032"
+    },
+    {
+      "process_step_id": "P20",
+      "operation": "压印",
+      "characteristic": "外观",
+      "classification": "",
+      "specification": "刻印清晰、内容正确",
+      "measurement_method": "目视",
+      "sample_size": "3",
+      "sample_frequency": "每批次",
+      "control_method": "首/末检.巡检1次/h",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 49
+        }
+      ],
+      "pattern_id": "door_hinge-control-plan-033"
+    },
+    {
+      "process_step_id": "P30",
+      "operation": "压入销轴",
+      "characteristic": "外观",
+      "classification": "",
+      "specification": "销轴压入位置正确",
+      "measurement_method": "目视",
+      "sample_size": "3",
+      "sample_frequency": "每批次",
+      "control_method": "首/末检.巡检1次/h",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 50
+        }
+      ],
+      "pattern_id": "door_hinge-control-plan-034"
+    },
+    {
+      "process_step_id": "P40",
+      "operation": "总成铆接",
+      "characteristic": "铆钉铆接高度",
+      "classification": "",
+      "specification": "1.5±0.3mm",
+      "measurement_method": "卡尺",
+      "sample_size": "3",
+      "sample_frequency": "每批次",
+      "control_method": "首/末检.巡检1次/h",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 51
+        }
+      ],
+      "pattern_id": "door_hinge-control-plan-035"
+    },
+    {
+      "process_step_id": "P40",
+      "operation": "总成铆接",
+      "characteristic": "转动力矩",
+      "classification": "",
+      "specification": "1.5-4Nm",
+      "measurement_method": "力矩扳手",
+      "sample_size": "3",
+      "sample_frequency": "每批次",
+      "control_method": "首/末检.巡检1次/h",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 52
+        }
+      ],
+      "pattern_id": "door_hinge-control-plan-036"
+    },
+    {
+      "process_step_id": "P40",
+      "operation": "总成铆接",
+      "characteristic": "顶出力",
+      "classification": "",
+      "specification": "≥10KN",
+      "measurement_method": "万能拉力机",
+      "sample_size": "1",
+      "sample_frequency": "每批次",
+      "control_method": "首检",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 53
+        }
+      ],
+      "pattern_id": "door_hinge-control-plan-037"
+    },
+    {
+      "process_step_id": "P40",
+      "operation": "总成铆接",
+      "characteristic": "尺寸",
+      "classification": "",
+      "specification": "面轮廓1",
+      "measurement_method": "检具",
+      "sample_size": "3",
+      "sample_frequency": "每批次",
+      "control_method": "首/末检.巡检1次/h",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 54
+        }
+      ],
+      "pattern_id": "door_hinge-control-plan-038"
+    },
+    {
+      "process_step_id": "P40",
+      "operation": "总成铆接",
+      "characteristic": "尺寸",
+      "classification": "",
+      "specification": "面轮廓0.6",
+      "measurement_method": "检具",
+      "sample_size": "3",
+      "sample_frequency": "每批次",
+      "control_method": "首/末检.巡检1次/h",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 55
+        }
+      ],
+      "pattern_id": "door_hinge-control-plan-039"
+    },
+    {
+      "process_step_id": "P50",
+      "operation": "包装",
+      "characteristic": "包装正确性",
+      "classification": "",
+      "specification": "标签，数量，实物与发货信息一致",
+      "measurement_method": "目视",
+      "sample_size": "1",
+      "sample_frequency": "每批次",
+      "control_method": "包装方案",
+      "reaction_plan": "隔离，调整",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 56
+        }
+      ],
+      "pattern_id": "door_hinge-control-plan-040"
+    },
+    {
+      "process_step_id": "P60",
+      "operation": "入库",
+      "characteristic": "FIFO、无混料",
+      "classification": "",
+      "specification": "零件正确入库，且遵循FIFO",
+      "measurement_method": "目视",
+      "sample_size": "1",
+      "sample_frequency": "每批次",
+      "control_method": "ERP 仓库管理",
+      "reaction_plan": "ARAP-CX-OD-021AA仓库管理程序",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 57
+        }
+      ],
+      "pattern_id": "door_hinge-control-plan-041"
+    }
+  ],
+  "special_characteristic_patterns": [
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "精整后孔径/衬套无漏装",
+      "related_process": "衬套预装并压入精整",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "过程流程图",
+          "row": 12
+        }
+      ],
+      "pattern_id": "door_hinge-special-001"
+    },
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "无漏压印",
+      "related_process": "压印",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "过程流程图",
+          "row": 14
+        }
+      ],
+      "pattern_id": "door_hinge-special-002"
+    },
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "限位块行程",
+      "related_process": "压印",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "过程流程图",
+          "row": 14
+        }
+      ],
+      "pattern_id": "door_hinge-special-003"
+    },
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "刻印内容正确、清晰",
+      "related_process": "压印",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "过程流程图",
+          "row": 15
+        }
+      ],
+      "pattern_id": "door_hinge-special-004"
+    },
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "无明显间隙/车门件无变形",
+      "related_process": "压入销轴",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "过程流程图",
+          "row": 18
+        }
+      ],
+      "pattern_id": "door_hinge-special-005"
+    },
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "压入行程\n压入压力",
+      "related_process": "压入销轴",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "过程流程图",
+          "row": 18
+        }
+      ],
+      "pattern_id": "door_hinge-special-006"
+    },
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "铆接高度",
+      "related_process": "总成铆接",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "过程流程图",
+          "row": 20
+        }
+      ],
+      "pattern_id": "door_hinge-special-007"
+    },
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "铆接时间\n铆接压力",
+      "related_process": "总成铆接",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "过程流程图",
+          "row": 20
+        }
+      ],
+      "pattern_id": "door_hinge-special-008"
+    },
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "转动力矩",
+      "related_process": "总成铆接",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "过程流程图",
+          "row": 21
+        }
+      ],
+      "pattern_id": "door_hinge-special-009"
+    },
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "FIFO",
+      "related_process": "入库",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "过程流程图",
+          "row": 24
+        }
+      ],
+      "pattern_id": "door_hinge-special-010"
+    },
+    {
+      "kind": "pfmea_classification",
+      "value": "SC",
+      "related_process": "40 总成铆接",
+      "related_characteristic": "铆接推出力不满足",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 46
+        },
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 50
+        }
+      ],
+      "pattern_id": "door_hinge-special-011"
+    },
+    {
+      "kind": "pfmea_classification",
+      "value": "SC",
+      "related_process": "40 总成铆接",
+      "related_characteristic": "铆钉铆接高度：1.5（+0.5,-0）mm",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 53
+        }
+      ],
+      "pattern_id": "door_hinge-special-012"
+    },
+    {
+      "kind": "pfmea_classification",
+      "value": "SC",
+      "related_process": "40 总成铆接",
+      "related_characteristic": "转动1.5-4Nm",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "PFMEA",
+          "row": 54
+        }
+      ],
+      "pattern_id": "door_hinge-special-013"
+    },
+    {
+      "kind": "control_plan_classification",
+      "value": "CC",
+      "related_process": "进货检验 \n车身件\n JLH01000301",
+      "related_characteristic": "材料",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 16
+        }
+      ],
+      "pattern_id": "door_hinge-special-014"
+    },
+    {
+      "kind": "control_plan_classification",
+      "value": "SC",
+      "related_process": "进货检验 \n车身件\n JLH01000301",
+      "related_characteristic": "孔径",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 17
+        },
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 19
+        },
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 20
+        },
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 21
+        },
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 22
+        },
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 23
+        }
+      ],
+      "pattern_id": "door_hinge-special-015"
+    },
+    {
+      "kind": "control_plan_classification",
+      "value": "SC",
+      "related_process": "进货检验 \n车身件\n JLH01000301",
+      "related_characteristic": "宽度",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 18
+        }
+      ],
+      "pattern_id": "door_hinge-special-016"
+    },
+    {
+      "kind": "control_plan_classification",
+      "value": "CC",
+      "related_process": "进货检验 \n盖件\n JLH01000302",
+      "related_characteristic": "材料",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 25
+        }
+      ],
+      "pattern_id": "door_hinge-special-017"
+    },
+    {
+      "kind": "control_plan_classification",
+      "value": "SC",
+      "related_process": "进货检验 \n盖件\n JLH01000302",
+      "related_characteristic": "直径",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 26
+        }
+      ],
+      "pattern_id": "door_hinge-special-018"
+    },
+    {
+      "kind": "control_plan_classification",
+      "value": "SC",
+      "related_process": "进货检验 \n盖件\n JLH01000302",
+      "related_characteristic": "孔径",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 27
+        },
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 28
+        },
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 29
+        }
+      ],
+      "pattern_id": "door_hinge-special-019"
+    },
+    {
+      "kind": "control_plan_classification",
+      "value": "SC",
+      "related_process": "进货检验 \n盖件\n JLH01000302",
+      "related_characteristic": "位置度",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 30
+        }
+      ],
+      "pattern_id": "door_hinge-special-020"
+    },
+    {
+      "kind": "control_plan_classification",
+      "value": "SC",
+      "related_process": "进货检验 \n盖件\n JLH01000302",
+      "related_characteristic": "圆",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 31
+        }
+      ],
+      "pattern_id": "door_hinge-special-021"
+    },
+    {
+      "kind": "control_plan_classification",
+      "value": "SC",
+      "related_process": "进货检验 \n盖件\n JLH01000302",
+      "related_characteristic": "宽度",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 32
+        }
+      ],
+      "pattern_id": "door_hinge-special-022"
+    },
+    {
+      "kind": "control_plan_classification",
+      "value": "CC",
+      "related_process": "进货检验 \n铰链销\nBZJ01007900",
+      "related_characteristic": "材料",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 34
+        }
+      ],
+      "pattern_id": "door_hinge-special-023"
+    },
+    {
+      "kind": "control_plan_classification",
+      "value": "SC",
+      "related_process": "进货检验 \n铰链销\nBZJ01007900",
+      "related_characteristic": "直径",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 35
+        }
+      ],
+      "pattern_id": "door_hinge-special-024"
+    },
+    {
+      "kind": "control_plan_classification",
+      "value": "CC",
+      "related_process": "进货检验 \n衬套\nBZJ01004500",
+      "related_characteristic": "材料",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 40
+        }
+      ],
+      "pattern_id": "door_hinge-special-025"
+    },
+    {
+      "kind": "control_plan_classification",
+      "value": "SC",
+      "related_process": "进货检验 \n衬套\nBZJ01004500",
+      "related_characteristic": "尺寸",
+      "source_refs": [
+        {
+          "source_id": "door_hinge:JLH01000300-门铰链",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+          "workbook": "JLH01000300-门铰链.xlsx",
+          "sheet": "控制计划",
+          "row": 41
+        }
+      ],
+      "pattern_id": "door_hinge-special-026"
+    }
+  ],
+  "source_refs": [
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx"
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "过程流程图",
+      "row": 8
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "过程流程图",
+      "row": 9
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "过程流程图",
+      "row": 10
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "过程流程图",
+      "row": 11
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "过程流程图",
+      "row": 12
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "过程流程图",
+      "row": 13
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "过程流程图",
+      "row": 14
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "过程流程图",
+      "row": 15
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "过程流程图",
+      "row": 16
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "过程流程图",
+      "row": 17
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "过程流程图",
+      "row": 18
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "过程流程图",
+      "row": 19
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "过程流程图",
+      "row": 20
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "过程流程图",
+      "row": 21
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "过程流程图",
+      "row": 22
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "过程流程图",
+      "row": 23
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "过程流程图",
+      "row": 24
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 16
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 17
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 18
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 19
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 20
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 21
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 22
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 23
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 24
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 25
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 26
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 27
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 28
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 29
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 30
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 31
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 32
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 33
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 34
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 35
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 36
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 37
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 38
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 39
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 40
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 41
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 42
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 43
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 44
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 45
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 46
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 47
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 48
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 49
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 50
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 51
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 52
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 53
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 54
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 55
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 56
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 57
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "PFMEA",
+      "row": 58
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "控制计划",
+      "row": 16
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "控制计划",
+      "row": 17
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "控制计划",
+      "row": 18
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "控制计划",
+      "row": 19
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "控制计划",
+      "row": 20
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "控制计划",
+      "row": 21
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "控制计划",
+      "row": 23
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "控制计划",
+      "row": 22
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "控制计划",
+      "row": 24
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "控制计划",
+      "row": 25
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "控制计划",
+      "row": 26
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "控制计划",
+      "row": 27
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "控制计划",
+      "row": 28
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "控制计划",
+      "row": 29
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "控制计划",
+      "row": 30
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "控制计划",
+      "row": 31
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "控制计划",
+      "row": 32
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "控制计划",
+      "row": 33
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "控制计划",
+      "row": 34
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "控制计划",
+      "row": 35
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "控制计划",
+      "row": 36
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "控制计划",
+      "row": 37
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "控制计划",
+      "row": 38
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "控制计划",
+      "row": 39
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "控制计划",
+      "row": 40
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "控制计划",
+      "row": 41
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "控制计划",
+      "row": 42
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "控制计划",
+      "row": 43
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "控制计划",
+      "row": 44
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "控制计划",
+      "row": 45
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "控制计划",
+      "row": 46
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "控制计划",
+      "row": 47
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "控制计划",
+      "row": 48
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "控制计划",
+      "row": 49
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "控制计划",
+      "row": 50
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "控制计划",
+      "row": 51
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "控制计划",
+      "row": 52
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "控制计划",
+      "row": 53
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "控制计划",
+      "row": 54
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "控制计划",
+      "row": 55
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "控制计划",
+      "row": 56
+    },
+    {
+      "source_id": "door_hinge:JLH01000300-门铰链",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\门铰链\\JLH01000300-门铰链.xlsx",
+      "workbook": "JLH01000300-门铰链.xlsx",
+      "sheet": "控制计划",
+      "row": 57
+    }
+  ]
+}

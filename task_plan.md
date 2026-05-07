@@ -1,5 +1,60 @@
 # MINOS-CORE 重建任务计划
 
+## 当前任务：MINOS-CORE 调查审核与问题修复
+
+目标是先对当前脏工作区做核心审核，找出会让 MINOS-CORE 直接崩溃、入口失效或公开契约漂移的问题，再做最小修复并验证。
+
+```mermaid
+flowchart TD
+    A[定位 MINOS-CORE 工作区] --> B[读取计划与当前 diff]
+    B --> C[并行审核核心兼容层 桌面/API 测试配置]
+    C --> D[运行聚焦测试复现问题]
+    D --> E[按根因做最小修复]
+    E --> F[补充或调整回归测试]
+    F --> G[运行完整审核与可打开性/入口检查]
+```
+
+/// 1. 确认实际工作区为 `D:\MINOS-CORE`，并保护现有未提交改动，不回滚用户或其他代理的修改。
+/// 2. 先审查 `minos_core/stage`、`minos_core/quality_gates` 从单文件拆为包后的公开导入兼容性。
+/// 3. 同步审查 `minos_desktop`/`minos_platform` 入口是否仍引用已删除的旧 Qt/CLI/preflight 文件。
+/// 4. 同步审查测试配置、README、OpenSpec/计划与当前文件结构是否不一致。
+/// 5. 通过聚焦测试复现明确问题；命令失败时记录原始现象和影响判断，但按当前全局 AGENTS 口径继续推进可验证主线。
+/// 6. 对明确根因做最小代码修复，不做顺手重构。
+/// 7. 修复后运行相关测试和入口检查，再更新 `progress.md`、`findings.md` 与 `project_flow.mmd`。
+
+### OpenSpec 四步闭环
+
+1. Define：当前目标是修复审核发现的真实缺陷，不扩展新产品能力。
+2. Specify：公开导入、CLI entry point、桌面 API 入口、三表质量门与测试发现路径必须与当前文件结构一致。
+3. Implement：只改导致失败的最小文件，保留 `stage`/`quality_gates` 包化后的兼容导出。
+4. Verify：运行聚焦测试、必要回归和入口导入检查；若出现失败，先记录真实输出和影响范围，再决定是否继续。
+
+## MINOS v1.8.1 子任务 D：核心巨型逻辑拆分低风险实施
+
+目标是在不改变行为的前提下，优先拆小 `stage.run_stage` 的阶段调度和结果组装；`quality_gates.py` 只做低风险 helper 分组，不做规则迁移或大爆炸重构。
+
+```mermaid
+flowchart TD
+    D0[子任务 D 核心巨型逻辑拆分] --> D1[stage.run_stage 调度瘦身]
+    D1 --> D2[StageResult 统一组装 helper]
+    D1 --> D3[上游阻塞结果转发 helper]
+    D1 --> D4[各阶段私有 run helper]
+    D0 --> D5[quality_gates 低风险分组]
+    D5 --> D6[evaluate_stage_gate 输入规整 helper]
+    D5 --> D7[质量债务与严格门债务 helper]
+    D5 --> D8[can_continue/export/manual_review 组装 helper]
+    D0 --> D9[等价与回归测试]
+    D9 --> D10[上游阻塞转发回归]
+    D9 --> D11[已确认项抑制质量债务回归]
+```
+
+/// 1. 先读取现有 `stage.py`、`quality_gates.py` 和相关测试，确认公开契约。
+/// 2. 把 `run_stage` 中重复的 `StageResult` 构造、证据转换和上游 blocked 转发抽为私有 helper。
+/// 3. 把每个生成阶段拆为私有 `_run_*_stage` helper，主函数只保留阶段路由。
+/// 4. `quality_gates.py` 仅拆 `evaluate_stage_gate` 的外围计算：输入转换、债务收集、严格门债务、是否继续、是否允许导出、人工复核项组装。
+/// 5. 补充回归测试，验证拆分后阻塞转发和 review confirmation 抑制行为不变。
+/// 6. 运行聚焦测试和必要回归，确认没有行为漂移。
+
 ## 当前主目标：AI 图纸驱动三表生成工具
 
 本阶段起，产品目标从“完整 PPAP 平台”收口为“AI 图纸驱动 PFD/PFMEA/CP 三表生成工具”。第一版只支持 PDF/PNG/JPG 图纸输入，不做完整 PPAP 18 项、不做客户门户、不做审批流、不做 DWG/DXF 原生解析。
@@ -31,6 +86,28 @@ flowchart TD
 /// 7. 后端闭环通过 `generate_three_tables_from_drawing(...)` 和 `generate-three-tables` CLI 提供给桌面端复用。
 /// 8. 桌面端第一版作为可选依赖 `.[desktop]`，业务逻辑只调用 core pipeline，不绕平台 HTTP 层。
 /// 9. 桌面端和交付给用户查看的摘要、表头、AI 识别内容、PFD/PFMEA/CP 草案业务文本默认使用中文；内部 JSON 字段名保持稳定，不作为 UI 表头直接展示。
+
+## Hybrid 图纸识别超时修复流程
+目标是解决真实图纸 `JLV03000500` 在 `hybrid` 模式下长期卡在视觉识别的问题：OCR 先产生可复核草案，视觉识别只允许占用有限预算，超过预算必须回落到 OCR，而不是等外层命令超时。
+
+```mermaid
+flowchart TD
+    H0[导入图纸] --> H1[渲染页面证据]
+    H1 --> H2[先跑 OCR 并生成 drawing_analysis 草案]
+    H2 --> H3[设置 hybrid 视觉预算<br/>默认45秒且0次重试]
+    H3 --> H4[调用视觉 Responses 流式识别]
+    H4 -->|成功| H5[合并 OCR 参考并锁定图框身份]
+    H4 -->|超时或失败| H6[回落 OCR 草案<br/>标记 needs_review]
+    H5 --> H7[进入 PFD/PFMEA/CP 生成]
+    H6 --> H7
+```
+
+/// 1. 定位 `hybrid` 的执行顺序：OCR 成功后再调用视觉识别。
+/// 2. 给默认视觉 analyzer 设置 `hybrid_vision_timeout_seconds` 和 `hybrid_vision_max_retries`。
+/// 3. 给 Responses SSE 流式读取增加总时限，避免连接一直挂住。
+/// 4. 视觉超时按现有异常路径记录 `analysis_errors`，并回落 OCR。
+/// 5. 补单元测试覆盖默认预算、上下文覆盖预算和流式读取超时。
+/// 6. 用 `JLV03000500` 重新跑真实链路，检查是否能返回 OCR 草案和门铰链分类。
 
 ## 桌面中文化执行流程
 /// 1. 三表编辑器保留英文内部字段名，但增加中文列名映射，Qt 表格只显示中文列名。
@@ -636,3 +713,472 @@ flowchart TD
 2. Specify：final export 必须先过质量门；draft export 明显不可提交；final Excel 必须能审计质量门、人工确认、edit_patch 和软删除。
 3. Implement：只改 `minos_core/exporters/*`、必要的 core export 入口和相关测试。
 4. Verify：运行导出模式、edit_patch、AI 图纸三表和 demo acceptance 相关测试，并确认 xlsx zip 可打开。
+
+## MINOS v1.8.1 子任务 B：真实 API 与端到端验收入口
+本阶段目标是在默认测试不触网的前提下，提供一个显式开启的真实验收入口。开启后必须走真实 OpenAI/Ark Responses 流式路径和真实图纸文件，缺 API key 或缺图纸路径都必须失败，不能跳过。
+
+### 执行流程
+/// 1. 新增 `tests/acceptance/` 真实验收测试入口，默认 `MINOS_RUN_REAL_ACCEPTANCE` 未设为 `1` 时跳过。
+/// 2. 显式开启后检查真实 Responses 配置、API key 和 `MINOS_REAL_DRAWING_PATH`，缺任一项直接失败。
+/// 3. 复用 `OpenAIResponsesMultimodalDrawingAnalyzer` 和 `generate_three_tables_from_drawing(...)`，不写 fake adapter。
+/// 4. 验证真实请求 payload 使用 `stream=true`，并通过真实图纸生成 PFD/PFMEA/CP 和统一/拆分三表 Excel。
+/// 5. 复用 `build_automation_review(...)` 做 AI 预审入口验证。
+/// 6. 额外复用 `export_three_table_workbook(..., export_mode="final", require_gate=False)` 生成 AIAG-VDA 结构验收工作簿，检查 Excel 可打开且包含“正式导出审计”页。
+
+### OpenSpec 四步闭环
+1. Define：目标是真实 API 与真实图纸端到端验收入口，不是默认 CI 真实联网测试。
+2. Specify：默认跳过；显式开启后缺 key 或缺真实图纸必须失败；真实路径必须覆盖流式 API、三表生成、AI 预审和审计页 Excel。
+3. Implement：新增 acceptance 测试入口，复用现有 adapter、pipeline、automation review 和 workbook exporter。
+4. Verify：默认运行验收入口应 skip；真实运行需设置 `MINOS_RUN_REAL_ACCEPTANCE=1`、真实 API key 和 `MINOS_REAL_DRAWING_PATH`。
+
+## MINOS v1.8.1 子任务 C：静默错误与覆盖缺口
+本阶段目标是补齐静默错误和低风险测试缺口：domain 非 mapping 输入必须显性失败；图纸置信度解析异常必须可追踪；导出器、质量匹配、平台 artifacts/router utils、AI 预审空建议和 `quality_gate=None` 路径都要有回归覆盖。
+
+### 执行流程
+/// 1. 收紧 `domain.from_mapping` 的非 mapping 输入处理，统一抛出带类名和实际类型的 `TypeError`。
+/// 2. 在 `drawing_analysis` 归一化时记录不可解析的 `confidence`，并把它带入质量门 evidence coverage 与人工复核项。
+/// 3. 补 xlsx writer sheet 名清洗/去重、导出器 `quality_gate=None`、pipeline final gate、quality_matching alias、platform artifacts/utils 和 AI 预审空建议测试。
+/// 4. 对 `quality_gate.review_issues` 接入桌面 AI 预审模型，避免后端 review issue 在桌面入口丢失。
+/// 5. UI/预检保留透明错误包装；这些路径的宽泛 except 用于向用户展示原始错误，不在本子任务中收窄。
+
+### OpenSpec 四步闭环
+1. Define：目标是消除静默吞错和补测试缺口，不做大规模异常体系重构。
+2. Specify：非 mapping domain 输入必须失败；坏 confidence 必须在 bundle/gate/manual review 中可追踪；正式导出质量门不能被 `None` 绕过。
+3. Implement：只改 domain、drawing_analysis 和桌面 AI 预审的最小逻辑，其余以回归测试锁定现有行为。
+4. Verify：运行子任务 C 目标测试和完整桌面 table editor 测试。
+
+---
+
+## MINOS v1.9 三表联动 + FMEA 知识库增强
+
+本阶段目标是在 v1.5 AIAG-VDA 基础上，借鉴 Relyence 三表联动和 APIS IQ-FMEA 知识库思路，把 MINOS 从"生成三张表"升级为"联动检查 -> 变更影响 -> 知识库推荐 -> 人工复核 -> 可控导出"。
+
+### 第 0 步：流程文档与 OpenSpec
+/// 1. 更新 task_plan.md、progress.md、findings.md、project_flow.mmd。
+/// 2. 新增 OpenSpec 变更说明，change id: `add-three-table-linkage-and-fmea-knowledge`。
+
+### 第 1 步：three_table_linkage.py
+/// 1. 新增 `minos_core/three_table_linkage.py`，实现 `build_three_table_linkage_map()`、`evaluate_three_table_linkage()`、`find_linkage_gaps()`。
+/// 2. 输出 linkage_map 包含 links、gaps、summary。
+/// 3. 优先复用现有 EntityType、TraceLinkType、process_step_id、pfmea_id、control_plan_id、characteristic_refs、evidence_refs。
+/// 4. 新增 `tests/test_three_table_linkage.py`。
+
+### 第 2 步：质量门接入 linkage gaps
+/// 1. 在 `quality_gates/__init__.py` 的 `evaluate_stage_gate()` 中接入 linkage_report。
+/// 2. linkage blocker 阻止 final export，warning 进入 manual_review_items。
+/// 3. `StageQualityGate.model_dump()` 增加 linkage_gaps、linkage_summary。
+/// 4. 现有质量门测试不回退。
+
+### 第 3 步：characteristic_registry.py
+/// 1. 新增 `minos_core/characteristic_registry.py`，实现 `build_characteristic_registry()`、`attach_characteristics_to_three_tables()`。
+/// 2. 从 drawing_analysis 的 dimensions、special_characteristics、technical_requirements、inspection_requirements 生成 registry。
+/// 3. 去重：同名 + 同规格 + 同 evidence_ref。
+/// 4. 新增 `tests/test_characteristic_registry.py`。
+
+### 第 4 步：知识库 schema 和默认规则
+/// 1. 新增 `configs/knowledge/fmea_rules.zh-CN.json`，至少覆盖冲压、焊接、铆接、装配、涂油/涂胶、表面处理、热处理、尺寸检验、外观检验、包装/标识/追溯、特殊特性、高 AP 风险。
+/// 2. 扩展 `knowledge_recommendation.py`，支持新规则格式：process_terms、characteristic_terms、special_characteristic_required、risk、rating_hint、recommended_controls。
+/// 3. 扩展推荐类型：failure_mode、failure_cause、prevention_control、detection_control、control_plan、reaction_plan、rating_hint、action_closure。
+/// 4. 新增 `tests/test_fmea_knowledge_rules.py`。
+
+### 第 5 步：知识推荐与 edit_patch 闭环
+/// 1. 确认 `edit_patch.py` 的 accept_recommendation、ignore_recommendation 行为完整。
+/// 2. 未处理推荐阻止 final export。
+/// 3. 忽略推荐必须有 ignore_reason。
+/// 4. edit history 记录 before/after。
+
+### 第 6 步：baseline 对比
+/// 1. 在 `change_management.py` 新增 `compare_three_table_baseline(before, after)`。
+/// 2. 新增 `analyze_linked_change_impacts()`，基于 linkage map 分析变更。
+/// 3. 比较 PFD/PFMEA/CP 新增、删除、关键字段修改。
+/// 4. 新增 `tests/test_three_table_baseline_compare.py`。
+
+### 第 7 步：CLI/导出可见性
+/// 1. 在 three_table_generation_result 中增加 linkage_map、characteristic_registry、knowledge_recommendations。
+/// 2. Excel 导出扩展 sheet：三表追溯矩阵、人工复核清单、知识库推荐、变更影响清单。
+/// 3. 验收命令：unittest + pytest + CLI smoke。
+
+### 测试计划
+新增测试：test_three_table_linkage.py、test_characteristic_registry.py、test_fmea_knowledge_rules.py、test_three_table_baseline_compare.py。
+增强测试：test_aiag_vda_v15.py、test_edit_patch.py、test_quality_audit.py、test_ai_drawing_three_table_workflow.py。
+
+### OpenSpec 四步闭环
+1. Define：目标是三表联动检查 + FMEA 知识库推荐，不做完整 PPAP 18 项、不做客户门户、不做数据库依赖。
+2. Specify：所有新字段只新增不改名，旧 fixture 和旧测试保持兼容。draft 可导出，final 必须通过质量门。
+3. Implement：新增 linkage、registry、knowledge 模块，增强 quality_gate、change_management、edit_patch、CLI/导出。
+4. Verify：运行完整 unittest + pytest + CLI smoke。
+
+---
+
+## MINOS v1.9.1 三表联动与 FMEA 知识库稳定化
+
+本轮目标不是继续扩功能，而是把已实现的联动和知识库接进主流程，修掉阻断旧导出链路的回归问题。
+
+### 当前已确认问题
+1. 机械 trace link（TL-PFD-PFMEA-* / TL-PFMEA-CP-* / TL-STEP-CANDIDATE-*）进入 needs_confirmation_items，导致 review patch 确认表格行后仍有 33 条待确认项阻塞 final export。
+2. pyproject.toml 手工 packages 列表未覆盖 `minos_core.quality_gates`、`minos_core.stage` 等新目录。
+3. PFMEA `_needs_confirmation()` 置信度阈值在 0.85，低风险高置信的行仍待确认。
+4. 三表联动孤儿 CP 仅为 warning，应改为 blocker。
+5. evaluate_three_table_linkage 异常被静默吞掉，linkage_gaps 返回空。
+6. knowledge_recommendation 默认使用内置 3 条种子规则，未读取 fmea_rules.zh-CN.json。
+7. 推荐项各维度字段混写，采纳 rating_hint 会顺手写入 failure_mode。
+8. characteristic_registry 只生成不参与三表挂接。
+
+### 实施步骤
+/// 1. 修 trace link 导出债务：质量门收集确认项时跳过机械生成链路。
+/// 2. 修 pyproject.toml：改为 package discovery。
+/// 3. 修 PFMEA 生成：置信度阈值 0.75，ai_reasoning 保持中文。
+/// 4. 孤儿 CP 从 warning 改为 blocker。
+/// 5. 三表联动异常生成 blocker gap 而非静默吞掉。
+/// 6. 默认知识库规则读取 fmea_rules.zh-CN.json。
+/// 7. 拆分推荐字段写入：每类推荐只带对应字段。
+/// 8. 特性注册表接入 PFD->PFMEA->CP 生成链路。
+
+### 验收命令
+- python -m pytest tests/test_three_table_linkage.py tests/test_characteristic_registry.py tests/test_fmea_knowledge_rules.py tests/test_three_table_baseline_compare.py tests/test_edit_patch.py tests/test_review_patch.py tests/test_quality_audit.py tests/test_tracelink_generation.py -v
+- python -m pytest tests/test_ai_drawing_three_table_workflow.py tests/test_input_package.py tests/test_phase6_pilot_workflow.py -v
+- python -m pytest tests/platform -q
+- python -m unittest discover -s tests -v
+
+---
+
+## MINOS v1.10 工程试用打磨目标：Relyence 联动体验 + APIS 知识复用
+
+本阶段目标是把 MINOS-CORE 从“功能联调版三表草案引擎”推进到“可控工程内测版”。方向上短期优先借鉴 Relyence PFMEA 的三表联动、行级追溯和正式导出门禁；中期吸收 APIS IQ-Software 的结构化 FMEA 知识复用、评分目录和失效链沉淀。MINOS 的差异化仍是 AI 图纸入口、证据化生成和人工复核闭环，不做传统 FMEA 软件的完整复制。
+
+### 阶段判断
+- 当前已具备图纸 -> PFD -> PFMEA -> CP -> 质量门 -> 人工编辑/复核 -> 导出的核心闭环。
+- 当前仍偏“生成三表 + 检查 gap”，还不是工程师修改一处后能自然看到下游影响、补行建议和导出阻断原因的联动工作台。
+- 当前知识库已有 16 条规则和推荐闭环，但仍是规则提示库，不是 APIS/CARM 式可治理的结构化 FMEA 模块库。
+
+### 最高优先级
+/// 1. 正式导出必须只有一个强门入口。`export_mode="final"` 时如果 `allow_user_export=false`，不得写出看起来像正式文件的 workbook；桌面端必须显示阻断原因和待处理清单，只允许草案导出。
+/// 2. 清零 known failures，并补齐 final export 旁路、generated/human-edited evidence bypass、platform final export、split workbook final mode 的回归测试。
+/// 3. 把人工复核页从只读摘要升级为可处理任务清单：按图纸识别、PFD、PFMEA、CP、知识库、变更影响分组，支持双击跳转目标行，处理后刷新状态。
+/// 4. 把 `linkage_map` 做成桌面联动视图：按 PFD 工序展示 PFMEA 风险、CP 控制、gap、特殊特性贯穿状态，并支持跳转和筛选。
+/// 5. 把 `characteristic_registry` 升级为特性主数据页：统一显示特性 ID、名称、规格、分类、证据来源、已挂接的 PFD/PFMEA/CP，并支持人工修正后回写三表。
+/// 6. 增强导出追溯矩阵：Excel 中清楚展示 PFD->PFMEA->CP 链路、gap 清单、特性贯穿状态、人工确认状态、软删除摘要和知识推荐处理状态。
+
+### 工程试用能力
+/// 1. PFD 修改后，系统能提示受影响的 PFMEA/CP 行，并生成待处理变更影响。
+/// 2. 高 AP 或特殊特性 PFMEA 缺 CP 时，系统能一键生成 CP 草案或补行建议。
+/// 3. 工程师选中 PFD 行时，PFMEA/CP 页面能高亮或筛出相关行；从 PFMEA/CP 也能反向定位 PFD。
+/// 4. 表格批量编辑不再要求输入英文字段名，改为中文字段下拉；列表/字典字段提供更友好的编辑方式。
+/// 5. 保存前展示差异预览，保存后说明新增、修改、确认、软删除的行数。
+/// 6. 导出完成后显示草案/正式、是否允许正式、阻断项数量、审计页状态、xlsx 可打开检查状态。
+
+### 中期 APIS 式知识复用
+/// 1. 把知识库从单条 rule 升级为 FMEA 模块：工序类型、功能/要求、特性、失效模式、后果、原因、预防控制、探测控制、CP 控制、S/O/D/AP、适用条件、来源项目、版本、审批状态。
+/// 2. 增加可配置 S/O/D/AP catalog，支持 AIAG-VDA PFMEA、客户特殊规则和工厂自定义评分说明。
+/// 3. 在数据层建立轻量功能链/失效链：function -> requirement -> failure_mode -> effect -> cause -> control/action，再由图结构生成 PFMEA 表格。
+/// 4. 推荐引擎从关键词命中升级为相似模块检索 + 规则过滤，推荐时给出匹配依据、适用条件、冲突提示和来源项目。
+/// 5. 建立“采纳后沉淀知识”闭环：人工采纳或修正后的内容进入知识候选池，审核后发布到组织知识库。
+
+### 验收命令
+- `python -m pytest tests/test_quality_audit.py tests/test_stage_result.py tests/test_export_modes.py tests/test_run_manifest.py -q`
+- `python -m pytest tests/test_edit_patch.py tests/test_review_issues.py tests/test_aiag_vda_v15.py tests/test_three_table_linkage.py -q`
+- `python -m pytest tests/platform -q`
+- `python -m unittest discover -s tests -v`
+- `python -m unittest discover -s tests\acceptance -v`
+
+### OpenSpec 四步闭环
+1. Define：目标是工程内测稳定化，不是复制完整 Relyence/APIS，也不是扩展完整 PPAP 18 项。
+2. Specify：正式导出不得旁路质量门；复核项必须可定位可处理；三表联动必须可视化；知识库先从可治理模块模型开始。
+3. Implement：先修导出强门和回归，再做复核任务化、联动视图、特性主数据和导出矩阵，最后推进知识模块库。
+4. Verify：以 final export 负向测试、桌面复核任务流、linkage view、真实脱敏样例和全量回归作为验收。
+
+---
+
+## V1.10 Professional Three-Table Review Loop
+
+### 目标
+把 MINOS 从"AI 生成三表草案"升级为"工程人员可编辑、可复核、可确认、可正式导出的专业三表工具"。
+
+### 参考
+- Relyence PFMEA：PFD/PFMEA/CP 一体同步。
+- APIS IQ-Software：结构树、功能网、失效网、行动跟踪、审计追踪。
+
+### 非目标
+- 不做完整 PPAP 18 项。
+- 不做客户门户、审批流、PLM/ERP/MES 集成。
+
+### 工作包
+A. 基线收口 --> B. sync_snapshot/sync_issues --> C. risk_structure --> D. recommendation lifecycle --> E. review_dashboard --> F. final export gate --> G. 桌面接入 --> H. 文档验收
+
+### 关键新增
+- sync_snapshot/sync_issues/sync_suggestions (three_table_linkage)
+- risk_structure (新模块)
+- review_dashboard (edit_patch/pipeline)
+- recommendation lifecycle (proposed/accepted/ignored/applied)
+- 收紧 final export gate
+
+---
+
+## V1.12 Knowledge Reuse and Action Closure Loop
+
+### 目标
+把现有"知识推荐"和"PFMEA 措施字段"升级成可复用、可处理、可关闭、可审计的工程闭环。
+
+### 范围
+- 知识库 v2：标准化知识对象，category 枚举，inactive 过滤
+- 推荐生命周期：proposed/accepted/applied/ignored/expired
+- 行动项对象：从 PFMEA 行派生独立 action item
+- 关闭证据：close/ignore action 需要 evidence 或 reason
+- 导出门：未处理推荐、未关闭行动阻断 final export
+- 桌面最小接入：推荐/行动列表、应用/忽略/关闭按钮
+- Excel 审计页：知识推荐与行动闭环 sheet
+
+### 非目标
+- 不做多人协作、权限系统、云知识库
+- 不做 PLM/ERP/MES 集成、客户审批流
+- 不做数据库迁移（action items 保留在 metadata）
+
+### 已有基础
+- knowledge_recommendation.py（规则加载、推荐生成）
+- configs/knowledge/fmea_rules.zh-CN.json（16 条规则）
+- action_closure.py（AP 措施检查）
+- edit_patch.py（accept/ignore recommendation）
+- 桌面端知识推荐模型和措施管理雏形
+
+### 工作包序列
+A（基线）→ B（知识库 v2）→ C（接入 v2）→ D（accept/apply 拆分）→ E（行动项对象）→ F（行动项刷新）→ G（resolve_action_item）→ H（质量门收紧）→ I（桌面闭环）→ J（Excel 导出）→ K（文档验收）
+
+---
+
+## V1.13 Tauri + React Apple 风格桌面工作台迁移目标
+
+### 目标
+把 MINOS-CORE 的桌面体验从 PySide6 功能拼装界面迁移到 Tauri + React 的 Apple 风格桌面工作台。新桌面端聚焦工程师日常处理：选择图纸、生成三表、编辑三表、刷新联动预览、处理闭环任务和导出文件。
+
+### 架构边界
+- PySide6 冻结为 legacy，只保留维护、烟测和历史对照价值，不继续作为 V1.13 新能力主路径。
+- `minos_core` 继续保持纯核心能力，不引入 React、Tauri、Node、WebView 或其他前端依赖。
+- `minos_platform` 不作为本次桌面主后端；本次桌面主路径优先通过 Tauri command / 本地服务边界调用 core 能力。
+- 新桌面工作台不得绕过 edit patch、质量门、闭环任务和导出规则。
+
+### OpenSpec 四步闭环
+1. Define：V1.13 是桌面体验迁移和产品化，不是 core 业务模型重写，也不是平台后端改造。
+2. Specify：明确 Tauri + React + Apple 风格工作台、PySide6 legacy、core 零前端依赖、platform 非本次主后端。
+3. Implement：先搭壳和调用边界，再接图纸选择、三表生成/编辑、联动预览、闭环任务、导出。
+4. Verify：用真实桌面工作流和 1280x800 视口检查收口。
+
+### 开发步骤
+/// 1. 建立 `v1.13-tauri-apple-desktop` OpenSpec，写清迁移目标、边界和验收。
+/// 2. 更新流程记录，把 V1.13 新桌面链路接到 V1.12 闭环能力之后。
+/// 3. 搭建 Tauri + React 桌面壳，保留 PySide6 legacy 路径。
+/// 3.1 安装前端依赖并验证 `npm run build`，确保 React/Vite/TypeScript 可编译。
+/// 3.2 安装 Rustup 和 Visual Studio Build Tools C++ 工具链，确保 Tauri/Rust `cargo check` 可通过。
+/// 3.3 补齐 Tauri Rust 标准结构和 Windows 图标资源，避免 manifest/resource 阶段失败。
+/// 4. 接入图纸选择，保证工程师能从本地选择 PDF/PNG/JPG 图纸。
+/// 5. 接入三表生成，输出 PFD、PFMEA、CP。
+/// 6. 接入三表编辑，所有修改形成可审计 edit patch。
+/// 7. 接入联动预览刷新，展示 PFD -> PFMEA -> CP 链路、gap 和特殊特性贯穿状态。
+/// 8. 接入闭环任务处理，覆盖复核项、知识推荐和行动项。
+/// 9. 接入导出入口，显示草案/正式状态、阻断原因和导出结果。
+/// 10. 做 1280x800 可用性检查，确保主要控件和文字无重叠。
+
+### 明确验收
+- 图纸可选择。
+- PFD、PFMEA、CP 三表可生成。
+- PFD、PFMEA、CP 三表可编辑。
+- 联动预览可刷新。
+- 复核、知识推荐、行动项等闭环任务可处理。
+- 导出可用，草案/正式边界清楚。
+- 1280x800 下主要控件和文字无重叠。
+
+---
+
+## V1.14 Drawing Knowledge Linkage Closure
+
+### 目标
+把图纸识别、知识复用、三表联动和行动闭环连成一条可追溯、可处理、可导出的工程链路。图纸事实不只用于生成草案，还要驱动知识推荐、三表一致性检查、行动项闭环和正式导出质量门。
+
+### 范围
+- 图纸事实层：尺寸、公差、GD&T、特殊特性、材料、注释、引用标准和工艺暗示。
+- 知识复用：按图纸事实、工序上下文、历史采纳知识和本地规则推荐 PFMEA/CP 内容。
+- 三表联动：PFD -> PFMEA -> CP 的稳定 ID、联动快照、gap、孤儿行、弱关联、特殊特性贯穿和变更影响。
+- 行动闭环：低置信图纸事实、联动问题、未处理推荐和高风险行进入行动项。
+- 导出门：草案可带问题，正式导出必须被未闭环关键问题阻断。
+- 桌面/导出可见性：V1.13 工作台和 Excel 审计页都能看到来源、状态和阻断原因。
+
+### 非目标
+- 不重写 OCR、视觉识别或 CAD 解析引擎。
+- 不新增云知识库、多人审批、PLM/ERP/MES 集成。
+- 不把 AI 推荐当作自动批准结果。
+- 不替换现有 PFD、PFMEA、CP 顶层 schema。
+
+### OpenSpec 四步闭环
+1. Define：V1.14 是图纸事实到工程闭环的基线，不是视觉引擎重写。
+2. Specify：定义图纸事实、知识对象、三表联动、行动项和正式导出质量门边界。
+3. Implement：按 schema/派生视图/core/desktop/export 的顺序逐步接入。
+4. Verify：用脱敏样例确认事实可追溯、推荐可处理、gap 可见、行动可关闭、正式导出可阻断。
+
+### 开发步骤
+/// 1. 建立 `v1.14-drawing-knowledge-linkage-closure` OpenSpec，写清 proposal、design、tasks。
+/// 2. 定义图纸事实层，覆盖尺寸、公差、GD&T、特殊特性、材料、注释、引用标准和工艺暗示。
+/// 3. 把图纸事实接入 `characteristic_registry`，保证特性稳定 ID、证据和三表挂接状态一致。
+/// 4. 扩展知识复用对象，记录 knowledge_id、version、category、适用条件、推荐字段、来源和状态。
+/// 5. 按图纸事实、工序上下文、历史采纳知识和本地规则生成可解释推荐。
+/// 6. 保持 accept/apply 拆分，采纳推荐不直接写字段，应用必须形成 edit patch。
+/// 7. 强化 `linkage_map` 和 `sync_snapshot`，覆盖 PFD -> PFMEA -> CP 的 gap、孤儿行、弱关联和特殊特性贯穿。
+/// 8. 把联动 gap、低置信图纸事实、未处理推荐和高风险行转为行动项。
+/// 9. 收紧正式导出质量门，读取知识推荐、联动问题和行动项闭环状态。
+/// 10. 在 V1.13 桌面工作台显示图纸事实、知识推荐、联动预览、行动项和导出阻断原因。
+/// 11. 在 Excel/导出审计页展示图纸证据、知识推荐处理状态、联动问题和行动闭环记录。
+/// 12. 用脱敏样例做完整验收，确认图纸事实可追溯、推荐可处理、三表 gap 可见、行动项可关闭、正式导出可阻断。
+
+---
+
+## V1.14.1 OCR-first Drawing Analysis
+
+### 目标
+V1.14.1 在 V1.14 图纸事实到工程闭环的基础上，把图纸入口调整为 OCR-first / hybrid：先通过 PDF 渲染、PDF 文字层和 RapidOCR 建立可追溯 OCR 事实，再生成 OCR `drawing_analysis`；GPT 视觉只作为可选增强层。真实 GPT 视觉出现 `stream_read_error` 时，不能让已经成功的 OCR-first 三表草案链路整体失败。
+
+### 非目标
+- 不重写 V1.14 的知识复用、三表联动、行动项和导出门。
+- 不把 GPT 视觉输出当作唯一事实来源。
+- 不做 DWG/DXF 原生 CAD 解析。
+- 不静默隐藏 AI 增强失败；失败必须进入运行记录、质量门或人工复核。
+- 不绕过人工复核、闭环任务和正式导出门。
+
+### OpenSpec 四步闭环
+1. Define：建立 OCR-first/hybrid 图纸分析基线，降低 GPT 视觉流式错误对整体链路的影响。
+2. Specify：定义 PDF 渲染、PDF 文字层、RapidOCR、OCR `drawing_analysis`、可选 AI 增强和追溯字段。
+3. Implement：先完成文档与流程基线，再由代码子任务接入 OCR evidence、OCR 分析器、hybrid 增强和质量门记录。
+4. Verify：验证 OCR-only 可生成三表草案，AI `stream_read_error` 被记录但不整体失败，OCR 事实全部可追溯。
+
+### 开发步骤
+/// 1. 新增 OpenSpec 变更 `v1.14.1-ocr-first-drawing-analysis`，写清 proposal、design、tasks。
+/// 2. 定义 PDF 渲染 evidence：页码、图像、文件 hash、渲染状态和页面 evidence ref。
+/// 3. 定义 PDF 文字层 evidence：文本块、页码、位置线索、来源 PDF ref。
+/// 4. 定义 RapidOCR evidence：OCR 文本、bbox、confidence、OCR 引擎版本和父页面 ref。
+/// 5. 定义 OCR `drawing_analysis`：尺寸、公差、材料、注释、引用标准、特殊特性和工艺线索必须引用 OCR evidence。
+/// 6. 定义 hybrid AI 增强：GPT 视觉/文本只能补充候选事实、纠错建议、置信度解释和复核建议。
+/// 7. 规定 GPT 视觉 `stream_read_error`、超时或非法 JSON 不得覆盖 OCR-first 基线；必须记录为 `ai_enhancement_issue`。
+/// 8. 把 OCR-first `drawing_analysis` 接到零件族识别，再进入 PFD、PFMEA、CP 三表。
+/// 9. 把低置信 OCR、冲突 OCR、AI 增强失败和无证据事实接入 V1.14 闭环任务。
+/// 10. 让草案导出清楚展示 OCR/AI 待复核问题，正式导出继续由关键未闭环问题阻断。
+/// 11. 用含文字层 PDF、扫描 PDF/图片和模拟 `stream_read_error` 三类样例验收 OCR-first/hybrid 行为。
+/// 12. 交付前审核 OpenSpec、计划、进度、发现和流程图均可打开，中文无乱码。
+
+---
+
+## V1.14.2 Title Block Family Knowledge
+
+### 目标
+解决“图框写的是尾门铰链，但系统像命中了衬套”的识别偏差：零件族识别必须先看图框/标题栏里的整件名称，再用技术要求、组件词、工艺线索和历史知识做辅助判断。门铰链、限位器、冲压件的识别知识要补充到能识别常见结构、功能词和 OCR 错词。
+
+### 非目标
+- 不新增独立“衬套”零件族。
+- 不重写 V1.14/V1.14.1 的三表闭环和 OCR-first 架构。
+- 不让标题栏识别绕过人工复核；低置信 OCR 仍需确认。
+- 不删除组件词在 PFMEA/CP 中的价值，只降低它们对“整件零件族”的误导。
+
+### OpenSpec 四步闭环
+1. Define：问题本质是“整件名称”和“局部组件/特性”混在一起打分。
+2. Specify：标题栏/`drawing_identity` 是强证据；技术要求和组件词是辅助证据。
+3. Implement：分类器加字段权重，OCR 补无标签标题栏提取，视觉 prompt 强化标题栏优先，知识规则补齐三类零件族。
+4. Verify：用尾门铰链+衬套、单独衬套、无标签 OCR 图框和知识库加载测试验证。
+
+### 开发步骤
+/// 1. 新增 OpenSpec 变更 `v1.14.2-title-block-family-knowledge`，写清 proposal、design、tasks。
+/// 2. 修改 `part_family_classifier.py`：标题栏字段加权，证据路径记录加权得分，衬套类组件词降权。
+/// 3. 修改 `drawing_ocr_analysis.py`：标签提取失败时，从短标题栏行中提取门铰链/限位器/冲压件零件名。
+/// 4. 修改视觉 prompt：要求先读图框，不把局部组件名覆盖成整件零件名。
+/// 5. 扩充知识规则：补门铰链、限位器、冲压件的结构/功能/工艺线索。
+/// 6. 修改 `pipeline.py`：hybrid 视觉成功后，如果 OCR/标题栏高置信给出整件身份和零件族，则锁定 `drawing_identity` 与零件族上下文；视觉只能补充结构/组件/工艺线索。
+/// 7. 增加测试：标题栏尾门铰链压过衬套、单独衬套不判门铰链、OCR 无标签图框抽取、知识规则加载、hybrid 视觉“衬套”不能覆盖 OCR “尾门较链”。
+/// 8. 运行定向测试并审核文档、流程图可打开，中文无乱码。
+
+---
+
+## V1.14.3 Process Inference Knowledge Integration
+
+### 目标
+把用户新增的 `configs/knowledge/process_inference/*.json` 接入实际代码链路，让门铰链、限位器、冲压件的工艺变体和特征到工序映射能参与 PFD 推导；同时移除偏系统级/方法论级 FMEA 规则，避免推荐结果变泛。
+
+### 开发步骤
+/// 1. 删除 `KR-STAMPING-AP-METHODOLOGY-063` 和 `KR-DOOR-SYSTEM-INTEGRATION-FMEA-066`，保留具体制造工序/特性规则。
+/// 2. 修改 `part_family_knowledge.py`：默认零件族知识加载时自动读取同族 `process_inference`，并将工艺变体转换为 PFD 路线模板。
+/// 3. 修改 `drawing_to_pfd.py`：从多个 `process_inference` 变体中根据图纸文本选择最相关路线，不一次性展开所有变体。
+/// 4. 保留 `process_inference` 中的细工序名称，例如“级进模冲压(12工位)”“焊接/压铆螺母”“压装衬套+销轴铆接”。
+/// 5. 增加测试：默认族知识包含 `process_inference`；PFD 能选中门铰链级进模变体；临时 JSON 路径不会被全局 `process_inference` 污染。
+/// 6. 运行知识库、PFD、推荐、分类和 pipeline 族上下文定向测试，并检查 JSON 可解析。
+
+---
+
+## V1.14.4 Desktop Interaction State Hardening
+
+### 目标
+修复桌面端“没导入图纸也显示生成中”、上传后界面未响应、按钮点了没反应、最近结果污染当前项目等交互状态问题。桌面 UI 必须明确区分“只读查看最近结果”和“当前可生成图纸项目”。
+
+### 开发步骤
+/// 1. 拆分最近结果恢复和当前可生成项目：自动恢复只读结果，不设置 `current_project_id`。
+/// 2. 生成入口统一校验当前项目、图纸路径、文件存在和后缀格式，失败前不进入“生成中”。
+/// 3. 生成任务放到后台线程，运行中锁住导入、生成、打开最近、编辑、保存、导出等入口。
+/// 4. 新导入图纸时清空旧结果，失败后顶部状态和项目/图纸页显示真实失败状态。
+/// 5. 项目页、图纸页和设置页显示真实本地状态，避免静态假状态误导用户。
+/// 6. 空回调按钮禁用；三表筛选接入真实行隐藏；复核页证据按钮和跳转按钮分开。
+/// 7. 增加桌面回归测试：自动恢复不可直接生成、打开最近项目才可重跑、设置页默认输出目录可保存。
+/// 8. 运行桌面相关测试并重启软件，确认窗口可打开。
+/// 9. 横向补齐导出质量门、只读结果文案、设置页运行中锁、复核闭环按钮和导出阻塞项展示，避免 UI 状态再次误导用户。
+/// 10. Tauri 图纸导入页在导航切换时保持挂载，仅隐藏非当前页面，避免生成中的链式状态和异步请求被 React 卸载重置。
+/// 11. 增加 Tauri App 静态回归测试，禁止重新把 `DrawingImportPage` 改回条件卸载。
+
+---
+
+## V1.14.5 Staged Three-table Confirmation
+
+### 目标
+把桌面主生成路线改为分阶段确认：AI 先基于图纸推理 PFD，人工确认 PFD 后再推理 PFMEA，人工确认 PFMEA 后再推理 CP。每一张下游表都必须基于已确认的上游结果。
+
+### OpenSpec 四步闭环
+1. Define：目标是提高三表继承关系稳定性，不是重写三表 schema。
+2. Specify：链式入口只做图纸识别和 PFD；PFD/PFMEA 失败不 fallback；上游编辑使下游失效。
+3. Implement：抽出图纸分析阶段，文本 LLM 统一 Responses，桌面服务记录链式状态，Tauri 固定走链式入口。
+4. Verify：运行链式服务、sidecar、OCR/Pipeline 和 Tauri build 验证。
+
+### 开发步骤
+/// 1. 新增 `analyze_drawing_for_three_table_chain(...)`，供链式入口复用图纸识别但不生成完整三表。
+/// 2. 修改 `DesktopRunService.start_chain_run`，只分析图纸并调用 PFD LLM；PFD 失败必须记录失败状态和原始错误。
+/// 3. 修改文本 LLM adapter，使用 Responses API 和 `text.format=json_schema`，不再走 `/v1/chat/completions`。
+/// 4. 把零件族和 `process_inference` 路线摘要注入 PFD 推理上下文。
+/// 5. 编辑 PFD 时清空 PFMEA/CP 并重置下游阶段；编辑 PFMEA 时清空 CP。
+/// 6. Tauri 图纸导入页移除“一次性生成”模式，开始生成固定启动链式确认。
+/// 7. 增加测试覆盖 Responses 文本 LLM、PFD 失败不 fallback、PFD/PFMEA 编辑后下游失效。
+/// 8. 验证 Python 定向测试和 Tauri 前端构建。
+/// 9. 收口旧桌面兼容入口：`POST /api/projects/{id}/runs`、`jobs.run_project(...)`、`DesktopRunService.run_project(...)` 全部委托链式流程。
+/// 10. 删除 Tauri client 旧 `createProjectRun(...)`，防止前端误调用旧一次性入口。
+/// 11. 修复链式阶段确认/重生成持久化：阶段失败写入 `failure_message`，DB 和磁盘结果都保留 `chain_stages`。
+/// 12. 确认 PFD/PFMEA/CP 时同步行级 `needs_confirmation=false`，并在失败后重生成成功时清掉旧失败状态。
+/// 13. 重新验证 sidecar、OCR 模式、桌面服务、Pipeline、edit/export/stage 和 Tauri build。
+/// 14. 文本 LLM 链路默认使用 `high` 推理强度生成 PFD/PFMEA/CP JSON，避免继承 Codex `xhigh` 导致桌面链式生成超时；保留环境变量覆盖。
+/// 15. Tauri 导入页根据业务 run 状态显示 PFD 成功或失败，不把 201 返回误判为 PFD 已生成。
+/// 16. 用真实 `JLV03000500` 图纸重跑链式 PFD，确认能生成可人工确认的 PFD 草案。
+/// 17. Tauri 三表工作台支持选中 PFD 行后直接确认，若输入框有修改则先应用 `edit_patch` 再确认；确认时修改上游表必须清空旧下游结果和阶段状态。
+/// 18. 将 PFD 从“工艺路线清单”升级为标准过程流程图数据：补流程符号、输入、输出、前后节点、运输/存储/外协/返工表达，并在 Tauri 中渲染节点和箭头。
+/// 19. PFD 标准化只在缺失流向时补线性前后节点；若 LLM 或知识库已给出分支、返工或外协回路，必须保留原始 `previous_step_ids` / `next_step_ids`。
+/// 20. Tauri PFD 图节点显示标准流程符号区，区分加工、检验、运输、存储、返工和外协，不再只靠表格或文字标签表达。
+/// 21. 清除 PFD 图残余风险：Tauri PFD 图必须根据 `next_step_ids` 生成 SVG 拓扑连线，区分主线、分支、回路和返工边，不能只按数组相邻节点横向画箭头。
+
+---
+
+## 发布前完整验收
+
+### 目标
+在发布前用可复现命令验证 MINOS-CORE 的 Python 核心、平台 CLI、桌面 API、Tauri 前端/Rust、Python wheel 和 Windows 安装包链路，并明确哪些验收仍需要真实图纸、真实 API 或人工桌面操作。
+
+### OpenSpec 四步闭环
+1. Define：目标是发布前验收，不新增产品功能。
+2. Specify：自动化验收覆盖测试、CLI smoke、合成三表导出、sidecar 健康检查、前端/Rust 构建、wheel 构建和 Windows NSIS 安装包。
+3. Implement：只修复验收中暴露的发布配置问题；不重构业务代码。
+4. Verify：所有命令必须有本轮输出证据；未具备条件的真实 API/人工验收必须记录为剩余风险。
+
+### 开发步骤
+/// 1. 运行非真实 API 全量 pytest、完整 unittest 和 acceptance 入口。
+/// 2. 运行 core/platform/desktop API CLI help smoke。
+/// 3. 用合成安全图纸跑 `write-demo-drawing -> generate-three-tables --mode ocr_only -> accept-three-tables`。
+/// 4. 运行桌面 API 聚焦测试，并短暂启动 sidecar 验证 `/api/health` 后关闭进程。
+/// 5. 运行 Tauri `npm run build`、Rust `cargo check`、Python `pip check` 和 wheel 构建。
+/// 6. 验证 Tauri 发布安装包链路；若默认 all targets 不收口，只收口到当前 Windows 发布所需的 NSIS 目标。
+/// 7. 更新 `progress.md`、`findings.md`、`project_flow.mmd`，记录通过项、跳过项和剩余风险。

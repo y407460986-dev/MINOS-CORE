@@ -2,24 +2,27 @@
 
 from __future__ import annotations
 
+import copy
 import json
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Iterator
+from typing import Any, Iterator
 
 from minos_core.ai_config import load_openai_responses_config
 from minos_core.knowledge_recommendation import DEFAULT_KNOWLEDGE_RULES
-from minos_core.pipeline import generate_three_tables_from_drawing
+from minos_core.pipeline import analyze_drawing_for_three_table_chain
 
 from .app_state import (
+    ChainStageStates,
     DesktopAIConfigState,
     DesktopExportRecord,
     DesktopProjectRecord,
     DesktopProjectState,
     DesktopRunRecord,
     DesktopRunState,
+    StageConfirmState,
     desktop_run_state_from_result,
 )
 from .table_editor import (
@@ -317,35 +320,616 @@ class DesktopRunService:
     def __init__(
         self,
         db_path: str | Path = DEFAULT_DESKTOP_DB_PATH,
-        *,
-        runner: Callable[..., dict[str, Any]] | None = None,
     ) -> None:
         self._store = DesktopSQLiteStore(db_path)
-        self._runner = runner or generate_three_tables_from_drawing
+        self._undo_stack: list[dict[str, Any]] = []
+        self._redo_stack: list[dict[str, Any]] = []
 
     def run_project(self, project: DesktopProjectRecord) -> DesktopRunRecord:
+        """兼容旧桌面调用名，但行为已收口为链式流程。"""
+        return self.start_chain_run(project)
+
+    # ------------------------------------------------------------------
+    # 链式确认流程 (Chain Pipeline)
+    # ------------------------------------------------------------------
+
+    def start_chain_run(self, project: DesktopProjectRecord) -> DesktopRunRecord:
+        """链式流程入口：图纸分析 + LLM 生成 PFD（仅第一步）。
+
+        只运行图纸识别阶段，然后用 LLM 生成 PFD；不会偷偷一次性生成三表。
+        """
+        from minos_core.pipeline_chain import generate_pfd_from_drawing
+
+        analysis_mode = _project_context_value(project.context, "analysis_mode", "hybrid")
+        ocr_engine = _project_context_value(project.context, "ocr_engine", "auto")
+
         try:
-            result = self._runner(
+            analysis_result = analyze_drawing_for_three_table_chain(
                 project.drawing_path,
                 project.output_dir,
                 context=project.context,
-                export_mode="draft",
+                analysis_mode=analysis_mode,
+                ocr_engine=ocr_engine,
             )
-        except Exception as exc:  # noqa: BLE001 - desktop service records exact failure text
+        except (OSError, ValueError, TypeError, RuntimeError, KeyError, AttributeError) as exc:
             failure = format_desktop_failure(exc)
+            chain_stages = _init_chain_stages("failed")
+            state = DesktopRunState(
+                status="failed", status_display="失败", blocked_stage="pfd",
+                exports=(), manifest_path="", manifest_run_id="",
+                manual_review_required=False, manual_review_count=0,
+                manual_review_raw_count=0, chain_stages=chain_stages,
+            )
+            return self.save_chain_run(project.id, state, project.output_dir, {}, failure, chain_stages)
+
+        drawing_analysis = analysis_result.get("drawing_analysis") or {}
+        if isinstance(drawing_analysis, dict):
+            drawing_analysis.setdefault(
+                "_part_family",
+                analysis_result.get("part_family_classification") or {},
+            )
+            drawing_analysis.setdefault(
+                "_family_context",
+                analysis_result.get("family_context") or {},
+            )
+        drawing_gate = analysis_result.get("drawing_gate")
+        if drawing_gate is not None and not drawing_gate.can_continue:
+            failure = format_desktop_failure("图纸识别质量门未通过，不能生成 PFD。")
+            chain_stages = _init_chain_stages("failed")
+            state = DesktopRunState(
+                status="failed", status_display="失败", blocked_stage="drawing_recognition",
+                exports=(), manifest_path="", manifest_run_id="",
+                manual_review_required=False, manual_review_count=0,
+                manual_review_raw_count=0, chain_stages=chain_stages,
+            )
+            result = {
+                "document_type": "three_table_generation_result",
+                "schema_version": "minos-core.three_table_generation_result.v1",
+                "status": "failed",
+                "blocked_stage": "drawing_recognition",
+                "drawing_analysis": drawing_analysis,
+                "quality_gate": drawing_gate.model_dump(),
+                "part_family_classification": analysis_result.get("part_family_classification") or {},
+                "family_context": analysis_result.get("family_context") or {},
+            }
+            return self.save_chain_run(project.id, state, project.output_dir, result, failure, chain_stages)
+
+        try:
+            llm_pfd = generate_pfd_from_drawing(drawing_analysis)
+        except (OSError, ValueError, TypeError, RuntimeError, KeyError, AttributeError) as exc:
+            failure = format_desktop_failure(exc)
+            chain_stages = _init_chain_stages("failed")
+            state = DesktopRunState(
+                status="failed", status_display="失败", blocked_stage="pfd",
+                exports=(), manifest_path="", manifest_run_id="",
+                manual_review_required=False, manual_review_count=0,
+                manual_review_raw_count=0, chain_stages=chain_stages,
+            )
+            result = {
+                "document_type": "three_table_generation_result",
+                "schema_version": "minos-core.three_table_generation_result.v1",
+                "status": "failed",
+                "blocked_stage": "pfd",
+                "drawing_analysis": drawing_analysis,
+                "process_flow": {"steps": []},
+                "pfmea": {"rows": []},
+                "control_plan": {"rows": []},
+                "part_family_classification": analysis_result.get("part_family_classification") or {},
+                "family_context": analysis_result.get("family_context") or {},
+            }
+            return self.save_chain_run(project.id, state, project.output_dir, result, failure, chain_stages)
+
+        # 构建链式结果（只含 drawing_analysis + PFD，不含 PFMEA 和 CP）
+        result = {
+            "document_type": "three_table_generation_result",
+            "schema_version": "minos-core.three_table_generation_result.v1",
+            "status": "needs_review",
+            "drawing_analysis": drawing_analysis,
+            "process_flow": llm_pfd,
+            "pfmea": {"rows": []},
+            "control_plan": {"rows": []},
+            "part_family_classification": analysis_result.get("part_family_classification") or {},
+            "family_context": analysis_result.get("family_context") or {},
+        }
+
+        # 标记 PFD 已生成
+        pfd_steps = llm_pfd.get("steps") or []
+        pfd_pending = sum(1 for s in pfd_steps if s.get("needs_confirmation"))
+        chain_stages = _init_chain_stages(
+            "generated", pfd_rows=len(pfd_steps), pfd_pending=pfd_pending
+        )
+        state = DesktopRunState(
+            status="needs_review", status_display="待人工确认",
+            blocked_stage="", exports=(), manifest_path="", manifest_run_id="",
+            manual_review_required=False, manual_review_count=0,
+            manual_review_raw_count=0, manual_review_items=(),
+            chain_stages=chain_stages,
+        )
+        return self.save_chain_run(
+            project.id, state, project.output_dir, result, "", chain_stages
+        )
+
+    def confirm_pfd_stage(
+        self,
+        run_id: int,
+        confirmed_by: str = "",
+        edit_patch: dict[str, Any] | None = None,
+    ) -> DesktopRunRecord:
+        """确认并锁定 PFD，将 PFMEA 标记为后台生成中。"""
+        run = self.get_run(run_id)
+        current = run.current_result
+        chain_stages = _chain_stages_from_run(run)
+        current, cumulative_patch, chain_stages = _apply_confirm_edit_patch(
+            current, run.edit_patch, edit_patch, chain_stages
+        )
+        _confirm_chain_table(current, "process_flow", confirmed_by=confirmed_by)
+        confirmed_pfd = current.get("process_flow") or {}
+        drawing_analysis = current.get("drawing_analysis") or {}
+
+        # 更新 PFD 阶段状态
+        now = _utc_now()
+        chain_stages = ChainStageStates(
+            pfd=StageConfirmState(
+                status="confirmed",
+                generated_at=chain_stages.pfd.generated_at or now,
+                confirmed_at=now,
+                confirmed_by=confirmed_by,
+                row_count=len(confirmed_pfd.get("steps", [])),
+                pending_count=0,
+            ),
+            pfmea=StageConfirmState(status="running"),
+            cp=chain_stages.cp,
+            pipeline_mode="chain",
+        )
+
+        # 保存 PFD 确认状态
+        envelope = _desktop_result_envelope(
+            run.raw_result,
+            current_result=current,
+            edit_patch=cumulative_patch,
+        )
+        envelope["chain_stages"] = chain_stages.to_dict()
+        self._persist_chain_update(run_id, envelope)
+        return self.get_run(run_id)
+
+    def generate_pfmea_for_confirmed_pfd(self, run_id: int) -> DesktopRunRecord:
+        """Generate PFMEA for an already confirmed PFD."""
+        from minos_core.pipeline_chain import generate_pfmea_from_confirmed_pfd
+
+        run = self.get_run(run_id)
+        current = run.current_result
+        chain_stages = _chain_stages_from_run(run)
+        confirmed_pfd = current.get("process_flow") or {}
+        drawing_analysis = current.get("drawing_analysis") or {}
+        envelope = _desktop_result_envelope(
+            run.raw_result, current_result=current, edit_patch=run.edit_patch
+        )
+
+        # 生成 PFMEA
+        try:
+            pfmea_bundle = generate_pfmea_from_confirmed_pfd(
+                drawing_analysis,
+                confirmed_pfd,
+            )
+        except Exception as exc:
+            failure = format_desktop_failure(exc)
+            chain_stages = ChainStageStates(
+                pfd=chain_stages.pfd,
+                pfmea=StageConfirmState(status="failed"),
+                cp=StageConfirmState(status="not_started"),
+                pipeline_mode="chain",
+            )
+            envelope["chain_stages"] = chain_stages.to_dict()
+            self._persist_chain_update(run_id, envelope, failure_message=failure)
+            return self.get_run(run_id)
+
+        # 合并 PFMEA 到 current_result
+        current["pfmea"] = pfmea_bundle
+        pfmea_rows = pfmea_bundle.get("rows", [])
+        pfmea_pending = sum(1 for r in pfmea_rows if r.get("needs_confirmation"))
+        chain_stages = ChainStageStates(
+            pfd=chain_stages.pfd,
+            pfmea=StageConfirmState(
+                status="generated",
+                generated_at=_utc_now(),
+                row_count=len(pfmea_rows),
+                pending_count=pfmea_pending,
+            ),
+            cp=chain_stages.cp,
+            pipeline_mode="chain",
+        )
+        envelope = _desktop_result_envelope(
+            run.raw_result, current_result=current, edit_patch=run.edit_patch
+        )
+        envelope["chain_stages"] = chain_stages.to_dict()
+        self._persist_chain_update(run_id, envelope)
+        return self.get_run(run_id)
+
+    def confirm_pfmea_stage(
+        self,
+        run_id: int,
+        confirmed_by: str = "",
+        edit_patch: dict[str, Any] | None = None,
+    ) -> DesktopRunRecord:
+        """确认并锁定 PFMEA，将 CP 标记为后台生成中。"""
+        run = self.get_run(run_id)
+        current = run.current_result
+        chain_stages = _chain_stages_from_run(run)
+        current, cumulative_patch, chain_stages = _apply_confirm_edit_patch(
+            current, run.edit_patch, edit_patch, chain_stages
+        )
+        confirmed_pfd = current.get("process_flow") or {}
+        _confirm_chain_table(current, "pfmea", confirmed_by=confirmed_by)
+        confirmed_pfmea = current.get("pfmea") or {}
+        drawing_analysis = current.get("drawing_analysis") or {}
+
+        # 更新 PFMEA 阶段状态
+        now = _utc_now()
+        chain_stages = ChainStageStates(
+            pfd=chain_stages.pfd,
+            pfmea=StageConfirmState(
+                status="confirmed",
+                generated_at=chain_stages.pfmea.generated_at or now,
+                confirmed_at=now,
+                confirmed_by=confirmed_by,
+                row_count=len(confirmed_pfmea.get("rows", [])),
+                pending_count=0,
+            ),
+            cp=StageConfirmState(status="running"),
+            pipeline_mode="chain",
+        )
+
+        envelope = _desktop_result_envelope(
+            run.raw_result,
+            current_result=current,
+            edit_patch=cumulative_patch,
+        )
+        envelope["chain_stages"] = chain_stages.to_dict()
+        self._persist_chain_update(run_id, envelope)
+        return self.get_run(run_id)
+
+    def generate_cp_for_confirmed_pfmea(self, run_id: int) -> DesktopRunRecord:
+        """Generate CP for an already confirmed PFMEA."""
+        from minos_core.pipeline_chain import generate_cp_from_confirmed_pfmea
+
+        run = self.get_run(run_id)
+        current = run.current_result
+        chain_stages = _chain_stages_from_run(run)
+        confirmed_pfd = current.get("process_flow") or {}
+        confirmed_pfmea = current.get("pfmea") or {}
+        drawing_analysis = current.get("drawing_analysis") or {}
+        envelope = _desktop_result_envelope(
+            run.raw_result, current_result=current, edit_patch=run.edit_patch
+        )
+
+        # 生成 CP
+        try:
+            cp_bundle = generate_cp_from_confirmed_pfmea(
+                drawing_analysis,
+                confirmed_pfd,
+                confirmed_pfmea,
+            )
+        except Exception as exc:
+            failure = format_desktop_failure(exc)
+            chain_stages = ChainStageStates(
+                pfd=chain_stages.pfd,
+                pfmea=chain_stages.pfmea,
+                cp=StageConfirmState(status="failed"),
+                pipeline_mode="chain",
+            )
+            envelope["chain_stages"] = chain_stages.to_dict()
+            self._persist_chain_update(run_id, envelope, failure_message=failure)
+            return self.get_run(run_id)
+
+        # 合并 CP 到 current_result
+        current["control_plan"] = cp_bundle
+        cp_rows = cp_bundle.get("rows", [])
+        cp_pending = sum(1 for r in cp_rows if r.get("needs_confirmation"))
+        chain_stages = ChainStageStates(
+            pfd=chain_stages.pfd,
+            pfmea=chain_stages.pfmea,
+            cp=StageConfirmState(
+                status="generated",
+                generated_at=_utc_now(),
+                row_count=len(cp_rows),
+                pending_count=cp_pending,
+            ),
+            pipeline_mode="chain",
+        )
+        envelope = _desktop_result_envelope(
+            run.raw_result, current_result=current, edit_patch=run.edit_patch
+        )
+        envelope["chain_stages"] = chain_stages.to_dict()
+        self._persist_chain_update(run_id, envelope)
+        return self.get_run(run_id)
+
+    def confirm_cp_stage(
+        self,
+        run_id: int,
+        confirmed_by: str = "",
+        edit_patch: dict[str, Any] | None = None,
+    ) -> DesktopRunRecord:
+        """确认并锁定 CP，标记整个链式流程完成。"""
+        run = self.get_run(run_id)
+        chain_stages = _chain_stages_from_run(run)
+        now = _utc_now()
+        current = run.current_result
+        current, cumulative_patch, chain_stages = _apply_confirm_edit_patch(
+            current, run.edit_patch, edit_patch, chain_stages
+        )
+        _confirm_chain_table(current, "control_plan", confirmed_by=confirmed_by)
+        control_plan = current.get("control_plan") or {}
+        chain_stages = ChainStageStates(
+            pfd=chain_stages.pfd,
+            pfmea=chain_stages.pfmea,
+            cp=StageConfirmState(
+                status="confirmed",
+                generated_at=chain_stages.cp.generated_at or now,
+                confirmed_at=now,
+                confirmed_by=confirmed_by,
+                row_count=len(control_plan.get("rows", [])),
+                pending_count=0,
+            ),
+            pipeline_mode="chain",
+        )
+        current["status"] = "draft_ready"
+        envelope = _desktop_result_envelope(
+            run.raw_result,
+            current_result=current,
+            edit_patch=cumulative_patch,
+        )
+        envelope["chain_stages"] = chain_stages.to_dict()
+        self._persist_chain_update(run_id, envelope)
+        return self.get_run(run_id)
+
+    def regenerate_pfmea_stage(self, run_id: int) -> DesktopRunRecord:
+        """重新生成 PFMEA（用户对当前结果不满意）。"""
+        from minos_core.pipeline_chain import generate_pfmea_from_confirmed_pfd
+
+        run = self.get_run(run_id)
+        current = run.current_result
+        confirmed_pfd = current.get("process_flow") or {}
+        drawing_analysis = current.get("drawing_analysis") or {}
+
+        chain_stages = _chain_stages_from_run(run)
+        chain_stages = ChainStageStates(
+            pfd=chain_stages.pfd,
+            pfmea=StageConfirmState(status="running"),
+            cp=chain_stages.cp,
+            pipeline_mode="chain",
+        )
+
+        try:
+            pfmea_bundle = generate_pfmea_from_confirmed_pfd(
+                drawing_analysis, confirmed_pfd
+            )
+        except Exception as exc:
+            failure = format_desktop_failure(exc)
+            chain_stages = ChainStageStates(
+                pfd=chain_stages.pfd,
+                pfmea=StageConfirmState(status="failed"),
+                cp=StageConfirmState(status="not_started"),
+                pipeline_mode="chain",
+            )
+            envelope = _desktop_result_envelope(
+                run.raw_result, current_result=current, edit_patch=run.edit_patch
+            )
+            envelope["chain_stages"] = chain_stages.to_dict()
+            self._persist_chain_update(run_id, envelope, failure_message=failure)
+            return self.get_run(run_id)
+        current["pfmea"] = pfmea_bundle
+        pfmea_rows = pfmea_bundle.get("rows", [])
+        pfmea_pending = sum(1 for r in pfmea_rows if r.get("needs_confirmation"))
+        chain_stages = ChainStageStates(
+            pfd=chain_stages.pfd,
+            pfmea=StageConfirmState(
+                status="generated",
+                generated_at=_utc_now(),
+                row_count=len(pfmea_rows),
+                pending_count=pfmea_pending,
+            ),
+            cp=chain_stages.cp,
+            pipeline_mode="chain",
+        )
+        envelope = _desktop_result_envelope(
+            run.raw_result, current_result=current, edit_patch=run.edit_patch
+        )
+        envelope["chain_stages"] = chain_stages.to_dict()
+        self._persist_chain_update(run_id, envelope)
+        return self.get_run(run_id)
+
+    def regenerate_cp_stage(self, run_id: int) -> DesktopRunRecord:
+        """重新生成 CP。"""
+        from minos_core.pipeline_chain import generate_cp_from_confirmed_pfmea
+
+        run = self.get_run(run_id)
+        current = run.current_result
+        confirmed_pfd = current.get("process_flow") or {}
+        confirmed_pfmea = current.get("pfmea") or {}
+        drawing_analysis = current.get("drawing_analysis") or {}
+
+        chain_stages = _chain_stages_from_run(run)
+        chain_stages = ChainStageStates(
+            pfd=chain_stages.pfd,
+            pfmea=chain_stages.pfmea,
+            cp=StageConfirmState(status="running"),
+            pipeline_mode="chain",
+        )
+
+        try:
+            cp_bundle = generate_cp_from_confirmed_pfmea(
+                drawing_analysis, confirmed_pfd, confirmed_pfmea
+            )
+        except Exception as exc:
+            failure = format_desktop_failure(exc)
+            chain_stages = ChainStageStates(
+                pfd=chain_stages.pfd,
+                pfmea=chain_stages.pfmea,
+                cp=StageConfirmState(status="failed"),
+                pipeline_mode="chain",
+            )
+            envelope = _desktop_result_envelope(
+                run.raw_result, current_result=current, edit_patch=run.edit_patch
+            )
+            envelope["chain_stages"] = chain_stages.to_dict()
+            self._persist_chain_update(run_id, envelope, failure_message=failure)
+            return self.get_run(run_id)
+        current["control_plan"] = cp_bundle
+        cp_rows = cp_bundle.get("rows", [])
+        cp_pending = sum(1 for r in cp_rows if r.get("needs_confirmation"))
+        chain_stages = ChainStageStates(
+            pfd=chain_stages.pfd,
+            pfmea=chain_stages.pfmea,
+            cp=StageConfirmState(
+                status="generated",
+                generated_at=_utc_now(),
+                row_count=len(cp_rows),
+                pending_count=cp_pending,
+            ),
+            pipeline_mode="chain",
+        )
+        envelope = _desktop_result_envelope(
+            run.raw_result, current_result=current, edit_patch=run.edit_patch
+        )
+        envelope["chain_stages"] = chain_stages.to_dict()
+        self._persist_chain_update(run_id, envelope)
+        return self.get_run(run_id)
+
+    def get_chain_state(self, run_id: int) -> dict[str, Any]:
+        """返回当前链式流程状态。"""
+        return _chain_stages_from_run(self.get_run(run_id)).to_dict()
+
+    def save_chain_run(
+        self,
+        project_id: int | None,
+        state: DesktopRunState,
+        output_dir: str | Path,
+        raw_result: dict[str, Any],
+        failure_message: str,
+        chain_stages: ChainStageStates,
+    ) -> DesktopRunRecord:
+        """保存链式 run（与 save_run 相同，但 envelope 中包含 chain_stages）。"""
+        now = _utc_now()
+        exports = {record.name: record.path for record in state.exports}
+        envelope = _desktop_result_envelope(
+            raw_result,
+            current_result=raw_result if failure_message else None,
+            edit_patch=None,
+        )
+        envelope["chain_stages"] = chain_stages.to_dict()
+        with self._store.connect() as connection:
+            cursor = connection.execute(
+                """
+                INSERT INTO runs (
+                    project_id, status, blocked_stage, exports_json,
+                    manifest_path, manifest_run_id, manual_review_required,
+                    manual_review_count, manual_review_json, output_dir,
+                    raw_result_json, failure_message, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    project_id, state.status, state.blocked_stage,
+                    _to_json(exports), state.manifest_path, state.manifest_run_id,
+                    1 if state.manual_review_required else 0,
+                    state.manual_review_count,
+                    _to_json(list(state.manual_review_items)),
+                    str(output_dir), _to_json(envelope), failure_message, now,
+                ),
+            )
+            run_id = int(cursor.lastrowid)
+        if output_dir:
+            _write_three_table_result(output_dir, _chain_file_result(envelope))
+        return self.get_run(run_id)
+
+    def _persist_chain_update(
+        self,
+        run_id: int,
+        envelope: dict[str, Any],
+        failure_message: str = "",
+    ) -> None:
+        """持久化链式流程更新（更新 runs 表 + 写磁盘）。"""
+        current_result = envelope.get("current_result", {})
+        chain_stages = _chain_stages_from_envelope(envelope)
+        failed_stage = _failed_chain_stage(chain_stages)
+        if not failure_message and not failed_stage and isinstance(current_result, dict):
+            if str(current_result.get("status") or "") == "failed":
+                current_result["status"] = "needs_review"
+            if str(current_result.get("blocked_stage") or "") in {"pfd", "pfmea", "cp"}:
+                current_result["blocked_stage"] = None
+        state = desktop_run_state_from_result(
+            current_result if isinstance(current_result, dict) else {}
+        )
+        if chain_stages is not None:
+            state = DesktopRunState(
+                status=state.status,
+                status_display=state.status_display,
+                blocked_stage=state.blocked_stage,
+                exports=state.exports,
+                manifest_path=state.manifest_path,
+                manifest_run_id=state.manifest_run_id,
+                manual_review_required=state.manual_review_required,
+                manual_review_count=state.manual_review_count,
+                manual_review_raw_count=state.manual_review_raw_count,
+                manual_review_items=state.manual_review_items,
+                chain_stages=chain_stages,
+            )
+        if failure_message:
             state = DesktopRunState(
                 status="failed",
                 status_display="失败",
-                blocked_stage="",
-                exports=(),
-                manifest_path="",
-                manifest_run_id="",
-                manual_review_required=False,
-                manual_review_count=0,
-                manual_review_raw_count=0,
+                blocked_stage=failed_stage or state.blocked_stage,
+                exports=state.exports,
+                manifest_path=state.manifest_path,
+                manifest_run_id=state.manifest_run_id,
+                manual_review_required=state.manual_review_required,
+                manual_review_count=state.manual_review_count,
+                manual_review_raw_count=state.manual_review_raw_count,
+                manual_review_items=state.manual_review_items,
+                chain_stages=chain_stages,
             )
-            return self.save_run(project.id, state, project.output_dir, {}, failure)
-        return self.save_result(project.id, result, project.output_dir)
+            if isinstance(current_result, dict):
+                current_result["status"] = "failed"
+                if failed_stage:
+                    current_result["blocked_stage"] = failed_stage
+        with self._store.connect() as connection:
+            connection.execute(
+                """
+                UPDATE runs
+                SET status = ?,
+                    blocked_stage = ?,
+                    exports_json = ?,
+                    manifest_path = ?,
+                    manifest_run_id = ?,
+                    manual_review_required = ?,
+                    manual_review_count = ?,
+                    manual_review_json = ?,
+                    raw_result_json = ?,
+                    failure_message = ?
+                WHERE id = ?
+                """,
+                (
+                    state.status,
+                    state.blocked_stage,
+                    _to_json({record.name: record.path for record in state.exports}),
+                    state.manifest_path,
+                    state.manifest_run_id,
+                    1 if state.manual_review_required else 0,
+                    state.manual_review_count,
+                    _to_json(list(state.manual_review_items)),
+                    _to_json(envelope),
+                    failure_message,
+                    run_id,
+                ),
+            )
+        output_dir = ""
+        with self._store.connect() as connection:
+            row = connection.execute(
+                "SELECT output_dir FROM runs WHERE id = ?", (run_id,)
+            ).fetchone()
+            if row:
+                output_dir = str(row["output_dir"] or "")
+        if output_dir:
+            _write_three_table_result(output_dir, _chain_file_result(envelope))
 
     def save_result(
         self,
@@ -449,45 +1033,21 @@ class DesktopRunService:
         stored = _stored_result_parts(stored_payload)
         edit_patch = _normalize_edit_patch(patch)
         updated_result = _apply_edit_patch(stored["current_result"], edit_patch)
+        updated_result, chain_stages = _invalidate_chain_after_patch(
+            updated_result,
+            edit_patch,
+            _chain_stages_from_envelope(stored_payload),
+        )
         cumulative_patch = _merge_edit_patch(stored.get("edit_patch", {}), edit_patch)
         envelope = _desktop_result_envelope(
             stored["raw_result"],
             current_result=updated_result,
             edit_patch=cumulative_patch,
         )
+        if chain_stages is not None:
+            envelope["chain_stages"] = chain_stages.to_dict()
         state = desktop_run_state_from_result(updated_result)
-        exports = {record.name: record.path for record in state.exports}
-        with self._store.connect() as connection:
-            connection.execute(
-                """
-                UPDATE runs
-                SET status = ?,
-                    blocked_stage = ?,
-                    exports_json = ?,
-                    manifest_path = ?,
-                    manifest_run_id = ?,
-                    manual_review_required = ?,
-                    manual_review_count = ?,
-                    manual_review_json = ?,
-                    raw_result_json = ?
-                WHERE id = ?
-                """,
-                (
-                    state.status,
-                    state.blocked_stage,
-                    _to_json(exports),
-                    state.manifest_path,
-                    state.manifest_run_id,
-                    1 if state.manual_review_required else 0,
-                    state.manual_review_count,
-                    _to_json(list(state.manual_review_items)),
-                    _to_json(envelope),
-                    run_id,
-                ),
-            )
-        if current.output_dir:
-            _write_three_table_result(current.output_dir, updated_result)
-        return self.get_run(run_id)
+        return self._persist_run_update(run_id, state, envelope, current.output_dir)
 
     def handle_recommendation(
         self,
@@ -528,6 +1088,208 @@ class DesktopRunService:
         if not patch.get("items"):
             return self.get_run(run_id)
         return self.apply_edit_patch_to_run(run_id, patch)
+
+    def apply_recommendation_to_run(
+        self,
+        run_id: int,
+        recommendation_id: str,
+    ) -> DesktopRunRecord:
+        """应用知识推荐到 run。"""
+        return self.handle_recommendation(run_id, recommendation_id, accept=True)
+
+    def ignore_recommendation_in_run(
+        self,
+        run_id: int,
+        recommendation_id: str,
+        reason: str,
+    ) -> DesktopRunRecord:
+        """忽略知识推荐。"""
+        return self.handle_recommendation(run_id, recommendation_id, accept=False, reason=reason)
+
+    def resolve_action_in_run(
+        self,
+        run_id: int,
+        action_id: str,
+        changes: dict[str, Any],
+        reason: str = "",
+    ) -> DesktopRunRecord | None:
+        """关闭或忽略行动项。
+
+        返回 None 表示 action_tracking 模块不可用（旧版本兼容）。
+        """
+        try:
+            from minos_core.action_tracking import build_action_items  # noqa: F401
+        except ImportError:
+            return None
+        item: dict[str, Any] = {
+            "action": "resolve_action_item",
+            "table": "metadata",
+            "target_id": action_id,
+            "changes": changes,
+        }
+        if reason:
+            item["reason"] = reason
+        return self.apply_edit_patch_to_run(run_id, build_edit_patch([item]))
+
+    def review_dashboard(self, run_result: dict) -> dict:
+        """返回 review_dashboard，兼容旧版本。
+
+        V1.10 起运行结果可能包含 review_dashboard 字段，其中 status_display
+        和 next_actions 可直接用于复核页展示。旧数据没有该字段时返回空 dict。
+        """
+        return run_result.get("review_dashboard", {}) if isinstance(run_result, dict) else {}
+
+    # ------------------------------------------------------------------
+    # V1.11 工作包 E+F：实时预览 / 联动保存 / 撤销重做
+    # ------------------------------------------------------------------
+
+    def _persist_run_update(
+        self,
+        run_id: int,
+        state: DesktopRunState,
+        envelope: dict[str, Any],
+        output_dir: str,
+    ) -> DesktopRunRecord:
+        """Write updated state + envelope to the runs table (shared by all update paths)."""
+        exports = {record.name: record.path for record in state.exports}
+        with self._store.connect() as connection:
+            connection.execute(
+                """
+                UPDATE runs
+                SET status = ?,
+                    blocked_stage = ?,
+                    exports_json = ?,
+                    manifest_path = ?,
+                    manifest_run_id = ?,
+                    manual_review_required = ?,
+                    manual_review_count = ?,
+                    manual_review_json = ?,
+                    raw_result_json = ?
+                WHERE id = ?
+                """,
+                (
+                    state.status,
+                    state.blocked_stage,
+                    _to_json(exports),
+                    state.manifest_path,
+                    state.manifest_run_id,
+                    1 if state.manual_review_required else 0,
+                    state.manual_review_count,
+                    _to_json(list(state.manual_review_items)),
+                    _to_json(envelope),
+                    run_id,
+                ),
+            )
+        if output_dir:
+            _write_three_table_result(output_dir, envelope.get("current_result", envelope))
+        return self.get_run(run_id)
+
+    def preview_edit_patch_for_run(self, run_id: int, patch: dict) -> dict:
+        """预览编辑 patch 的联动影响。"""
+        try:
+            from minos_core.live_linkage import preview_live_linkage_impacts
+        except ImportError:
+            return {}
+        record = self.get_run(run_id)
+        before = record.raw_result
+        return preview_live_linkage_impacts(before, patch)
+
+    def apply_live_edit_to_run(
+        self,
+        run_id: int,
+        edit_patch: dict,
+        selected_impact_ids: list[str] | None = None,
+    ) -> DesktopRunRecord:
+        """应用编辑 patch，可选合并联动同步 patch。"""
+        try:
+            from minos_core.live_linkage import build_live_sync_patch
+        except ImportError:
+            return self.apply_edit_patch_to_run(run_id, edit_patch)
+
+        record = self.get_run(run_id)
+        before = record.raw_result
+
+        if selected_impact_ids:
+            sync_patch = build_live_sync_patch(before, edit_patch, selected_impact_ids)
+            if sync_patch.get("items"):
+                merged = _apply_edit_patch(before, edit_patch)
+                merged = _apply_edit_patch(merged, sync_patch)
+                stored_payload = _stored_payload_for_run(self._store, run_id)
+                stored = _stored_result_parts(stored_payload)
+                merged, chain_stages = _invalidate_chain_after_patch(
+                    merged,
+                    _merge_edit_patch(edit_patch, sync_patch),
+                    _chain_stages_from_envelope(stored_payload),
+                )
+                envelope = _desktop_result_envelope(
+                    stored["raw_result"], current_result=merged,
+                    edit_patch=_merge_edit_patch(
+                        _merge_edit_patch(stored.get("edit_patch", {}), edit_patch),
+                        sync_patch,
+                    ),
+                )
+                if chain_stages is not None:
+                    envelope["chain_stages"] = chain_stages.to_dict()
+                state = desktop_run_state_from_result(merged)
+                return self._persist_run_update(run_id, state, envelope, record.output_dir)
+
+        return self.apply_edit_patch_to_run(run_id, edit_patch)
+
+    def save_with_undo(self, run_id: int, current_result: dict) -> DesktopRunRecord:
+        """保存 run current_result 并在撤销栈中保留 DB 快照。
+
+        ``current_result`` 是完整的 three-table result dict。
+        每次保存前将当前 run 的存储快照推入 undo 栈，清空 redo 栈，限制栈深度 20。
+        """
+        current_envelope: dict[str, Any] = {}
+        try:
+            current_envelope = _stored_payload_for_run(self._store, run_id)
+            self._undo_stack.append(copy.deepcopy(current_envelope))
+            self._redo_stack.clear()
+            if len(self._undo_stack) > 20:
+                self._undo_stack.pop(0)
+        except KeyError:
+            pass  # run does not exist yet; nothing to snapshot
+
+        stored = _stored_result_parts(current_envelope)
+        raw_result = stored.get("raw_result", current_result)
+        envelope = _desktop_result_envelope(
+            raw_result, current_result=current_result,
+            edit_patch=stored.get("edit_patch", {}),
+        )
+        state = desktop_run_state_from_result(current_result)
+        record = self.get_run(run_id)
+        return self._persist_run_update(run_id, state, envelope, record.output_dir)
+
+    def undo_run(self, run_id: int) -> dict | None:
+        """撤销到上一个 DB 快照，返回恢复后的 current_result。"""
+        if not self._undo_stack:
+            return None
+        try:
+            current_envelope = _stored_payload_for_run(self._store, run_id)
+        except KeyError:
+            current_envelope = {}
+        self._redo_stack.append(copy.deepcopy(current_envelope))
+        previous_envelope = self._undo_stack.pop()
+        stored = _stored_result_parts(previous_envelope)
+        state = desktop_run_state_from_result(stored["current_result"])
+        self._persist_run_update(run_id, state, previous_envelope, "")
+        return stored["current_result"]
+
+    def redo_run(self, run_id: int) -> dict | None:
+        """重做到下一个 DB 快照，返回恢复后的 current_result。"""
+        if not self._redo_stack:
+            return None
+        try:
+            current_envelope = _stored_payload_for_run(self._store, run_id)
+        except KeyError:
+            current_envelope = {}
+        self._undo_stack.append(copy.deepcopy(current_envelope))
+        next_envelope = self._redo_stack.pop()
+        stored = _stored_result_parts(next_envelope)
+        state = desktop_run_state_from_result(stored["current_result"])
+        self._persist_run_update(run_id, state, next_envelope, "")
+        return stored["current_result"]
 
     def export_run(
         self,
@@ -580,6 +1342,15 @@ def format_desktop_failure(
     )
 
 
+def _project_context_value(
+    context: dict[str, Any],
+    key: str,
+    default: str,
+) -> str:
+    value = str((context or {}).get(key) or default).strip()
+    return value or default
+
+
 def _project_from_row(row: sqlite3.Row) -> DesktopProjectRecord:
     return DesktopProjectRecord(
         id=int(row["id"]),
@@ -600,6 +1371,7 @@ def _run_from_row(row: sqlite3.Row) -> DesktopRunRecord:
     current_result = dict(stored["current_result"])
     if stored.get("edit_patch"):
         current_result["edit_patch"] = stored["edit_patch"]
+    chain_stages = _chain_stages_from_envelope(raw_result)
     state = DesktopRunState(
         status=str(row["status"]),
         status_display=_status_display(str(row["status"])),
@@ -619,6 +1391,7 @@ def _run_from_row(row: sqlite3.Row) -> DesktopRunRecord:
         manual_review_count=int(row["manual_review_count"]),
         manual_review_raw_count=int(row["manual_review_count"]),
         manual_review_items=tuple(manual_review_items),
+        chain_stages=chain_stages,
     )
     return DesktopRunRecord(
         id=int(row["id"]),
@@ -757,6 +1530,22 @@ def _merge_edit_patch(existing: dict[str, Any], patch: dict[str, Any]) -> dict[s
         if isinstance(items, list):
             merged["items"].extend(item for item in items if isinstance(item, dict))
     return merged
+
+
+def _apply_confirm_edit_patch(
+    current: dict[str, Any],
+    existing_patch: dict[str, Any],
+    patch: dict[str, Any] | None,
+    chain_stages: ChainStageStates | None = None,
+) -> tuple[dict[str, Any], dict[str, Any], ChainStageStates | None]:
+    if not patch:
+        return current, existing_patch, chain_stages
+    edit_patch = _normalize_edit_patch(patch)
+    updated = _apply_edit_patch(current, edit_patch)
+    updated, updated_stages = _invalidate_chain_after_patch(
+        updated, edit_patch, chain_stages
+    )
+    return updated, _merge_edit_patch(existing_patch, edit_patch), updated_stages
 
 
 def _stored_result_parts(stored: dict[str, Any]) -> dict[str, Any]:
@@ -1083,3 +1872,192 @@ def _from_json_object(value: str) -> dict[str, Any]:
 def _from_json_list(value: str) -> list[Any]:
     data = json.loads(value or "[]")
     return data if isinstance(data, list) else []
+
+
+# ---------------------------------------------------------------------------
+# 链式流程辅助函数
+# ---------------------------------------------------------------------------
+
+def _init_chain_stages(
+    pfd_status: str = "not_started",
+    *,
+    pfd_rows: int = 0,
+    pfd_pending: int = 0,
+) -> ChainStageStates:
+    """创建初始的链式阶段状态。"""
+    now = _utc_now() if pfd_status not in ("not_started", "failed") else ""
+    return ChainStageStates(
+        pfd=StageConfirmState(
+            status=pfd_status,
+            generated_at=now,
+            row_count=pfd_rows,
+            pending_count=pfd_pending,
+        ),
+        pfmea=StageConfirmState(
+            status="running" if pfd_status == "confirmed" else "not_started"
+        ),
+        cp=StageConfirmState(status="not_started"),
+        pipeline_mode="chain",
+    )
+
+
+def _chain_stages_from_run(run: DesktopRunRecord) -> ChainStageStates:
+    """从 DesktopRunRecord 提取链式阶段状态。"""
+    if run.state.chain_stages is not None:
+        return run.state.chain_stages
+    return ChainStageStates(pipeline_mode="batch")
+
+
+def _chain_stages_from_envelope(envelope: dict[str, Any]) -> ChainStageStates | None:
+    """从存储 envelope 中解析链式阶段状态。"""
+    data = envelope.get("chain_stages")
+    if data and isinstance(data, dict):
+        return ChainStageStates.from_dict(data)
+    return None
+
+
+def _chain_file_result(envelope: dict[str, Any]) -> dict[str, Any]:
+    result = envelope.get("current_result", envelope)
+    if not isinstance(result, dict):
+        result = {}
+    result = copy.deepcopy(result)
+    chain_stages = envelope.get("chain_stages")
+    if isinstance(chain_stages, dict):
+        result["chain_stages"] = copy.deepcopy(chain_stages)
+        result["pipeline_mode"] = chain_stages.get("pipeline_mode", "chain")
+    return result
+
+
+def _confirm_chain_table(
+    result: dict[str, Any],
+    table: str,
+    *,
+    confirmed_by: str = "",
+) -> None:
+    for row in _table_rows_for_chain(result, table):
+        if not isinstance(row, dict):
+            continue
+        row["needs_confirmation"] = False
+        row["ai_inferred"] = False
+        row["review_status"] = "已确认"
+        if confirmed_by:
+            row["confirmed_by"] = confirmed_by
+
+
+def _failed_chain_stage(chain_stages: ChainStageStates | None) -> str:
+    if chain_stages is None:
+        return ""
+    for stage_name in ("pfd", "pfmea", "cp"):
+        stage = getattr(chain_stages, stage_name)
+        if stage.status == "failed":
+            return stage_name
+    return ""
+
+
+def _invalidate_chain_after_patch(
+    result: dict[str, Any],
+    patch: dict[str, Any],
+    chain_stages: ChainStageStates | None,
+) -> tuple[dict[str, Any], ChainStageStates | None]:
+    """Invalidate downstream staged outputs when an upstream table changes."""
+
+    if chain_stages is None or chain_stages.pipeline_mode != "chain":
+        return result, chain_stages
+    changed_tables = _changed_chain_tables(patch)
+    if not changed_tables:
+        return result, chain_stages
+
+    updated = copy.deepcopy(result)
+    metadata = updated.setdefault("metadata", {})
+    if not isinstance(metadata, dict):
+        metadata = {}
+        updated["metadata"] = metadata
+    invalidated = list(metadata.get("chain_invalidated_stages", []))
+
+    if "process_flow" in changed_tables:
+        updated["pfmea"] = {"rows": []}
+        updated["control_plan"] = {"rows": []}
+        invalidated = _dedupe_texts(invalidated + ["pfmea", "control_plan"])
+        chain_stages = ChainStageStates(
+            pfd=StageConfirmState(
+                status="generated",
+                generated_at=chain_stages.pfd.generated_at,
+                confirmed_at="",
+                confirmed_by="",
+                row_count=_table_row_count(updated, "process_flow"),
+                pending_count=_pending_row_count(updated, "process_flow"),
+            ),
+            pfmea=StageConfirmState(status="not_started"),
+            cp=StageConfirmState(status="not_started"),
+            pipeline_mode="chain",
+        )
+    elif "pfmea" in changed_tables:
+        updated["control_plan"] = {"rows": []}
+        invalidated = _dedupe_texts(invalidated + ["control_plan"])
+        chain_stages = ChainStageStates(
+            pfd=chain_stages.pfd,
+            pfmea=StageConfirmState(
+                status="generated",
+                generated_at=chain_stages.pfmea.generated_at,
+                confirmed_at="",
+                confirmed_by="",
+                row_count=_table_row_count(updated, "pfmea"),
+                pending_count=_pending_row_count(updated, "pfmea"),
+            ),
+            cp=StageConfirmState(status="not_started"),
+            pipeline_mode="chain",
+        )
+
+    metadata["chain_invalidated_stages"] = invalidated
+    updated["status"] = "needs_review"
+    return updated, chain_stages
+
+
+def _changed_chain_tables(patch: dict[str, Any]) -> set[str]:
+    tables: set[str] = set()
+    items = patch.get("items", [])
+    if not isinstance(items, list):
+        return tables
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        table = str(item.get("table") or "").strip()
+        action = str(item.get("action") or "").strip()
+        if table not in {"process_flow", "pfmea", "control_plan"}:
+            continue
+        if action in {"add", "update", "soft_delete"}:
+            tables.add(table)
+    return tables
+
+
+def _table_row_count(result: dict[str, Any], table: str) -> int:
+    return len(_table_rows_for_chain(result, table))
+
+
+def _pending_row_count(result: dict[str, Any], table: str) -> int:
+    return sum(
+        1
+        for row in _table_rows_for_chain(result, table)
+        if isinstance(row, dict) and bool(row.get("needs_confirmation", False))
+    )
+
+
+def _table_rows_for_chain(result: dict[str, Any], table: str) -> list[Any]:
+    document = result.get(table)
+    if not isinstance(document, dict):
+        return []
+    key = "steps" if table == "process_flow" else "rows"
+    rows = document.get(key, [])
+    return rows if isinstance(rows, list) else []
+
+
+def _dedupe_texts(values: list[Any]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for value in values:
+        text = str(value or "").strip()
+        if not text or text in seen:
+            continue
+        seen.add(text)
+        result.append(text)
+    return result

@@ -60,6 +60,11 @@ def export_apqp_workbook(
             column_widths={1: 18, 2: 24, 3: 30, 4: 88},
         )
     workbook.add_sheet(
+        "知识推荐与行动闭环",
+        _knowledge_action_audit_rows(chain),
+        column_widths={1: 18, 2: 28, 3: 24},
+    )
+    workbook.add_sheet(
         "过程流程图", _process_flow_rows(chain), column_widths={1: 12, 2: 28, 3: 42}
     )
     workbook.add_sheet(
@@ -267,10 +272,12 @@ def _pfmea_rows(chain: Any) -> list[list[Any]]:
         [
             "PFMEA 编号",
             "工序编号",
-            "过程项",
-            "过程步骤",
-            "过程工作要素",
-            "功能/要求",
+            "结构过程项",
+            "结构过程步骤",
+            "结构工作要素",
+            "功能过程项",
+            "功能过程步骤",
+            "功能工作要素",
             "失效模式",
             "失效后果",
             "严重度 S",
@@ -281,10 +288,10 @@ def _pfmea_rows(chain: Any) -> list[list[Any]]:
             "探测度 D",
             "AP",
             "RPN",
-            "推荐措施",
+            "优化措施",
             "责任人",
             "目标完成日期",
-            "措施状态",
+            "状态",
             "实际完成日期",
             "措施后 S/O/D/AP/RPN",
             "证据",
@@ -298,9 +305,10 @@ def _pfmea_rows(chain: Any) -> list[list[Any]]:
                 _first_value(
                     item, "process_step_id", "step_no", "step", "operation_no", default=""
                 ),
-                _first_value(item, "process_item", default=""),
+                _first_value(item, "structure_process_item", "process_item", default=""),
                 _first_value(
                     item,
+                    "structure_process_step",
                     "process_step",
                     "process_step_name",
                     "process_step_operation",
@@ -308,14 +316,17 @@ def _pfmea_rows(chain: Any) -> list[list[Any]]:
                     "operation",
                     default="",
                 ),
-                _first_value(item, "process_work_element", default=""),
+                _first_value(item, "structure_work_element", "process_work_element", default=""),
+                _first_value(item, "function_process_item", default=""),
                 _first_value(
                     item,
+                    "function_process_step",
                     "function_requirement",
                     "process_function",
                     "process",
                     default="",
                 ),
+                _first_value(item, "function_work_element", default=""),
                 _first_value(item, "failure_mode", "mode", "failure", default=""),
                 _first_value(item, "effect", "failure_effect", "effects", default=""),
                 _first_value(item, "severity", "s", "S", default=""),
@@ -326,10 +337,10 @@ def _pfmea_rows(chain: Any) -> list[list[Any]]:
                 _first_value(item, "detection", "d", "D", default=""),
                 _first_value(item, "action_priority", "AP", default=""),
                 _first_value(item, "rpn", "RPN", default=""),
-                _first_value(item, "recommended_action", default=""),
-                _first_value(item, "responsibility", "owner", default=""),
+                _first_value(item, "optimization_action", "recommended_action", default=""),
+                _first_value(item, "responsible_person", "responsibility", "owner", default=""),
                 _first_value(item, "target_date", default=""),
-                _first_value(item, "action_status", "status", default=""),
+                _first_value(item, "status", "action_status", default=""),
                 _first_value(item, "actual_completion_date", "completion_date", default=""),
                 _after_action_text(item),
                 _join(_first_value(item, "evidence_refs", default=[])),
@@ -342,11 +353,18 @@ def _pfmea_rows(chain: Any) -> list[list[Any]]:
 def _control_plan_rows(chain: Any) -> list[list[Any]]:
     rows = [
         [
-            "步骤",
-            "过程",
-            "产品/过程特性",
-            "规格/公差",
-            "评价/测量方法",
+            "控制计划编号",
+            "工序名称",
+            "PFMEA 来源",
+            "设备",
+            "特性编号",
+            "产品特性",
+            "过程特性",
+            "特殊特性分类",
+            "规格和公差",
+            "测量方法",
+            "样本容量",
+            "检查频次",
             "控制方法",
             "反应计划",
         ]
@@ -354,20 +372,18 @@ def _control_plan_rows(chain: Any) -> list[list[Any]]:
     for item in _items(chain, "control_plan", "control_plan_items", "controls"):
         rows.append(
             [
-                _first_value(item, "step_no", "step", "operation_no", default=""),
+                _first_value(item, "control_plan_id", "id", default=""),
                 _first_value(item, "process_name", "process", "operation", default=""),
-                _first_value(
-                    item,
-                    "characteristic",
-                    "feature",
-                    "product_characteristic",
-                    "process_characteristic",
-                    default="",
-                ),
-                _first_value(item, "specification", "spec", "tolerance", default=""),
-                _first_value(
-                    item, "measurement", "evaluation_method", "method", default=""
-                ),
+                _first_value(item, "pfmea_id", "source_pfmea_id", default=""),
+                _first_value(item, "equipment", "machine", default=""),
+                _first_value(item, "characteristic_number", "characteristic_no", default=""),
+                _first_value(item, "product_characteristic", "characteristic", "feature", default=""),
+                _first_value(item, "process_characteristic", default=""),
+                _first_value(item, "special_characteristic_class", "classification", default=""),
+                _first_value(item, "specification_tolerance", "specification", "spec", "tolerance", default=""),
+                _first_value(item, "measurement_method", "measurement", "evaluation_method", "method", default=""),
+                _first_value(item, "sample_size", default=""),
+                _first_value(item, "sample_frequency", "frequency", default=""),
                 _first_value(item, "control_method", "control", default=""),
                 _first_value(item, "reaction_plan", "reaction", default=""),
             ]
@@ -521,7 +537,66 @@ def _final_audit_rows(
             len(soft_deleted),
             _join(soft_deleted),
         ],
+        # --- v1.10_audit_summary ---
+        [
+            "v1.10_audit_summary",
+            "sync_blocker_count",
+            _sync_blocker_count(gate),
+            "三表同步阻断项数量",
+        ],
+        [
+            "v1.10_audit_summary",
+            "open_action_count",
+            _open_pfmea_action_count(chain),
+            "未关闭 PFMEA 行动项数量",
+        ],
+        [
+            "v1.10_audit_summary",
+            "recommendation_blocker_count",
+            _recommendation_blocker_count_from_gate(gate),
+            "知识库推荐阻断项数量",
+        ],
+        [
+            "v1.10_audit_summary",
+            "linkage_gap_count",
+            len(_list_value(_first_value(gate, "linkage_gaps", default=[]))),
+            "三表联动缺口总数",
+        ],
+        [
+            "v1.10_audit_summary",
+            "soft_deleted_ids",
+            len(soft_deleted),
+            _soft_deleted_ids_text(chain, metadata),
+        ],
     ]
+    return rows
+
+
+def _knowledge_action_audit_rows(source: dict) -> list[list[str]]:
+    """生成知识推荐与行动闭环 sheet 的行数据。"""
+    rows = []
+    rows.append(["知识推荐与行动闭环", "", ""])
+    rows.append(["类型", "编号", "状态"])
+
+    # 知识推荐
+    metadata = _first_value(source, "metadata", default={})
+    recs = _list_value(metadata.get("knowledge_recommendations", []))
+    for r in recs:
+        rows.append([
+            "知识推荐",
+            _first_value(r, "recommendation_id", default=""),
+            _first_value(r, "lifecycle_status", default="") or _first_value(r, "status", default=""),
+        ])
+
+    # 行动项
+    actions = _list_value(metadata.get("action_items", []))
+    for a in actions:
+        rows.append([
+            "行动项",
+            _first_value(a, "action_id", default=""),
+            _first_value(a, "status", default=""),
+        ])
+
     return rows
 
 
@@ -696,6 +771,40 @@ def _join(value: Any) -> str:
 
 def _yes_no(value: Any) -> str:
     return "是" if bool(value) else "否"
+
+
+def _sync_blocker_count(gate: Any) -> int:
+    """Count sync_issues with blocker severity from the quality gate."""
+    sync_issues = _list_value(_first_value(gate, "sync_issues", default=[]))
+    return sum(1 for i in sync_issues if isinstance(i, dict) and i.get("severity") == "blocker")
+
+
+def _open_pfmea_action_count(chain: Any) -> int:
+    """Count PFMEA rows with open (not completed/closed) actions."""
+    count = 0
+    for row in _items(chain, "pfmea", "pfmea_items", "failure_modes"):
+        status = str(_first_value(row, "status", "action_status", default="")).strip().lower()
+        if status in {"", "open", "待处理", "进行中", "in_progress", "not started", "未开始"}:
+            recommended = str(_first_value(row, "optimization_action", "recommended_action", default="")).strip()
+            if recommended:
+                count += 1
+    return count
+
+
+def _recommendation_blocker_count_from_gate(gate: Any) -> int:
+    """Count recommendation blockers from the gate review_issues."""
+    review_issues = _list_value(_first_value(gate, "review_issues", default=[]))
+    return sum(
+        1 for ri in review_issues
+        if isinstance(ri, dict) and "recommendation" in str(ri.get("category", "")).lower()
+    )
+
+
+def _soft_deleted_ids_text(chain: Any, metadata: Mapping[str, Any]) -> str:
+    """Return a compact list of soft-deleted row IDs from metadata and chain."""
+    explicit = _list_value(metadata.get("soft_deleted_items"))
+    ids = [str(item) for item in explicit if str(item).strip()]
+    return "；".join(ids) if ids else "无"
 
 
 def _coverage_ratio(coverage: Mapping[str, Any]) -> str:

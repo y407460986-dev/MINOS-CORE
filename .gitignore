@@ -21,6 +21,15 @@ build/
 dist/
 *.egg-info/
 .eggs/
+node_modules/
+.run/
+apps/**/node_modules/
+apps/**/dist/
+apps/**/.run/
+apps/**/src-tauri/target/
+apps/**/src-tauri/gen/
+.superpowers/
+.tmp-ui-split-backup/
 
 # Test and tool caches
 .pytest_cache/

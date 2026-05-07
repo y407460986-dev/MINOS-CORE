@@ -76,7 +76,11 @@ def export_split_three_table_workbooks(
 
 def _single_sheet_workbook(path: Path, title: str, rows: list[list[Any]]) -> Path:
     workbook = WorkbookWriter()
-    workbook.add_sheet(title, rows, column_widths={1: 14, 2: 26, 3: 32, 4: 36, 5: 36, 6: 24})
+    workbook.add_sheet(
+        title,
+        rows,
+        column_widths={index: 24 for index in range(1, max((len(row) for row in rows), default=1) + 1)},
+    )
     return workbook.save(path)
 
 
@@ -98,41 +102,18 @@ def _process_flow_rows(chain: Any, export_mode: str, quality_gate: Any | None = 
 
 def _pfmea_rows(chain: Any, export_mode: str, quality_gate: Any | None = None) -> list[list[Any]]:
     rows = _mode_notice_rows(export_mode, quality_gate)
-    rows.append([
-        "PFMEA 编号",
-        "工序编号",
-        "过程项",
-        "过程步骤",
-        "过程工作要素",
-        "功能/要求",
-        "失效模式",
-        "失效后果",
-        "S",
-        "失效原因",
-        "预防控制",
-        "O",
-        "探测控制",
-        "D",
-        "AP",
-        "RPN",
-        "推荐措施",
-        "责任人",
-        "目标完成日期",
-        "措施状态",
-        "实际完成日期",
-        "措施后 S/O/D/AP/RPN",
-        "证据",
-        "AI/复核",
-    ])
+    rows.append(_pfmea_header())
     for row in _items(chain, "failure_modes", "rows"):
         rows.append(
             [
                 _first(row, "pfmea_id", default=""),
                 _first(row, "process_step_id", default=""),
-                _first(row, "process_item", default=""),
-                _first(row, "process_step", default=""),
-                _first(row, "process_work_element", default=""),
-                _first(row, "function_requirement", "process_function", default=""),
+                _first(row, "structure_process_item", "process_item", default=""),
+                _first(row, "structure_process_step", "process_step", default=""),
+                _first(row, "structure_work_element", "process_work_element", default=""),
+                _first(row, "function_process_item", default=""),
+                _first(row, "function_process_step", "function_requirement", "process_function", default=""),
+                _first(row, "function_work_element", default=""),
                 _first(row, "failure_mode", default=""),
                 _first(row, "failure_effect", default=""),
                 _first(row, "severity", default=""),
@@ -143,10 +124,10 @@ def _pfmea_rows(chain: Any, export_mode: str, quality_gate: Any | None = None) -
                 _first(row, "detection", default=""),
                 _first(row, "action_priority", default=""),
                 _first(row, "rpn", default=""),
-                _first(row, "recommended_action", default=""),
-                _first(row, "responsibility", default=""),
+                _first(row, "optimization_action", "recommended_action", default=""),
+                _first(row, "responsible_person", "responsibility", default=""),
                 _first(row, "target_date", default=""),
-                _first(row, "action_status", default=""),
+                _first(row, "status", "action_status", default=""),
                 _first(row, "actual_completion_date", default=""),
                 _after_action_text(row),
                 _join(_first(row, "evidence_refs", default=[])),
@@ -158,22 +139,81 @@ def _pfmea_rows(chain: Any, export_mode: str, quality_gate: Any | None = None) -
 
 def _control_plan_rows(chain: Any, export_mode: str, quality_gate: Any | None = None) -> list[list[Any]]:
     rows = _mode_notice_rows(export_mode, quality_gate)
-    rows.append(["控制计划编号", "工序", "PFMEA 来源", "特性", "规格", "方法/频次", "反应计划", "证据", "AI/复核"])
+    rows.append(_control_plan_header())
     for row in _items(chain, "controls", "rows"):
         rows.append(
             [
                 _first(row, "control_plan_id", default=""),
-                _first(row, "process_step_id", default=""),
+                _first(row, "process_name", "process_step_id", default=""),
                 _first(row, "pfmea_id", default=""),
-                _first(row, "product_process_characteristic", default=""),
-                _first(row, "specification", default=""),
-                f"{_first(row, 'measurement_method', default='')} / {_first(row, 'sample_frequency', default='')}",
+                _first(row, "equipment", default=""),
+                _first(row, "characteristic_number", default=""),
+                _first(row, "product_characteristic", "product_process_characteristic", default=""),
+                _first(row, "process_characteristic", default=""),
+                _first(row, "special_characteristic_class", "classification", default=""),
+                _first(row, "specification_tolerance", "specification", default=""),
+                _first(row, "measurement_method", default=""),
+                _first(row, "sample_size", default=""),
+                _first(row, "sample_frequency", default=""),
+                _first(row, "control_method", default=""),
                 _first(row, "reaction_plan", default=""),
                 _join(_first(row, "evidence_refs", default=[])),
                 _ai_review_text(row),
             ]
         )
     return rows
+
+
+def _pfmea_header() -> list[str]:
+    return [
+        "PFMEA 编号",
+        "工序编号",
+        "结构过程项",
+        "结构过程步骤",
+        "结构工作要素",
+        "功能过程项",
+        "功能过程步骤",
+        "功能工作要素",
+        "失效模式",
+        "失效后果",
+        "S",
+        "失效原因",
+        "预防控制",
+        "O",
+        "探测控制",
+        "D",
+        "AP",
+        "RPN",
+        "优化措施",
+        "责任人",
+        "目标完成日期",
+        "状态",
+        "实际完成日期",
+        "措施后 S/O/D/AP/RPN",
+        "证据",
+        "AI/复核",
+    ]
+
+
+def _control_plan_header() -> list[str]:
+    return [
+        "控制计划编号",
+        "工序名称",
+        "PFMEA 来源",
+        "设备",
+        "特性编号",
+        "产品特性",
+        "过程特性",
+        "特殊特性分类",
+        "规格和公差",
+        "测量方法",
+        "样本容量",
+        "检查频次",
+        "控制方法",
+        "反应计划",
+        "证据",
+        "AI/复核",
+    ]
 
 
 def _items(source: Any, *names: str) -> list[Any]:

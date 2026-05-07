@@ -1,0 +1,3781 @@
+{
+  "schema_version": "minos-core.part_family_knowledge.v1",
+  "family_key": "stamping",
+  "family_name": "冲压件",
+  "process_route_templates": [
+    {
+      "process_step_id": "P10",
+      "sequence": 10,
+      "operation": "素材纳入",
+      "process_function": "素材纳入",
+      "special_characteristics": [
+        "机械性能；化学成分",
+        "按照图纸要求检验，合格后放行\n（尺寸、外观、标识、数量、材料性能）",
+        "CC"
+      ],
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "7 过程流程图  (2)",
+          "row": 9
+        }
+      ],
+      "template_id": "stamping-route-001"
+    },
+    {
+      "process_step_id": "P20",
+      "sequence": 20,
+      "operation": "素材纳入",
+      "process_function": "素材纳入",
+      "special_characteristics": [
+        "机械性能；化学成分",
+        "按照图纸要求检验，合格后放行\n（尺寸、外观、标识、数量、材料性能）",
+        "CC"
+      ],
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "7 过程流程图  (2)",
+          "row": 10
+        }
+      ],
+      "template_id": "stamping-route-002"
+    },
+    {
+      "process_step_id": "P30",
+      "sequence": 30,
+      "operation": "冲压顺送成形",
+      "process_function": "冲压顺送成形",
+      "special_characteristics": [
+        "1.测量基准位置及孔径尺寸\n2.RPS相关尺寸\n3.安装孔直径",
+        "闭合高度(760.2±0.1mm）",
+        "SC"
+      ],
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "7 过程流程图  (2)",
+          "row": 11
+        }
+      ],
+      "template_id": "stamping-route-003"
+    },
+    {
+      "process_step_id": "P40",
+      "sequence": 40,
+      "operation": "入半成品仓库",
+      "process_function": "入半成品仓库",
+      "special_characteristics": [
+        "帐、卡、物一致"
+      ],
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "7 过程流程图  (2)",
+          "row": 12
+        }
+      ],
+      "template_id": "stamping-route-004"
+    },
+    {
+      "process_step_id": "P50",
+      "sequence": 50,
+      "operation": "转运（出半成品仓库）",
+      "process_function": "转运（出半成品仓库）",
+      "special_characteristics": [
+        "先进先出,按领料单领取"
+      ],
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "7 过程流程图  (2)",
+          "row": 13
+        }
+      ],
+      "template_id": "stamping-route-005"
+    },
+    {
+      "process_step_id": "P08",
+      "sequence": 8,
+      "operation": "点焊M8焊接方螺母",
+      "process_function": "点焊M8焊接方螺母",
+      "special_characteristics": [
+        "无虚焊、假焊；扭力满足要求",
+        "开发前期参数验证,工艺参数",
+        "SC"
+      ],
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "7 过程流程图  (2)",
+          "row": 14
+        }
+      ],
+      "template_id": "stamping-route-006"
+    },
+    {
+      "process_step_id": "P70",
+      "sequence": 70,
+      "operation": "弧焊",
+      "process_function": "弧焊",
+      "special_characteristics": [
+        "无虚焊、假焊；扭力满足要求",
+        "焊接电流50-110A\n电压17-24V",
+        "SC"
+      ],
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "7 过程流程图  (2)",
+          "row": 15
+        }
+      ],
+      "template_id": "stamping-route-007"
+    },
+    {
+      "process_step_id": "P80",
+      "sequence": 80,
+      "operation": "检查",
+      "process_function": "检查",
+      "special_characteristics": [
+        "1.检验该零件尺寸，符合检具\n2.检验零件外观质量\n3.零件边缘毛刺检查4.螺母有无漏焊"
+      ],
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "7 过程流程图  (2)",
+          "row": 16
+        }
+      ],
+      "template_id": "stamping-route-008"
+    },
+    {
+      "process_step_id": "P90",
+      "sequence": 90,
+      "operation": "包装",
+      "process_function": "包装",
+      "special_characteristics": [
+        "包装方案正确、合格标识"
+      ],
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "7 过程流程图  (2)",
+          "row": 17
+        }
+      ],
+      "template_id": "stamping-route-009"
+    },
+    {
+      "process_step_id": "P100",
+      "sequence": 100,
+      "operation": "出货检查",
+      "process_function": "出货检查",
+      "special_characteristics": [
+        "1.检验该零件尺寸，符合检具\n2.检验零件外观质量"
+      ],
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "7 过程流程图  (2)",
+          "row": 18
+        }
+      ],
+      "template_id": "stamping-route-010"
+    },
+    {
+      "process_step_id": "P110",
+      "sequence": 110,
+      "operation": "存储",
+      "process_function": "存储",
+      "special_characteristics": [
+        "标识清楚，放入指定位置\n(包装方案正确、合格标识、存放环境清洁干燥)"
+      ],
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "7 过程流程图  (2)",
+          "row": 19
+        }
+      ],
+      "template_id": "stamping-route-011"
+    },
+    {
+      "process_step_id": "P120",
+      "sequence": 120,
+      "operation": "出 货",
+      "process_function": "出 货",
+      "special_characteristics": [
+        "数量、标识、捆绑方式符合要求"
+      ],
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "7 过程流程图  (2)",
+          "row": 20
+        }
+      ],
+      "template_id": "stamping-route-012"
+    }
+  ],
+  "pfmea_patterns": [
+    {
+      "process_step_id": "P00",
+      "process_function": "素材纳入",
+      "failure_mode": "来料数量短缺",
+      "failure_effect": "影响生产和出货进度",
+      "failure_cause": "供应商出货时未核对数量",
+      "prevention_control": "供应商改善",
+      "detection_control": "仓库人员清点确认",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 2,
+        "detection": 4,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 16
+        }
+      ],
+      "pattern_id": "stamping-pfmea-001"
+    },
+    {
+      "process_step_id": "P00",
+      "process_function": "素材纳入",
+      "failure_mode": "材料厚度和宽度尺寸超差",
+      "failure_effect": "无法生产",
+      "failure_cause": "1.供应商发错货\n2.供应商生产尺寸超差",
+      "prevention_control": "供应商提供材质证书",
+      "detection_control": "来料检验",
+      "classification": "",
+      "rating_hint": {
+        "severity": 7,
+        "occurrence": 2,
+        "detection": 4,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 17
+        }
+      ],
+      "pattern_id": "stamping-pfmea-002"
+    },
+    {
+      "process_step_id": "P00",
+      "process_function": "素材纳入",
+      "failure_mode": "材质不符要求",
+      "failure_effect": "影响零件性能",
+      "failure_cause": "供应商发错货",
+      "prevention_control": "材质证明 100%/批",
+      "detection_control": "材质证明",
+      "classification": "CC",
+      "rating_hint": {
+        "severity": 7,
+        "occurrence": 1,
+        "detection": 5,
+        "action_priority": "M"
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 18
+        }
+      ],
+      "pattern_id": "stamping-pfmea-003"
+    },
+    {
+      "process_step_id": "P00",
+      "process_function": "素材纳入",
+      "failure_mode": "材料表面刮花，氧化，生锈",
+      "failure_effect": "影响零件外观或性能",
+      "failure_cause": "材料包装不良",
+      "prevention_control": "供应商改善",
+      "detection_control": "来料检验",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 3,
+        "detection": 3,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 19
+        }
+      ],
+      "pattern_id": "stamping-pfmea-004"
+    },
+    {
+      "process_step_id": "P01",
+      "process_function": "冲压顺送成形（630T)",
+      "failure_mode": "孔径尺寸超差，孔位置不良",
+      "failure_effect": "影响影响客户装配和性能",
+      "failure_cause": "冲头磨损",
+      "prevention_control": "定期进行模具保养",
+      "detection_control": "1.QC按抽样计划首检&巡检\n2.生产操作人员自检",
+      "classification": "",
+      "rating_hint": {
+        "severity": 7,
+        "occurrence": 3,
+        "detection": 4,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 20
+        }
+      ],
+      "pattern_id": "stamping-pfmea-005"
+    },
+    {
+      "process_step_id": "P01",
+      "process_function": "冲压顺送成形（630T)",
+      "failure_mode": "孔径尺寸超差，孔位置不良",
+      "failure_effect": "影响影响客户装配和性能",
+      "failure_cause": "模具维修时，镶件加工错误、装反",
+      "prevention_control": "模具维修后，连线生产验证后正式投入生产；镶件设计防返结构",
+      "detection_control": "1.QC按抽样计划首检&巡检\n2.生产操作人员自检",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 2,
+        "detection": 4,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 21
+        }
+      ],
+      "pattern_id": "stamping-pfmea-006"
+    },
+    {
+      "process_step_id": "P01",
+      "process_function": "冲压顺送成形（630T)",
+      "failure_mode": "线轮廓度⑦⑧超差",
+      "failure_effect": "影响客户装配及焊接",
+      "failure_cause": "冲压参数设置不当",
+      "prevention_control": "冲压工艺操作规范",
+      "detection_control": "操作人员自检，QC首样检验&巡检",
+      "classification": "SC",
+      "rating_hint": {
+        "severity": 7,
+        "occurrence": 2,
+        "detection": 4,
+        "action_priority": "M"
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 22
+        }
+      ],
+      "pattern_id": "stamping-pfmea-007"
+    },
+    {
+      "process_step_id": "P01",
+      "process_function": "冲压顺送成形（630T)",
+      "failure_mode": "线轮廓度⑦⑧超差",
+      "failure_effect": "影响客户装配及焊接",
+      "failure_cause": "冲头磨损",
+      "prevention_control": "定期进行模具保养",
+      "detection_control": "操作人员自检，QC首样检验&巡检",
+      "classification": "",
+      "rating_hint": {
+        "severity": 7,
+        "occurrence": 2,
+        "detection": 4,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 23
+        }
+      ],
+      "pattern_id": "stamping-pfmea-008"
+    },
+    {
+      "process_step_id": "P01",
+      "process_function": "冲压顺送成形（630T)",
+      "failure_mode": "毛刺过大",
+      "failure_effect": "影响外观",
+      "failure_cause": "冲头或入子磨损",
+      "prevention_control": "定期进行模具保养",
+      "detection_control": "1.QC按抽样计划首检&巡检\n2.生产操作人员自检",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 3,
+        "detection": 4,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 24
+        }
+      ],
+      "pattern_id": "stamping-pfmea-009"
+    },
+    {
+      "process_step_id": "P01",
+      "process_function": "冲压顺送成形（630T)",
+      "failure_mode": "切边缺料、多料\n不良",
+      "failure_effect": "影响影响客户装配和性能",
+      "failure_cause": "料头料尾定位不稳，切边位置偏移导致缺料、多料",
+      "prevention_control": "料头料尾管理规范",
+      "detection_control": "1.QC按料头料尾规定全检\n2.生产操作人员按照料头料尾管理规范隔离送检",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 3,
+        "detection": 4,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 25
+        }
+      ],
+      "pattern_id": "stamping-pfmea-010"
+    },
+    {
+      "process_step_id": "P01",
+      "process_function": "冲压顺送成形（630T)",
+      "failure_mode": "切边缺料、多料\n不良",
+      "failure_effect": "影响影响客户装配和性能",
+      "failure_cause": "模具维修时，镶件加工错误、装反",
+      "prevention_control": "模具维修后，连线生产验证后正式投入生产；镶件设计防返结构",
+      "detection_control": "1.QC按抽样计划首检&巡检\n2.生产操作人员自检",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 2,
+        "detection": 4,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 26
+        }
+      ],
+      "pattern_id": "stamping-pfmea-011"
+    },
+    {
+      "process_step_id": "P01",
+      "process_function": "冲压顺送成形（630T)",
+      "failure_mode": "零件拉伤，压伤",
+      "failure_effect": "影响零件外观和性能",
+      "failure_cause": "模具成形部位拉毛",
+      "prevention_control": "模具成形部位TD处理，定期进行模具保养",
+      "detection_control": "1.QC按抽样计划首检&巡检\n2.生产操作人员自检",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 2,
+        "detection": 4,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 27
+        }
+      ],
+      "pattern_id": "stamping-pfmea-012"
+    },
+    {
+      "process_step_id": "P01",
+      "process_function": "冲压顺送成形（630T)",
+      "failure_mode": "零件拉伤，压伤",
+      "failure_effect": "影响零件外观和性能",
+      "failure_cause": "冲压参数设置不当\n模具沾有废屑",
+      "prevention_control": "冲压工艺操作规范\n定期对模具进行清理",
+      "detection_control": "1.QC按抽样计划首检&巡检\n2.生产操作人员自检",
+      "classification": "SC",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 2,
+        "detection": 4,
+        "action_priority": "M"
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 28
+        }
+      ],
+      "pattern_id": "stamping-pfmea-013"
+    },
+    {
+      "process_step_id": "P01",
+      "process_function": "冲压顺送成形（630T)",
+      "failure_mode": "零件拉伤，压伤",
+      "failure_effect": "影响零件外观和性能",
+      "failure_cause": "模具成型块焊接修模后未抛光",
+      "prevention_control": "定期进行模具保养，\n模具维修后，按变化点进行管理",
+      "detection_control": "1.QC按抽样计划首检&巡检\n2.生产操作人员自检",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 2,
+        "detection": 4,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 29
+        }
+      ],
+      "pattern_id": "stamping-pfmea-014"
+    },
+    {
+      "process_step_id": "P01",
+      "process_function": "冲压顺送成形（630T)",
+      "failure_mode": "漏冲孔",
+      "failure_effect": "零件返工，报废",
+      "failure_cause": "冲头断裂",
+      "prevention_control": "生产人员每生产20PCS确认是否漏冲孔",
+      "detection_control": "1.QC按抽样计划首检&巡检\n2.生产操作人员自检",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 3,
+        "detection": 4,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 30
+        }
+      ],
+      "pattern_id": "stamping-pfmea-015"
+    },
+    {
+      "process_step_id": "P01",
+      "process_function": "冲压顺送成形（630T)",
+      "failure_mode": "漏冲孔",
+      "failure_effect": "零件返工，报废",
+      "failure_cause": "模具维修时漏装冲头",
+      "prevention_control": "模具维修后，生产首检合格后正式投入生产",
+      "detection_control": "1.QC按抽样计划首检&巡检\n2.生产操作人员自检",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 3,
+        "detection": 4,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 31
+        }
+      ],
+      "pattern_id": "stamping-pfmea-016"
+    },
+    {
+      "process_step_id": "P01",
+      "process_function": "冲压顺送成形（630T)",
+      "failure_mode": "机台吨位不符",
+      "failure_effect": "产品无法成型",
+      "failure_cause": "未按要求参数调整模具",
+      "prevention_control": "开机前确认相关参数",
+      "detection_control": "操作人员自检，QC首样检验",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 1,
+        "detection": 1,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 32
+        }
+      ],
+      "pattern_id": "stamping-pfmea-017"
+    },
+    {
+      "process_step_id": "P01",
+      "process_function": "冲压顺送成形（630T)",
+      "failure_mode": "切断面开裂",
+      "failure_effect": "影响零件外观和性能",
+      "failure_cause": "模具配合间隙不合理",
+      "prevention_control": "定期进行模具保养， 模具维修后，连线生产验证后正式投入生产",
+      "detection_control": "操作人员自检，QC首样检验&巡检",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 2,
+        "detection": 3,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 33
+        }
+      ],
+      "pattern_id": "stamping-pfmea-018"
+    },
+    {
+      "process_step_id": "P01",
+      "process_function": "冲压顺送成形（630T)",
+      "failure_mode": "型面和配合面轮廓度不良(配合面0.5）",
+      "failure_effect": "影响客户装配",
+      "failure_cause": "冲压参数设置不当",
+      "prevention_control": "冲压工艺操作规范",
+      "detection_control": "操作人员自检，QC首样检验&巡检",
+      "classification": "SC",
+      "rating_hint": {
+        "severity": 7,
+        "occurrence": 2,
+        "detection": 4,
+        "action_priority": "M"
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 34
+        }
+      ],
+      "pattern_id": "stamping-pfmea-019"
+    },
+    {
+      "process_step_id": "P01",
+      "process_function": "冲压顺送成形（630T)",
+      "failure_mode": "型面和配合面轮廓度不良(配合面0.5）",
+      "failure_effect": "影响客户装配",
+      "failure_cause": "成形镶件磨损",
+      "prevention_control": "加润滑油生产；成形镶件TD加硬处理，定期对模具进行保养",
+      "detection_control": "操作人员自检，QC首样检验&巡检",
+      "classification": "",
+      "rating_hint": {
+        "severity": 7,
+        "occurrence": 2,
+        "detection": 4,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 35
+        }
+      ],
+      "pattern_id": "stamping-pfmea-020"
+    },
+    {
+      "process_step_id": "P02",
+      "process_function": "入半成品仓库",
+      "failure_mode": "标识错误，标识丢失",
+      "failure_effect": "漏发，超发产品",
+      "failure_cause": "标识贴错、运输过程中标识丢失",
+      "prevention_control": "帐、卡、物一致",
+      "detection_control": "操作人员自检，QC首样检验&巡检",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 3,
+        "detection": 2,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 36
+        }
+      ],
+      "pattern_id": "stamping-pfmea-021"
+    },
+    {
+      "process_step_id": "P02",
+      "process_function": "入半成品仓库",
+      "failure_mode": "产品未按规定区域存放",
+      "failure_effect": "错发产品",
+      "failure_cause": "未按规划存放产成品",
+      "prevention_control": "定置定位",
+      "detection_control": "操作人员自检，QC首样检验&巡检",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 3,
+        "detection": 2,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 37
+        }
+      ],
+      "pattern_id": "stamping-pfmea-022"
+    },
+    {
+      "process_step_id": "P03",
+      "process_function": "转运（出半成品仓库）",
+      "failure_mode": "数量正不正确，规格型号错误",
+      "failure_effect": "造成生产计划延期或变更，影响后续生产",
+      "failure_cause": "未按照领料单领料，未按规划存放",
+      "prevention_control": "按领料单领取",
+      "detection_control": "仓库人员清点确认",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 3,
+        "detection": 2,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 38
+        }
+      ],
+      "pattern_id": "stamping-pfmea-023"
+    },
+    {
+      "process_step_id": "P04",
+      "process_function": "点焊（M8焊接方螺母）",
+      "failure_mode": "焊接飞溅、虚焊、半点焊、焊点击穿、焊点压痕过深、焊点发白、裂纹等缺陷；扭力不能满足要求",
+      "failure_effect": "焊接强度不足，零部件脱落、影响装配",
+      "failure_cause": "电极使用过渡",
+      "prevention_control": "按频次检查电极使用情况和更换，遇磨损严重时需更换",
+      "detection_control": "操作人员自检，QC首样检验&巡检",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 1,
+        "detection": 6,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 39
+        }
+      ],
+      "pattern_id": "stamping-pfmea-024"
+    },
+    {
+      "process_step_id": "P04",
+      "process_function": "点焊（M8焊接方螺母）",
+      "failure_mode": "焊接飞溅、虚焊、半点焊、焊点击穿、焊点压痕过深、焊点发白、裂纹等缺陷；扭力不能满足要求",
+      "failure_effect": "焊接强度不足，零部件脱落、影响装配",
+      "failure_cause": "工件表面有脏污或表面生锈",
+      "prevention_control": "冲压油加防锈剂，作业人员戴手套作业",
+      "detection_control": "操作人员自检，QC首样检验&巡检",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 40
+        }
+      ],
+      "pattern_id": "stamping-pfmea-025"
+    },
+    {
+      "process_step_id": "P04",
+      "process_function": "点焊（M8焊接方螺母）",
+      "failure_mode": "焊接飞溅、虚焊、半点焊、焊点击穿、焊点压痕过深、焊点发白、裂纹等缺陷；扭力不能满足要求",
+      "failure_effect": "焊接强度不足，零部件脱落、影响装配",
+      "failure_cause": "焊接参数不合理",
+      "prevention_control": "开发前期参数验证，易损件更换",
+      "detection_control": "1次/开发前期，操作人员自检，QC首样检验&巡检",
+      "classification": "SC",
+      "rating_hint": {
+        "severity": 7,
+        "occurrence": 1,
+        "detection": 6,
+        "action_priority": "M"
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 41
+        }
+      ],
+      "pattern_id": "stamping-pfmea-026"
+    },
+    {
+      "process_step_id": "P04",
+      "process_function": "点焊（M8焊接方螺母）",
+      "failure_mode": "漏焊",
+      "failure_effect": "零部件无法装配",
+      "failure_cause": "未按标准作业",
+      "prevention_control": "1.对作业员进行培训，按作业标准书",
+      "detection_control": "1.操作人员自检，QC首样检验&巡检",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 42
+        }
+      ],
+      "pattern_id": "stamping-pfmea-027"
+    },
+    {
+      "process_step_id": "P04",
+      "process_function": "点焊（M8焊接方螺母）",
+      "failure_mode": "漏焊",
+      "failure_effect": "零部件无法装配",
+      "failure_cause": "未点焊产品混入已点焊产品中",
+      "prevention_control": "1.明确标识区域区分",
+      "detection_control": "1.操作人员自检，QC首样检验&巡检\n2.点焊夹具设计感应器检测",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 2,
+        "detection": 6,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 43
+        }
+      ],
+      "pattern_id": "stamping-pfmea-028"
+    },
+    {
+      "process_step_id": "P04",
+      "process_function": "点焊（M8焊接方螺母）",
+      "failure_mode": "螺母偏移，位置度不合格",
+      "failure_effect": "影响客户端装配",
+      "failure_cause": "1.电极磨损变小\n2.冲压件底孔过大",
+      "prevention_control": "1.规定电极更换频次\n班前对电极进行检查\n2.冲压件按频次检测",
+      "detection_control": "1.操作人员自检，QC首样检验&巡检",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 2,
+        "detection": 5,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 44
+        }
+      ],
+      "pattern_id": "stamping-pfmea-029"
+    },
+    {
+      "process_step_id": "P04",
+      "process_function": "点焊（M8焊接方螺母）",
+      "failure_mode": "螺纹处焊渣着附",
+      "failure_effect": "影响下工序装配或者不能装配",
+      "failure_cause": "焊接参数设置不当。",
+      "prevention_control": "对作业员进行培训，按作业标准书",
+      "detection_control": "操作人员自检，QC首样检验&巡检",
+      "classification": "SC",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 2,
+        "detection": 5,
+        "action_priority": "M"
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 45
+        }
+      ],
+      "pattern_id": "stamping-pfmea-030"
+    },
+    {
+      "process_step_id": "P05",
+      "process_function": "弧焊",
+      "failure_mode": "虚焊、假焊、气孔、咬边、焊瘤等不良；熔深不能满足要求",
+      "failure_effect": "焊接强度不足，零部件脱落",
+      "failure_cause": "导电嘴烧蚀/使用过渡",
+      "prevention_control": "按时检查导电嘴使用情况，按频次进行更换，遇磨损严重时需更换",
+      "detection_control": "操作人员自检，QC首样检验&巡检",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 1,
+        "detection": 5,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 46
+        }
+      ],
+      "pattern_id": "stamping-pfmea-031"
+    },
+    {
+      "process_step_id": "P05",
+      "process_function": "弧焊",
+      "failure_mode": "虚焊、假焊、气孔、咬边、焊瘤等不良；熔深不能满足要求",
+      "failure_effect": "焊接强度不足，零部件脱落",
+      "failure_cause": "搭接间隙太大",
+      "prevention_control": "前道工序确认好单品精度",
+      "detection_control": "操作人员自检，QC首样检验&巡检",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 2,
+        "detection": 5,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 47
+        }
+      ],
+      "pattern_id": "stamping-pfmea-032"
+    },
+    {
+      "process_step_id": "P05",
+      "process_function": "弧焊",
+      "failure_mode": "虚焊、假焊、气孔、咬边、焊瘤等不良；熔深不能满足要求",
+      "failure_effect": "焊接强度不足，零部件脱落",
+      "failure_cause": "工件表面/焊丝表面有脏污或表面生锈",
+      "prevention_control": "1.冲压件适量加油，不可过多\n2.作业人员戴手套作业\n3.单品按要求存储",
+      "detection_control": "操作人员自检，QC首样检验&巡检",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 2,
+        "detection": 5,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 48
+        }
+      ],
+      "pattern_id": "stamping-pfmea-033"
+    },
+    {
+      "process_step_id": "P05",
+      "process_function": "弧焊",
+      "failure_mode": "虚焊、假焊、气孔、咬边、焊瘤等不良；熔深不能满足要求",
+      "failure_effect": "焊接强度不足，零部件脱落",
+      "failure_cause": "电流、时间、焊接速度、保护气参数设置不当。",
+      "prevention_control": "1.开发前期参数验证",
+      "detection_control": "1次/开发前期",
+      "classification": "SC",
+      "rating_hint": {
+        "severity": 7,
+        "occurrence": 1,
+        "detection": 5,
+        "action_priority": "M"
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 49
+        }
+      ],
+      "pattern_id": "stamping-pfmea-034"
+    },
+    {
+      "process_step_id": "P05",
+      "process_function": "弧焊",
+      "failure_mode": "漏焊",
+      "failure_effect": "焊接强度不足，零部件无法使用",
+      "failure_cause": "焊接中途设备/工装/人员等异常导致异常停机",
+      "prevention_control": "按异常停机程序处理，产品单独确认",
+      "detection_control": "1.操作人员自检，QC首样检验&巡检",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 2,
+        "detection": 5,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 50
+        }
+      ],
+      "pattern_id": "stamping-pfmea-035"
+    },
+    {
+      "process_step_id": "P05",
+      "process_function": "弧焊",
+      "failure_mode": "漏焊",
+      "failure_effect": "焊接强度不足，零部件无法使用",
+      "failure_cause": "焊丝出丝不顺",
+      "prevention_control": "1.定期点检出丝机构功能/磨损情况；\n2.定期更换导电嘴",
+      "detection_control": "1.操作人员自检，QC首样检验&巡检",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 2,
+        "detection": 5,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 51
+        }
+      ],
+      "pattern_id": "stamping-pfmea-036"
+    },
+    {
+      "process_step_id": "P05",
+      "process_function": "弧焊",
+      "failure_mode": "漏焊",
+      "failure_effect": "焊接强度不足，零部件无法使用",
+      "failure_cause": "未焊接产品混入已点焊产品中",
+      "prevention_control": "明确标识区域区分",
+      "detection_control": "1.操作人员自检，QC首样检验&巡检\n2.后道弧焊夹具设计感应器检测",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 2,
+        "detection": 5,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 52
+        }
+      ],
+      "pattern_id": "stamping-pfmea-037"
+    },
+    {
+      "process_step_id": "P05",
+      "process_function": "弧焊",
+      "failure_mode": "焊缝焊偏",
+      "failure_effect": "焊接强度不足，零部件无法使用",
+      "failure_cause": "夹具定位跑偏，导致焊偏",
+      "prevention_control": "班前点检夹具",
+      "detection_control": "1.操作人员自检，QC首样检验&巡检",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 1,
+        "detection": 5,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 53
+        }
+      ],
+      "pattern_id": "stamping-pfmea-038"
+    },
+    {
+      "process_step_id": "P05",
+      "process_function": "弧焊",
+      "failure_mode": "焊缝焊偏",
+      "failure_effect": "焊接强度不足，零部件无法使用",
+      "failure_cause": "焊枪发生碰撞，导致轨迹偏移",
+      "prevention_control": "班前点检夹具",
+      "detection_control": "1.操作人员自检，QC首样检验&巡检",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 1,
+        "detection": 5,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 54
+        }
+      ],
+      "pattern_id": "stamping-pfmea-039"
+    },
+    {
+      "process_step_id": "P05",
+      "process_function": "弧焊",
+      "failure_mode": "焊渣飞溅",
+      "failure_effect": "影响下工序装配或者不能装配",
+      "failure_cause": "焊接参数设置不当。\n防护不够",
+      "prevention_control": "1.开发前期参数验证\n2.夹具设计时做评审；夹具班前点检",
+      "detection_control": "操作人员自检，QC首样检验&巡检",
+      "classification": "SC",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 1,
+        "detection": 5,
+        "action_priority": "M"
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 55
+        }
+      ],
+      "pattern_id": "stamping-pfmea-040"
+    },
+    {
+      "process_step_id": "P05",
+      "process_function": "弧焊",
+      "failure_mode": "零件尺寸精度不合格",
+      "failure_effect": "影响客户端按照",
+      "failure_cause": "夹具松动跑位",
+      "prevention_control": "夹具定期维护保养",
+      "detection_control": "班前做夹具点检\n产品品质确认：产品首中末检验，巡检1件/2H",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 2,
+        "detection": 5,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 56
+        }
+      ],
+      "pattern_id": "stamping-pfmea-041"
+    },
+    {
+      "process_step_id": "P06",
+      "process_function": "检查",
+      "failure_mode": "外观有误\n尺寸超差",
+      "failure_effect": "影响零件外观和性能",
+      "failure_cause": "测量工具选择错误\n测量方法错误",
+      "prevention_control": "参照作业指导书作业（指导书中明确测量方法及测量工具）；技能培训定期进行",
+      "detection_control": "组长确认检查结果",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 2,
+        "detection": 5,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 57
+        }
+      ],
+      "pattern_id": "stamping-pfmea-042"
+    },
+    {
+      "process_step_id": "P06",
+      "process_function": "检查",
+      "failure_mode": "外观有误\n尺寸超差",
+      "failure_effect": "影响零件外观和性能",
+      "failure_cause": "检验员操作不当",
+      "prevention_control": "技能培训定期进行",
+      "detection_control": "组长确认检查结果",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 2,
+        "detection": 5,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 58
+        }
+      ],
+      "pattern_id": "stamping-pfmea-043"
+    },
+    {
+      "process_step_id": "P07",
+      "process_function": "包装",
+      "failure_mode": "包装数量不符合要求",
+      "failure_effect": "客户抱怨",
+      "failure_cause": "未按包装作业指导书做业",
+      "prevention_control": "培训操作人员",
+      "detection_control": "1.QC按抽样计划首检&巡检\n2.生产操作人员自检",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 2,
+        "detection": 4,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 59
+        }
+      ],
+      "pattern_id": "stamping-pfmea-044"
+    },
+    {
+      "process_step_id": "P07",
+      "process_function": "包装",
+      "failure_mode": "标识不符合要求",
+      "failure_effect": "客户抱怨",
+      "failure_cause": "未按包装作业指导书做业",
+      "prevention_control": "培训操作人员",
+      "detection_control": "1.QC按抽样计划首检&巡检\n2.生产操作人员自检",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 2,
+        "detection": 4,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 60
+        }
+      ],
+      "pattern_id": "stamping-pfmea-045"
+    },
+    {
+      "process_step_id": "P07",
+      "process_function": "包装",
+      "failure_mode": "装错货、混货",
+      "failure_effect": "客户抱怨",
+      "failure_cause": "在同一张工作台同时包装两款相似产品",
+      "prevention_control": "相似产品不能同时在一张工作台包装",
+      "detection_control": "1.QC按抽样计划首检&巡检\n2.生产操作人员自检",
+      "classification": "",
+      "rating_hint": {
+        "severity": 5,
+        "occurrence": 2,
+        "detection": 4,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 61
+        }
+      ],
+      "pattern_id": "stamping-pfmea-046"
+    },
+    {
+      "process_step_id": "P07",
+      "process_function": "包装",
+      "failure_mode": "零件脏污，生锈",
+      "failure_effect": "影响零件外观",
+      "failure_cause": "操作员手上汗水,油污脏物污染,引起产品氧化.",
+      "prevention_control": "对员工进行培训，按照作业指导书的要求戴手套操作",
+      "detection_control": "1.QC按抽样计划首检&巡检\n2.生产操作人员自检",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 3,
+        "detection": 3,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 62
+        }
+      ],
+      "pattern_id": "stamping-pfmea-047"
+    },
+    {
+      "process_step_id": "P08",
+      "process_function": "仓储",
+      "failure_mode": "零件混放、\n标识不清",
+      "failure_effect": "发错零件",
+      "failure_cause": "存放区域划分不明",
+      "prevention_control": "定置存放",
+      "detection_control": "仓库人员清点确认",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 2,
+        "detection": 3,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 63
+        }
+      ],
+      "pattern_id": "stamping-pfmea-048"
+    },
+    {
+      "process_step_id": "P08",
+      "process_function": "仓储",
+      "failure_mode": "零件混放、\n标识不清",
+      "failure_effect": "发错零件",
+      "failure_cause": "标识不清或错误",
+      "prevention_control": "按图纸做标识",
+      "detection_control": "仓库人员清点确认",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 2,
+        "detection": 3,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 64
+        }
+      ],
+      "pattern_id": "stamping-pfmea-049"
+    },
+    {
+      "process_step_id": "P08",
+      "process_function": "仓储",
+      "failure_mode": "零件生锈",
+      "failure_effect": "影响外观或性能",
+      "failure_cause": "放置周期过长",
+      "prevention_control": "按照程序要求，先进先出",
+      "detection_control": "定期对库存进行复查",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 2,
+        "detection": 3,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 65
+        }
+      ],
+      "pattern_id": "stamping-pfmea-050"
+    },
+    {
+      "process_step_id": "P09",
+      "process_function": "出货检查",
+      "failure_mode": "错、漏检",
+      "failure_effect": "影响交货",
+      "failure_cause": "测量工具选择错误\n测量方法错误",
+      "prevention_control": "参照作业指导书作业（指导书中明确测量方法及测量工具）；技能培训定期进行",
+      "detection_control": "组长确认检查结果",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 2,
+        "detection": 5,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 66
+        }
+      ],
+      "pattern_id": "stamping-pfmea-051"
+    },
+    {
+      "process_step_id": "P09",
+      "process_function": "出货检查",
+      "failure_mode": "错、漏检",
+      "failure_effect": "影响交货",
+      "failure_cause": "检验员操作不当",
+      "prevention_control": "技能培训定期进行",
+      "detection_control": "组长确认检查结果",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 2,
+        "detection": 5,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 67
+        }
+      ],
+      "pattern_id": "stamping-pfmea-052"
+    },
+    {
+      "process_step_id": "P10",
+      "process_function": "出货",
+      "failure_mode": "未按交付时间和数量交货",
+      "failure_effect": "影响客户生产",
+      "failure_cause": "存放区域划分不明",
+      "prevention_control": "定置存放",
+      "detection_control": "仓库人员清点确认",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 2,
+        "detection": 3,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 68
+        }
+      ],
+      "pattern_id": "stamping-pfmea-053"
+    },
+    {
+      "process_step_id": "P10",
+      "process_function": "出货",
+      "failure_mode": "未按交付时间和数量交货",
+      "failure_effect": "影响客户生产",
+      "failure_cause": "标识不清或错误",
+      "prevention_control": "按图纸做标识",
+      "detection_control": "仓库人员清点确认",
+      "classification": "",
+      "rating_hint": {
+        "severity": 6,
+        "occurrence": 2,
+        "detection": 3,
+        "action_priority": ""
+      },
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 69
+        }
+      ],
+      "pattern_id": "stamping-pfmea-054"
+    }
+  ],
+  "control_plan_patterns": [
+    {
+      "process_step_id": "P00",
+      "operation": "素材纳入",
+      "characteristic": "料厚",
+      "classification": "",
+      "specification": "T=0.5±0.05",
+      "measurement_method": "千分尺",
+      "sample_size": "卷料/全数",
+      "sample_frequency": "每LOT",
+      "control_method": "来料检查规格书\nIQC检查",
+      "reaction_plan": "MRB评审\n退货",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 13
+        }
+      ],
+      "pattern_id": "stamping-control-plan-001"
+    },
+    {
+      "process_step_id": "P00",
+      "operation": "素材纳入",
+      "characteristic": "材质",
+      "classification": "CC",
+      "specification": "HC420LA\n化学成分：GB/T 20564.4\nC（wt%）≤0.12, P（wt%）≤0.03, Alt（wt%）≥0.01\n力学性能：GB/T 20564.4\nRe（MPa）:420-520,\nRm（MPa）:470-600,\nA80（%）≥17\n（transverse direction）\n（备注：IQC检查报告中必须核对屈服强度、抗拉强度、伸长率）",
+      "measurement_method": "材质证明书",
+      "sample_size": "供货商提交每批报告",
+      "sample_frequency": "每批",
+      "control_method": "供应商每批提供报告\n(材料每年送一次外检）",
+      "reaction_plan": "MRB评审\n退货",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 14
+        }
+      ],
+      "pattern_id": "stamping-control-plan-002"
+    },
+    {
+      "process_step_id": "P00",
+      "operation": "素材纳入",
+      "characteristic": "外观",
+      "classification": "",
+      "specification": "包装完整，无变形，表面无压印，\n刮伤，生锈",
+      "measurement_method": "目视",
+      "sample_size": "每批10件",
+      "sample_frequency": "每批",
+      "control_method": "来料检查规格书\nIQC检查",
+      "reaction_plan": "MRB评审\n退货",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 15
+        }
+      ],
+      "pattern_id": "stamping-control-plan-003"
+    },
+    {
+      "process_step_id": "P01",
+      "operation": "顺送成形\n冲床：1250T",
+      "characteristic": "外观",
+      "classification": "",
+      "specification": "无锈蚀、变形、压伤",
+      "measurement_method": "目视",
+      "sample_size": "首末件：3pcs，\n制程3pcs/2H",
+      "sample_frequency": "1次/2H",
+      "control_method": "QC检查\n生产全检",
+      "reaction_plan": "标识\n隔离\n追溯\nMRB评审",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 16
+        }
+      ],
+      "pattern_id": "stamping-control-plan-004"
+    },
+    {
+      "process_step_id": "P01",
+      "operation": "顺送成形\n冲床：1250T",
+      "characteristic": "毛刺尺寸",
+      "classification": "",
+      "specification": "凸起在0.05mm以下，但容易脱落的毛剌、丝线状毛刺对功能上有影响的毛刺是不允许的。",
+      "measurement_method": "高度尺",
+      "sample_size": "首末件：3pcs，\n制程3pcs/2H",
+      "sample_frequency": "1次/2H",
+      "control_method": "QC检查",
+      "reaction_plan": "标识\n隔离\n追溯\nMRB评审",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 17
+        }
+      ],
+      "pattern_id": "stamping-control-plan-005"
+    },
+    {
+      "process_step_id": "P01",
+      "operation": "顺送成形\n冲床：1250T",
+      "characteristic": "刻印内容",
+      "classification": "",
+      "specification": "代码+零件号+日期年月日+版本号",
+      "measurement_method": "目视",
+      "sample_size": "首末件：3pcs，\n制程3pcs/2H",
+      "sample_frequency": "1次/2H",
+      "control_method": "QC检查",
+      "reaction_plan": "标识\n隔离\n追溯\nMRB评审",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 18
+        }
+      ],
+      "pattern_id": "stamping-control-plan-006"
+    },
+    {
+      "process_step_id": "P01",
+      "operation": "顺送成形\n冲床：1250T",
+      "characteristic": "模具装模高度",
+      "classification": "",
+      "specification": "1078（0/+0.5）mm",
+      "measurement_method": "目视",
+      "sample_size": "1",
+      "sample_frequency": "开班",
+      "control_method": "工艺点检表",
+      "reaction_plan": "标识\n隔离\n追溯\nMRB评审",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 19
+        }
+      ],
+      "pattern_id": "stamping-control-plan-007"
+    },
+    {
+      "process_step_id": "P01",
+      "operation": "顺送成形\n冲床：1250T",
+      "characteristic": "模具闭合高度",
+      "classification": "SC",
+      "specification": "995.6±0.1 mm",
+      "measurement_method": "目视",
+      "sample_size": "1",
+      "sample_frequency": "开班",
+      "control_method": "工艺点检表",
+      "reaction_plan": "标识\n隔离\n追溯\nMRB评审",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 20
+        }
+      ],
+      "pattern_id": "stamping-control-plan-008"
+    },
+    {
+      "process_step_id": "P01",
+      "operation": "顺送成形\n冲床：1250T",
+      "characteristic": "平衡杠压力（MPa）",
+      "classification": "",
+      "specification": "0.51±0.01",
+      "measurement_method": "目视",
+      "sample_size": "1",
+      "sample_frequency": "开班",
+      "control_method": "工艺点检表",
+      "reaction_plan": "标识\n隔离\n追溯\nMRB评审",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 21
+        }
+      ],
+      "pattern_id": "stamping-control-plan-009"
+    },
+    {
+      "process_step_id": "P01",
+      "operation": "顺送成形\n冲床：1250T",
+      "characteristic": "SPM（设定值）：",
+      "classification": "",
+      "specification": "16±1",
+      "measurement_method": "目视",
+      "sample_size": "1",
+      "sample_frequency": "开班",
+      "control_method": "工艺点检表",
+      "reaction_plan": "标识\n隔离\n追溯\nMRB评审",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 22
+        }
+      ],
+      "pattern_id": "stamping-control-plan-010"
+    },
+    {
+      "process_step_id": "P01",
+      "operation": "顺送成形\n冲床：1250T",
+      "characteristic": "面轮廓",
+      "classification": "",
+      "specification": "±0.25",
+      "measurement_method": "检具",
+      "sample_size": "首末件：3pcs，\n制程3pcs/2H",
+      "sample_frequency": "1次/2H",
+      "control_method": "QC检查",
+      "reaction_plan": "标识\n隔离\n追溯\nMRB评审",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 23
+        },
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 31
+        },
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 32
+        },
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 33
+        },
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 34
+        },
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 36
+        },
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 37
+        },
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 38
+        },
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 39
+        },
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 40
+        },
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 41
+        },
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 42
+        },
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 43
+        },
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 44
+        },
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 45
+        },
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 46
+        },
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 47
+        },
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 48
+        },
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 49
+        },
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 50
+        },
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 51
+        },
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 52
+        },
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 53
+        },
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 54
+        },
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 55
+        },
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 56
+        },
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 57
+        },
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 58
+        },
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 59
+        },
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 60
+        }
+      ],
+      "pattern_id": "stamping-control-plan-011"
+    },
+    {
+      "process_step_id": "P01",
+      "operation": "顺送成形\n冲床：1250T",
+      "characteristic": "面轮廓",
+      "classification": "",
+      "specification": "±0.5",
+      "measurement_method": "检具",
+      "sample_size": "首末件：3pcs，\n制程3pcs/2H",
+      "sample_frequency": "1次/2H",
+      "control_method": "QC检查",
+      "reaction_plan": "标识\n隔离\n追溯\nMRB评审",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 24
+        },
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 25
+        },
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 26
+        },
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 28
+        },
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 29
+        }
+      ],
+      "pattern_id": "stamping-control-plan-012"
+    },
+    {
+      "process_step_id": "P01",
+      "operation": "顺送成形\n冲床：1250T",
+      "characteristic": "位置度",
+      "classification": "",
+      "specification": "±0.25",
+      "measurement_method": "检具",
+      "sample_size": "首末件：3pcs，\n制程3pcs/2H",
+      "sample_frequency": "1次/2H",
+      "control_method": "QC检查",
+      "reaction_plan": "标识\n隔离\n追溯\nMRB评审",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 27
+        }
+      ],
+      "pattern_id": "stamping-control-plan-013"
+    },
+    {
+      "process_step_id": "P01",
+      "operation": "顺送成形\n冲床：1250T",
+      "characteristic": "位置度",
+      "classification": "",
+      "specification": "±0.15",
+      "measurement_method": "检具",
+      "sample_size": "首末件：3pcs，\n制程3pcs/2H",
+      "sample_frequency": "1次/2H",
+      "control_method": "QC检查",
+      "reaction_plan": "标识\n隔离\n追溯\nMRB评审",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 30
+        },
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 35
+        }
+      ],
+      "pattern_id": "stamping-control-plan-014"
+    },
+    {
+      "process_step_id": "P02",
+      "operation": "检查",
+      "characteristic": "外观",
+      "classification": "",
+      "specification": "无油污、残渣",
+      "measurement_method": "目视",
+      "sample_size": "1",
+      "sample_frequency": "1",
+      "control_method": "QC检查",
+      "reaction_plan": "返工",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 61
+        }
+      ],
+      "pattern_id": "stamping-control-plan-015"
+    },
+    {
+      "process_step_id": "P02",
+      "operation": "检查",
+      "characteristic": "干燥",
+      "classification": "",
+      "specification": "表面不可有水",
+      "measurement_method": "目视",
+      "sample_size": "1",
+      "sample_frequency": "1",
+      "control_method": "QC检查",
+      "reaction_plan": "返工",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 62
+        }
+      ],
+      "pattern_id": "stamping-control-plan-016"
+    },
+    {
+      "process_step_id": "P03",
+      "operation": "包装",
+      "characteristic": "数量",
+      "classification": "",
+      "specification": "每箱数量：72 PCS",
+      "measurement_method": "目视",
+      "sample_size": "1",
+      "sample_frequency": "1",
+      "control_method": "QC检查",
+      "reaction_plan": "返工",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 63
+        }
+      ],
+      "pattern_id": "stamping-control-plan-017"
+    },
+    {
+      "process_step_id": "P03",
+      "operation": "包装",
+      "characteristic": "包装",
+      "classification": "",
+      "specification": "每层72件，每车1层，整托包装器具车，每车1层，整托缠上缠绕膜防止。",
+      "measurement_method": "目视",
+      "sample_size": "1",
+      "sample_frequency": "1",
+      "control_method": "《包装方案》\nQC检查",
+      "reaction_plan": "返工",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 64
+        }
+      ],
+      "pattern_id": "stamping-control-plan-018"
+    },
+    {
+      "process_step_id": "P03",
+      "operation": "包装",
+      "characteristic": "外观",
+      "classification": "",
+      "specification": "工装器具不可有变形，脏污，标签是否正确",
+      "measurement_method": "目视",
+      "sample_size": "1",
+      "sample_frequency": "1",
+      "control_method": "QC检查",
+      "reaction_plan": "返工",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 65
+        }
+      ],
+      "pattern_id": "stamping-control-plan-019"
+    },
+    {
+      "process_step_id": "P04",
+      "operation": "存储",
+      "characteristic": "外观",
+      "classification": "",
+      "specification": "1.存放在规定区或",
+      "measurement_method": "目视",
+      "sample_size": "1",
+      "sample_frequency": "1",
+      "control_method": "《仓库管理程序》",
+      "reaction_plan": "标识\n隔离",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 66
+        }
+      ],
+      "pattern_id": "stamping-control-plan-020"
+    },
+    {
+      "process_step_id": "P04",
+      "operation": "存储",
+      "characteristic": "外观",
+      "classification": "",
+      "specification": "2.标识清晰正确",
+      "measurement_method": "目视",
+      "sample_size": "1",
+      "sample_frequency": "1",
+      "control_method": "《仓库管理程序》",
+      "reaction_plan": "标识\n隔离",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 67
+        }
+      ],
+      "pattern_id": "stamping-control-plan-021"
+    },
+    {
+      "process_step_id": "P05",
+      "operation": "出货前检查",
+      "characteristic": "尺寸检查",
+      "classification": "",
+      "specification": "依照检查基准书",
+      "measurement_method": "检具",
+      "sample_size": "外观5PCS/LOT\n尺寸5PCS/LOT",
+      "sample_frequency": "每批次",
+      "control_method": "QC检查",
+      "reaction_plan": "标识\n隔离\n追溯\nMRB评审",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 68
+        }
+      ],
+      "pattern_id": "stamping-control-plan-022"
+    },
+    {
+      "process_step_id": "P05",
+      "operation": "出货前检查",
+      "characteristic": "包装",
+      "classification": "",
+      "specification": "包装箱无破损,尺寸合乎要求，包装数量符合顾客要求，标识完整、正确，字迹 清晰",
+      "measurement_method": "目视",
+      "sample_size": "外观5PCS/LOT\n尺寸5PCS/LOT",
+      "sample_frequency": "每批次",
+      "control_method": "QC检查",
+      "reaction_plan": "标识\n隔离\n追溯\nMRB评审",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 69
+        }
+      ],
+      "pattern_id": "stamping-control-plan-023"
+    },
+    {
+      "process_step_id": "P06",
+      "operation": "出货",
+      "characteristic": "交付时间\n交付数量",
+      "classification": "",
+      "specification": "按客户要货看板的时间和数量出货",
+      "measurement_method": "目视",
+      "sample_size": "全检",
+      "sample_frequency": "每款产品",
+      "control_method": "出货前确认",
+      "reaction_plan": "返工",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 70
+        }
+      ],
+      "pattern_id": "stamping-control-plan-024"
+    }
+  ],
+  "special_characteristic_patterns": [
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "机械性能；化学成分",
+      "related_process": "素材纳入",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "7 过程流程图  (2)",
+          "row": 9
+        },
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "7 过程流程图  (2)",
+          "row": 10
+        }
+      ],
+      "pattern_id": "stamping-special-001"
+    },
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "按照图纸要求检验，合格后放行\n（尺寸、外观、标识、数量、材料性能）",
+      "related_process": "素材纳入",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "7 过程流程图  (2)",
+          "row": 9
+        },
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "7 过程流程图  (2)",
+          "row": 10
+        }
+      ],
+      "pattern_id": "stamping-special-002"
+    },
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "CC",
+      "related_process": "素材纳入",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "7 过程流程图  (2)",
+          "row": 9
+        },
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "7 过程流程图  (2)",
+          "row": 10
+        }
+      ],
+      "pattern_id": "stamping-special-003"
+    },
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "1.测量基准位置及孔径尺寸\n2.RPS相关尺寸\n3.安装孔直径",
+      "related_process": "冲压顺送成形",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "7 过程流程图  (2)",
+          "row": 11
+        }
+      ],
+      "pattern_id": "stamping-special-004"
+    },
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "闭合高度(760.2±0.1mm）",
+      "related_process": "冲压顺送成形",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "7 过程流程图  (2)",
+          "row": 11
+        }
+      ],
+      "pattern_id": "stamping-special-005"
+    },
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "SC",
+      "related_process": "冲压顺送成形",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "7 过程流程图  (2)",
+          "row": 11
+        }
+      ],
+      "pattern_id": "stamping-special-006"
+    },
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "帐、卡、物一致",
+      "related_process": "入半成品仓库",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "7 过程流程图  (2)",
+          "row": 12
+        }
+      ],
+      "pattern_id": "stamping-special-007"
+    },
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "先进先出,按领料单领取",
+      "related_process": "转运（出半成品仓库）",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "7 过程流程图  (2)",
+          "row": 13
+        }
+      ],
+      "pattern_id": "stamping-special-008"
+    },
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "无虚焊、假焊；扭力满足要求",
+      "related_process": "点焊M8焊接方螺母",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "7 过程流程图  (2)",
+          "row": 14
+        }
+      ],
+      "pattern_id": "stamping-special-009"
+    },
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "开发前期参数验证,工艺参数",
+      "related_process": "点焊M8焊接方螺母",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "7 过程流程图  (2)",
+          "row": 14
+        }
+      ],
+      "pattern_id": "stamping-special-010"
+    },
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "SC",
+      "related_process": "点焊M8焊接方螺母",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "7 过程流程图  (2)",
+          "row": 14
+        }
+      ],
+      "pattern_id": "stamping-special-011"
+    },
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "无虚焊、假焊；扭力满足要求",
+      "related_process": "弧焊",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "7 过程流程图  (2)",
+          "row": 15
+        }
+      ],
+      "pattern_id": "stamping-special-012"
+    },
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "焊接电流50-110A\n电压17-24V",
+      "related_process": "弧焊",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "7 过程流程图  (2)",
+          "row": 15
+        }
+      ],
+      "pattern_id": "stamping-special-013"
+    },
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "SC",
+      "related_process": "弧焊",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "7 过程流程图  (2)",
+          "row": 15
+        }
+      ],
+      "pattern_id": "stamping-special-014"
+    },
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "1.检验该零件尺寸，符合检具\n2.检验零件外观质量\n3.零件边缘毛刺检查4.螺母有无漏焊",
+      "related_process": "检查",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "7 过程流程图  (2)",
+          "row": 16
+        }
+      ],
+      "pattern_id": "stamping-special-015"
+    },
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "包装方案正确、合格标识",
+      "related_process": "包装",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "7 过程流程图  (2)",
+          "row": 17
+        }
+      ],
+      "pattern_id": "stamping-special-016"
+    },
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "1.检验该零件尺寸，符合检具\n2.检验零件外观质量",
+      "related_process": "出货检查",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "7 过程流程图  (2)",
+          "row": 18
+        }
+      ],
+      "pattern_id": "stamping-special-017"
+    },
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "标识清楚，放入指定位置\n(包装方案正确、合格标识、存放环境清洁干燥)",
+      "related_process": "存储",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "7 过程流程图  (2)",
+          "row": 19
+        }
+      ],
+      "pattern_id": "stamping-special-018"
+    },
+    {
+      "kind": "process_flow_special_characteristic",
+      "value": "数量、标识、捆绑方式符合要求",
+      "related_process": "出 货",
+      "related_characteristic": "",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "7 过程流程图  (2)",
+          "row": 20
+        }
+      ],
+      "pattern_id": "stamping-special-019"
+    },
+    {
+      "kind": "pfmea_classification",
+      "value": "CC",
+      "related_process": "素材纳入",
+      "related_characteristic": "材质不符要求",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 18
+        }
+      ],
+      "pattern_id": "stamping-special-020"
+    },
+    {
+      "kind": "pfmea_classification",
+      "value": "SC",
+      "related_process": "冲压顺送成形（630T)",
+      "related_characteristic": "线轮廓度⑦⑧超差",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 22
+        }
+      ],
+      "pattern_id": "stamping-special-021"
+    },
+    {
+      "kind": "pfmea_classification",
+      "value": "SC",
+      "related_process": "冲压顺送成形（630T)",
+      "related_characteristic": "零件拉伤，压伤",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 28
+        }
+      ],
+      "pattern_id": "stamping-special-022"
+    },
+    {
+      "kind": "pfmea_classification",
+      "value": "SC",
+      "related_process": "冲压顺送成形（630T)",
+      "related_characteristic": "型面和配合面轮廓度不良(配合面0.5）",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 34
+        }
+      ],
+      "pattern_id": "stamping-special-023"
+    },
+    {
+      "kind": "pfmea_classification",
+      "value": "SC",
+      "related_process": "点焊（M8焊接方螺母）",
+      "related_characteristic": "焊接飞溅、虚焊、半点焊、焊点击穿、焊点压痕过深、焊点发白、裂纹等缺陷；扭力不能满足要求",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 41
+        }
+      ],
+      "pattern_id": "stamping-special-024"
+    },
+    {
+      "kind": "pfmea_classification",
+      "value": "SC",
+      "related_process": "点焊（M8焊接方螺母）",
+      "related_characteristic": "螺纹处焊渣着附",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 45
+        }
+      ],
+      "pattern_id": "stamping-special-025"
+    },
+    {
+      "kind": "pfmea_classification",
+      "value": "SC",
+      "related_process": "弧焊",
+      "related_characteristic": "虚焊、假焊、气孔、咬边、焊瘤等不良；熔深不能满足要求",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 49
+        }
+      ],
+      "pattern_id": "stamping-special-026"
+    },
+    {
+      "kind": "pfmea_classification",
+      "value": "SC",
+      "related_process": "弧焊",
+      "related_characteristic": "焊渣飞溅",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "8 PFMEA  (2)",
+          "row": 55
+        }
+      ],
+      "pattern_id": "stamping-special-027"
+    },
+    {
+      "kind": "control_plan_classification",
+      "value": "CC",
+      "related_process": "素材纳入",
+      "related_characteristic": "材质",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 14
+        }
+      ],
+      "pattern_id": "stamping-special-028"
+    },
+    {
+      "kind": "control_plan_classification",
+      "value": "SC",
+      "related_process": "顺送成形\n冲床：1250T",
+      "related_characteristic": "模具闭合高度",
+      "source_refs": [
+        {
+          "source_id": "stamping:1004258-冲压件",
+          "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+          "workbook": "1004258-冲压件.xlsx",
+          "sheet": "9 控制计划  ",
+          "row": 20
+        }
+      ],
+      "pattern_id": "stamping-special-029"
+    }
+  ],
+  "source_refs": [
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx"
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "7 过程流程图  (2)",
+      "row": 9
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "7 过程流程图  (2)",
+      "row": 10
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "7 过程流程图  (2)",
+      "row": 11
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "7 过程流程图  (2)",
+      "row": 12
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "7 过程流程图  (2)",
+      "row": 13
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "7 过程流程图  (2)",
+      "row": 14
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "7 过程流程图  (2)",
+      "row": 15
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "7 过程流程图  (2)",
+      "row": 16
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "7 过程流程图  (2)",
+      "row": 17
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "7 过程流程图  (2)",
+      "row": 18
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "7 过程流程图  (2)",
+      "row": 19
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "7 过程流程图  (2)",
+      "row": 20
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 16
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 17
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 18
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 19
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 20
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 21
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 22
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 23
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 24
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 25
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 26
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 27
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 28
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 29
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 30
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 31
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 32
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 33
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 34
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 35
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 36
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 37
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 38
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 39
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 40
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 41
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 42
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 43
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 44
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 45
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 46
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 47
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 48
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 49
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 50
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 51
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 52
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 53
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 54
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 55
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 56
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 57
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 58
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 59
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 60
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 61
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 62
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 63
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 64
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 65
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 66
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 67
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 68
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "8 PFMEA  (2)",
+      "row": 69
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 13
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 14
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 15
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 16
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 17
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 18
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 19
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 20
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 21
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 22
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 23
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 31
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 32
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 33
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 34
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 36
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 37
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 38
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 39
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 40
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 41
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 42
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 43
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 44
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 45
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 46
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 47
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 48
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 49
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 50
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 51
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 52
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 53
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 54
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 55
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 56
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 57
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 58
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 59
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 60
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 24
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 25
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 26
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 28
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 29
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 27
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 30
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 35
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 61
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 62
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 63
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 64
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 65
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 66
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 67
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 68
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 69
+    },
+    {
+      "source_id": "stamping:1004258-冲压件",
+      "path": "C:\\Users\\fgtan\\Desktop\\知识库种子\\冲压件\\1004258-冲压件.xlsx",
+      "workbook": "1004258-冲压件.xlsx",
+      "sheet": "9 控制计划  ",
+      "row": 70
+    }
+  ]
+}

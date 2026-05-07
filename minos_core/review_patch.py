@@ -5,6 +5,8 @@ from __future__ import annotations
 import copy
 from typing import Any
 
+from ._text_utils import string_list
+from .change_management import analyze_change_impacts
 from .domain import APQPChain
 
 REVIEW_PATCH_VERSION = "minos-core.review_patch.v1"
@@ -295,6 +297,21 @@ def apply_review_patch(
             f"payload.metadata.{REVIEW_CONFIRMATIONS_KEY} must be a list"
         )
     confirmations.extend(records)
+
+    change_impacts = metadata.setdefault("change_impacts", [])
+    if not isinstance(change_impacts, list):
+        raise ReviewPatchError("payload.metadata.change_impacts must be a list")
+    existing_ids = {
+        ci["item_id"]
+        for ci in change_impacts
+        if isinstance(ci, dict) and ci.get("item_id")
+    }
+    for new_impact in analyze_change_impacts(payload):
+        item_id = new_impact.get("item_id", "")
+        if item_id and item_id not in existing_ids:
+            change_impacts.append(new_impact)
+            existing_ids.add(item_id)
+
     return payload
 
 
@@ -331,7 +348,7 @@ def _normalize_item(
     if action == "correct" and target_type != "pending_field" and not field:
         raise ReviewPatchError(f"review patch item {index} correction requires field")
 
-    evidence_refs = _string_list(item.get("evidence_refs", patch.get("evidence_refs", [])))
+    evidence_refs = string_list(item.get("evidence_refs", patch.get("evidence_refs", [])))
     manual_event = _optional_text(
         item.get("manual_confirmation_event", patch.get("manual_confirmation_event", ""))
     )
@@ -391,6 +408,22 @@ def _apply_item(payload: dict[str, Any], record: dict[str, Any]) -> None:
             row[field] = record["value"]
         return
 
+    # ai_inferred_item targets are aggregate markers (strings), not table rows.
+    # They only support confirm (not correct) and don't require a real row object.
+    if target_type == "ai_inferred_item":
+        if record["action"] == "correct":
+            raise ReviewPatchError(
+                f"review patch item {record.get('index', '?')}: "
+                "ai_inferred_item targets support confirm only"
+            )
+        _remove_confirmed_ai_inferred_item(
+            payload,
+            target_type=target_type,
+            target_id=record["target_id"],
+            row={"target_type": target_type, "target_id": record["target_id"]},
+        )
+        return
+
     row = _find_target(payload, target_type, record["target_id"])
     if row is None:
         raise ReviewPatchError(f"review patch target not found: {record['target']}")
@@ -447,6 +480,12 @@ def _ai_inferred_target_candidates(
         candidates.add(str(row.get("candidate_id", "")).strip())
     elif target_type == "trace_link":
         candidates.add(str(row.get("trace_link_id", "")).strip())
+    elif target_type == "ai_inferred_item":
+        # Aggregate AI-inferred items: match by the target_id itself
+        # (e.g., "control_plan", "process_flow")
+        candidates.add(target_id.strip())
+        # Also match "ai_inferred_item:control_plan" format
+        candidates.add(f"ai_inferred_item:{target_id.strip()}")
     candidates.add(f"{target_type}:{target_id}")
     return {candidate for candidate in candidates if candidate}
 
@@ -668,12 +707,3 @@ def _optional_text(value: Any) -> str:
     return str(value).strip()
 
 
-def _string_list(value: Any) -> list[str]:
-    if value is None:
-        return []
-    if isinstance(value, str):
-        text = value.strip()
-        return [text] if text else []
-    if isinstance(value, (list, tuple, set)):
-        return [str(item).strip() for item in value if str(item).strip()]
-    raise ReviewPatchError("evidence_refs must be a string or list of strings")

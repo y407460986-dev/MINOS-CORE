@@ -3,6 +3,13 @@ flowchart TD
     A --> PL[Pipeline]
     A --> AD[Adapters]
     A --> QG[Quality Gates]
+    A --> D181[MINOS v1.8.1 子任务 D<br/>核心巨型逻辑低风险拆分]
+    A --> AUD[当前调查审核与问题修复]
+    AUD --> AUD1[定位真实工作区<br/>D:\MINOS-CORE]
+    AUD1 --> AUD2[审核 stage / quality_gates<br/>包化兼容导入]
+    AUD2 --> AUD3[运行聚焦与全量非真实 API 测试]
+    AUD3 --> AUD4[修复 minos_platform CLI<br/>help 与端口参数崩溃]
+    AUD4 --> AUD5[平台测试 / unittest / CLI help smoke]
 
     DC --> DC1[Product]
     DC --> DC2[Drawing]
@@ -30,6 +37,14 @@ flowchart TD
     PL --> PL30[generate_three_tables_from_drawing<br/>drawing to three-table backend loop]
     PL --> PL9[StageContext]
     PL --> PL10[StageResult]
+    D181 --> D181A[stage.run_stage 阶段路由瘦身]
+    D181A --> D181B[StageResult 统一组装 helper]
+    D181A --> D181C[上游 blocked 转发 helper]
+    D181A --> D181D[各阶段私有 run helper]
+    D181 --> D181E[quality_gates evaluate_stage_gate 分组]
+    D181E --> D181F[输入规整和质量债务 helper]
+    D181E --> D181G[严格门债务和导出判定 helper]
+    D181 --> D181H[等价/回归测试]
     PL1 --> PL11[evidence_bundle]
     PL11 --> PL2
     PL2 --> PL2A[keyword rules analysis]
@@ -77,6 +92,8 @@ flowchart TD
     PL48 --> PL49[AI control strategy draft<br/>CP from PFMEA risk controls]
     PL49 --> PL50[Responses streaming<br/>SSE delta and completed events]
     PL50 --> PL51[Drawing preprocessing candidates<br/>PaddleOCR PP-Structure Docling]
+    PL50 --> PL50A[Hybrid vision timeout budget<br/>OCR fallback before command timeout]
+    PL50A --> PL51
     PL51 --> PL52[Chinese delivery output<br/>grouped manual review summary<br/>raw_items retained]
     PL52 --> PL53[Chinese user surfaces<br/>status_display<br/>CLI desktop workbook summaries]
     PL53 --> PL54[human-in-the-loop editor<br/>editable PFD PFMEA CP tables]
@@ -259,3 +276,348 @@ flowchart TD
     T35 --> G
     T36 --> G
     T37 --> G
+
+    PL71 --> PL72[v1.8.1 real API acceptance<br/>explicit env-gated real drawing run]
+    PL72 --> PL73[real Responses streaming path<br/>OpenAI or Ark]
+    PL73 --> PL74[real drawing to PFD PFMEA CP<br/>draft exports]
+    PL74 --> PL75[AI pre-review<br/>automation_review]
+    PL75 --> PL76[AIAG-VDA workbook audit sheet<br/>OpenXML openability]
+    QG36 --> QG37[real acceptance env gate<br/>missing key or drawing fails when enabled]
+    T --> T38[v1.8.1 acceptance tests<br/>default skip real env required]
+    T38 --> G
+    PL76 --> PL77[v1.8.1 subtask C<br/>silent errors and test gaps]
+    PL77 --> PL78[domain mapping type errors<br/>drawing confidence parse trace]
+    PL78 --> PL79[xlsx quality matching<br/>platform artifacts utils<br/>AI pre-review empty suggestions]
+    QG37 --> QG38[quality_gate none regression<br/>review issues enter pre-review]
+    T --> T39[v1.8.1 subtask C regressions<br/>domain drawing exporters platform desktop]
+    T39 --> G
+
+    PL80[characteristic_registry<br/>from drawing_analysis]
+    PL80 --> PL81[build_characteristic_registry<br/>dimensions special_characteristics<br/>technical requirements]
+    PL81 --> PL82[deduplicate<br/>same name spec evidence_ref]
+    PL82 --> PL83[attach_characteristics_to_three_tables<br/>PFD PFMEA CP characteristic_refs]
+
+    PL84[three_table_linkage<br/>linkage map engine]
+    PL84 --> PL85[build_three_table_linkage_map<br/>PFD-PFMEA PFMEA-CP<br/>characteristic-step links]
+    PL85 --> PL86[find_linkage_gaps<br/>uncovered steps uncontrolled risks<br/>orphan items special characteristic gaps]
+
+    PL87[FMEA knowledge base v2<br/>configs/knowledge/fmea_rules.zh-CN.json]
+    PL87 --> PL88[structured rules<br/>process_terms characteristic_terms<br/>risk rating_hint recommended_controls]
+    PL88 --> PL89[stamping welding riveting assembly<br/>coating surface-treatment heat-treatment<br/>inspection packaging special-characteristics]
+    PL89 --> PL90[knowledge_recommendation v2<br/>failure_mode cause prevention<br/>detection control_plan reaction_plan<br/>rating_hint action_closure]
+
+    PL91[change baseline comparison<br/>compare_three_table_baseline]
+    PL91 --> PL92[before vs after diff<br/>PFD add delete modify<br/>PFMEA add delete modify<br/>CP add delete modify]
+    PL92 --> PL93[linked_change_impacts<br/>cascade PFD-PFMEA-CP<br/>impact detail with evidence_refs]
+
+    PL80 --> PL2B
+    PL84 --> PL18
+    PL87 --> PL90
+    PL90 --> PL67
+    PL91 --> PL66
+
+    QG39[linkage gap gate<br/>blocker stops final export<br/>warning enters manual review]
+    QG39 --> QG40[linkage_summary in gate model_dump<br/>process_step_count pfmea_row_count<br/>uncovered_process_steps uncontrolled_pfmea_rows]
+    QG41[knowledge recommendation gate<br/>unresolved recommendations block final]
+    QG41 --> QG42[ignore_reason required<br/>accept writes to target row<br/>history recorded in edit_history]
+
+    QG36 --> QG39
+    QG32 --> QG41
+
+    T40[three_table_linkage tests<br/>linkage map gaps special characteristics<br/>high AP uncontrolled orphan detection]
+    T40 --> G
+    T41[characteristic_registry tests<br/>registry build deduplicate<br/>attach to PFD PFMEA CP<br/>drawing_analysis to registry]
+    T41 --> G
+    T42[FMEA knowledge base v2 tests<br/>12+ rule categories JSON loading<br/>rating_hint recommended_controls<br/>process_terms characteristic_terms matching]
+    T42 --> G
+    T43[change baseline compare tests<br/>PFD add delete modify cascade<br/>PFMEA CP linked impacts<br/>approved baseline fixture]
+    T43 --> T44
+
+    PL93 --> PL94[CLI and export visibility<br/>linkage_map linkage_gaps<br/>knowledge_recommendations change_impacts]
+    PL94 --> PL95[three_table_generation_result.json<br/>new envelope fields<br/>characteristic_registry linkage_map]
+    PL95 --> PL96[Excel export extended sheets<br/>三表追溯矩阵 人工复核清单<br/>知识库推荐 变更影响清单]
+
+    PL97[v1.9.1 stabilization<br/>trace link exemption<br/>orphan CP blocker<br/>linkage exception gating]
+    PL97 --> PL98[knowledge default JSON<br/>split recommendation fields<br/>FMEA score empty-as-zero]
+    PL97 --> PL99[characteristic registry<br/>attach before PFMEA<br/>attach after full chain]
+
+    QG43[trace link gate exemption<br/>TL-PFD-PFMEA TL-PFMEA-CP<br/>TL-STEP-CANDIDATE skipped]
+    QG43 --> QG44[orphan CP blocker<br/>nonexistent pfmea_id/step_id]
+    QG44 --> QG45[linkage eval error blocker<br/>GAP-LINKAGE-EVALUATION-ERROR]
+
+    T44[v1.9.1 regression tests<br/>trace link exemption<br/>orphan blocker knowledge default<br/>registry flow-through]
+    T44 --> G
+
+    PL100[v1.10 engineering trial hardening<br/>Relyence linkage experience<br/>APIS knowledge reuse direction]
+    PL100 --> PL101[final export strong gate<br/>no edited final workbook<br/>when allow_user_export false]
+    PL101 --> PL102[review task workbench<br/>grouped actionable items<br/>jump to target rows]
+    PL102 --> PL103[desktop linkage workbench<br/>PFD to PFMEA to CP<br/>gap and special-characteristic status]
+    PL103 --> PL104[characteristic master data<br/>source evidence attachment status<br/>manual correction writes back]
+    PL104 --> PL105[Excel traceability matrix v2<br/>links gaps confirmations<br/>soft deletes knowledge status]
+
+    PL106[APIS-style knowledge roadmap<br/>FMEA module library]
+    PL106 --> PL107[process function characteristic<br/>failure effect cause controls<br/>SOD AP applicability source version]
+    PL107 --> PL108[configurable SOD AP catalogs<br/>similar module retrieval<br/>accepted knowledge candidates]
+
+    QG46[v1.10 export safety gate<br/>single final-export authority]
+    QG46 --> QG47[generated human-edited evidence gate<br/>no legacy bypass for AI/edit chains]
+    QG47 --> QG48[platform and split-export regression<br/>no stale review no gate bypass]
+
+    T45[v1.10 engineering trial tests<br/>final export bypass evidence bypass<br/>review task linkage view trace matrix]
+    T45 --> G
+
+    PL99 --> PL100
+    PL90 --> PL106
+    QG45 --> QG46
+    PL105 --> T45
+
+    PL110[V1.10 Professional Three-Table Review Loop]
+    PL110 --> PL111[sync_snapshot / sync_issues<br/>three_table_linkage enhanced]
+    PL110 --> PL112[risk_structure<br/>process to failure to control tree]
+    PL110 --> PL113[recommendation lifecycle<br/>proposed/accepted/ignored/applied]
+    PL110 --> PL114[review_dashboard<br/>unified review instrument panel]
+
+    PL111 --> QG49[sync blocker gate<br/>blocker issues stop final export]
+    PL112 --> PL115[structured risk view<br/>open_action required<br/>needs_review flagged]
+    PL113 --> QG50[recommendation lifecycle gate<br/>proposed blocks final<br/>ignored+reason allows]
+    PL114 --> PL116[desktop refresh<br/>after edit patch save]
+    PL114 --> PL117[export audit sheet<br/>sync status actions recommendations]
+
+    T46[V1.10 new tests<br/>sync snapshot risk_structure<br/>recommendation lifecycle<br/>review_dashboard export gate]
+    T46 --> G
+
+    PL120[V1.12 Knowledge Reuse and Action Closure Loop]
+    PL120 --> PL121[knowledge_base.py<br/>standardized knowledge objects<br/>category enum inactive filter]
+    PL120 --> PL122[action_tracking.py<br/>action items from PFMEA<br/>open/close/ignore/overdue]
+    PL120 --> PL123[recommendation lifecycle v2<br/>proposed/accepted/applied/ignored/expired]
+    PL120 --> PL124[resolve_action_item patch<br/>close with evidence<br/>ignore with reason]
+
+    PL121 --> QG50[knowledge v2 gate<br/>unresolved recommendations<br/>block final export]
+    PL122 --> QG51[action closure gate<br/>high priority unresolved<br/>overdue blocks final]
+    PL124 --> PL125[metadata.action_items<br/>auto-refresh on generate/edit]
+    PL125 --> PL126[Excel: 知识推荐与行动闭环 sheet]
+    PL126 --> PL127[Desktop: recommend/action lists<br/>apply/ignore/resolve buttons]
+
+    T50[V1.12 new tests<br/>knowledge_base action_tracking<br/>resolve_action_item export]
+    T50 --> G
+
+    PL130[V1.13 Tauri Apple desktop<br/>Tauri + React workbench]
+    PL130 --> PL131[PySide6 legacy freeze<br/>maintenance and regression only]
+    PL130 --> PL132[minos_core boundary<br/>no frontend dependencies]
+    PL130 --> PL133[minos_platform boundary<br/>not desktop main backend]
+    PL130 --> PL134[Apple style desktop workbench<br/>project drawing three tables linkage closure export]
+    PL130 --> PL141[Tauri toolchain ready<br/>npm build cargo check]
+    PL141 --> PL142[Rust MSVC Build Tools<br/>link.exe available]
+    PL141 --> PL143[Tauri lib.rs and icon.ico<br/>Windows resource ready]
+
+    PL134 --> PL135[drawing selection<br/>local PDF PNG JPG]
+    PL135 --> PL136[generate PFD PFMEA CP<br/>from core pipeline]
+    PL136 --> PL137[edit three tables<br/>auditable edit_patch]
+    PL137 --> PL138[refresh linkage preview<br/>PFD to PFMEA to CP gaps special characteristics]
+    PL138 --> PL139[handle closure tasks<br/>review recommendations action items]
+    PL139 --> PL140[export available<br/>draft/final status blockers visible]
+
+    QG60[V1.13 desktop acceptance<br/>1280x800 no overlap]
+    QG60 --> QG61[drawing selectable<br/>three tables generate and edit]
+    QG61 --> QG62[linkage preview refresh<br/>closure tasks handled<br/>export usable]
+
+    T60[V1.13 verification<br/>desktop workflow and viewport check]
+    T61[V1.13 toolchain verification<br/>npm run build and cargo check]
+    T60 --> G
+    T61 --> G
+
+    PL127 --> PL130
+    PL140 --> QG60
+    QG62 --> T60
+    PL143 --> T61
+
+    PL150[V1.14 Drawing Knowledge Linkage Closure<br/>drawing facts to engineering closure]
+    PL150 --> PL151[drawing recognition facts<br/>dimensions tolerances GD&T<br/>special characteristics notes standards]
+    PL151 --> PL152[characteristic registry authority<br/>stable IDs evidence refs<br/>three-table attachment status]
+    PL150 --> PL153[knowledge reuse objects<br/>knowledge_id version category<br/>applicability source lifecycle]
+    PL153 --> PL154[explainable recommendations<br/>drawing facts process context<br/>accepted history local rules]
+    PL150 --> PL155[three-table linkage<br/>PFD to PFMEA to CP<br/>linkage_map sync_snapshot sync_issues]
+    PL155 --> PL156[linkage gaps and impacts<br/>missing rows orphan controls<br/>weak links special-characteristic flow]
+    PL150 --> PL157[action closure loop<br/>review debts recommendations<br/>high-risk rows export blockers]
+    PL157 --> PL158[action item lifecycle<br/>open in_progress closed ignored<br/>evidence required reason required]
+    PL158 --> PL159[desktop and export visibility<br/>facts recommendations linkage<br/>actions blockers audit sheets]
+    PL159 --> PL160[V1.14 knowledge rule hardening<br/>58 active V2 rules<br/>global high AP coexists with process rules]
+
+    QG70[V1.14 final export gate<br/>critical unresolved issues block final]
+    QG70 --> QG71[draft export allowed<br/>unclosed items clearly marked]
+    QG71 --> QG72[final export requires closure<br/>key drawing facts linkage gaps<br/>recommendations and actions resolved]
+
+    T70[V1.14 verification<br/>de-identified drawing sample<br/>facts traceable recommendations handled]
+    T70 --> T71[linkage issues visible<br/>actions close or ignore<br/>final export blocked when unresolved]
+    T71 --> G
+
+    PL130 --> PL150
+    PL152 --> PL155
+    PL154 --> PL157
+    PL156 --> PL157
+    PL159 --> QG70
+    PL160 --> QG70
+    QG72 --> T70
+
+    PL170[V1.14.1 OCR-first / hybrid drawing analysis]
+    PL170 --> PL171[PDF渲染<br/>page image evidence]
+    PL170 --> PL172[PDF文字层<br/>selectable text blocks]
+    PL171 --> PL173[RapidOCR<br/>image/page OCR]
+    PL172 --> PL174[OCR evidence merge<br/>page text bbox confidence]
+    PL173 --> PL174
+    PL174 --> PL175[OCR drawing_analysis<br/>dimensions tolerances notes<br/>process clues]
+    PL175 --> PL176[可选AI增强<br/>GPT vision/text enrichment<br/>stream_read_error isolated]
+    PL176 --> PL177[hybrid drawing_analysis<br/>OCR-first facts plus AI candidates]
+    PL175 --> PL177
+    PL177 --> PL178[零件族<br/>family hints and knowledge context]
+    PL178 --> PL179[PFD]
+    PL179 --> PL180[三表<br/>PFD PFMEA CP]
+    PL180 --> PL181[闭环<br/>review recommendations actions linkage]
+    PL181 --> PL182[导出门<br/>draft allowed final gated]
+
+    QG73[V1.14.1 OCR traceability gate]
+    QG73 --> QG74[GPT stream_read_error<br/>does not fail OCR-first run]
+    QG74 --> QG75[OCR refs required<br/>page text bbox confidence]
+
+    T80[V1.14.1 verification<br/>text-layer PDF scanned PDF image<br/>simulated stream_read_error]
+    T80 --> T81[OpenSpec tasks complete<br/>OCR-only hybrid UI build verified]
+    T81 --> G
+
+    PL150 --> PL170
+    PL182 --> QG73
+    QG75 --> T80
+
+    PL190[V1.14.2 Title block family knowledge]
+    PL190 --> PL191[title block priority<br/>drawing_identity part_name as primary evidence]
+    PL190 --> PL192[OCR unlabeled title line<br/>drawing number plus family term]
+    PL190 --> PL193[family signal hardening<br/>door hinge limiter stamping]
+    PL193 --> PL194[component terms downgraded<br/>bushing stays component clue]
+    PL190 --> PL195[vision prompt boundary<br/>part name from title block<br/>components not whole-part name]
+    PL191 --> PL196[part_family_classifier<br/>field-weighted scoring]
+    PL192 --> PL197[drawing_ocr_analysis<br/>conservative title candidate]
+    PL193 --> PL198[knowledge rules<br/>hinge limiter stamping patterns]
+    PL190 --> PL199[hybrid identity lock<br/>OCR title block owns whole-part identity]
+    PL199 --> PL200[vision enrichment boundary<br/>components and features supplement<br/>cannot overwrite part_name family]
+    PL201[V1.14.3 Process inference knowledge]
+    PL201 --> PL202[process_inference files<br/>door_hinge limiter stamping]
+    PL202 --> PL203[family knowledge loader<br/>attach inference context<br/>convert variants to route templates]
+    PL203 --> PL204[PFD variant selector<br/>choose best route from drawing text]
+    PL204 --> PL205[preserve detailed operations<br/>progressive die weld nut<br/>bushing press pin riveting]
+    PL201 --> PL206[FMEA rule cleanup<br/>remove system methodology rules]
+
+    QG80[V1.14.2 family recognition gate]
+    QG80 --> QG81[tailgate hinge title<br/>beats bushing component text]
+    QG81 --> QG82[bushing alone<br/>does not auto-classify hinge]
+    QG82 --> QG83[hybrid lock check<br/>vision bushing cannot override<br/>OCR tailgate hinge]
+    QG84[V1.14.3 knowledge gate]
+    QG84 --> QG85[78 concrete FMEA rules<br/>no AP methodology<br/>no door-system interface rule]
+    QG85 --> QG86[process inference route<br/>selected not all expanded]
+
+    T90[V1.14.2 verification<br/>classifier OCR hybrid lock<br/>knowledge docs]
+    T90 --> G
+    T91[V1.14.3 verification<br/>knowledge PFD recommendation<br/>classification pipeline tests]
+    T91 --> G
+    PL210[V1.14.4 Desktop interaction state hardening]
+    PL210 --> PL211[auto restore latest run<br/>read-only result only]
+    PL210 --> PL212[current runnable project<br/>explicit import or open recent]
+    PL212 --> PL213[generation preflight<br/>drawing path exists suffix valid]
+    PL213 --> PL214[background generation worker<br/>UI thread stays responsive]
+    PL214 --> PL215[running state lock<br/>import generate recent edit save export disabled]
+    PL210 --> PL216[project drawing settings pages<br/>real state refresh]
+    PL216 --> PL217[settings persistence<br/>default output dir saved]
+    PL210 --> PL218[button hygiene<br/>empty callbacks disabled<br/>filters preserve source rows]
+    PL218 --> PL219[quality gate display<br/>english keys final export blocked]
+    PL218 --> PL220[review closure actions<br/>real service update or clear block]
+    PL210 --> PL221[Tauri import page mounted<br/>navigation hides not unmounts]
+    PL221 --> PL222[chain generation state preserved<br/>while browsing other pages]
+    QG90[V1.14.4 desktop state gate]
+    QG90 --> QG91[no drawing<br/>start generate shows prompt<br/>no generating state]
+    QG91 --> QG92[latest restored result<br/>visible but not runnable]
+    QG92 --> QG93[open recent project<br/>explicit runnable selection]
+    QG93 --> QG94[Tauri navigation<br/>does not reset import run state]
+    T92[V1.14.4 verification<br/>desktop workbench tests<br/>31 tests OK]
+    T93[Tauri import state verification<br/>static App test npm build cargo check]
+    T92 --> G
+    T93 --> G
+
+    PL170 --> PL190
+    PL198 --> QG80
+    PL200 --> QG80
+    QG83 --> T90
+    PL200 --> PL201
+    PL205 --> QG84
+    PL206 --> QG84
+    QG86 --> T91
+    T91 --> PL210
+    PL219 --> QG90
+    PL220 --> QG90
+    PL222 --> QG94
+    QG93 --> T92
+    QG94 --> T93
+
+    PL230[V1.14.5 Staged three-table confirmation]
+    PL230 --> PL231[drawing recognition only<br/>no hidden batch generation]
+    PL231 --> PL232[AI generates PFD<br/>human confirms PFD]
+    PL232 --> PL233[AI generates PFMEA<br/>from confirmed PFD]
+    PL233 --> PL234[human confirms PFMEA<br/>AI generates CP]
+    PL232 --> PL247[standard PFD data<br/>flow symbols input output<br/>previous and next links]
+    PL247 --> PL248[Tauri PFD diagram<br/>nodes arrows compact review]
+    PL247 --> PL249[nonlinear PFD links preserved<br/>branch rework outsourced loop]
+    PL248 --> PL250[standard flow symbols<br/>operation inspection transport<br/>storage rework outsourced]
+    PL249 --> PL251[SVG topology edges<br/>sequence branch backlink rework]
+    PL230 --> PL235[Responses text LLM<br/>json_schema output]
+    PL230 --> PL236[no PFD fallback<br/>failure recorded with raw error]
+    PL232 --> PL237[PFD edit invalidates<br/>PFMEA and CP]
+    PL233 --> PL238[PFMEA edit invalidates<br/>CP]
+    PL230 --> PL239[legacy desktop run endpoint<br/>aliases chain run]
+    PL239 --> PL240[Tauri client exposes<br/>chain start only]
+    PL240 --> PL241[chain stage persistence<br/>DB and disk keep state]
+    PL230 --> PL242[text LLM high reasoning default<br/>avoid PFD timeout]
+    PL242 --> PL243[timeout message and env override<br/>MINOS_TEXT_LLM_TIMEOUT_SECONDS]
+    PL240 --> PL244[Tauri chain feedback<br/>failed run not shown as generated]
+    PL232 --> PL245[Tauri PFD inline edit confirm<br/>direct confirm or edit_patch confirm]
+    PL245 --> PL246[confirm-time upstream edit<br/>invalidates stale downstream data]
+    QG95[V1.14.5 chain gate]
+    QG95 --> QG96[downstream tables only from<br/>confirmed upstream table]
+    QG96 --> QG97[upstream edit resets<br/>downstream stage state]
+    QG97 --> QG98[old run API cannot<br/>trigger batch generation]
+    QG98 --> QG99[PFD request completes<br/>with practical reasoning effort]
+    T95[V1.14.5 verification<br/>91 targeted tests OK<br/>73 edit export stage OK<br/>Tauri build OK]
+    T96[JLV03000500 PFD real run<br/>run 13 generated 12 rows]
+    T95 --> G
+    T96 --> G
+    T92 --> PL230
+    PL236 --> QG95
+    PL237 --> QG95
+    PL238 --> QG95
+    PL241 --> QG98
+    PL243 --> QG99
+    PL244 --> QG95
+    PL246 --> QG95
+    PL248 --> QG95
+    PL249 --> QG95
+    PL250 --> QG95
+    PL251 --> QG95
+    QG98 --> T95
+    QG99 --> T96
+
+    REL300[发布前完整验收]
+    REL300 --> REL301[pytest non real API<br/>778 passed 2 skipped]
+    REL300 --> REL302[unittest discover<br/>719 passed 1 skipped]
+    REL300 --> REL303[CLI smoke<br/>core platform desktop api help]
+    REL300 --> REL304[safe demo drawing<br/>ocr_only three tables<br/>OpenXML checks OK]
+    REL300 --> REL305[desktop sidecar smoke<br/>health OK process closed]
+    REL300 --> REL306[Tauri frontend build<br/>Rust cargo check]
+    REL300 --> REL307[Python pip check<br/>wheel build OK]
+    REL300 --> REL308[Tauri NSIS release<br/>release:nsis setup exe]
+    REL308 --> REL309[validated artifact<br/>MINOS-CORE_1.14.0_x64-setup.exe]
+    REL300 --> REL310[remaining risks<br/>real API drawing skipped<br/>unsigned installer<br/>manual install Excel open pending]
+    T95 --> REL300
+    REL309 --> G
+
+    FIX320[desktop real run PFD 502 fix]
+    FIX320 --> FIX321[drawing OCR identity OK<br/>failure at text LLM PFD]
+    FIX321 --> FIX322[Responses 502 upstream_error<br/>high reasoning unstable]
+    FIX322 --> FIX323[text LLM default reasoning<br/>medium for PFD PFMEA CP]
+    FIX323 --> FIX324[real saved drawing_analysis<br/>PFD smoke 12 rows OK]
+    FIX324 --> G

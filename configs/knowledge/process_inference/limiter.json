@@ -1,0 +1,159 @@
+{
+  "schema_version": "minos-core.process_inference.v1",
+  "family_key": "limiter",
+  "family_name": "限位器",
+  "description": "汽车车门限位器（Door Check）——限制车门最大开度并在中间档位保持车门开启的装置。按限位臂型式分为冲压限位器、包塑限位器、全塑限位器；按弹性元件分为橡胶弹簧式、螺旋弹簧式、扭杆弹簧式；按结构分为滑移式和辊轴式。核心部件：限位臂(主臂)、限位盒(壳体总成)、安装支架、弹性元件(弹簧/橡胶块)、滚针/滑块、缓冲块。典型材料：Q345/45钢/SPCC(金属件)、POM/PA66/TPE/TPU(塑料件)。",
+  "drawing_recognition_clues": {
+    "typical_shapes": ["长条形限位臂(带凹凸档位槽)", "L形/Z形弯曲臂", "矩形盒状壳体", "U形安装支架", "圆孔(安装孔/销轴孔)", "档位槽(凹坑/凸台)"],
+    "typical_materials_metal": ["Q345", "45钢", "SPCC", "SAPH310", "SAPH370"],
+    "typical_materials_plastic": ["POM(聚甲醛,滑动件)", "PA66+GF(尼龙+玻纤,结构件)", "TPE(热塑性弹性体,缓冲)", "TPU(热塑性聚氨酯,阻尼)", "NR(天然橡胶,耐低温-70°C)", "NBR(丁腈橡胶,耐油)"],
+    "typical_thickness": "金属臂2.0-5.0mm, 塑料壳体1.5-3.0mm",
+    "typical_features": ["档位凹槽/凸台(2-3档)", "安装孔(∮8-13mm)", "铰接孔(∮6-12mm)", "限位面(弧形轮廓)", "包胶/包塑层", "加强筋", "卡扣/搭扣", "焊接螺母"],
+    "surface_requirements": ["无毛刺(防止磨损滑块)", "无飞边(塑料件)", "档位槽表面光洁度Ra≤0.8μm", "包塑附着力强无剥离", "盐雾≥114h(金属件)"],
+    "tolerance_level": "IT12-IT13 (冲压件), IT9-IT11 (档位槽精压), 塑料件按GB/T 14486"
+  },
+  "limiter_types": {
+    "stamped_limiter": {
+      "description": "冲压限位器——限位臂以冲压工艺实现档位结构,金属臂+金属壳体,成本最低",
+      "process_sequence": [
+        { "seq": 10, "operation": "来料检验", "equipment": "检具/量具/光谱仪", "key_check": "材质(Q345/SPCC)、料厚(2-5mm)" },
+        { "seq": 20, "operation": "开卷校平/下料", "equipment": "开卷机/剪板机", "key_check": "板形、下料尺寸" },
+        { "seq": 30, "operation": "级进模冲压(含档位槽精压)", "equipment": "精密压力机(160-400T)+级进模(8-15工位)", "key_check": "工位1-2:导正孔/冲孔、工位3-4:切边/切口、工位5-6:预弯、工位7-8:终弯翻边、工位9-10:档位槽精压(coining,≤30%料厚,氮气弹簧保证)、工位11-12:冲安装孔、末工位:切断" },
+        { "seq": 40, "operation": "去毛刺/清洗", "equipment": "振动光饰/超声波清洗", "key_check": "毛刺可控,档位槽无毛刺(防止磨损滑块)" },
+        { "seq": 50, "operation": "电镀(三价铬)", "equipment": "电镀线", "key_check": "膜厚、附着力、盐雾≥114h、去氢处理" },
+        { "seq": 60, "operation": "限位臂包胶(如适用)", "equipment": "注塑机(嵌件成形)", "key_check": "包胶厚度均匀、无气泡、附着力" },
+        { "seq": 70, "operation": "限位盒组装", "equipment": "组装台/自动装配线", "key_check": "壳体铆接、弹簧/滑块/滚针装入、注润滑脂" },
+        { "seq": 80, "operation": "扭矩检测", "equipment": "扭矩测试台", "key_check": "开门力30-35N,最大扭矩390N·m不破坏,档位保持力" },
+        { "seq": 90, "operation": "完工检验", "equipment": "检具/CMM/耐久试验台", "key_check": "5万次耐久、-32°C耐寒、+80°C耐热、盐雾114h" },
+        { "seq": 100, "operation": "包装入库", "equipment": "包装台/打码机", "key_check": "数量、标识、防锈" }
+      ]
+    },
+    "overmolded_limiter": {
+      "description": "包塑限位器——金属骨架+注塑包覆+限位盒(金属或塑料),平衡强度与噪音,当前主流",
+      "process_sequence": [
+        { "seq": 10, "operation": "来料检验(金属骨架)", "equipment": "检具/量具", "key_check": "冲压骨架尺寸、材质" },
+        { "seq": 20, "operation": "来料检验(塑料粒子)", "equipment": "水分仪/熔指仪", "key_check": "POM/PA66/TPE粒子干燥、熔融指数" },
+        { "seq": 30, "operation": "金属骨架冲压", "equipment": "压力机+级进模", "key_check": "骨架外形、预冲孔、去毛刺" },
+        { "seq": 40, "operation": "金属骨架表面处理", "equipment": "磷化/电泳线", "key_check": "增加树脂结合力" },
+        { "seq": 50, "operation": "1次射出成形(结构层)", "equipment": "注塑机(嵌件成形)", "key_check": "PA66+GF包覆金属芯,提供结构强度" },
+        { "seq": 60, "operation": "2次射出成形(滑动层)", "equipment": "二色注塑机/旋转模", "key_check": "POM包覆表面层(滑动+耐磨+低噪音),化学结合力" },
+        { "seq": 70, "operation": "去飞边/检验", "equipment": "修边工位/视觉检测", "key_check": "无飞边、无缩痕、无气泡、包胶附着力" },
+        { "seq": 80, "operation": "限位盒组装(塑料壳体)", "equipment": "自动装配线(铆接/卡扣/熔接)", "key_check": "壳体闭合、弹簧/滚针装入、注润滑脂(NR兼容)" },
+        { "seq": 90, "operation": "扭矩检测+耐久验证", "equipment": "扭矩测试台+耐久试验台", "key_check": "操作为矩30-35N,档位感清晰,5万次后扭矩变化≤30%" },
+        { "seq": 100, "operation": "完工检验", "equipment": "CMM/环境试验箱", "key_check": "-32°C~+80°C温度循环、盐雾114h、NVH无异响" },
+        { "seq": 110, "operation": "包装入库", "equipment": "包装台", "key_check": "数量、标识" }
+      ]
+    },
+    "full_plastic_limiter": {
+      "description": "全塑限位器——无金属紧固件,全树脂结构,轻量化,消除金属摩擦异响,新兴趋势",
+      "process_sequence": [
+        { "seq": 10, "operation": "来料检验(塑料粒子)", "equipment": "水分仪/熔指仪", "key_check": "POM/PA66+GF/TPE粒子干燥" },
+        { "seq": 20, "operation": "限位臂注塑成形", "equipment": "注塑机+热流道模", "key_check": "尺寸、档位槽精度、无缩痕" },
+        { "seq": 30, "operation": "壳体注塑成形", "equipment": "注塑机", "key_check": "壳体+罩盖分体注塑" },
+        { "seq": 40, "operation": "弹性元件/滑块注塑", "equipment": "注塑机", "key_check": "TPE/TPU缓冲块、POM滑块" },
+        { "seq": 50, "operation": "壳体熔接组装", "equipment": "超声波/热板焊接机", "key_check": "壳体闭合强度、无泄漏、熔接质量" },
+        { "seq": 60, "operation": "滑块/弹簧装入", "equipment": "自动装配", "key_check": "滑动顺畅、注润滑脂" },
+        { "seq": 70, "operation": "扭矩检测", "equipment": "扭矩测试台", "key_check": "30-35N操作力、档位保持力" },
+        { "seq": 80, "operation": "完工检验", "equipment": "检具/环境试验箱", "key_check": "5万次耐久、温度循环、NVH" },
+        { "seq": 90, "operation": "包装入库", "equipment": "包装台", "key_check": "数量、标识" }
+      ]
+    }
+  },
+  "feature_to_operation": {
+    "detent_notch": { "operation": "档位槽精压(Coining)", "equipment": "压力机+精压模(氮气弹簧)", "note": "限位器核心特征,深度≤30%料厚,两面可不同特征,影响档位手感" },
+    "check_arm_contour": { "operation": "切口+弯曲", "equipment": "级进模", "note": "长条形臂外形,切口非封闭轮廓→弯曲成形" },
+    "check_arm_bend": { "operation": "L形/Z形弯曲", "equipment": "压力机+弯曲模", "note": "弯曲线垂直轧制方向,弯曲半径≥1.5t,防止各向异性开裂" },
+    "mount_hole": { "operation": "冲孔", "equipment": "压力机", "note": "安装孔∮8-13mm" },
+    "hinge_hole": { "operation": "冲孔+铰孔", "equipment": "压力机+铰孔机", "note": "限位臂铰接孔∮6-12mm" },
+    "metal_insert_blanking": { "operation": "落料冲孔", "equipment": "压力机+落料模", "note": "包塑限位器金属骨架冲压" },
+    "plastic_overmold_1st": { "operation": "1次射出(结构层)", "equipment": "注塑机+嵌件模", "note": "PA66+GF包覆金属芯,提供结构强度" },
+    "plastic_overmold_2nd": { "operation": "2次射出(滑动层)", "equipment": "二色注塑机/旋转模", "note": "POM包覆表面,提供滑动性+耐磨+低噪音" },
+    "buffer_rubber": { "operation": "注塑/硫化", "equipment": "注塑机/硫化机", "note": "TPE/TPU/NR/NBR缓冲块成形" },
+    "housing_rivet": { "operation": "壳体铆接/熔接", "equipment": "铆接机/超声波焊接机", "note": "金属盒铆接或塑料盒熔接" },
+    "grease_fill": { "operation": "注润滑脂", "equipment": "注脂机", "note": "限位盒内填充低温润滑脂(耐-40°C)" },
+    "torque_test": { "operation": "扭矩检测", "equipment": "扭矩测试台", "note": "操作力30-35N,最大扭矩≥390N·m,档位力曲线" },
+    "durability_test": { "operation": "耐久试验", "equipment": "耐久试验台", "note": "5万次循环,扭矩变化≤30%,无异响" }
+  },
+  "process_flow_variants": {
+    "stamped_limiter_arm": {
+      "description": "纯冲压限位臂工艺——最基础方案,适合低成本车型",
+      "process_sequence": [
+        { "seq": 10, "operation": "来料检验", "equipment": "检具/量具", "key_check": "材质(Q345/SPCC)、料厚" },
+        { "seq": 20, "operation": "级进模冲压(含coining)", "equipment": "精密压力机(160-400T)", "key_check": "冲孔→切边切口→弯曲→coining档位槽→切断" },
+        { "seq": 30, "operation": "去毛刺", "equipment": "振动光饰", "key_check": "档位槽无毛刺" },
+        { "seq": 40, "operation": "电镀", "equipment": "电镀线(三价铬)", "key_check": "去氢处理、盐雾≥114h" },
+        { "seq": 50, "operation": "组装+注脂", "equipment": "组装台/注脂机", "key_check": "壳体铆接、润滑脂" },
+        { "seq": 60, "operation": "扭矩检测+检验", "equipment": "扭矩台/检具", "key_check": "30-35N、5万次耐久" }
+      ]
+    },
+    "overmolded_limiter_arm": {
+      "description": "包塑限位臂工艺——当前主流,平衡强度/噪音/成本",
+      "process_sequence": [
+        { "seq": 10, "operation": "金属骨架冲压", "equipment": "压力机+级进模", "key_check": "骨架外形、去毛刺" },
+        { "seq": 20, "operation": "骨架表面处理", "equipment": "磷化线", "key_check": "增加树脂结合力" },
+        { "seq": 30, "operation": "1次射出(结构层)", "equipment": "注塑机(PA66+GF)", "key_check": "包覆完整、无气孔" },
+        { "seq": 40, "operation": "2次射出(滑动层)", "equipment": "二色注塑机(POM)", "key_check": "表面光滑、化学结合牢固" },
+        { "seq": 50, "operation": "去飞边检验", "equipment": "视觉检测", "key_check": "无缩痕/飞边/气泡" },
+        { "seq": 60, "operation": "壳体组装+注脂", "equipment": "自动装配线", "key_check": "铆接/熔接、润滑脂" },
+        { "seq": 70, "operation": "扭矩检测+环境试验", "equipment": "扭矩台+环境箱", "key_check": "30-35N、-32~+80°C" }
+      ]
+    }
+  },
+  "engineering_parameters": {
+    "material_selection": {
+      "arm_metal": "Q345(3.5mm热轧板,一体冲压成形),45钢,SPCC",
+      "arm_structure_plastic": "PA66+GF30(高强度+尺寸稳定)",
+      "arm_sliding_plastic": "POM(低摩擦+耐磨+自润滑)",
+      "buffer_elastomer": "NR(耐低温-70°C,推荐),NBR(耐油-50°C),TPU(耐磨损)",
+      "housing_metal": "SPCC/SPHC 1.5-2.5mm",
+      "housing_plastic": "PA66+GF30 或 PBT+GF30"
+    },
+    "coining_parameters": {
+      "coining_depth": "≤30% 材料厚度",
+      "coining_force": "5-30× 空气弯曲力",
+      "spring_type": "氮气弹簧(Tanker 2系列等)或碟形弹簧",
+      "precision": "档位槽±0.02mm,表面Ra≤0.8μm"
+    },
+    "overmolding_parameters": {
+      "two_shot_advantage": "1次品尚温即注2次树脂→化学结合力>机械结合",
+      "insert_molding_note": "金属嵌件需预热或表面处理增加结合力",
+      "mold_hot_runner": "热流道防止树脂过早冷却堵塞浇口",
+      "cooling": "模具芯部中空+水冷,控制冷却速率"
+    },
+    "performance_requirements": {
+      "door_opening_force": "30-35 N (最大开门力)",
+      "max_torque_withstand": "390 N·m (不破坏)",
+      "durability_cycles": "50,000-100,000 cycles (扭矩变化≤30%)",
+      "cold_resistance": "-32°C (扭矩变化≤30%)",
+      "heat_resistance": "+80°C / 75%RH (扭矩变化≤30%)",
+      "salt_spray": "114 hours (无可见腐蚀)",
+      "corrosion_protection": "三价铬电镀+去氢处理",
+      "grease_type": "低温润滑脂(-40°C),油漆兼容",
+      "gear_positions": "2档(~30°+~55°) 或 3档(30°,50°,70°)",
+      "arm_box_angle": "限位臂与限位盒夹角≤8°(运动全程)"
+    },
+    "defect_prevention": {
+      "bend_cracking": "弯曲线垂直轧制方向,弯曲半径≥1.5t,细晶粒钢",
+      "detent_wear": "coining精度+氮气弹簧保证+定期CMM检测",
+      "noise_issue": "毛刺严格控制+滑动面包塑POM+充分润滑",
+      "plastic_delamination": "金属表面处理+材料匹配+注塑参数优化",
+      "cold_stiffness": "NR橡胶(NBR在-50°C硬化,NR可耐-70°C)"
+    },
+    "double_array_layout": {
+      "description": "双排级进模方案可翻倍产能:1000→2000件/小时,成本降40% (韩国KISS研究)"
+    }
+  },
+  "references": [
+    {"title": "前车门限位器布置与设计说明书 (46页毕业设计全文)", "url": "https://www.renrendoc.com/p-37845757.html", "type": "thesis"},
+    {"title": "JPH0369781A - Lever for door check (AISIN CHEM, overmolded)", "url": "https://www.sumobrain.com/patents/jp/Lever-door-check/JPH0369781A.html", "type": "patent"},
+    {"title": "US 2021/0131141 - Plastic door check without steel fasteners", "url": "https://www.fid-bau.de/en/research/search/id/epa:US2021131141", "type": "patent"},
+    {"title": "US 20060021414 - Progressive stamping die with coining punch", "url": "https://www.sumobrain.com/patents/usapp/Progressive-stamping-die/20060021414.html", "type": "patent"},
+    {"title": "CN113482469A - Door check (anti-corrosion + noise reduction)", "url": "https://patents.google.com/patent/CN113482469A/en", "type": "patent"},
+    {"title": "CN106425465A - Limiting box assembling machine of door check", "url": "https://patents.google.com/patent/CN106425465A/en", "type": "patent"},
+    {"title": "Bae Y.H. (2010) - High-speed production system for door checker mount bracket (Korean Society)", "url": "https://kiss.kstudy.com/Detail/Ar?key=2862802", "type": "paper"},
+    {"title": "Wikipedia - Deep drawing (coining/curling/ironing processes)", "url": "https://en.wikipedia.org/wiki/Deep_drawing", "type": "encyclopedia"},
+    {"title": "Wikipedia - Stamping (metalworking)", "url": "https://en.wikipedia.org/wiki/Stamping_(metalworking)", "type": "encyclopedia"},
+    {"title": "车门系统零部件设计及系统集成 (汤莹 著, 机械工业出版社 2017)", "url": "https://baike.baidu.com/item/50453371", "type": "book"},
+    {"title": "Overmolding and Insert Molding Design Guide (Protolabs)", "url": "https://www.protolabs.com/resources/guides-and-trend-reports/overmolding-and-insert-molding/", "type": "design_guide"}
+  ]
+}

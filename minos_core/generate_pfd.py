@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from minos_core._text_utils import sequence_links, string_list, text
+
 
 _STEP_CHARACTERISTIC_RULES = {
     "P10": ("material", "thickness"),
@@ -52,42 +54,42 @@ def generate_pfd_from_analysis(analysis_bundle: dict[str, Any]) -> dict[str, Any
                 "process_step_id": normalized_step_id,
                 "sequence": int(match.group(1)),
                 "operation": operation,
-                "process_function": _text(
+                "process_function": text(
                     clue.get("process_function"),
                     clue.get("function"),
                     clue.get("process_purpose"),
                     clue.get("purpose"),
                     default="",
                 ),
-                "process_purpose": _text(
+                "process_purpose": text(
                     clue.get("process_purpose"),
                     clue.get("purpose"),
                     default="",
                 ),
-                "product_characteristics": _string_list(
+                "product_characteristics": string_list(
                     clue.get(
                         "product_characteristics",
                         clue.get("product_characteristic_refs", []),
                     )
                 ),
-                "process_characteristics": _string_list(
+                "process_characteristics": string_list(
                     clue.get(
                         "process_characteristics",
                         clue.get("process_characteristic_refs", []),
                     )
                 ),
-                "equipment": _text(clue.get("equipment"), default=""),
-                "tooling": _text(clue.get("tooling"), clue.get("fixture"), default=""),
-                "gauges": _string_list(
+                "equipment": text(clue.get("equipment"), default=""),
+                "tooling": text(clue.get("tooling"), clue.get("fixture"), default=""),
+                "gauges": string_list(
                     clue.get(
                         "gauges",
                         clue.get("inspection_gauges", clue.get("measurement_devices", [])),
                     )
                 ),
-                "documents": _string_list(
+                "documents": string_list(
                     clue.get("documents", clue.get("document_refs", clue.get("files", [])))
                 ),
-                "flow_type": _text(
+                "flow_type": text(
                     clue.get("flow_type"), clue.get("process_type"), default=""
                 ),
                 "owner": "",
@@ -105,7 +107,7 @@ def generate_pfd_from_analysis(analysis_bundle: dict[str, Any]) -> dict[str, Any
         _apply_characteristics(step, source_ref, characteristics)
 
     steps = sorted(steps_by_id.values(), key=lambda item: item["sequence"])
-    links = _sequence_links(steps)
+    links = sequence_links(steps, step_key="process_step_id")
     return {
         "document_type": "process_flow",
         "schema_version": "minos-core.generated.v1",
@@ -158,7 +160,7 @@ def _fill_step_fields(step: dict[str, Any], clue: dict[str, Any]) -> None:
         ("flow_type", (clue.get("flow_type"), clue.get("process_type"))),
     ):
         if not step.get(field_name):
-            step[field_name] = _text(*values, default="")
+            step[field_name] = text(*values, default="")
     for field_name, value in (
         (
             "product_characteristics",
@@ -183,8 +185,8 @@ def _fill_step_fields(step: dict[str, Any], clue: dict[str, Any]) -> None:
         ),
         ("documents", clue.get("documents", clue.get("document_refs", clue.get("files", [])))),
     ):
-        existing = set(_string_list(step.get(field_name, [])))
-        for item in _string_list(value):
+        existing = set(string_list(step.get(field_name, [])))
+        for item in string_list(value):
             if item not in existing:
                 step.setdefault(field_name, []).append(item)
                 existing.add(item)
@@ -222,39 +224,3 @@ def _characteristic_applies_to_step(
     return any(term in characteristic_text for term in terms)
 
 
-def _sequence_links(steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    links: list[dict[str, Any]] = []
-    for current_step, next_step in zip(steps, steps[1:]):
-        evidence_refs: list[str] = []
-        for ref in current_step.get("evidence_refs", []) + next_step.get(
-            "evidence_refs", []
-        ):
-            if ref not in evidence_refs:
-                evidence_refs.append(ref)
-        links.append(
-            {
-                "from": current_step["process_step_id"],
-                "to": next_step["process_step_id"],
-                "link_type": "sequence",
-                "evidence_refs": evidence_refs,
-            }
-        )
-    return links
-
-
-def _text(*values: Any, default: str = "") -> str:
-    for value in values:
-        text = str(value or "").strip()
-        if text:
-            return text
-    return default
-
-
-def _string_list(value: Any) -> list[str]:
-    if isinstance(value, str):
-        values = [value]
-    elif isinstance(value, list):
-        values = value
-    else:
-        values = []
-    return [str(item).strip() for item in values if str(item).strip()]

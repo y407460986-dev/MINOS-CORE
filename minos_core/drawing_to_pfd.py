@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from minos_core._text_utils import row_text, string_list
+
 
 _PROCESS_LIBRARY: dict[str, dict[str, Any]] = {
     "incoming inspection": {
@@ -126,6 +128,16 @@ _PROCESS_LIBRARY: dict[str, dict[str, Any]] = {
         "process_function": "对合格产品进行包装、标识和防护以便发运",
         "equipment": "包装材料、标签打印机、条码扫描器",
     },
+    "lubrication": {
+        "operation": "润滑",
+        "process_function": "对铰链转动副涂抹规定润滑脂以满足力矩和寿命要求",
+        "equipment": "注脂设备、润滑脂、力矩测试仪",
+    },
+    "functional inspection": {
+        "operation": "功能检验",
+        "process_function": "验证产品功能、性能或客户特定要求是否满足",
+        "equipment": "功能测试台、力矩测试仪、角度检具",
+    },
 }
 
 _ROUTE_TEMPLATES: dict[str, tuple[str, ...]] = {
@@ -184,7 +196,10 @@ _ROUTE_TEMPLATES: dict[str, tuple[str, ...]] = {
 }
 
 
-def infer_process_flow_from_drawing(analysis_bundle: dict[str, Any]) -> dict[str, Any]:
+def infer_process_flow_from_drawing(
+    analysis_bundle: dict[str, Any],
+    family_context: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Build a PFD draft from drawing manufacturing clues.
 
     The first implementation is deliberately conservative: it turns explicit
@@ -193,67 +208,126 @@ def infer_process_flow_from_drawing(analysis_bundle: dict[str, Any]) -> dict[str
     inferred from a drawing, not confirmed process planning.
     """
 
+    # Resolve family_context templates when only family_key is given
+    if family_context and not family_context.get("process_route_templates"):
+        family_key = family_context.get("family_key")
+        if family_key:
+            # Try classifier templates first (operation_key format)
+            try:
+                from minos_core.part_family_classifier import get_default_family_index
+                family_index = get_default_family_index()
+                family_data = family_index.get(family_key)
+                if family_data:
+                    family_context = dict(family_context)
+                    family_context["process_route_templates"] = list(
+                        family_data.get("process_route_templates", [])
+                    )
+                    if not family_context.get("knowledge_source_refs"):
+                        family_context["knowledge_source_refs"] = list(
+                            family_data.get("knowledge_source_refs", [])
+                        )
+            except (KeyError, ImportError):
+                pass
+
+            # Fallback: load from knowledge base for process_inference data
+            if not family_context.get("process_route_templates") or not family_context.get("process_inference"):
+                try:
+                    from minos_core.part_family_knowledge import load_part_family_knowledge
+                    knowledge = load_part_family_knowledge(family_key)
+                    if not family_context.get("process_route_templates"):
+                        family_context = dict(family_context)
+                        family_context["process_route_templates"] = knowledge.get(
+                            "process_route_templates", []
+                        )
+                    if knowledge.get("process_inference"):
+                        family_context = dict(family_context) if family_context.get("process_inference") is None else family_context
+                        family_context["process_inference"] = knowledge["process_inference"]
+                    if not family_context.get("knowledge_source_refs"):
+                        family_context["knowledge_source_refs"] = knowledge.get(
+                            "knowledge_source_refs", []
+                        )
+                except (KeyError, FileNotFoundError, ImportError):
+                    pass
+
     clues = _expand_manufacturing_clues(analysis_bundle.get("manufacturing_clues", []))
-    clues = _enrich_with_process_library(analysis_bundle, clues)
+    clues = _enrich_with_process_library(analysis_bundle, clues, family_context)
+    family_knowledge_refs: list[str] = []
+    if family_context:
+        family_knowledge_refs = string_list(family_context.get("knowledge_source_refs", []))
     steps: list[dict[str, Any]] = []
     pending_fields = list(analysis_bundle.get("pending_fields", []))
     for index, clue in enumerate(clues, start=1):
+        preserve_name = bool(clue.get("preserve_operation_name", False))
         operation = _display_operation(
-            _text(clue, "operation", "process_step", "name", "process", default="")
+            row_text(clue, "operation", "process_step", "name", "process", default=""),
+            preserve=preserve_name,
         )
-        refs = _string_list(clue.get("evidence_refs", []))
+        refs = string_list(clue.get("evidence_refs", []))
         if not operation:
             pending_fields.append(f"manufacturing_clues[{index - 1}].operation")
             continue
-        step_id = _text(clue, "process_step_id", "step_id", default=f"P{index * 10}")
+        step_id = row_text(clue, "process_step_id", "step_id", default=f"P{index * 10}")
+        clue_knowledge_refs = string_list(clue.get("knowledge_source_refs", []))
+        all_knowledge_refs: list[str] = []
+        for ref in clue_knowledge_refs + family_knowledge_refs:
+            if ref not in all_knowledge_refs:
+                all_knowledge_refs.append(ref)
+        flow_type = row_text(clue, "flow_type", "process_type", default="")
+        if not flow_type:
+            flow_type = _infer_flow_type(operation)
         steps.append(
             {
                 "process_step_id": _normalize_step_id(step_id, index),
                 "sequence": index * 10,
                 "operation": operation,
-                "process_function": _text(
+                "process_function": row_text(
                     clue,
                     "process_function",
                     "purpose",
                     default=_library_process_function(operation),
                 ),
-                "process_purpose": _text(
+                "process_purpose": row_text(
                     clue,
                     "process_purpose",
                     "purpose",
                     default=_library_process_function(operation),
                 ),
-                "product_characteristics": _string_list(
+                "product_characteristics": string_list(
                     clue.get("product_characteristics", [])
                 ),
-                "process_characteristics": _string_list(
+                "process_characteristics": string_list(
                     clue.get("process_characteristics", [])
                 ),
-                "owner": _text(clue, "owner", default=""),
-                "input_refs": _string_list(clue.get("input_refs", [])),
-                "output_refs": _string_list(clue.get("output_refs", [])),
-                "equipment": _text(
+                "owner": row_text(clue, "owner", default=""),
+                "input_refs": string_list(clue.get("input_refs", [])),
+                "output_refs": string_list(clue.get("output_refs", [])),
+                "equipment": row_text(
                     clue,
                     "equipment",
                     "tooling",
                     default=_library_equipment(operation),
                 ),
-                "tooling": _text(clue, "tooling", "fixture", default=""),
-                "gauges": _string_list(
+                "tooling": row_text(clue, "tooling", "fixture", default=""),
+                "gauges": string_list(
                     clue.get(
                         "gauges",
                         clue.get("inspection_gauges", clue.get("measurement_devices", [])),
                     )
                 ),
-                "documents": _string_list(
+                "documents": string_list(
                     clue.get("documents", clue.get("document_refs", clue.get("files", [])))
                 ),
-                "flow_type": _text(clue, "flow_type", "process_type", default=""),
-                "special_characteristics": _string_list(
+                "flow_type": flow_type,
+                "flow_symbol": flow_type,
+                "operation_type": _flow_type_display(flow_type),
+                "input_material": "",
+                "output_result": operation,
+                "special_characteristics": string_list(
                     clue.get("special_characteristics", clue.get("special_characteristic_refs", []))
                 ),
                 "evidence_refs": refs,
-                "ai_reasoning": _text(
+                "knowledge_source_refs": all_knowledge_refs,
+                "ai_reasoning": row_text(
                     clue,
                     "reasoning",
                     "ai_reasoning",
@@ -262,9 +336,23 @@ def infer_process_flow_from_drawing(analysis_bundle: dict[str, Any]) -> dict[str
                 "confidence": _confidence(clue),
                 "ai_inferred": True,
                 "needs_confirmation": bool(clue.get("needs_confirmation", _confidence(clue) < 0.85)),
-                "source": _text(clue, "source", default="drawing_recognition"),
+                "source": row_text(clue, "source", default="drawing_recognition"),
             }
         )
+
+    metadata: dict[str, Any] = {
+        "generation_mode": "drawing_analysis_process_flow_inference",
+        "llm_used": True,
+        "source_stage": "drawing_analysis",
+    }
+    if family_context:
+        metadata["family_context"] = {
+            "family_key": family_context.get("family_key", ""),
+            "family_name": family_context.get("family_name", ""),
+            "confidence": family_context.get("confidence", 0.0),
+        }
+
+    normalize_process_flow_steps(steps)
 
     return {
         "document_type": "process_flow",
@@ -278,11 +366,7 @@ def infer_process_flow_from_drawing(analysis_bundle: dict[str, Any]) -> dict[str
         "links": _sequence_links(steps),
         "pending_fields": pending_fields,
         "ai_inferred_items": [step["process_step_id"] for step in steps],
-        "metadata": {
-            "generation_mode": "drawing_analysis_process_flow_inference",
-            "llm_used": True,
-            "source_stage": "drawing_analysis",
-        },
+        "metadata": metadata,
     }
 
 
@@ -309,9 +393,9 @@ def _sequence_links(steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def _product_from_drawing(analysis_bundle: dict[str, Any]) -> dict[str, Any]:
     identity = analysis_bundle.get("drawing_identity", {})
     return {
-        "part_name": _text(identity, "part_name", "title", default=""),
-        "part_number": _text(identity, "drawing_number", "part_number", default=""),
-        "revision": _text(identity, "revision", default=""),
+        "part_name": row_text(identity, "part_name", "title", default=""),
+        "part_number": row_text(identity, "drawing_number", "part_number", default=""),
+        "revision": row_text(identity, "revision", default=""),
         "phase": "drawing_ai_draft",
     }
 
@@ -320,9 +404,9 @@ def _drawing_from_identity(identity: Any) -> dict[str, Any]:
     if not isinstance(identity, dict):
         identity = {}
     return {
-        "drawing_id": _text(identity, "drawing_number", "part_number", default=""),
-        "title": _text(identity, "part_name", "title", default=""),
-        "revision": _text(identity, "revision", default=""),
+        "drawing_id": row_text(identity, "drawing_number", "part_number", default=""),
+        "title": row_text(identity, "part_name", "title", default=""),
+        "revision": row_text(identity, "revision", default=""),
         "source_ref": _first_ref(identity),
     }
 
@@ -334,10 +418,10 @@ def _characteristics_from_drawing(analysis_bundle: dict[str, Any]) -> list[dict[
             continue
         characteristics.append(
             {
-                "characteristic_id": _text(item, "id", "characteristic_id", default=f"SC-{index:03d}"),
-                "name": _text(item, "name", "characteristic", "description", "associated_feature", default=""),
-                "classification": _text(item, "classification", "category", default=""),
-                "specification": _text(item, "specification", "tolerance", default=""),
+                "characteristic_id": row_text(item, "id", "characteristic_id", default=f"SC-{index:03d}"),
+                "name": row_text(item, "name", "characteristic", "description", "associated_feature", default=""),
+                "classification": row_text(item, "classification", "category", default=""),
+                "specification": row_text(item, "specification", "tolerance", default=""),
                 "source_ref": _first_ref(item),
             }
         )
@@ -352,8 +436,13 @@ def _normalize_step_id(value: str, index: int) -> str:
 
 
 def _enrich_with_process_library(
-    analysis_bundle: dict[str, Any], clues: list[dict[str, Any]]
+    analysis_bundle: dict[str, Any],
+    clues: list[dict[str, Any]],
+    family_context: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
+    if family_context and family_context.get("process_route_templates"):
+        return _enrich_with_family_templates(analysis_bundle, clues, family_context)
+
     operations = [_operation_name(clue) for clue in clues]
     route_family = _route_family(analysis_bundle, operations)
     template = _ROUTE_TEMPLATES[route_family]
@@ -385,9 +474,240 @@ def _enrich_with_process_library(
     return enriched
 
 
+def _enrich_with_family_templates(
+    analysis_bundle: dict[str, Any],
+    clues: list[dict[str, Any]],
+    family_context: dict[str, Any],
+) -> list[dict[str, Any]]:
+    templates = family_context.get("process_route_templates", [])
+    if not templates:
+        return _enrich_with_process_library(analysis_bundle, clues)
+
+    # Pick the first template that actually has steps
+    template: dict[str, Any] = {}
+    template_steps: list[dict[str, Any]] = []
+    for t in templates:
+        steps = t.get("steps", [])
+        if steps:
+            template = t
+            template_steps = steps
+            break
+    if not template_steps:
+        return _enrich_with_process_library(analysis_bundle, clues)
+    knowledge_refs = string_list(template.get("knowledge_source_refs", []))
+    evidence_refs = _bundle_evidence_refs(analysis_bundle)
+
+    # Normalize step format: support both operation_key (classifier) and operation (knowledge base)
+    def _step_op_key(step: dict[str, Any]) -> str:
+        op_key = str(step.get("operation_key", "")).strip()
+        if not op_key:
+            op_key = str(step.get("operation", "")).strip()
+        return op_key
+
+    def _step_op_display(step: dict[str, Any]) -> str:
+        op_key = str(step.get("operation_key", "")).strip()
+        if op_key:
+            return _library_operation(op_key)
+        return str(step.get("operation", "")).strip()
+
+    def _step_confidence(step: dict[str, Any]) -> float:
+        try:
+            return float(step.get("confidence", 0.8))
+        except (TypeError, ValueError):
+            return 0.8
+
+    template_ops: list[str] = []
+    for step in template_steps:
+        op_key = _step_op_key(step)
+        if op_key:
+            template_ops.append(op_key)
+
+    # Also try process_inference variant matching
+    extra_steps = _match_process_inference_variant(analysis_bundle, family_context)
+    for s in extra_steps:
+        op_key = _step_op_key(s)
+        if op_key and op_key not in template_ops:
+            template_ops.append(op_key)
+
+    operations = [_operation_name(clue) for clue in clues]
+    enriched: list[dict[str, Any]] = []
+    added: set[str] = set()
+
+    # Build a lookup: op_key -> original step dict
+    all_steps_map: dict[str, dict[str, Any]] = {}
+    for step in template_steps:
+        op_key = _step_op_key(step)
+        if op_key:
+            all_steps_map[op_key] = step
+    for s in extra_steps:
+        op_key = _step_op_key(s)
+        if op_key and op_key not in all_steps_map:
+            all_steps_map[op_key] = s
+
+    for op_key in template_ops:
+        if _should_insert_before_clues(op_key, operations):
+            orig_step = all_steps_map.get(op_key, {})
+            enriched.append(_family_clue_from_step(
+                op_key, orig_step, knowledge_refs, evidence_refs
+            ))
+            added.add(op_key)
+
+    for clue in clues:
+        operation = _operation_name(clue)
+        if not operation:
+            enriched.append(clue)
+            continue
+        if operation not in added:
+            merged = _merge_library_defaults(clue, operation)
+            if knowledge_refs:
+                existing_refs = string_list(merged.get("knowledge_source_refs", []))
+                for ref in knowledge_refs:
+                    if ref not in existing_refs:
+                        existing_refs.append(ref)
+                merged["knowledge_source_refs"] = existing_refs
+            merged.setdefault("source", "drawing_recognition")
+            enriched.append(merged)
+            added.add(operation)
+
+    for op_key in template_ops:
+        if op_key in added:
+            continue
+        # For family templates, append all remaining steps (not just library-compatible ones)
+        if op_key not in ("incoming inspection", "material preparation"):
+            orig_step = all_steps_map.get(op_key, {})
+            enriched.append(_family_clue_from_step(
+                op_key, orig_step, knowledge_refs, evidence_refs
+            ))
+            added.add(op_key)
+
+    return enriched
+
+
+def _family_clue_from_step(
+    operation_key: str,
+    orig_step: dict[str, Any],
+    knowledge_refs: list[str],
+    evidence_refs: list[str],
+) -> dict[str, Any]:
+    """Build a clue dict from a family template step, supporting both formats."""
+    op_key = str(orig_step.get("operation_key", "")).strip()
+    if op_key:
+        operation = _library_operation(operation_key)
+        process_function = _library_process_function(operation_key)
+        equipment = _library_equipment(operation_key)
+    else:
+        operation = str(orig_step.get("operation", "")).strip() or _library_operation(operation_key)
+        process_function = str(orig_step.get("process_function", "")).strip() or _library_process_function(operation_key)
+        equipment = str(orig_step.get("equipment", "")).strip() or _library_equipment(operation_key)
+
+    confidence = 0.8
+    try:
+        confidence = float(orig_step.get("confidence", 0.8))
+    except (TypeError, ValueError):
+        pass
+
+    step_knowledge_refs = string_list(orig_step.get("knowledge_source_refs", []))
+    all_knowledge_refs: list[str] = list(knowledge_refs)
+    for ref in step_knowledge_refs:
+        if ref not in all_knowledge_refs:
+            all_knowledge_refs.append(ref)
+
+    return {
+        "operation": operation,
+        "process_function": process_function,
+        "equipment": equipment,
+        "flow_type": _infer_flow_type(operation_key),
+        "evidence_refs": list(evidence_refs),
+        "knowledge_source_refs": all_knowledge_refs,
+        "reasoning": str(orig_step.get("reasoning", "根据零件族知识库的工艺路线模板补充 PFD 工序")),
+        "confidence": confidence,
+        "needs_confirmation": bool(orig_step.get("needs_confirmation", True)),
+        "source": "part_family_knowledge",
+        "ai_inferred": True,
+        "preserve_operation_name": bool(orig_step.get("preserve_operation_name", False)),
+    }
+
+
+def _match_process_inference_variant(
+    analysis_bundle: dict[str, Any],
+    family_context: dict[str, Any],
+) -> list[dict[str, Any]]:
+    process_inference = family_context.get("process_inference")
+    if not isinstance(process_inference, dict):
+        return []
+    variants = process_inference.get("process_flow_variants")
+    if not isinstance(variants, dict):
+        # Also check extended variants
+        variants = process_inference.get("process_flow_variants_extended")
+        if not isinstance(variants, dict):
+            return []
+    search_text = " ".join(
+        _analysis_text_values(
+            analysis_bundle,
+            ("technical_requirements", "materials", "drawing_identity"),
+        )
+    ).lower()
+    if not search_text:
+        return []
+    for variant_id, variant_data in variants.items():
+        if not isinstance(variant_data, dict):
+            continue
+        desc = str(variant_data.get("description", "")).lower()
+        keywords = [str(k).lower() for k in string_list(variant_data.get("match_keywords", []))]
+        # Check if significant character overlap exists between desc and search_text
+        # Use 3-char ngrams to detect matching Chinese phrases despite punctuation differences
+        def _ngrams(text: str, n: int = 4) -> set[str]:
+            clean = ""
+            for ch in text:
+                if ch.isalpha() or ch in "()+-/" or '一' <= ch <= '鿿':
+                    clean += ch
+            return {clean[i:i+n] for i in range(len(clean) - n + 1)}
+
+        desc_ngrams = _ngrams(desc, 4)
+        search_ngrams = _ngrams(search_text, 4)
+        overlap = desc_ngrams & search_ngrams
+        direct_keywords = [str(k).lower() for k in keywords]
+        if len(overlap) >= 2 or any(kw and kw in search_text for kw in direct_keywords):
+            sequence = variant_data.get("process_sequence")
+            if isinstance(sequence, list):
+                return [
+                    {
+                        "operation": str(s.get("operation", "")).strip(),
+                        "process_function": str(s.get("key_check", s.get("operation", ""))).strip(),
+                        "confidence": 0.8,
+                        "knowledge_source_refs": [
+                            f"process_inference:{family_context.get('family_key', '')}:{variant_id}"
+                        ],
+                    }
+                    for s in sequence
+                    if isinstance(s, dict)
+                ]
+    return []
+
+
+def _family_clue(
+    operation_key: str,
+    knowledge_refs: list[str],
+    evidence_refs: list[str],
+) -> dict[str, Any]:
+    return {
+        "operation": _library_operation(operation_key),
+        "process_function": _library_process_function(operation_key),
+        "equipment": _library_equipment(operation_key),
+        "flow_type": _infer_flow_type(operation_key),
+        "evidence_refs": list(evidence_refs),
+        "knowledge_source_refs": list(knowledge_refs),
+        "reasoning": "根据零件族知识库的工艺路线模板补充 PFD 工序",
+        "confidence": 0.8,
+        "needs_confirmation": True,
+        "source": "part_family_knowledge",
+        "ai_inferred": True,
+    }
+
+
 def _operation_name(clue: dict[str, Any]) -> str:
     return _canonical_operation(
-        _text(clue, "operation", "process_step", "name", "process", default="")
+        row_text(clue, "operation", "process_step", "name", "process", default="")
     )
 
 
@@ -508,11 +828,38 @@ def _has_surface_or_cleanliness_need(
     return any(term in text for term in ("clean", "oil", "chip", "burr", "surface", "plating", "paint", "coating"))
 
 
+def _infer_flow_type(operation_key: str) -> str:
+    key = operation_key.lower()
+    if any(t in key for t in ("inspection", "inspect", "test", "check", "verify", "检验")):
+        return "inspection"
+    if any(t in key for t in ("transport", "move", "handle")):
+        return "transport"
+    if any(t in key for t in ("stor", "warehouse")):
+        return "storage"
+    if any(t in key for t in ("rework", "repair")):
+        return "rework"
+    if any(t in key for t in ("outsource", "外协")):
+        return "outsourced"
+    return "operation"
+
+
+def _flow_type_display(flow_type: str) -> str:
+    return {
+        "operation": "加工",
+        "inspection": "检验",
+        "transport": "搬运",
+        "storage": "存储",
+        "rework": "返工",
+        "outsourced": "外协",
+    }.get(flow_type, flow_type)
+
+
 def _library_clue(operation: str, route_family: str, evidence_refs: list[str]) -> dict[str, Any]:
     return {
         "operation": _library_operation(operation),
         "process_function": _library_process_function(operation),
         "equipment": _library_equipment(operation),
+        "flow_type": _infer_flow_type(operation),
         "evidence_refs": evidence_refs,
         "reasoning": f"根据{_route_family_text(route_family)}通用工艺库补充为常见 PFD 工序",
         "confidence": 0.72,
@@ -526,6 +873,7 @@ def _merge_library_defaults(clue: dict[str, Any], operation: str) -> dict[str, A
     merged["operation"] = _library_operation(operation)
     merged.setdefault("process_function", _library_process_function(operation))
     merged.setdefault("equipment", _library_equipment(operation))
+    merged.setdefault("flow_type", _infer_flow_type(operation))
     merged.setdefault("source", "drawing_recognition")
     return merged
 
@@ -587,7 +935,7 @@ def _expand_manufacturing_clues(value: Any) -> list[dict[str, Any]]:
                 )
             continue
         inferred_operations = _operations_from_free_text(
-            _text(clue, "operation", "process_step", "manufacturing_type", "clue", "basis", default="")
+            row_text(clue, "operation", "process_step", "manufacturing_type", "clue", "basis", default="")
         )
         if inferred_operations:
             for operation in inferred_operations:
@@ -695,7 +1043,9 @@ def _canonical_operation(operation: str) -> str:
     return text
 
 
-def _display_operation(operation: str) -> str:
+def _display_operation(operation: str, preserve: bool = False) -> str:
+    if preserve:
+        return operation
     canonical = _canonical_operation(operation)
     return _library_operation(canonical) if canonical in _PROCESS_LIBRARY else operation
 
@@ -710,24 +1060,59 @@ def _route_family_text(route_family: str) -> str:
     }.get(route_family, route_family)
 
 
-def _text(row: Any, *keys: str, default: str = "") -> str:
-    if not isinstance(row, dict):
-        return default
-    for key in keys:
-        text = _coerce_text(row.get(key))
-        if text:
-            return text
-    return default
+def normalize_process_flow_steps(
+    steps: list[dict[str, Any]],
+    default_input_material: str = "",
+) -> None:
+    """Fill in ``previous_step_ids`` / ``next_step_ids`` for linear flow.
 
+    Existing non-empty values are preserved so that branches, rework loops,
+    and outsourced steps already expressed by the knowledge base or LLM are
+    not overwritten.
+    """
+    if not steps:
+        return
 
-def _string_list(value: Any) -> list[str]:
-    if isinstance(value, str):
-        values = [value]
-    elif isinstance(value, list):
-        values = value
-    else:
-        values = []
-    return [str(item).strip() for item in values if str(item).strip()]
+    for step in steps:
+        step.setdefault("previous_step_ids", [])
+        step.setdefault("next_step_ids", [])
+
+    for i, step in enumerate(steps):
+        if i > 0:
+            prev_id = steps[i - 1].get("process_step_id", "")
+            if not step["previous_step_ids"] and prev_id:
+                step["previous_step_ids"] = [prev_id]
+        if i < len(steps) - 1:
+            next_id = steps[i + 1].get("process_step_id", "")
+            if not step["next_step_ids"] and next_id:
+                step["next_step_ids"] = [next_id]
+
+    if default_input_material:
+        first = steps[0]
+        mid = {
+            "process_step_id": "P05",
+            "sequence": 5,
+            "operation": default_input_material,
+            "operation_type": "加工",
+            "input_material": "",
+            "output_result": default_input_material,
+            "process_function": "来料接收",
+            "flow_type": "operation",
+            "flow_symbol": "operation",
+            "equipment": "",
+            "product_characteristics": [],
+            "process_characteristics": [],
+            "special_characteristics": [],
+            "previous_step_ids": [],
+            "next_step_ids": [first.get("process_step_id", "P10")],
+            "ai_inferred": True,
+            "needs_confirmation": True,
+            "evidence_refs": first.get("evidence_refs", []),
+        }
+        first.setdefault("previous_step_ids", [])
+        if not first["previous_step_ids"]:
+            first["previous_step_ids"] = ["P05"]
+        steps.insert(0, mid)
 
 
 def _confidence(row: dict[str, Any]) -> float:
@@ -738,47 +1123,20 @@ def _confidence(row: dict[str, Any]) -> float:
 
 
 def _first_ref(row: dict[str, Any]) -> str:
-    refs = _string_list(row.get("evidence_refs", []))
+    refs = string_list(row.get("evidence_refs", []))
     if refs:
         return refs[0]
     for value in row.values():
         if isinstance(value, dict):
-            refs = _string_list(value.get("evidence_refs", []))
+            refs = string_list(value.get("evidence_refs", []))
             if refs:
                 return refs[0]
-        elif isinstance(value, list):
-            for item in value:
-                if isinstance(item, dict):
-                    refs = _string_list(item.get("evidence_refs", []))
-                    if refs:
-                        return refs[0]
     return ""
 
 
 def _coerce_text(value: Any) -> str:
     if value is None:
         return ""
-    if isinstance(value, dict):
-        for key in (
-            "value",
-            "text",
-            "name",
-            "description",
-            "requirement",
-            "feature",
-            "type",
-            "id",
-            "process_step",
-            "operation",
-        ):
-            text = _coerce_text(value.get(key))
-            if text:
-                return text
-        return ""
-    if isinstance(value, list):
-        for item in value:
-            text = _coerce_text(item)
-            if text:
-                return text
-        return ""
     return str(value).strip()
+
+

@@ -1,0 +1,1828 @@
+{
+  "document_type": "fmea_knowledge_base",
+  "schema_version": "minos-core.fmea_knowledge_base.v2",
+  "description": "MINOS FMEA 知识库 — 基于 AIAG-VDA 方法论，覆盖冲压、焊接、电镀、卷圆、翻边、倒角、抛光、装配、热处理、检验、包装、烧结等工艺的失效模式规则。来源：公开发表论文、行业标准、技术论坛、工程实践经验。",
+  "rules": [
+    {
+      "rule_id": "KR-STAMPING-HOLE-DIMENSION-001",
+      "enabled": true,
+      "process_terms": ["冲压", "冲孔", "落料", "stamping", "punching", "blanking"],
+      "characteristic_terms": ["孔径", "位置度", "毛刺", "hole diameter", "position", "burr"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "孔径或位置度超差",
+        "failure_effect": "装配困难、功能失效或客户尺寸要求不满足",
+        "failure_cause": "模具磨损、定位不良、材料回弹或设备参数异常"
+      },
+      "recommended_controls": {
+        "prevention_control": "模具状态点检，首件确认，关键参数锁定",
+        "detection_control": "首件检验和巡检确认孔径/位置度",
+        "measurement_method": "专用检具或 CMM",
+        "sample_frequency": "首件和定期巡检",
+        "reaction_plan": "隔离可疑品，停机确认模具和参数，质量工程师复核"
+      },
+      "rating_hint": { "severity": 8, "occurrence": 4, "detection": 5 },
+      "confidence": 0.82,
+      "source": "MINOS seed knowledge v2"
+    },
+    {
+      "rule_id": "KR-STAMPING-BURR-DEFORM-002",
+      "enabled": true,
+      "process_terms": ["冲压", "冲孔", "落料", "切边", "stamping", "trimming"],
+      "characteristic_terms": ["毛刺", "变形", "塌角", "burr", "deformation"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "冲压件毛刺过大或变形",
+        "failure_effect": "后续装配干涉、外观不良或功能件配合超差",
+        "failure_cause": "模具间隙异常、刃口磨损、材料硬度波动或冲压速度不当"
+      },
+      "recommended_controls": {
+        "prevention_control": "模具间隙定期测量，刃口状态点检，材料批次硬度确认",
+        "detection_control": "首件毛刺检查和轮廓比对",
+        "measurement_method": "毛刺尺、轮廓投影仪或手感检查",
+        "sample_frequency": "首件和每批次巡检",
+        "reaction_plan": "隔离并修模，确认刃口间隙后重新首件验证"
+      },
+      "rating_hint": { "severity": 7, "occurrence": 5, "detection": 4 },
+      "confidence": 0.80,
+      "source": "MINOS seed knowledge v2"
+    },
+    {
+      "rule_id": "KR-STAMPING-CRACK-003",
+      "enabled": true,
+      "process_terms": ["冲压", "拉延", "拉伸", "成型", "drawing", "forming", "stretch"],
+      "characteristic_terms": ["开裂", "拉裂", "裂纹", "crack", "split", "fracture"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "冲压件开裂或拉裂",
+        "failure_effect": "零件报废，影响结构强度和安全性能",
+        "failure_cause": "材料延伸率不足、压边力过大、模具间隙过小、润滑不足或R角过小"
+      },
+      "recommended_controls": {
+        "prevention_control": "材料延伸率批次验证，模具R角设计校核，压边力优化",
+        "detection_control": "首件全检和定时巡检外观",
+        "measurement_method": "目视检查或渗透探伤",
+        "sample_frequency": "首件和每批次巡检",
+        "reaction_plan": "隔离批次，调整压边力或润滑，修模增大R角，重新首件验证"
+      },
+      "rating_hint": { "severity": 9, "occurrence": 4, "detection": 3 },
+      "confidence": 0.85,
+      "source": "web-collected: 冲压件常见缺陷及措施, PFMEA与防错技术在冲压制造中的应用 (2021)"
+    },
+    {
+      "rule_id": "KR-STAMPING-WRINKLE-004",
+      "enabled": true,
+      "process_terms": ["冲压", "拉延", "拉伸", "drawing", "forming"],
+      "characteristic_terms": ["起皱", "褶皱", "wrinkle", "buckle", "wave"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "冲压件起皱或褶皱",
+        "failure_effect": "影响外观质量，可能损伤模具或导致后续装配干涉",
+        "failure_cause": "压边力不足、材料尺寸偏小、拉延筋布置不当或材料流动失稳"
+      },
+      "recommended_controls": {
+        "prevention_control": "压边力优化设置，拉延筋合理布局，材料尺寸确认",
+        "detection_control": "首件外观检查和定时巡检",
+        "measurement_method": "目视检查或手感检查",
+        "sample_frequency": "首件和每批次巡检",
+        "reaction_plan": "调整压边力或拉延筋位置，重新首件确认"
+      },
+      "rating_hint": { "severity": 5, "occurrence": 5, "detection": 4 },
+      "confidence": 0.78,
+      "source": "web-collected: 冲压件常见缺陷及措施 (1cae.com)"
+    },
+    {
+      "rule_id": "KR-STAMPING-SPRINGBACK-005",
+      "enabled": true,
+      "process_terms": ["冲压", "弯曲", "成型", "拉延", "stamping", "bending", "forming"],
+      "characteristic_terms": ["回弹", "角度偏差", "尺寸超差", "springback", "angle deviation"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "冲压件回弹导致尺寸超差",
+        "failure_effect": "装配间隙不合格，功能件配合超差",
+        "failure_cause": "残余应力释放、材料弹性恢复、模具补偿不足或工艺参数不当"
+      },
+      "recommended_controls": {
+        "prevention_control": "模具设计回弹补偿，材料屈服强度批次确认，CAE仿真预测回弹量",
+        "detection_control": "首件全尺寸检测和巡检比对",
+        "measurement_method": "三坐标或专用检具",
+        "sample_frequency": "首件和每批次巡检",
+        "reaction_plan": "调整模具补偿量或工艺参数，重新首件全尺寸验证"
+      },
+      "rating_hint": { "severity": 7, "occurrence": 5, "detection": 4 },
+      "confidence": 0.81,
+      "source": "web-collected: 冲压件调试生产常见缺陷分析及改进 (知网)"
+    },
+    {
+      "rule_id": "KR-STAMPING-MISSING-OPERATION-006",
+      "enabled": true,
+      "process_terms": ["冲压", "冲孔", "切边", "落料", "punching", "trimming", "blanking", "progressive die"],
+      "characteristic_terms": ["缺料", "少孔", "漏冲", "missing hole", "missing feature", "incomplete"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "漏冲孔或缺料/少工序",
+        "failure_effect": "零件报废或装配无法进行",
+        "failure_cause": "冲头折断、落料尺寸偏小、步距参数错误、传感器失效或送料故障"
+      },
+      "recommended_controls": {
+        "prevention_control": "冲头寿命管理，步距参数锁定，送料传感器在线监控",
+        "detection_control": "首件全特征检查和过程抽检",
+        "measurement_method": "专用检具或视觉检测",
+        "sample_frequency": "首件和定时巡检",
+        "reaction_plan": "停机更换冲头或调整步距，隔离已生产批次全检，重新首件确认"
+      },
+      "rating_hint": { "severity": 8, "occurrence": 3, "detection": 5 },
+      "confidence": 0.83,
+      "source": "web-collected: PFMEA与防错技术在冲压制造过程中的应用 (2021)"
+    },
+    {
+      "rule_id": "KR-STAMPING-DENT-SCRATCH-007",
+      "enabled": true,
+      "process_terms": ["冲压", "搬运", "清洗", "stamping", "handling", "cleaning"],
+      "characteristic_terms": ["压伤", "凹坑", "划伤", "麻点", "dent", "scratch", "pit"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "冲压件表面压伤、凹坑或划伤",
+        "failure_effect": "影响外观质量和后续表面处理效果",
+        "failure_cause": "异物掉入模具、模具型面不平、润滑油脏污或搬运碰撞"
+      },
+      "recommended_controls": {
+        "prevention_control": "模具型面定期清洁，润滑油过滤，搬运工装防护",
+        "detection_control": "首件和巡检外观检查",
+        "measurement_method": "目视检查或手感检查",
+        "sample_frequency": "首件和定时巡检",
+        "reaction_plan": "清洁模具型面，更换润滑油，隔离缺陷品分选"
+      },
+      "rating_hint": { "severity": 4, "occurrence": 5, "detection": 4 },
+      "confidence": 0.76,
+      "source": "web-collected: 冲压件常见缺陷及措施"
+    },
+
+    {
+      "rule_id": "KR-WELDING-STRENGTH-003",
+      "enabled": true,
+      "process_terms": ["焊接", "点焊", "弧焊", "激光焊", "welding", "spot welding", "arc welding", "laser welding"],
+      "characteristic_terms": ["熔深", "焊点强度", "焊缝", "拉力", "penetration", "weld strength", "pull force"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "焊接强度不足或虚焊",
+        "failure_effect": "焊点/焊缝开裂、结构失效或安全风险",
+        "failure_cause": "焊接参数偏离、电极磨损、工件间隙异常或表面污染"
+      },
+      "recommended_controls": {
+        "prevention_control": "焊接参数锁定和定期校验，电极状态管理，工件清洁确认",
+        "detection_control": "首件破坏性测试或非破坏性检测",
+        "measurement_method": "拉力试验机、超声波检测或目视检查",
+        "sample_frequency": "首件和定时巡检",
+        "reaction_plan": "停机调整焊接参数，隔离可疑批次，重新首件验证焊接强度"
+      },
+      "rating_hint": { "severity": 9, "occurrence": 3, "detection": 4 },
+      "confidence": 0.85,
+      "source": "MINOS seed knowledge v2"
+    },
+    {
+      "rule_id": "KR-WELDING-APPEARANCE-004",
+      "enabled": true,
+      "process_terms": ["焊接", "点焊", "welding", "spot welding"],
+      "characteristic_terms": ["焊点外观", "飞溅", "变色", "spatter", "discoloration"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "焊接外观不良（飞溅、变色、凹坑）",
+        "failure_effect": "客户外观投诉或防腐能力下降",
+        "failure_cause": "焊接电流过大、保护气体不足、工件表面不洁或电极对中不良"
+      },
+      "recommended_controls": {
+        "prevention_control": "焊接参数优化，保护气体流量监控，工件清洁确认",
+        "detection_control": "首件和巡检外观检查",
+        "measurement_method": "目视检查或放大镜检查",
+        "sample_frequency": "首件和定时巡检",
+        "reaction_plan": "调整焊接参数，清理工件和电极，重新首件确认"
+      },
+      "rating_hint": { "severity": 4, "occurrence": 5, "detection": 3 },
+      "confidence": 0.78,
+      "source": "MINOS seed knowledge v2"
+    },
+    {
+      "rule_id": "KR-WELDING-COLD-SOLDER-008",
+      "enabled": true,
+      "process_terms": ["焊接", "回流焊", "点焊", "welding", "reflow", "spot welding"],
+      "characteristic_terms": ["冷焊", "虚焊", "焊膏未熔", "cold solder", "incomplete fusion"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "冷焊/虚焊（焊点未完全熔合）",
+        "failure_effect": "焊点强度不足，电气/机械连接失效",
+        "failure_cause": "焊接温度过低、传送速度过快、焊膏品质缺陷或焊盘氧化"
+      },
+      "recommended_controls": {
+        "prevention_control": "焊接温度曲线定期验证，焊膏来料检验（粘度/氧化度），焊盘清洁确认",
+        "detection_control": "首件X-ray或AOI检测，定时巡检焊点外观",
+        "measurement_method": "X射线检测、AOI光学检测或切片分析",
+        "sample_frequency": "首件和定时巡检",
+        "reaction_plan": "调整焊接温度曲线，隔离批次全检，重新首件确认焊接质量"
+      },
+      "rating_hint": { "severity": 8, "occurrence": 3, "detection": 5 },
+      "confidence": 0.84,
+      "source": "web-collected: 基于PFMEA的SMT回流焊质量改善方法 (探测与控制学报 2018)"
+    },
+    {
+      "rule_id": "KR-WELDING-POROSITY-009",
+      "enabled": true,
+      "process_terms": ["焊接", "弧焊", "气保焊", "welding", "arc welding", "MIG", "MAG", "TIG"],
+      "characteristic_terms": ["气孔", "夹杂", "porosity", "inclusion", "blowhole"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "焊缝气孔或氧化夹杂",
+        "failure_effect": "焊缝强度下降，密封性不良，疲劳寿命降低",
+        "failure_cause": "保护气体流量不足或比例不当、母材表面污染（油/锈）或焊材受潮"
+      },
+      "recommended_controls": {
+        "prevention_control": "保护气体流量监控和报警，母材焊前清洗（超声波或蒸汽清洗），焊材烘干管理",
+        "detection_control": "首件X-ray或超声波检测，定时巡检",
+        "measurement_method": "X射线检测或超声波探伤",
+        "sample_frequency": "首件和每批次巡检",
+        "reaction_plan": "检查气路和流量，清理母材表面，更换焊材，重新首件验证"
+      },
+      "rating_hint": { "severity": 7, "occurrence": 4, "detection": 5 },
+      "confidence": 0.80,
+      "source": "web-collected: 焊接工艺开发与PFMEA制定案例分享 (anytesting.com)"
+    },
+    {
+      "rule_id": "KR-WELDING-INCOMPLETE-PENETRATION-010",
+      "enabled": true,
+      "process_terms": ["焊接", "弧焊", "激光焊", "welding", "arc welding", "laser welding"],
+      "characteristic_terms": ["未熔合", "未焊透", "熔深不足", "incomplete penetration", "lack of fusion"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "未焊透或未熔合",
+        "failure_effect": "接头强度不足，在服役中焊缝开裂",
+        "failure_cause": "焊接电流/功率不足、焊接速度过快、接头设计不当或坡口角度过小"
+      },
+      "recommended_controls": {
+        "prevention_control": "焊接工艺评定(WPQ)验证参数，接头设计校核，焊接参数锁定",
+        "detection_control": "首件破坏性检测和定时超声波探伤",
+        "measurement_method": "超声波检测、X射线或切片金相分析",
+        "sample_frequency": "首件和每批次巡检",
+        "reaction_plan": "调整焊接参数，修整坡口，重新进行工艺评定和首件验证"
+      },
+      "rating_hint": { "severity": 9, "occurrence": 3, "detection": 5 },
+      "confidence": 0.86,
+      "source": "web-collected: 焊接工艺开发与PFMEA制定案例 (anytesting.com)"
+    },
+
+    {
+      "rule_id": "KR-RIVETING-PRESSFIT-005",
+      "enabled": true,
+      "process_terms": ["铆接", "压装", "压入", "riveting", "press-fit", "press fit"],
+      "characteristic_terms": ["铆接力", "压入力", "位移", "rivet force", "press force", "displacement"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "铆接/压装力超差或位移不足",
+        "failure_effect": "连接松动、异响或功能失效",
+        "failure_cause": "设备参数漂移、工件尺寸波动、润滑状态变化或工装磨损"
+      },
+      "recommended_controls": {
+        "prevention_control": "设备参数锁定和力-位移监控，工装状态点检",
+        "detection_control": "首件力和位移检查，过程力-位移曲线监控",
+        "measurement_method": "力传感器和位移传感器在线监控",
+        "sample_frequency": "首件和定时巡检",
+        "reaction_plan": "停机调整参数，检查工装和来料尺寸，重新首件确认"
+      },
+      "rating_hint": { "severity": 8, "occurrence": 3, "detection": 3 },
+      "confidence": 0.83,
+      "source": "MINOS seed knowledge v2"
+    },
+    {
+      "rule_id": "KR-PRESSFIT-NOISE-011",
+      "enabled": true,
+      "process_terms": ["压装", "压入", "装配", "press-fit", "press fit", "assembly"],
+      "characteristic_terms": ["异响", "噪音", "摩擦声", "noise", "squeak", "rattle"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "压装后产生异常噪音（摩擦声/敲击声）",
+        "failure_effect": "客户投诉、品牌声誉受损、售后索赔增加",
+        "failure_cause": "过盈量不足导致微动磨损、润滑脂涂抹不到位、压装偏斜导致接触面不均匀或配合面粗糙度不合格"
+      },
+      "recommended_controls": {
+        "prevention_control": "定量注脂枪精确控制注脂量，过盈量SPC控制，压装对中工装",
+        "detection_control": "下线NVH检测或异响台架试验，AI视觉检测润滑脂分布",
+        "measurement_method": "加速度传感器或人工听诊",
+        "sample_frequency": "首件和定时巡检",
+        "reaction_plan": "检查润滑脂涂布和过盈量，调整压装参数，重新首件验证"
+      },
+      "rating_hint": { "severity": 6, "occurrence": 4, "detection": 4 },
+      "confidence": 0.79,
+      "source": "web-collected: 异响背后的FMEA突围战 (河南省质量协会)"
+    },
+    {
+      "rule_id": "KR-PRESSFIT-LOOSENESS-012",
+      "enabled": true,
+      "process_terms": ["压装", "压入", "过盈配合", "press-fit", "interference fit", "assembly"],
+      "characteristic_terms": ["松动", "脱落", "压脱力", "推出力", "loose", "pull-out force", "retention force"],
+      "special_characteristic_required": true,
+      "risk": {
+        "failure_mode": "压装后配合松动或脱落",
+        "failure_effect": "功能丧失，涉及安全时可能导致严重事故",
+        "failure_cause": "过盈量不足（孔径偏大或轴径偏小）、表面粗糙度过低、材料蠕变或压装未到位"
+      },
+      "recommended_controls": {
+        "prevention_control": "来料孔径/轴径SPC监控 (CPK≥1.33)，伺服压机力-位移曲线100%在线判定",
+        "detection_control": "抽样压脱力/推出力破坏试验，压装曲线包络线判定",
+        "measurement_method": "力传感器和位移传感器在线监控",
+        "sample_frequency": "100%在线检测，每2小时首末件剖切验证",
+        "reaction_plan": "NG报警→隔离→追溯→调整参数/更换模具→重新验证"
+      },
+      "rating_hint": { "severity": 9, "occurrence": 2, "detection": 3 },
+      "confidence": 0.88,
+      "source": "web-collected: 基于过盈联接的机油泵衬套压装质量监控 (汽车工艺与材料 2023)"
+    },
+    {
+      "rule_id": "KR-PRESSFIT-MISALIGNMENT-013",
+      "enabled": true,
+      "process_terms": ["压装", "压入", "装配", "press-fit", "assembly", "alignment"],
+      "characteristic_terms": ["偏斜", "对中不良", "变形", "misalignment", "deformation", "tilt"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "压装偏斜导致零件变形或开裂",
+        "failure_effect": "零件报废，装配功能失效",
+        "failure_cause": "压头未对准、工装导向间隙过大、零件定位不良或压装速度过快"
+      },
+      "recommended_controls": {
+        "prevention_control": "压装工装导向精度定期校验，零件定位防错设计，压装速度优化",
+        "detection_control": "首件对中检查和压装力曲线异常识别（锯齿形预警）",
+        "measurement_method": "力-位移曲线监控和目视检查",
+        "sample_frequency": "首件和定时巡检",
+        "reaction_plan": "检查工装导向和零件定位，调整压装参数，重新首件验证"
+      },
+      "rating_hint": { "severity": 7, "occurrence": 3, "detection": 4 },
+      "confidence": 0.81,
+      "source": "web-collected: 压装失效模式探析 (AI汽车制造业 2010)"
+    },
+
+    {
+      "rule_id": "KR-ASSEMBLY-FIT-006",
+      "enabled": true,
+      "process_terms": ["装配", "组装", "总装", "assembly", "fitting", "mounting"],
+      "characteristic_terms": ["间隙", "面差", "匹配", "gap", "flush", "fit"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "装配间隙或面差不合格",
+        "failure_effect": "外观质量不良或功能干涉",
+        "failure_cause": "零件尺寸波动、装配顺序错误或工装定位偏差"
+      },
+      "recommended_controls": {
+        "prevention_control": "零件上线前尺寸确认，工装定位校验，标准作业指导",
+        "detection_control": "首件间隙/面差测量和装配后功能检查",
+        "measurement_method": "塞尺、间隙规或三坐标测量",
+        "sample_frequency": "首件和定时巡检",
+        "reaction_plan": "隔离不合格品，调整工装或更换偏差零件，重新首件确认"
+      },
+      "rating_hint": { "severity": 6, "occurrence": 4, "detection": 4 },
+      "confidence": 0.80,
+      "source": "MINOS seed knowledge v2"
+    },
+    {
+      "rule_id": "KR-ASSEMBLY-TORQUE-007",
+      "enabled": true,
+      "process_terms": ["装配", "拧紧", "螺栓", "assembly", "torque", "bolt", "fastening"],
+      "characteristic_terms": ["扭矩", "紧固力矩", "torque", "tightening torque"],
+      "special_characteristic_required": true,
+      "risk": {
+        "failure_mode": "紧固扭矩不合格（过紧或过松）",
+        "failure_effect": "连接松动导致异响或功能失效，过紧导致零件损坏",
+        "failure_cause": "扭矩工具未校准、操作不规范或螺纹/配合面异常"
+      },
+      "recommended_controls": {
+        "prevention_control": "扭矩工具定期校准，标准扭矩值作业指导，扭矩监控系统",
+        "detection_control": "首件扭矩校验和过程扭矩抽检",
+        "measurement_method": "扭矩扳手或在线扭矩监控",
+        "sample_frequency": "首件和定时巡检",
+        "reaction_plan": "隔离，重新拧紧或更换零件，扭矩工具重新校准后验证"
+      },
+      "rating_hint": { "severity": 8, "occurrence": 3, "detection": 3 },
+      "confidence": 0.85,
+      "source": "MINOS seed knowledge v2"
+    },
+
+    {
+      "rule_id": "KR-COATING-OILING-008",
+      "enabled": true,
+      "process_terms": ["涂油", "涂胶", "注油", "注脂", "oiling", "greasing", "coating", "adhesive"],
+      "characteristic_terms": ["油量", "胶量", "涂覆面积", "注油量", "oil weight", "adhesive weight", "coverage"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "涂油/涂胶量超差或覆盖不全",
+        "failure_effect": "防锈能力不足或粘接强度不达标",
+        "failure_cause": "涂布参数偏移、喷嘴堵塞、材料粘度变化或节拍异常"
+      },
+      "recommended_controls": {
+        "prevention_control": "涂布参数锁定和定期校验，喷嘴清洁计划，材料批次粘度确认",
+        "detection_control": "首件涂布量称重或覆盖面积检查",
+        "measurement_method": "称重法、目视检查或自动视觉检测",
+        "sample_frequency": "首件和定时巡检",
+        "reaction_plan": "停机清理喷嘴，调整涂布参数，重新首件确认涂布量"
+      },
+      "rating_hint": { "severity": 6, "occurrence": 4, "detection": 5 },
+      "confidence": 0.78,
+      "source": "MINOS seed knowledge v2"
+    },
+
+    {
+      "rule_id": "KR-SURFACE-TREATMENT-009",
+      "enabled": true,
+      "process_terms": ["表面处理", "电镀", "磷化", "阳极氧化", "涂装", "plating", "phosphating", "anodizing", "painting"],
+      "characteristic_terms": ["膜厚", "附着力", "盐雾", "耐腐蚀", "coating thickness", "adhesion", "salt spray", "corrosion"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "表面处理膜厚不足或附着力不合格",
+        "failure_effect": "耐腐蚀性能不达标，早期锈蚀或涂层脱落",
+        "failure_cause": "处理液浓度/温度偏离、处理时间不足、前处理不净或烘烤温度异常"
+      },
+      "recommended_controls": {
+        "prevention_control": "处理液浓度和温度定期监控，前处理清洁确认，烘烤炉温监控",
+        "detection_control": "首件膜厚和附着力测试",
+        "measurement_method": "膜厚仪、百格刀附着力测试、盐雾试验",
+        "sample_frequency": "首件和每批次巡检",
+        "reaction_plan": "隔离批次，调整处理液浓度和温度，重新首件验证膜厚和附着力"
+      },
+      "rating_hint": { "severity": 7, "occurrence": 4, "detection": 4 },
+      "confidence": 0.81,
+      "source": "MINOS seed knowledge v2"
+    },
+    {
+      "rule_id": "KR-PLATING-HYDROGEN-EMBRITTLEMENT-014",
+      "enabled": true,
+      "process_terms": ["电镀", "镀锌", "镀镍", "镀铬", "plating", "zinc plating", "nickel plating", "chrome plating"],
+      "characteristic_terms": ["氢脆", "延迟断裂", "脆性", "hydrogen embrittlement", "delayed fracture", "brittleness"],
+      "special_characteristic_required": true,
+      "risk": {
+        "failure_mode": "电镀后氢脆导致延迟断裂",
+        "failure_effect": "服役中零件突然断裂，可能导致安全事故",
+        "failure_cause": "电镀过程中氢离子还原产生的氢原子渗入高强钢基体，镀后未及时除氢烘烤"
+      },
+      "recommended_controls": {
+        "prevention_control": "镀后4小时内进行除氢烘烤 (190~200℃, ≥4h)，优化电流密度减少析氢副反应",
+        "detection_control": "批次抽样氢脆试验（恒载荷或慢应变速率拉伸）",
+        "measurement_method": "恒载荷拉伸试验或测氢仪",
+        "sample_frequency": "每批次抽样",
+        "reaction_plan": "隔离批次，重新除氢处理并验证，检查电镀参数和烘烤记录"
+      },
+      "rating_hint": { "severity": 10, "occurrence": 2, "detection": 5 },
+      "confidence": 0.90,
+      "source": "web-collected: 锌镍合金电镀常见问题及解决办法, J-STAGE研究论文 (2023)"
+    },
+    {
+      "rule_id": "KR-PLATING-ADHESION-015",
+      "enabled": true,
+      "process_terms": ["电镀", "镀锌镍", "镀锌", "plating", "Zn-Ni", "zinc plating", "electroplating"],
+      "characteristic_terms": ["附着力", "起皮", "脱落", "发花", "adhesion", "peeling", "delamination", "blister"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "镀层附着力不良（起皮、脱落、发花）",
+        "failure_effect": "腐蚀防护失效，镀层脱落影响外观和功能",
+        "failure_cause": "前处理不彻底（除油除锈不净）、基体表面氧化膜残留、酸洗活化后暴露时间过长（>2分钟）或工序间隔过长"
+      },
+      "recommended_controls": {
+        "prevention_control": "前处理实现'四无'（无油、无锈、无挂灰、无氧化膜），活化后2分钟内转入电镀槽，化学除油+阳极电解脱脂",
+        "detection_control": "首件百格刀附着力测试和热震试验",
+        "measurement_method": "百格刀附着力测试或热震试验",
+        "sample_frequency": "首件和每批次巡检",
+        "reaction_plan": "检查前处理工序，调整活化参数，隔离批次重新处理"
+      },
+      "rating_hint": { "severity": 7, "occurrence": 4, "detection": 4 },
+      "confidence": 0.83,
+      "source": "web-collected: 锌镍合金电镀常见问题及解决办法 (wzrunmei.com)"
+    },
+    {
+      "rule_id": "KR-PLATING-THICKNESS-VARIATION-016",
+      "enabled": true,
+      "process_terms": ["电镀", "镀锌镍", "镀锌", "plating", "Zn-Ni", "electroplating"],
+      "characteristic_terms": ["膜厚不均", "厚度极差", "低区漏镀", "thickness variation", "thin spot", "skip plating"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "镀层膜厚不均或局部漏镀",
+        "failure_effect": "局部耐腐蚀能力不足，早期锈蚀",
+        "failure_cause": "电流密度分布不均匀、镀液中Zn²⁺/Ni²⁺比例失衡、配位剂浓度不当或悬浮颗粒物存在"
+      },
+      "recommended_controls": {
+        "prevention_control": "镀液成分定期分析（Zn²⁺:Ni²⁺质量比 10~13），配位剂浓度监控 (80~100mL/L)，阳极分布优化",
+        "detection_control": "首件多点膜厚测量（高区和低区），定时巡检",
+        "measurement_method": "X射线荧光膜厚仪",
+        "sample_frequency": "首件和每批次巡检",
+        "reaction_plan": "调整镀液成分和配位剂浓度，优化阳极布置，隔离批次重新电镀"
+      },
+      "rating_hint": { "severity": 6, "occurrence": 4, "detection": 4 },
+      "confidence": 0.79,
+      "source": "web-collected: 锌镍合金电镀常见问题及解决办法"
+    },
+    {
+      "rule_id": "KR-PLATING-PASSIVATION-017",
+      "enabled": true,
+      "process_terms": ["钝化", "镀后处理", "封闭", "passivation", "post-treatment", "sealing"],
+      "characteristic_terms": ["钝化膜", "耐盐雾", "变色", "白锈", "passivation film", "salt spray resistance", "white rust"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "钝化膜变色或耐盐雾性能不达标",
+        "failure_effect": "零件在储存或运输中产生白锈，客户拒收",
+        "failure_cause": "镀后清洗不彻底导致镀液残留、钝化液浓度/温度/pH异常或烘干温度不足"
+      },
+      "recommended_controls": {
+        "prevention_control": "四级逆流纯水清洗，钝化液参数自动监控，60~80℃充分烘干",
+        "detection_control": "首件盐雾试验和钝化膜外观检查",
+        "measurement_method": "中性盐雾试验 (NSS) 和目视检查",
+        "sample_frequency": "首件和每批次巡检",
+        "reaction_plan": "检查清洗和钝化工序参数，隔离批次重新钝化处理"
+      },
+      "rating_hint": { "severity": 5, "occurrence": 4, "detection": 5 },
+      "confidence": 0.77,
+      "source": "web-collected: 锌镍合金共渗在紧固件表面处理中的应用 (hdyougong.com)"
+    },
+
+    {
+      "rule_id": "KR-HEAT-TREATMENT-010",
+      "enabled": true,
+      "process_terms": ["热处理", "淬火", "回火", "退火", "渗碳", "heat treatment", "quenching", "tempering", "annealing", "carburizing"],
+      "characteristic_terms": ["硬度", "硬化层深", "金相", "hardness", "case depth", "microstructure"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "硬度不合格或硬化层深不足",
+        "failure_effect": "零件强度不足、早期磨损或疲劳断裂",
+        "failure_cause": "热处理温度/时间偏离、冷却速度不足、装炉方式不当或材料成分波动"
+      },
+      "recommended_controls": {
+        "prevention_control": "热处理参数锁定和炉温均匀性定期校验，来料批次成分确认",
+        "detection_control": "首件硬度和硬化层深检测",
+        "measurement_method": "硬度计、显微硬度计或金相分析",
+        "sample_frequency": "首件和每炉次巡检",
+        "reaction_plan": "隔离批次，调整热处理参数，重新首件验证硬度和层深"
+      },
+      "rating_hint": { "severity": 9, "occurrence": 3, "detection": 4 },
+      "confidence": 0.84,
+      "source": "MINOS seed knowledge v2"
+    },
+    {
+      "rule_id": "KR-HEAT-TREAT-DECARBURIZATION-018",
+      "enabled": true,
+      "process_terms": ["热处理", "淬火", "退火", "加热", "heat treatment", "quenching", "annealing", "heating"],
+      "characteristic_terms": ["脱碳", "表面硬度", "脱碳层", "decarburization", "surface hardness", "carbon depletion"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "表面脱碳导致硬度不足",
+        "failure_effect": "零件表面耐磨性下降，早期磨损失效",
+        "failure_cause": "淬火温度高于工艺要求、保护气氛不足或炉内氧化性气氛过高"
+      },
+      "recommended_controls": {
+        "prevention_control": "保护气氛碳势自动控制，炉温严格按工艺设定，温度仪表定期校准（每班校对一次）",
+        "detection_control": "首件表面硬度和脱碳层深度检测",
+        "measurement_method": "显微硬度计和金相分析",
+        "sample_frequency": "首件和每炉次巡检",
+        "reaction_plan": "调整碳势和炉温，隔离批次，重新热处理验证"
+      },
+      "rating_hint": { "severity": 8, "occurrence": 3, "detection": 4 },
+      "confidence": 0.82,
+      "source": "web-collected: 热处理PFMEA失效模式分析实例 (腾讯文库)"
+    },
+    {
+      "rule_id": "KR-HEAT-TREAT-QUENCH-CRACK-019",
+      "enabled": true,
+      "process_terms": ["淬火", "热处理", "quenching", "heat treatment"],
+      "characteristic_terms": ["淬裂", "裂纹", "开裂", "quench crack", "crack", "fracture"],
+      "special_characteristic_required": true,
+      "risk": {
+        "failure_mode": "淬火开裂",
+        "failure_effect": "零件报废，可能导致安全失效",
+        "failure_cause": "冷却介质温度不当（>80℃或<50℃）、冷却速度过快、材料碳当量过高或截面突变产生应力集中"
+      },
+      "recommended_controls": {
+        "prevention_control": "冷却介质温度自动监控和报警，按碳当量确定预热温度和冷却参数，零件设计避免尖角",
+        "detection_control": "首件全检和定时巡检裂纹（磁粉探伤或渗透探伤）",
+        "measurement_method": "磁粉探伤、渗透探伤或超声波检测",
+        "sample_frequency": "首件100%和每炉次巡检",
+        "reaction_plan": "停机检查冷却介质温度和循环系统，隔离批次全检，调整淬火参数"
+      },
+      "rating_hint": { "severity": 10, "occurrence": 2, "detection": 3 },
+      "confidence": 0.87,
+      "source": "web-collected: 热处理PFMEA失效模式分析实例, CQI-9第3版"
+    },
+    {
+      "rule_id": "KR-HEAT-TREAT-DISTORTION-020",
+      "enabled": true,
+      "process_terms": ["淬火", "回火", "热处理", "quenching", "tempering", "heat treatment"],
+      "characteristic_terms": ["变形", "椭圆度", "锥度", "弯曲", "distortion", "ovality", "warpage", "bending"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "热处理变形超差（椭圆度/锥度/弯曲）",
+        "failure_effect": "后续加工余量不足，零件尺寸不合格",
+        "failure_cause": "淬火冷却不均匀、装炉方式不当、加热速度过快或残余应力释放"
+      },
+      "recommended_controls": {
+        "prevention_control": "优化装炉方式和淬火夹具，控制加热速度和冷却均匀性，去应力预处理",
+        "detection_control": "首件全尺寸测量和每炉次抽检",
+        "measurement_method": "千分尺、圆度仪或三坐标测量",
+        "sample_frequency": "首件和每炉次巡检",
+        "reaction_plan": "调整装炉方式或冷却参数，隔离批次矫直或报废"
+      },
+      "rating_hint": { "severity": 6, "occurrence": 4, "detection": 4 },
+      "confidence": 0.78,
+      "source": "web-collected: 热处理PFMEA失效模式分析实例 (腾讯文库)"
+    },
+    {
+      "rule_id": "KR-HEAT-TREAT-MICROSTRUCTURE-021",
+      "enabled": true,
+      "process_terms": ["淬火", "回火", "渗碳", "热处理", "quenching", "tempering", "carburizing", "heat treatment"],
+      "characteristic_terms": ["金相组织", "马氏体", "碳化物", "网状组织", "microstructure", "martensite", "carbide", "network structure"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "金相组织不合格（粗大马氏体/网状碳化物/游离铁素体）",
+        "failure_effect": "零件抗拉强度和疲劳寿命不达标",
+        "failure_cause": "冷速过慢形成非马氏体组织、渗碳后冷却不当产生网状碳化物、加热温度过高导致晶粒粗大"
+      },
+      "recommended_controls": {
+        "prevention_control": "严格按工艺控制加热温度和保温时间，渗碳后控制冷却速度，炉温均匀性定期校验",
+        "detection_control": "首件金相分析和每炉次巡检",
+        "measurement_method": "金相显微镜分析",
+        "sample_frequency": "首件和每炉次巡检",
+        "reaction_plan": "调整热处理温度和冷却参数，隔离批次重新热处理"
+      },
+      "rating_hint": { "severity": 8, "occurrence": 3, "detection": 5 },
+      "confidence": 0.83,
+      "source": "web-collected: 失效分析深度剖析——热处理工艺偏差导致灾难性后果 (CAGTC)"
+    },
+
+    {
+      "rule_id": "KR-DIMENSIONAL-INSPECTION-011",
+      "enabled": true,
+      "process_terms": ["检验", "尺寸检验", "检测", "测量", "inspection", "measurement", "checking", "testing"],
+      "characteristic_terms": ["尺寸", "公差", "dimension", "tolerance"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "尺寸测量结果误判（漏检或误判合格）",
+        "failure_effect": "不合格品流出或合格品被误判报废",
+        "failure_cause": "量具未校准、测量方法不一致、人员操作差异或环境影响"
+      },
+      "recommended_controls": {
+        "prevention_control": "量具定期校准和 MSA 验证，标准测量方法作业指导",
+        "detection_control": "首件测量和巡检比对",
+        "measurement_method": "按控制计划规定的量具和方法",
+        "sample_frequency": "首件和定时巡检",
+        "reaction_plan": "量具重新校准，确认测量方法，可疑批次重新测量"
+      },
+      "rating_hint": { "severity": 5, "occurrence": 3, "detection": 5 },
+      "confidence": 0.80,
+      "source": "MINOS seed knowledge v2"
+    },
+    {
+      "rule_id": "KR-INSPECTION-MISSED-DETECTION-022",
+      "enabled": true,
+      "process_terms": ["检验", "来料检验", "成品检验", "inspection", "incoming inspection", "final inspection", "IQC"],
+      "characteristic_terms": ["漏检", "误判", "错检", "missed detection", "false acceptance", "misjudgment"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "检验漏检或误判（不良判合格或合格判不良）",
+        "failure_effect": "不合格品流出到客户或合格品被误判报废增加成本",
+        "failure_cause": "检验标准不明确、人员疲劳/培训不足、检验器具失效或光照条件不足"
+      },
+      "recommended_controls": {
+        "prevention_control": "检验员定期培训和资质认证，标准样件/边界样本对比，检验器具定期校准和MSA验证",
+        "detection_control": "双人复核制度，自动化检测设备在线判定",
+        "measurement_method": "按控制计划规定的量具和方法",
+        "sample_frequency": "根据客户要求和过程能力确定",
+        "reaction_plan": "隔离可疑批次，量具重新校准，人员重新培训，全检确认"
+      },
+      "rating_hint": { "severity": 6, "occurrence": 3, "detection": 5 },
+      "confidence": 0.78,
+      "source": "web-collected: 检验过程要不要做PFMEA分析 (讨教咨询)"
+    },
+    {
+      "rule_id": "KR-INSPECTION-GAUGE-FAILURE-023",
+      "enabled": true,
+      "process_terms": ["检验", "量具", "检具", "校准", "inspection", "gage", "gauge", "calibration"],
+      "characteristic_terms": ["量具失效", "校准超期", "MSA不合格", "gauge failure", "calibration expired", "MSA fail"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "检验器具失效或未校准导致批量误判",
+        "failure_effect": "大量不合格品流出或合格品被误判",
+        "failure_cause": "量具未按期校准、校准方法不当、量具使用环境超出规定或MSA GR&R不合格"
+      },
+      "recommended_controls": {
+        "prevention_control": "量具校准周期管理（自动提醒），校准标准件可溯源，MSA年度验证",
+        "detection_control": "每日用标准件验证量具状态，定期GR&R分析",
+        "measurement_method": "标准件验证和GR&R分析",
+        "sample_frequency": "每日验证和年度MSA",
+        "reaction_plan": "隔离自上次合格验证以来的检测批次，量具重新校准，追溯复检"
+      },
+      "rating_hint": { "severity": 7, "occurrence": 2, "detection": 5 },
+      "confidence": 0.82,
+      "source": "web-collected: 汽车零部件PFMEA创新应用 (AI汽车制造业)"
+    },
+
+    {
+      "rule_id": "KR-APPEARANCE-INSPECTION-012",
+      "enabled": true,
+      "process_terms": ["外观检验", "目视检查", "外观检查", "appearance inspection", "visual inspection"],
+      "characteristic_terms": ["外观", "划伤", "色差", "表面缺陷", "appearance", "scratch", "color", "surface defect"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "外观缺陷漏检",
+        "failure_effect": "客户外观投诉或退货",
+        "failure_cause": "光照条件不足、检验标准不明确、人员疲劳或培训不足"
+      },
+      "recommended_controls": {
+        "prevention_control": "标准光照条件，外观限度样本，检验员定期培训和认证",
+        "detection_control": "100% 外观检查或按 AQL 抽检",
+        "measurement_method": "目视检查，必要时使用放大镜或外观比对板",
+        "sample_frequency": "根据客户要求和过程能力确定",
+        "reaction_plan": "隔离缺陷品，追溯上游工序，必要时增加分选和外观标准再培训"
+      },
+      "rating_hint": { "severity": 4, "occurrence": 5, "detection": 3 },
+      "confidence": 0.77,
+      "source": "MINOS seed knowledge v2"
+    },
+
+    {
+      "rule_id": "KR-PACKAGING-TRACEABILITY-013",
+      "enabled": true,
+      "process_terms": ["包装", "标识", "标签", "打码", "packaging", "labeling", "marking", "barcode", "traceability"],
+      "characteristic_terms": ["标签", "条码", "追溯", "批次号", "label", "barcode", "lot number", "traceability"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "包装标识错误或追溯信息缺失",
+        "failure_effect": "客户无法识别、混料风险或召回范围无法确定",
+        "failure_cause": "标签模板错误、打印设备故障、人工贴标失误或批次信息录入错误"
+      },
+      "recommended_controls": {
+        "prevention_control": "标签模板审批和版本控制，打印设备定期维护，批次信息双人复核",
+        "detection_control": "首件标签核对和过程抽检",
+        "measurement_method": "条码扫描验证和人眼核对",
+        "sample_frequency": "首件和每批次巡检",
+        "reaction_plan": "隔离错误标识批次，修正标签模板或打印参数，重新验证标识"
+      },
+      "rating_hint": { "severity": 5, "occurrence": 4, "detection": 4 },
+      "confidence": 0.79,
+      "source": "MINOS seed knowledge v2"
+    },
+    {
+      "rule_id": "KR-PACKAGING-MIXED-024",
+      "enabled": true,
+      "process_terms": ["包装", "打包", "装箱", "packaging", "packing", "boxing"],
+      "characteristic_terms": ["混装", "混料", "数量不符", "mixed parts", "mixed lots", "wrong quantity"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "包装混装或数量不符",
+        "failure_effect": "客户装配错误或生产节拍受影响，客户投诉",
+        "failure_cause": "现场标识不清、不同零件/批次混放、作业不规范或未做称重防错验证"
+      },
+      "recommended_controls": {
+        "prevention_control": "现场定置管理和清晰标识，称重防错验证，包装作业指导书",
+        "detection_control": "首件包装确认和过程抽检",
+        "measurement_method": "称重法和目视核对",
+        "sample_frequency": "首件和每批次巡检",
+        "reaction_plan": "隔离错误包装，全检重新包装，加强现场标识管理"
+      },
+      "rating_hint": { "severity": 5, "occurrence": 3, "detection": 4 },
+      "confidence": 0.76,
+      "source": "web-collected: 汽车零部件PFMEA创新应用——来料检验到包装全流程"
+    },
+    {
+      "rule_id": "KR-PACKAGING-DAMAGE-025",
+      "enabled": true,
+      "process_terms": ["包装", "运输", "搬运", "packaging", "transport", "handling", "shipping"],
+      "characteristic_terms": ["包装破损", "产品损坏", "运输损伤", "package damage", "product damage", "transit damage"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "包装破损导致产品损坏",
+        "failure_effect": "产品报废或客户退货",
+        "failure_cause": "包装材料强度不足、搬运野蛮操作、运输周转次数过多或堆垛方式不当"
+      },
+      "recommended_controls": {
+        "prevention_control": "包装材料规格验证，包装设计跌落试验，搬运作业规范",
+        "detection_control": "出货前包装外观检查和装车后核查",
+        "measurement_method": "目视检查",
+        "sample_frequency": "每批次出货前全检",
+        "reaction_plan": "更换包装材料或改进包装方式，隔离受损产品，通知物流改善搬运"
+      },
+      "rating_hint": { "severity": 6, "occurrence": 3, "detection": 3 },
+      "confidence": 0.75,
+      "source": "web-collected: 汽车零部件PFMEA创新应用"
+    },
+
+    {
+      "rule_id": "KR-SPECIAL-CHARACTERISTIC-014",
+      "enabled": true,
+      "process_terms": [],
+      "characteristic_terms": [],
+      "special_characteristic_required": true,
+      "risk": {
+        "failure_mode": "特殊特性控制失效",
+        "failure_effect": "安全或法规符合性风险，客户特殊要求不满足",
+        "failure_cause": "特殊特性未识别、控制方法不足或变更管理失控"
+      },
+      "recommended_controls": {
+        "prevention_control": "特殊特性在 PFD/PFMEA/CP 中逐级传递，变更时重新评估影响",
+        "detection_control": "按控制计划规定的频次和方法对特殊特性实施检测",
+        "measurement_method": "按图纸或客户要求规定的量具和方法",
+        "sample_frequency": "不低于客户特殊要求规定的频次",
+        "reaction_plan": "发现特殊特性超差立即停机，隔离全部可疑品，通知客户质量代表，完成根本原因分析和纠正措施后才能恢复生产"
+      },
+      "rating_hint": { "severity": 9, "occurrence": 2, "detection": 3 },
+      "confidence": 0.90,
+      "source": "MINOS seed knowledge v2"
+    },
+    {
+      "rule_id": "KR-HIGH-AP-REACTION-015",
+      "enabled": true,
+      "process_terms": [],
+      "characteristic_terms": [],
+      "requires_high_ap": true,
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "高 AP 风险缺乏有效反应计划",
+        "failure_effect": "风险发生时响应延迟，不良范围扩大",
+        "failure_cause": "AP 评价后未制定对应级别的反应计划或反应计划不可执行"
+      },
+      "recommended_controls": {
+        "prevention_control": "高 AP 风险必须在 CP 中明确控制方法和反应计划",
+        "detection_control": "反应计划必须包含停机条件、隔离范围、通知路径和重启验证",
+        "measurement_method": "按照对应的控制计划控制方法执行",
+        "sample_frequency": "按照对应的控制计划频次执行",
+        "reaction_plan": "停机，隔离全部可疑产品，通知质量工程师和相关部门，完成原因分析和纠正措施，验证有效后才能恢复生产"
+      },
+      "rating_hint": { "severity": 8, "occurrence": 4, "detection": 4 },
+      "confidence": 0.88,
+      "source": "MINOS seed knowledge v2"
+    },
+    {
+      "rule_id": "KR-PROCESS-PARAMETER-MONITORING-016",
+      "enabled": true,
+      "process_terms": ["注塑", "压铸", "成型", "injection molding", "die casting", "forming"],
+      "characteristic_terms": ["温度", "压力", "时间", "温度曲线", "temperature", "pressure", "cycle time"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "过程参数偏离导致产品特性不合格",
+        "failure_effect": "批量尺寸或性能不合格",
+        "failure_cause": "设备控制精度不足、参数设置不当或环境温度变化"
+      },
+      "recommended_controls": {
+        "prevention_control": "关键过程参数锁定和在线监控，设备定期维护和校准",
+        "detection_control": "首件全尺寸检测和过程参数趋势监控",
+        "measurement_method": "过程参数传感器在线记录和首件尺寸检测",
+        "sample_frequency": "首件和定时巡检，参数连续监控",
+        "reaction_plan": "参数超限自动报警，隔离受影响批次，调整参数后重新首件验证"
+      },
+      "rating_hint": { "severity": 7, "occurrence": 4, "detection": 3 },
+      "confidence": 0.80,
+      "source": "MINOS seed knowledge v2"
+    },
+    {
+      "rule_id": "KR-DOOR-HINGE-ROTATION-FUNCTION-045",
+      "enabled": true,
+      "process_terms": ["门铰链", "尾门铰链", "背门铰链", "铰链总成", "铰链", "door hinge", "tailgate hinge", "hinge assembly", "铆接", "润滑", "功能检验"],
+      "characteristic_terms": ["转动力矩", "旋转力矩", "开闭角度", "开启角度", "铰链销", "转轴", "衬套", "rotation torque", "opening angle", "hinge pin", "bushing"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "铰链转动功能异常或开闭角度不符合要求",
+        "failure_effect": "尾门/车门开闭沉重、异响、卡滞或装车间隙匹配不良",
+        "failure_cause": "铰链销铆接高度异常、衬套漏装或破损、润滑不足、装配定位偏差或表面处理后配合间隙变化"
+      },
+      "recommended_controls": {
+        "prevention_control": "确认铰链销、衬套和铆接工装状态，按作业标准控制润滑量和装配定位",
+        "detection_control": "转动力矩、开闭角度和外观异响功能检验",
+        "measurement_method": "扭矩计、角度检具和功能检具",
+        "sample_frequency": "首件、换型后和定时巡检",
+        "reaction_plan": "隔离可疑批次，复核铆接高度、衬套状态和润滑量，调整工装后重新首件验证"
+      },
+      "rating_hint": { "severity": 8, "occurrence": 4, "detection": 4 },
+      "confidence": 0.84,
+      "source": "MINOS part-family seed: door_hinge title-block hardening"
+    },
+    {
+      "rule_id": "KR-LIMITER-DETENT-FORCE-046",
+      "enabled": true,
+      "process_terms": ["限位器", "限位总成", "车门限位", "door check", "door checker", "check strap", "check arm", "limiter", "装配", "铆接", "功能检验"],
+      "characteristic_terms": ["档位力", "保持力", "限位力", "开启力", "关闭力", "滚轮", "弹簧", "限位臂", "detent force", "holding force", "roller", "spring"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "限位器档位力或保持力不符合要求",
+        "failure_effect": "车门开启档位不清晰、保持不住、开闭手感异常或异响",
+        "failure_cause": "弹簧/滚轮装配不到位、限位臂轮廓偏差、铆接或压装位置异常、润滑量不稳定"
+      },
+      "recommended_controls": {
+        "prevention_control": "确认弹簧、滚轮、限位臂和铆接/压装工装状态，关键装配位置防错",
+        "detection_control": "限位器档位力、保持力和开闭循环功能检验",
+        "measurement_method": "限位器功能力测试台、位移/力传感器和目视确认",
+        "sample_frequency": "首件、换型后和定时巡检",
+        "reaction_plan": "停线隔离可疑品，复核弹簧/滚轮装配、铆接位置和润滑状态，重新功能力验证"
+      },
+      "rating_hint": { "severity": 8, "occurrence": 4, "detection": 4 },
+      "confidence": 0.84,
+      "source": "MINOS part-family seed: limiter title-block hardening"
+    },
+    {
+      "rule_id": "KR-STAMPING-SHEET-FEATURE-047",
+      "enabled": true,
+      "process_terms": ["冲压件", "冲压", "钣金件", "板料", "落料", "冲孔", "翻边", "拉延", "成形", "stamping", "sheet metal", "blanking", "piercing", "flanging", "forming"],
+      "characteristic_terms": ["翻边高度", "加强筋", "拉延深度", "面轮廓", "回弹", "薄板变形", "flange height", "rib", "draw depth", "springback", "deformation"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "冲压薄板特征尺寸、孔位或翻边形状不合格",
+        "failure_effect": "装配困难、间隙匹配不良、紧固失效或外观缺陷",
+        "failure_cause": "模具间隙和定位异常、材料厚度/硬度波动、冲压速度或送料状态不稳定、模具刃口磨损"
+      },
+      "recommended_controls": {
+        "prevention_control": "换型前确认模具、定位销、送料和材料批次，关键孔位/翻边特征首件确认",
+        "detection_control": "首件全尺寸、孔位/翻边检具和毛刺外观巡检",
+        "measurement_method": "专用检具、卡尺、高度规或三坐标",
+        "sample_frequency": "首件、换卷/换批后和定时巡检",
+        "reaction_plan": "停机隔离可疑品，检查模具刃口、定位和送料状态，调整后重新首件验证"
+      },
+      "rating_hint": { "severity": 7, "occurrence": 4, "detection": 4 },
+      "confidence": 0.83,
+      "source": "MINOS part-family seed: stamping title-block hardening"
+    },
+
+    {
+      "rule_id": "KR-ROLLING-ROUNDNESS-026",
+      "enabled": true,
+      "process_terms": ["卷圆", "卷制", "滚圆", "rolling", "curling", "coiling"],
+      "characteristic_terms": ["圆度", "椭圆", "不圆度", "roundness", "ovality", "out-of-round"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "卷圆后圆度超差（椭圆/锥形/鼓形/束腰）",
+        "failure_effect": "衬套装配困难、运转产生振动和噪音、局部异常磨损或密封失效",
+        "failure_cause": "材料各向异性导致弯曲不均匀、卷圆模具辊径选择不当、多次进给量分配不合理、板材厚度公差波动或夹紧力不均匀"
+      },
+      "recommended_controls": {
+        "prevention_control": "多级预弯成形（每级<90°），激光对中系统（轴线偏差<0.5mm），浮动抽芯结构，模具定期检测",
+        "detection_control": "首件圆度测量和定时巡检",
+        "measurement_method": "圆度仪或三坐标测量",
+        "sample_frequency": "首件和定时巡检",
+        "reaction_plan": "调整辊缝和进给量，检查模具状态，重新首件验证圆度"
+      },
+      "rating_hint": { "severity": 7, "occurrence": 4, "detection": 5 },
+      "confidence": 0.80,
+      "source": "web-collected: U型钢卷圆圆度控制 (机械社区), 专利CN109909374B"
+    },
+    {
+      "rule_id": "KR-ROLLING-SPRINGBACK-027",
+      "enabled": true,
+      "process_terms": ["卷圆", "冷卷", "弯曲", "rolling", "cold rolling", "bending", "coiling"],
+      "characteristic_terms": ["回弹", "直径超差", "开口间隙", "springback", "diameter deviation", "open gap"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "卷圆回弹导致直径超差或开口间隙不合格",
+        "failure_effect": "衬套无法形成有效闭合，装配后松动或过紧",
+        "failure_cause": "材料屈服强度高、冷卷未预留过卷量或补偿不足、板材厚度与弯曲半径比不当或模具卸载后弹性恢复"
+      },
+      "recommended_controls": {
+        "prevention_control": "预留0.5%~2%过卷量补偿，模具设计增加回弹补偿余量（冲头圆弧半径缩小R0.38），增加校形/整形工位",
+        "detection_control": "首件直径和开口间隙测量",
+        "measurement_method": "卡尺、塞尺或专用检具",
+        "sample_frequency": "首件和每批次巡检",
+        "reaction_plan": "调整过卷量或模具回弹补偿，增加校形次数，重新首件验证"
+      },
+      "rating_hint": { "severity": 7, "occurrence": 5, "detection": 4 },
+      "confidence": 0.81,
+      "source": "web-collected: 板料卷圆回弹分析及数值模拟 (renrendoc.com)"
+    },
+    {
+      "rule_id": "KR-ROLLING-OPEN-GAP-028",
+      "enabled": true,
+      "process_terms": ["卷圆", "下料", "切断", "rolling", "blanking", "cutting", "slitting"],
+      "characteristic_terms": ["开口间隙", "闭合不严", "展开料", "open gap", "closure", "blank length"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "卷圆开口间隙超差（闭合不严）",
+        "failure_effect": "衬套无法形成有效闭合，润滑油泄漏，承载能力下降",
+        "failure_cause": "展开毛料长度计算不准确（中性层法有偏差）、下料长度精度不足或板材边缘毛刺导致闭合不严"
+      },
+      "recommended_controls": {
+        "prevention_control": "通过试验确定精确展开料尺寸（多组试验验证），下料工装保证精度（±0.05mm），卷圆后增加铆合/扣合工位",
+        "detection_control": "首件开口间隙测量和定时巡检",
+        "measurement_method": "塞尺或卡尺",
+        "sample_frequency": "首件和每批次巡检",
+        "reaction_plan": "调整展开料尺寸或下料工装，增加修边工序，重新首件验证"
+      },
+      "rating_hint": { "severity": 6, "occurrence": 4, "detection": 4 },
+      "confidence": 0.79,
+      "source": "web-collected: 金属氟塑料衬套精准成形工艺研究 (fx361.com)"
+    },
+    {
+      "rule_id": "KR-ROLLING-SURFACE-DAMAGE-029",
+      "enabled": true,
+      "process_terms": ["卷圆", "校形", "整形", "rolling", "sizing", "calibration"],
+      "characteristic_terms": ["压伤", "划伤", "涂层脱落", "surface damage", "scratch", "coating peel"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "卷圆/校形过程表面压伤或划伤",
+        "failure_effect": "表面涂层脱落、耐磨性降低或外观不良",
+        "failure_cause": "模具表面粗糙度不达标（应≤Ra0.8μm）、模具与工件间硬质颗粒、校形时零件偏心导致摩擦或刚性模具直接接触涂层表面"
+      },
+      "recommended_controls": {
+        "prevention_control": "模具表面粗糙度控制 (Ra≤0.8μm)，阳模增加锥形引导保证同心度，合适润滑方案",
+        "detection_control": "首件外观检查和定时巡检",
+        "measurement_method": "目视检查或放大镜检查",
+        "sample_frequency": "首件和定时巡检",
+        "reaction_plan": "抛光模具表面，清理模具，检查润滑，重新首件验证"
+      },
+      "rating_hint": { "severity": 5, "occurrence": 4, "detection": 4 },
+      "confidence": 0.77,
+      "source": "web-collected: 金属氟塑料衬套精准成形工艺研究"
+    },
+
+    {
+      "rule_id": "KR-FLANGING-CRACK-030",
+      "enabled": true,
+      "process_terms": ["翻边", "翻边成型", "折弯", "flanging", "flange forming", "bending"],
+      "characteristic_terms": ["裂纹", "开裂", "转角开裂", "crack", "split", "edge crack"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "翻边转角处开裂或边缘裂纹",
+        "failure_effect": "零件报废，影响结构完整性和疲劳寿命",
+        "failure_cause": "翻边高度过大导致拉伸应变超过材料极限延伸率、折弯R角过小、翻边R角不当或材料伸长率不足"
+      },
+      "recommended_controls": {
+        "prevention_control": "翻边拉伸率计算校核 (δ=[R₂(1+cosθ₂)+h]/R₁×100%)，优化翻边高度和R角设计，材料伸长率批次验证",
+        "detection_control": "首件外观检查和定时巡检（重点关注转角处）",
+        "measurement_method": "目视检查或渗透探伤",
+        "sample_frequency": "首件和定时巡检",
+        "reaction_plan": "调整翻边高度或R角，更换材料批次，修模后重新首件验证"
+      },
+      "rating_hint": { "severity": 8, "occurrence": 4, "detection": 3 },
+      "confidence": 0.84,
+      "source": "web-collected: 浅析零件翻边开裂缺陷及解决办法 (AI汽车制造业 2013)"
+    },
+    {
+      "rule_id": "KR-FLANGING-HEIGHT-031",
+      "enabled": true,
+      "process_terms": ["翻边", "翻边成型", "flanging", "flange forming"],
+      "characteristic_terms": ["高度超差", "翻边高度", "回弹", "height deviation", "flange height", "springback"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "翻边高度超差",
+        "failure_effect": "匹配精度不合格，装配间隙超差",
+        "failure_cause": "机床压力不稳定、模具导向间隙过大、压料芯左右摆动或工艺参数未严格执行"
+      },
+      "recommended_controls": {
+        "prevention_control": "压料芯导滑行程充分，导滑板形式导向结构（便于后期调整间隙），机床压力稳定性监控",
+        "detection_control": "首件高度测量和定时巡检",
+        "measurement_method": "高度规或三坐标测量",
+        "sample_frequency": "首件和定时巡检",
+        "reaction_plan": "调整压边力和导向间隙，检查机床压力，重新首件验证高度"
+      },
+      "rating_hint": { "severity": 6, "occurrence": 4, "detection": 4 },
+      "confidence": 0.78,
+      "source": "web-collected: 汽车模具调试与维修典型实例"
+    },
+    {
+      "rule_id": "KR-FLANGING-WRINKLE-032",
+      "enabled": true,
+      "process_terms": ["翻边", "拉延", "成型", "flanging", "drawing", "forming"],
+      "characteristic_terms": ["起皱", "褶皱", "堆积", "wrinkle", "buckle", "material accumulation"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "翻边边缘起皱或材料堆积",
+        "failure_effect": "外观不良，后续装配干涉",
+        "failure_cause": "翻边变形量过大、压料力不足、材料流动不均匀或模具间隙不合理"
+      },
+      "recommended_controls": {
+        "prevention_control": "储料补偿法（预留储料区域改变翻边走向和接触顺序），压边力优化，模具间隙调整",
+        "detection_control": "首件外观检查和定时巡检",
+        "measurement_method": "目视检查",
+        "sample_frequency": "首件和定时巡检",
+        "reaction_plan": "调整压边力和模具间隙，增加储料补偿，重新首件验证"
+      },
+      "rating_hint": { "severity": 4, "occurrence": 5, "detection": 3 },
+      "confidence": 0.75,
+      "source": "web-collected: 曲面翻边成形性及工艺参数优化研究 (知网)"
+    },
+
+    {
+      "rule_id": "KR-CHAMFER-DIMENSION-033",
+      "enabled": true,
+      "process_terms": ["倒角", "平头", "去毛刺", "chamfer", "facing", "deburring"],
+      "characteristic_terms": ["倒角尺寸", "超差", "角度", "chamfer size", "dimension", "angle"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "倒角尺寸超差（过大或过小）",
+        "failure_effect": "过大导致配合间隙过大/外观不良，过小导致无法装配/边缘锋利伤人",
+        "failure_cause": "刀具磨损、进给量过大/过小、对刀不准或工艺参数设置错误"
+      },
+      "recommended_controls": {
+        "prevention_control": "刀具寿命管理和定期补偿，首件检验制度，程序参数锁定",
+        "detection_control": "首件测量和定时巡检",
+        "measurement_method": "卡尺、轮廓仪或投影仪",
+        "sample_frequency": "首件和定时巡检",
+        "reaction_plan": "更换刀具或调整参数，隔离批次全检，重新首件确认"
+      },
+      "rating_hint": { "severity": 6, "occurrence": 4, "detection": 5 },
+      "confidence": 0.79,
+      "source": "web-collected: 浅谈刀具在PFMEA中的潜在失效因素 (制造技术与机床 2005)"
+    },
+    {
+      "rule_id": "KR-CHAMFER-BURR-034",
+      "enabled": true,
+      "process_terms": ["倒角", "平头", "去毛刺", "机加工", "chamfer", "facing", "deburring", "machining"],
+      "characteristic_terms": ["毛刺", "倒角面不平", "崩刃", "burr", "uneven surface", "chipping"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "倒角面毛刺或表面不平整",
+        "failure_effect": "影响装配、划伤配合件、安全隐患或客户投诉",
+        "failure_cause": "刀具钝化/崩刃、切削参数不当、材料韧性大或冷却不足"
+      },
+      "recommended_controls": {
+        "prevention_control": "刀具寿命管理（设定更换周期），优化切削参数（速度/进给量），充分冷却",
+        "detection_control": "首件和巡检外观检查（手感或放大镜）",
+        "measurement_method": "手感检查或放大镜检查",
+        "sample_frequency": "首件和定时巡检",
+        "reaction_plan": "更换刀具，调整切削参数，隔离批次分选返修"
+      },
+      "rating_hint": { "severity": 5, "occurrence": 5, "detection": 4 },
+      "confidence": 0.78,
+      "source": "web-collected: 加工零部件的毛刺和问题点 (米思米技术文章)"
+    },
+    {
+      "rule_id": "KR-CHAMFER-MISSED-035",
+      "enabled": true,
+      "process_terms": ["倒角", "平头", "去毛刺", "chamfer", "facing", "deburring"],
+      "characteristic_terms": ["漏加工", "漏倒角", "未倒角", "missed operation", "skipped chamfer"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "漏倒角（工序遗漏）",
+        "failure_effect": "后续工序无法进行或零件报废",
+        "failure_cause": "操作疏忽、程序遗漏、换刀后未验证或防错装置失效"
+      },
+      "recommended_controls": {
+        "prevention_control": "防错程序锁定（工序未完成不得流转），换刀后强制首检",
+        "detection_control": "100%目视确认或自动检测装置",
+        "measurement_method": "目视检查或自动视觉检测",
+        "sample_frequency": "100%检查",
+        "reaction_plan": "隔离漏加工件，补加工，检查防错程序有效性"
+      },
+      "rating_hint": { "severity": 8, "occurrence": 2, "detection": 3 },
+      "confidence": 0.84,
+      "source": "web-collected: FMEA技术在汽车后桥衬套压装中的应用 (2013)"
+    },
+
+    {
+      "rule_id": "KR-POLISHING-ROUGHNESS-036",
+      "enabled": true,
+      "process_terms": ["抛光", "打磨", "研磨", "polishing", "grinding", "finishing"],
+      "characteristic_terms": ["粗糙度", "Ra值", "划痕", "roughness", "Ra value", "scratch"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "抛光后表面粗糙度超标",
+        "failure_effect": "后续防锈油附着力差、密封性不良或外观不合格",
+        "failure_cause": "磨料粒度不当、抛光时间不足、抛光压力不均或磨料污染"
+      },
+      "recommended_controls": {
+        "prevention_control": "抛光参数DOE优化（压力/速度/时间），磨料定期更换，冷却液流量控制",
+        "detection_control": "首件粗糙度测量和定时巡检",
+        "measurement_method": "粗糙度仪或比对样块",
+        "sample_frequency": "首件和定时巡检",
+        "reaction_plan": "更换磨料，调整抛光参数，重新首件验证粗糙度"
+      },
+      "rating_hint": { "severity": 5, "occurrence": 4, "detection": 5 },
+      "confidence": 0.77,
+      "source": "web-collected: 金属表面粗糙度与防锈油性能关系 (腐蚀与防护 2010)"
+    },
+    {
+      "rule_id": "KR-CLEANING-RESIDUE-037",
+      "enabled": true,
+      "process_terms": ["清洗", "除油", "漂洗", "cleaning", "degreasing", "rinsing"],
+      "characteristic_terms": ["清洗不净", "残留", "表面活性剂", "contamination", "residue", "surfactant"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "清洗不净导致表面活性剂残留",
+        "failure_effect": "与防锈油反应导致'反清洗'效应——油膜被击穿，加速锈蚀",
+        "failure_cause": "清洗剂浓度不足、温度偏低、漂洗不充分或清洗液老化"
+      },
+      "recommended_controls": {
+        "prevention_control": "增加漂洗工序，清洗液定期更换，电导率在线监测清洗洁净度",
+        "detection_control": "表面张力测试或荧光残留检测，首件和定时巡检",
+        "measurement_method": "表面张力测试笔或荧光检测",
+        "sample_frequency": "首件和定时巡检",
+        "reaction_plan": "更换清洗液，调整清洗参数，隔离批次重新清洗"
+      },
+      "rating_hint": { "severity": 6, "occurrence": 4, "detection": 5 },
+      "confidence": 0.80,
+      "source": "web-collected: 脱水防锈油失效原因分析 (anytesting.com)"
+    },
+    {
+      "rule_id": "KR-OILING-INCOMPATIBLE-038",
+      "enabled": true,
+      "process_terms": ["涂油", "防锈油", "浸油", "oiling", "rust preventive", "dipping"],
+      "characteristic_terms": ["防锈期", "油膜不均", "锈蚀", "rust prevention", "oil film", "corrosion"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "防锈油品种不兼容或油膜厚度不当导致防锈期不达标",
+        "failure_effect": "零件在储存/运输中生锈，客户拒收",
+        "failure_cause": "未做清洗剂+防锈油兼容性验证、表面粗糙度与涂油量不匹配或油品与清洗剂化学不兼容"
+      },
+      "recommended_controls": {
+        "prevention_control": "对每对'清洗剂+防锈油'组合做盐雾兼容性试验，根据Ra值建立最佳涂油量标准",
+        "detection_control": "首件盐雾试验和油膜称重检查",
+        "measurement_method": "盐雾试验 (ASTM B117) 和称重法",
+        "sample_frequency": "首件和每批次巡检",
+        "reaction_plan": "更换兼容的防锈油品种，调整涂油量，重新盐雾验证"
+      },
+      "rating_hint": { "severity": 6, "occurrence": 3, "detection": 5 },
+      "confidence": 0.81,
+      "source": "web-collected: 脱水防锈油失效原因分析, 防锈油使用对普冷板防锈性能的影响"
+    },
+    {
+      "rule_id": "KR-OILING-MOISTURE-039",
+      "enabled": true,
+      "process_terms": ["干燥", "烘干", "涂油前处理", "drying", "baking", "pre-oiling"],
+      "characteristic_terms": ["水分残留", "干燥不彻底", "微电池腐蚀", "moisture", "incomplete drying", "micro-cell corrosion"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "涂油前水分未彻底干燥",
+        "failure_effect": "涂防锈油后水分被封闭在油膜下形成微电池腐蚀，防锈期严重缩短",
+        "failure_cause": "压缩空气压力不足、干燥温度不够、节拍过快或干燥设备故障"
+      },
+      "recommended_controls": {
+        "prevention_control": "红外干燥温度监控，干燥时间和温度参数锁定，压缩空气压力监控",
+        "detection_control": "干燥后水分检测（红外或称重法）和定时巡检",
+        "measurement_method": "红外水分检测或称重法",
+        "sample_frequency": "首件和定时巡检",
+        "reaction_plan": "调整干燥参数，检查干燥设备，隔离批次重新干燥后涂油"
+      },
+      "rating_hint": { "severity": 7, "occurrence": 3, "detection": 4 },
+      "confidence": 0.79,
+      "source": "web-collected: 脱水防锈油失效原因分析 (anytesting.com)"
+    },
+
+    {
+      "rule_id": "KR-SINTERING-TEMPERATURE-040",
+      "enabled": true,
+      "process_terms": ["烧结", "粉末冶金", "板材烧结", "sintering", "powder metallurgy", "PM"],
+      "characteristic_terms": ["烧结温度", "致密度", "强度", "sintering temperature", "density", "strength"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "烧结温度不足导致致密度低和强度不达标",
+        "failure_effect": "衬套径向压溃强度不合格，受力易开裂或磨损",
+        "failure_cause": "烧结温度设置偏低、炉温均匀性差、保温时间不足或温控仪表偏差"
+      },
+      "recommended_controls": {
+        "prevention_control": "炉温均匀性定期校验，烧结温度曲线严格按工艺设定，温控仪表定期校准",
+        "detection_control": "首件密度和径向压溃强度测试（按GB/T 6804），每炉次巡检",
+        "measurement_method": "密度计和万能材料试验机",
+        "sample_frequency": "首件和每炉次巡检",
+        "reaction_plan": "调整烧结温度或保温时间，检查炉温均匀性，隔离批次重新烧结或报废"
+      },
+      "rating_hint": { "severity": 8, "occurrence": 3, "detection": 4 },
+      "confidence": 0.83,
+      "source": "web-collected: 烧结炉问题对粉末冶金零件的影响 (zhenghemetal.com), GB/T 6804-2008"
+    },
+    {
+      "rule_id": "KR-SINTERING-OXIDATION-041",
+      "enabled": true,
+      "process_terms": ["烧结", "粉末冶金", "热处理", "sintering", "powder metallurgy", "heat treatment"],
+      "characteristic_terms": ["氧化", "脱碳", "表面变色", "oxidation", "decarburization", "surface discoloration"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "烧结气氛异常导致氧化或脱碳",
+        "failure_effect": "零件表面硬度下降，耐腐蚀性降低，强度不达标",
+        "failure_cause": "保护气氛流量不足、炉体密封不良、气体纯度不达标或炉内漏入空气"
+      },
+      "recommended_controls": {
+        "prevention_control": "保护气氛流量和纯度在线监控，炉体密封定期检查，气体纯度来料检验",
+        "detection_control": "首件表面硬度和外观检查，每炉次巡检",
+        "measurement_method": "硬度计和目视检查",
+        "sample_frequency": "首件和每炉次巡检",
+        "reaction_plan": "检查炉体密封和气氛流量，调整保护气氛参数，隔离批次重新烧结"
+      },
+      "rating_hint": { "severity": 7, "occurrence": 3, "detection": 4 },
+      "confidence": 0.81,
+      "source": "web-collected: 烧结炉问题对粉末冶金零件的影响"
+    },
+    {
+      "rule_id": "KR-SINTERING-UNEVEN-HARDNESS-042",
+      "enabled": true,
+      "process_terms": ["烧结", "粉末冶金", "sintering", "powder metallurgy"],
+      "characteristic_terms": ["硬度不均", "炉温均匀性", "同炉差异", "uneven hardness", "temperature uniformity", "batch variation"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "同炉零件硬度不均或性能差异大",
+        "failure_effect": "批次内零件质量不一致，部分零件强度不达标",
+        "failure_cause": "炉温均匀性不足（温差>±10℃）、装炉方式不当导致热分布不均或加热元件局部失效"
+      },
+      "recommended_controls": {
+        "prevention_control": "炉温均匀性定期检测（每季度），优化装炉方式和装载密度，加热元件预防性维护",
+        "detection_control": "每炉次多点硬度检测（炉内不同位置取样）",
+        "measurement_method": "硬度计",
+        "sample_frequency": "每炉次多点取样（至少3个位置）",
+        "reaction_plan": "检查加热元件和炉温分布，调整装炉方式，隔离批次分选"
+      },
+      "rating_hint": { "severity": 6, "occurrence": 3, "detection": 5 },
+      "confidence": 0.78,
+      "source": "web-collected: 烧结炉问题对粉末冶金零件的影响"
+    },
+
+    {
+      "rule_id": "KR-MATERIAL-RECEIVING-043",
+      "enabled": true,
+      "process_terms": ["来料", "入库", "储存", "接收", "receiving", "incoming", "storage", "warehouse"],
+      "characteristic_terms": ["物料错误", "标识不清", "污染", "wrong material", "unidentified", "contamination"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "来料接收错误（物料/批次/规格不符）",
+        "failure_effect": "生产使用错误材料导致批量不合格",
+        "failure_cause": "外包装批号与质保书不一致、标识不清、IQC检验未检出或供应商发货错误"
+      },
+      "recommended_controls": {
+        "prevention_control": "来料目视检查标识完整性，扫码系统核对，固定合格供应商评审考核",
+        "detection_control": "IQC双人复核，材质报告验证",
+        "measurement_method": "目视核对和材质报告比对",
+        "sample_frequency": "每批次来料",
+        "reaction_plan": "隔离错误批次，通知供应商纠正，追溯已使用物料"
+      },
+      "rating_hint": { "severity": 7, "occurrence": 3, "detection": 4 },
+      "confidence": 0.80,
+      "source": "web-collected: 供应商零部件质量控制 (AI汽车制造业 2015)"
+    },
+    {
+      "rule_id": "KR-STORAGE-FIFO-044",
+      "enabled": true,
+      "process_terms": ["储存", "入库", "仓储", "storage", "warehouse", "inventory"],
+      "characteristic_terms": ["先进先出", "过期", "混批", "FIFO", "expired", "mixed batch"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "库存未执行先进先出导致物料过期或混批",
+        "failure_effect": "使用过期或错误批次物料，产品质量不合格",
+        "failure_cause": "库位标识不清、批次管理混乱、FIFO未在ERP中强制或人工拣选失误"
+      },
+      "recommended_controls": {
+        "prevention_control": "批次号管理+ERP系统FIFO强制锁定，库位定置管理和清晰标识，物料有效期自动预警",
+        "detection_control": "发料前批次号扫码核对和定期库存盘点",
+        "measurement_method": "条码扫描和目视核对",
+        "sample_frequency": "每批次发料前",
+        "reaction_plan": "隔离超期或混批物料，追溯已使用批次，加强库位和FIFO管理"
+      },
+      "rating_hint": { "severity": 6, "occurrence": 3, "detection": 4 },
+      "confidence": 0.77,
+      "source": "web-collected: 汽车零部件PFMEA创新应用——来料检验到包装全流程"
+    },
+    {
+      "rule_id": "KR-OVERMOLDING-DELAMINATION-048",
+      "enabled": true,
+      "process_terms": ["包塑", "包胶", "注塑包覆", "嵌件成形", "二色成形", "overmolding", "insert molding", "two-shot molding"],
+      "characteristic_terms": ["剥离", "脱层", "结合力", "附着力", "delamination", "adhesion", "bonding strength"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "包塑层与金属嵌件剥离或脱层",
+        "failure_effect": "塑料层脱落导致功能失效(滑动面丧失/密封失效)或外观不良",
+        "failure_cause": "金属嵌件表面处理不当(磷化/底涂不足)、材料不匹配(POM与金属结合力差)、注塑温度/压力不足、嵌件预热不足"
+      },
+      "recommended_controls": {
+        "prevention_control": "嵌件表面磷化/喷砂/底涂处理,选材匹配验证(如PA66+GF底层+POM表层),注塑参数优化(嵌件预热+高注射压力)",
+        "detection_control": "首件切片检查结合界面,定期附着力测试(划格法/拉拔法)",
+        "measurement_method": "显微镜检查界面/拉拔试验机",
+        "sample_frequency": "首件+每批次抽检",
+        "reaction_plan": "隔离批次,调整表面处理工艺或注塑参数,原材料批次追溯"
+      },
+      "rating_hint": { "severity": 7, "occurrence": 4, "detection": 4 },
+      "confidence": 0.80,
+      "source": "scraped: JPH0369781A (AISIN CHEM lever), Protolabs Overmolding Design Guide, US 2021/0131141"
+    },
+    {
+      "rule_id": "KR-OVERMOLDING-SURFACE-DEFECT-049",
+      "enabled": true,
+      "process_terms": ["包塑", "包胶", "注塑包覆", "二色成形", "overmolding", "two-shot", "injection molding"],
+      "characteristic_terms": ["缩痕", "气泡", "飞边", "表面缺陷", "sink mark", "bubble", "flash", "surface defect"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "包塑件表面缩痕、气泡或飞边",
+        "failure_effect": "外观不良,滑动面粗糙导致异响或操作力异常",
+        "failure_cause": "注塑温度/压力不当、保压不足产生缩痕、排气不良产生气泡、含模力不足产生飞边、材料含水率过高"
+      },
+      "recommended_controls": {
+        "prevention_control": "材料充分干燥(POM/PA66需除湿干燥),注塑参数DOE优化(注射速度/保压压力/冷却时间),模具排气设计检查,热流道防止冷料",
+        "detection_control": "首件外观检查和表面粗糙度测量",
+        "measurement_method": "目视+手感检查/表面粗糙度仪",
+        "sample_frequency": "首件+每小时巡检",
+        "reaction_plan": "调整注塑参数,检查材料干燥状态,修模改善排气"
+      },
+      "rating_hint": { "severity": 6, "occurrence": 5, "detection": 3 },
+      "confidence": 0.78,
+      "source": "scraped: Overmolding Design Guide (Protolabs), 热流道注塑模专利 (上海奥林)"
+    },
+    {
+      "rule_id": "KR-COINING-DETENT-PRECISION-050",
+      "enabled": true,
+      "process_terms": ["精压", "压印", "coining", "sizing", "档位槽", "detent"],
+      "characteristic_terms": ["档位精度", "尺寸超差", "表面粗糙度", "detent profile", "surface finish", "dimensional accuracy"],
+      "special_characteristic_required": true,
+      "risk": {
+        "failure_mode": "档位槽精压尺寸超差或表面粗糙度不合格",
+        "failure_effect": "档位手感不清晰、操作力异常或档位保持力不足,影响用户安全和舒适性",
+        "failure_cause": "精压力不足(氮气弹簧压力衰减)、模具磨损、材料回弹、coining深度超过30%料厚导致过度变形"
+      },
+      "recommended_controls": {
+        "prevention_control": "氮气弹簧压力定期校验(如Teledyne Tanker2系列),精压深度≤30%料厚设计校核,模具表面Ra≤0.8μm",
+        "detection_control": "首件CMM测量档位槽轮廓,扭矩测试台验证操作力曲线",
+        "measurement_method": "CMM/轮廓仪/扭矩测试台",
+        "sample_frequency": "首件+每5000件抽检,CMM每20000冲次检查模具",
+        "reaction_plan": "隔离批次,更换或校验氮气弹簧,修模恢复表面精度,扭矩验证"
+      },
+      "rating_hint": { "severity": 8, "occurrence": 4, "detection": 4 },
+      "confidence": 0.82,
+      "source": "scraped: US 20060021414 (progressive die with coining biasing), 限位器设计指南"
+    },
+    {
+      "rule_id": "KR-CURLING-HINGE-KNUCKLE-051",
+      "enabled": true,
+      "process_terms": ["卷圆", "卷边", "curling", "roll forming", "hinge knuckle", "铰链筒"],
+      "characteristic_terms": ["圆度", "同轴度", "内径", "roundness", "concentricity", "inner diameter"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "铰链筒卷圆圆度或尺寸超差",
+        "failure_effect": "铰链销轴装配困难、转动卡滞或间隙过大导致车门下垂(sagging)",
+        "failure_cause": "卷圆模设计不当、材料回弹补偿不足、条料送进偏移、芯轴磨损"
+      },
+      "recommended_controls": {
+        "prevention_control": "卷圆模回弹补偿设计(CAE模拟验证),芯轴硬度≥HRC60,送料导正销精度检查",
+        "detection_control": "首件圆度量测和通止规检查内径",
+        "measurement_method": "圆度仪/通止规/CMM",
+        "sample_frequency": "首件+每批次巡检",
+        "reaction_plan": "调整模具回弹补偿,更换磨损芯轴,重新首件验证"
+      },
+      "rating_hint": { "severity": 7, "occurrence": 4, "detection": 4 },
+      "confidence": 0.79,
+      "source": "scraped: Wikipedia Die (manufacturing) - curling die, Wikipedia Stamping - door hinge example"
+    },
+    {
+      "rule_id": "KR-FORGING-FOLD-CRACK-052",
+      "enabled": true,
+      "process_terms": ["锻造", "热锻", "模锻", "forging", "hot forging", "drop forging"],
+      "characteristic_terms": ["折叠", "裂纹", "充填不足", "fold", "crack", "underfill", "laps"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "锻件折叠、裂纹或充填不足",
+        "failure_effect": "零件强度降低,可能在使用中断裂,影响安全性能",
+        "failure_cause": "加热温度不足(低于950°C)、锻造打击力不够、模具圆角过小、润滑不足、坯料尺寸不当"
+      },
+      "recommended_controls": {
+        "prevention_control": "加热温度950-1350°C精确控制,模具圆角≥R3设计,坯料尺寸校核,锻造工艺模拟(DEFORM等)",
+        "detection_control": "首件渗透探伤或磁粉探伤,外观100%目视",
+        "measurement_method": "渗透探伤(PT)/磁粉探伤(MT)/目视",
+        "sample_frequency": "首件+每批次巡检",
+        "reaction_plan": "隔离批次,调整加热温度或模具参数,重新首件验证"
+      },
+      "rating_hint": { "severity": 9, "occurrence": 3, "detection": 3 },
+      "confidence": 0.83,
+      "source": "scraped: US 8,984,726 (forged door hinge manufacturing), 锻造工艺学"
+    },
+    {
+      "rule_id": "KR-PLASTIC-MOLDING-SHRINKAGE-053",
+      "enabled": true,
+      "process_terms": ["注塑", "射出成形", "塑料成形", "injection molding", "plastic molding"],
+      "characteristic_terms": ["收缩率", "尺寸超差", "变形", "shrinkage", "warpage", "dimensional variation"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "注塑件收缩率超差导致尺寸不合格或翘曲变形",
+        "failure_effect": "装配困难、配合间隙不合格或功能失效",
+        "failure_cause": "材料收缩率考虑不足、冷却不均匀、保压不足、模具温度不均、纤维取向(玻纤增强料)"
+      },
+      "recommended_controls": {
+        "prevention_control": "模流分析(Moldflow)预判收缩/翘曲,产品设计预留收缩率(POM:1.8-2.5%,PA66+GF30:0.3-0.8%),冷却系统均匀设计",
+        "detection_control": "首件全尺寸测量和环境试验后尺寸复测",
+        "measurement_method": "CMM/检具/高度规",
+        "sample_frequency": "首件+每批次巡检",
+        "reaction_plan": "调整保压/冷却参数,检查模具温度均匀性,修正收缩补偿"
+      },
+      "rating_hint": { "severity": 6, "occurrence": 5, "detection": 4 },
+      "confidence": 0.80,
+      "source": "scraped: Overmolding Design Guide, 双色模设计原理及Moldflow分析"
+    },
+    {
+      "rule_id": "KR-GREASE-LUBRICATION-054",
+      "enabled": true,
+      "process_terms": ["注脂", "润滑", "涂脂", "greasing", "lubrication", "grease application"],
+      "characteristic_terms": ["润滑脂量", "润滑脂牌号", "注脂位置", "grease amount", "grease type", "coverage"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "注脂量不足或润滑脂类型错误导致限位器异响或操作力超差",
+        "failure_effect": "操作力异常、异响、限位臂/滑块异常磨损,影响使用寿命和用户体验",
+        "failure_cause": "注脂量设定不当、注脂嘴堵塞、润滑脂牌号错误(NR兼容性)、低温润滑脂选型失误"
+      },
+      "recommended_controls": {
+        "prevention_control": "注脂量参数锁定(体积/重量),润滑脂牌号防错验证(耐-40°C低温脂),注脂嘴定期清洗",
+        "detection_control": "首件称重法验证注脂量,扭矩测试台验证操作力",
+        "measurement_method": "精密天平称重/扭矩测试台",
+        "sample_frequency": "首件+每2小时巡检",
+        "reaction_plan": "调整注脂参数,检查注脂设备,更换堵塞喷嘴,追溯原材料批次"
+      },
+      "rating_hint": { "severity": 5, "occurrence": 4, "detection": 4 },
+      "confidence": 0.76,
+      "source": "scraped: 限位器设计指南, 车门系统零部件设计 (汤莹 2017)"
+    },
+    {
+      "rule_id": "KR-WELD-NUT-TORQUE-055",
+      "enabled": true,
+      "process_terms": ["焊接螺母", "点焊", "凸焊", "weld nut", "spot welding", "projection welding"],
+      "characteristic_terms": ["焊接强度", "扭矩", "螺母剥离", "weld strength", "torque", "nut peel-off"],
+      "special_characteristic_required": true,
+      "risk": {
+        "failure_mode": "焊接螺母焊接强度不足导致螺母脱落或扭矩不达标",
+        "failure_effect": "装配时螺母脱落或打滑,安装螺栓无法达到规定扭矩(≥13N·m),影响安全性",
+        "failure_cause": "焊接电流/电压/时间不当(标准:50-110A/17-24V)、电极磨损、材料表面氧化或油污"
+      },
+      "recommended_controls": {
+        "prevention_control": "焊接参数锁定(电流/电压/时间),电极寿命管理(定期修磨/更换),材料表面清洁度确认",
+        "detection_control": "首件扭矩测试(≥13N·m),焊接过程参数监控记录",
+        "measurement_method": "扭矩扳手/扭矩测试机",
+        "sample_frequency": "首件+每2小时抽检",
+        "reaction_plan": "隔离批次,调整焊接参数,修磨或更换电极,重新首件验证"
+      },
+      "rating_hint": { "severity": 8, "occurrence": 3, "detection": 3 },
+      "confidence": 0.81,
+      "source": "scraped: MINOS seed knowledge (stamping part family), 焊接工艺规范"
+    },
+    {
+      "rule_id": "KR-HINGE-PIN-RIVET-056",
+      "enabled": true,
+      "process_terms": ["铰链销铆接", "铆接", "riveting", "hinge pin", "staking"],
+      "characteristic_terms": ["铆接强度", "转动扭矩", "轴向间隙", "rivet strength", "rotational torque", "axial play"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "铰链销铆接过紧(转动卡滞)或过松(轴向间隙过大)",
+        "failure_effect": "车门开关手感异常、异响或长期使用后车门下垂",
+        "failure_cause": "铆接行程/压力控制不当、销轴端部成形尺寸超差、铆接头磨损、材料硬度批次差异"
+      },
+      "recommended_controls": {
+        "prevention_control": "铆接参数锁定(行程/压力),铆接前销轴/衬套尺寸100%检查,铆接头寿命管理",
+        "detection_control": "首件转动扭矩和轴向间隙测量,每小时巡检",
+        "measurement_method": "扭矩测试台/百分表/塞尺",
+        "sample_frequency": "首件+每小时巡检",
+        "reaction_plan": "调整铆接行程/压力,测量销轴/衬套尺寸,更换磨损铆接头"
+      },
+      "rating_hint": { "severity": 6, "occurrence": 4, "detection": 4 },
+      "confidence": 0.78,
+      "source": "scraped: 车门系统零部件设计 (汤莹 2017), 门铰链工艺论文"
+    },
+    {
+      "rule_id": "KR-HINGE-SAG-STIFFNESS-057",
+      "enabled": true,
+      "process_terms": ["铰链刚度", "门下垂", "铰链装配", "hinge stiffness", "door sag", "hinge mounting"],
+      "characteristic_terms": ["下垂量", "刚度", "间隙", "sag", "stiffness", "gap", "flushness"],
+      "special_characteristic_required": true,
+      "risk": {
+        "failure_mode": "铰链刚度不足导致车门下垂或间隙/面差超差",
+        "failure_effect": "车门关闭困难、密封不良(漏水/风噪)、外观间隙不均,影响安全和舒适性",
+        "failure_cause": "铰链材料强度不足(冲压铰链vs锻造铰链)、安装面平面度不合格、螺栓扭矩不足、长期使用磨损"
+      },
+      "recommended_controls": {
+        "prevention_control": "铰链设计校核(DFSS方法,参考现代汽车2010研究),材料强度/厚度验证,安装面平面度控制,螺栓扭矩管理",
+        "detection_control": "车门下垂量测量(满载状态),间隙/面差检具检测",
+        "measurement_method": "高度规/塞尺/三坐标/间隙面差检具",
+        "sample_frequency": "首件+每批次抽检",
+        "reaction_plan": "隔离车辆,检查铰链型号/材料,调整装配,不合格铰链更换"
+      },
+      "rating_hint": { "severity": 8, "occurrence": 3, "detection": 3 },
+      "confidence": 0.82,
+      "source": "scraped: Yang Ji-Hyuck (Hyundai 2010) - DFSS optimization of press-type door hinge, GB 15086-2013"
+    },
+    {
+      "rule_id": "KR-HINGE-FATIGUE-FRACTURE-058",
+      "enabled": true,
+      "process_terms": ["铰链疲劳", "铰链耐久", "hinge fatigue", "hinge durability", "cyclic loading"],
+      "characteristic_terms": ["疲劳断裂", "疲劳寿命", "循环次数", "fatigue fracture", "fatigue life", "cycles", "S-N curve"],
+      "special_characteristic_required": true,
+      "risk": {
+        "failure_mode": "铰链疲劳断裂——循环载荷下裂纹萌生扩展导致断裂",
+        "failure_effect": "车门脱落风险(安全性S=10),不满足FMVSS 206/GB 15086法规要求",
+        "failure_cause": "铰链材料疲劳强度不足、应力集中(腐蚀坑/加工刀痕)、过开(over-opening)滥用载荷超出设计限值"
+      },
+      "recommended_controls": {
+        "prevention_control": "疲劳寿命≥100,000次验证(SAE J2530),Monte Carlo+Weibull分布预测疲劳寿命散布(SAE 2020-01-0599),FEA应力分析识别热点,表面处理防止腐蚀坑(锌层≥10μm per ISO 1461)",
+        "detection_control": "整车强化道路试验+100,000次开闭耐久台架试验,涡流无损检测(Eddy Current NDT)",
+        "measurement_method": "疲劳试验机(DURATEST-300)/涡流探伤仪/金相显微镜(METALVIEW-1000)",
+        "sample_frequency": "DV阶段全数验证,PV阶段每批次抽样",
+        "reaction_plan": "隔离批次,CAE重新分析应力分布,优化铰链几何或升级材料等级,增加表面处理防护"
+      },
+      "rating_hint": { "severity": 10, "occurrence": 2, "detection": 3 },
+      "confidence": 0.85,
+      "source": "scraped: SAE 2020-01-0599 (Fatigue Life Prediction with Monte Carlo), SAE J2530-2020 (Door System Durability ≥100k cycles), Wikipedia FMEA (MIL-STD-1629A), IATF 16949 Clause 8.3.5.2"
+    },
+    {
+      "rule_id": "KR-HINGE-OVER-OPENING-ABUSE-059",
+      "enabled": true,
+      "process_terms": ["铰链过开", "铰链滥用", "hinge over-opening", "hinge abuse load", "door check stop"],
+      "characteristic_terms": ["过开角度", "滥用载荷", "铰链止挡", "over-opening angle", "abuse load", "check stop"],
+      "special_characteristic_required": true,
+      "risk": {
+        "failure_mode": "车门过开滥用导致铰链塑性变形或止挡失效",
+        "failure_effect": "车门过开碰撞车身(翼子板/车门间损伤),铰链永久变形导致车门无法正常关闭,影响安全",
+        "failure_cause": "铰链轴线倾斜角(haxis inclination)不当、铰链接触面平面度公差(contact flushness tolerance)超差、上下铰链载荷分配不均、限位器止挡力设计不足"
+      },
+      "recommended_controls": {
+        "prevention_control": "铰链轴线倾斜角优化设计(SAE 2018-01-0480),上下铰链载荷分配FEA验证,限位器止挡力匹配设计,Taguchi DOE优化铰链系统刚性(SAE 982306)",
+        "detection_control": "过开滥用载荷台架试验(abuse load test),车门下垂量测量(满载状态)",
+        "measurement_method": "静态载荷试验机/三坐标/间隙面差检具",
+        "sample_frequency": "DV阶段全数验证,PV阶段每批次",
+        "reaction_plan": "修改铰链安装面平面度公差或铰链轴线角度,增加加强板或结构胶"
+      },
+      "rating_hint": { "severity": 9, "occurrence": 3, "detection": 4 },
+      "confidence": 0.83,
+      "source": "scraped: SAE 2018-01-0480 (Effect of Hinge Axis Inclination and Hinge Tolerance on Door Strength under Abuse Loads), SAE 982306 (Robust Door Hinge System Design Taguchi Approach)"
+    },
+    {
+      "rule_id": "KR-HINGE-PIN-CORROSION-WEAR-060",
+      "enabled": true,
+      "process_terms": ["铰链销", "铰链衬套", "铰链腐蚀", "hinge pin", "hinge bushing", "hinge corrosion"],
+      "characteristic_terms": ["销轴磨损", "衬套磨损", "腐蚀", "pin wear", "bushing wear", "corrosion", "coating failure"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "铰链销/衬套磨损或腐蚀导致转动卡滞或间隙过大",
+        "failure_effect": "车门开关异响(NVH问题)、操作力异常、长期导致车门下垂(door sag)",
+        "failure_cause": "润滑不足(油脂干涸/流失)、磨粒侵入(灰尘/杂质)、涂层失效(锌层<10μm)导致腐蚀坑加速磨损"
+      },
+      "recommended_controls": {
+        "prevention_control": "自润滑复合材料衬套选型,表面处理锌层≥10μm(ISO 1461),盐雾试验720h无红锈,密封设计防止杂质侵入,润滑脂耐-40°C~+130°C选型",
+        "detection_control": "磨损失重量≤0.1g检测(ISO 9352方法),转动扭矩检测,100,000次耐久后功能检查",
+        "measurement_method": "分析天平(磨损量)/扭矩测试台/盐雾试验箱(CORROTEST-1000)/涂层测厚仪(COATGAUGE-5)",
+        "sample_frequency": "首件+每批次耐久抽样",
+        "reaction_plan": "更换磨损铰链,检查表面处理工艺,优化密封设计或增加防尘罩,更换润滑脂牌号"
+      },
+      "rating_hint": { "severity": 7, "occurrence": 4, "detection": 4 },
+      "confidence": 0.81,
+      "source": "scraped: ISO 9352 (wear test ≤0.1g), ISO 1461 (zinc coating ≥10μm), SAE J2530 (100k cycles), AIAG/VDA FMEA Handbook 2019"
+    },
+    {
+      "rule_id": "KR-LIMITER-FATIGUE-LIFE-061",
+      "enabled": true,
+      "process_terms": ["限位器疲劳", "限位器耐久", "door check fatigue", "door check durability", "check link load"],
+      "characteristic_terms": ["疲劳寿命", "应变寿命", "止挡载荷", "fatigue life", "strain-life", "check stop load", "detent holding"],
+      "special_characteristic_required": true,
+      "risk": {
+        "failure_mode": "限位器在循环止挡载荷下疲劳失效——档位保持力丧失或臂杆断裂",
+        "failure_effect": "车门无法保持开启位,坡道停车时车门自动关闭伤人或风大时过开损坏车门(安全性S=9)",
+        "failure_cause": "限位器止挡位置反复冲击(FEA应变-寿命分析预测不足)、材料硬度仅为规定下限60%(低强度导致多源疲劳)、档位槽coining精度不足导致接触应力集中"
+      },
+      "recommended_controls": {
+        "prevention_control": "FEA+疲劳代码联合预测疲劳寿命(SAE 2011-01-0790,对比等向强化vs混合强化模型),材料硬度/强度批次验证(≥规定下限),档位槽coining深度+氮气弹簧压力锁定,合成润滑脂(Klüber/Berutox)替代锂基脂(验证:锂基脂~25k次失效,合成脂80k+次合格)",
+        "detection_control": "50,000次耐久循环台架试验(分-40°C/23°C/80°C三区),扭矩曲线衰减监控(变化率≤30%),SEM断口分析确认疲劳源",
+        "measurement_method": "耐久试验台/扭矩测试台(0.01Nm分辨率)/扫描电镜(SEM)/硬度计",
+        "sample_frequency": "DV阶段全数,PV每批次3件",
+        "reaction_plan": "隔离批次,更换润滑脂牌号,检查档位槽coining模具状态和氮气弹簧压力,材料硬度追溯,必要时重新FEA验证"
+      },
+      "rating_hint": { "severity": 9, "occurrence": 3, "detection": 3 },
+      "confidence": 0.84,
+      "source": "scraped: SAE 2011-01-0790 (Door Check Load Durability - Fatigue Life Prediction, FEA + fatigue codes), SAE 2020-01-0599 (Monte Carlo + Weibull), JAC research (2017, grease comparison: lithium vs synthetic)"
+    },
+    {
+      "rule_id": "KR-LIMITER-GREASE-THERMAL-DEGRADATION-062",
+      "enabled": true,
+      "process_terms": ["限位器润滑", "限位器注脂", "door check grease", "door check lubrication", "grease application"],
+      "characteristic_terms": ["润滑脂降解", "温度老化", "油脂干涸", "grease degradation", "thermal aging", "grease dry-out", "lubrication failure"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "限位器润滑脂高温降解或低温硬化导致润滑失效",
+        "failure_effect": "限位器异响(squeal/noise)、异常磨损加速、操作力异常(开门困难或关门过轻),影响用户体验和耐久性",
+        "failure_cause": "润滑脂耐温范围不足(要求-60°C~+130°C)、杂质侵入加速油脂劣化、通用锂基脂#2在~25k次后失效、未采用密封壳体设计导致油脂流失"
+      },
+      "recommended_controls": {
+        "prevention_control": "合成润滑脂选型(如Klüber/Berutox,耐-60°C~+130°C,抗磨+防水),密封壳体设计防止杂质侵入(参考Hyundai/Korean SAE方案,5万次零异响),注脂量参数锁定(体积/重量)",
+        "detection_control": "50,000次耐久后噪音检测(≤45dB(A)),扭矩曲线对比(变化率≤30%),磨损量称重分析",
+        "measurement_method": "噪音分析仪(SOUNDMETER-8,20-20kHz)/扭矩测试台/精密天平",
+        "sample_frequency": "首件+每批次耐久验证",
+        "reaction_plan": "更换润滑脂牌号(升级为合成脂),检查密封设计有效性,增加注脂量或改善注脂均匀性"
+      },
+      "rating_hint": { "severity": 6, "occurrence": 5, "detection": 4 },
+      "confidence": 0.80,
+      "source": "scraped: JAC research (2017, Automotive Technology journal: grease comparison lithium#2 vs Klüber/Berutox), Korean SAE research (sealed housing solution), AIAG/VDA FMEA 2019"
+    },
+    {
+      "rule_id": "KR-PROGRESSIVE-DIE-MISFEED-CRASH-064",
+      "enabled": true,
+      "process_terms": ["级进模", "送料", "progressive die", "misfeed", "feed error", "pilot misalignment"],
+      "characteristic_terms": ["送料偏差", "步距精度", "导正销", "pitch error", "feed accuracy", "pilot wear"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "级进模送料偏差(misfeed)导致冲压错位——半切/撞模/产品报废",
+        "failure_effect": "模具损坏(撞模可能造成$10k+维修费)、100%产品报废、产线停线>1班次",
+        "failure_cause": "送料辊磨损(送料精度>±0.01mm)、导正销(pilot)磨损(间隙>0.01mm)、卷料张力波动、伺服电机编码器故障"
+      },
+      "recommended_controls": {
+        "prevention_control": "伺服送料精度±0.01mm+光学监控,导正销定期更换(间隙0.005-0.01mm),送料辊定期检查,卷料张力闭环控制,导正销每3工位布置一个",
+        "detection_control": "in-die传感器(冲压力曲线监控+送料位置检测),视觉系统检查冲压件孔位,首件全检+定期巡检",
+        "measurement_method": "送料精度测试条/视觉检测系统/CMM",
+        "sample_frequency": "每次换模后首件+每2小时巡检",
+        "reaction_plan": "立即停机,检查送料系统和导正销状态,隔离已生产件全检,修复或更换磨损部件后重新首件验证"
+      },
+      "rating_hint": { "severity": 8, "occurrence": 3, "detection": 3 },
+      "confidence": 0.83,
+      "source": "scraped: Wikipedia Progressive Stamping (pilots for precision alignment), The Fabricator (sequence design for progressive dies), AIAG/VDA FMEA 2019, IATF 16949"
+    },
+    {
+      "rule_id": "KR-STAMPING-CPK-MONITORING-065",
+      "enabled": true,
+      "process_terms": ["过程能力", "SPC", "统计过程控制", "process capability", "Cpk", "statistical process control"],
+      "characteristic_terms": ["Cpk", "Ppk", "过程能力指数", "控制图", "control chart", "capability index"],
+      "special_characteristic_required": true,
+      "risk": {
+        "failure_mode": "冲压关键特性(Cpk)过程能力不足或SPC监控失效",
+        "failure_effect": "批次性尺寸超差未被及时发现→顾客装配线停线或索赔,特殊特性(CC/SC)失控",
+        "failure_cause": "Cpk<1.33(要求≥1.33,安全特性≥1.67),SPC控制图未及时更新或报警阈值设置不当,模具磨损渐变未被SPC趋势图捕捉"
+      },
+      "recommended_controls": {
+        "prevention_control": "SPC实时监控关键尺寸(CC特性Cpk≥1.67,SC特性Cpk≥1.33),控制图(X-bar/R或X-MR)自动报警,模具寿命管理+预防性维护(每50k冲次检查,磨损>0.02mm更换),测量系统分析(MSA GR&R<10% for CC)",
+        "detection_control": "SPC软件实时趋势监控+超限自动停线,首件+末件+定期巡检CMM测量",
+        "measurement_method": "CMM/SPC软件(实时数据采集)/GR&R分析",
+        "sample_frequency": "CC特性:100%在线或高频率抽样;SC特性:每批次首件+定时巡检(≥5件/2h)",
+        "reaction_plan": "SPC超限立即停线,隔离追溯上一检查点至今全部产品,分析 assignable cause(模具磨损/材料批次/参数漂移),纠正后重新验证Cpk≥1.33方可恢复生产"
+      },
+      "rating_hint": { "severity": 8, "occurrence": 3, "detection": 3 },
+      "confidence": 0.84,
+      "source": "scraped: IATF 16949:2016 (SPC + MSA requirements), AIAG SPC Manual, Wikipedia APQP (7 major elements), AIAG/VDA FMEA 2019 (CC/SC designation)"
+    },
+    {
+      "rule_id": "KR-LIMITER-WELD-BRACKET-FAILURE-067",
+      "enabled": true,
+      "process_terms": ["门检查支架", "限位器支架", "焊接", "点焊", "door check bracket", "limiter mount", "weld", "spot weld"],
+      "characteristic_terms": ["焊缝裂纹", "支架脱焊", "异响", "weld crack", "bracket detachment", "popping noise"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "门检查臂支架焊点逐渐开裂并脱焊导致车门无法正常限位",
+        "failure_effect": "车门过开、自由旋转(限位功能丧失),可能导致车门撞击相邻物体/车辆或关闭时伤及乘员(44例轻伤报告均为磕碰/瘀伤,NHTSA认定为低安全风险,非行驶安全隐患)",
+        "failure_cause": "检查支架与车门结构之间的点焊焊点疲劳开裂(反复开关车门+振动),焊接参数不当(电流/时间/电极压力不足导致熔深不足),焊接表面清洁度不足导致虚焊"
+      },
+      "recommended_controls": {
+        "prevention_control": "焊接参数优化(电流/时间/电极压力锁定,确保熔深≥板厚的70%),焊前表面清洁(去除油污/氧化物),焊接夹具保证支架定位精度(≤±0.5mm),参考Ford CSP 23B56方案:铆钉补强板或更换整个车门",
+        "detection_control": "焊接后外观检查(裂纹/气孔/飞溅),抽样破坏性试验(凿检/撕裂试验确认熔核直径≥4√t),车门开关耐久试验(50,000次循环后检查焊缝完整性),听音检测(开关门过程中异响=焊点损伤前兆)",
+        "measurement_method": "目视检查/破坏性试验(凿检/撕裂)/超声波探伤/耐久试验台/噪音分析仪",
+        "sample_frequency": "首件+每批次焊接参数验证,每2小时巡检",
+        "reaction_plan": "隔离可疑批次,检查焊接参数和电极状态,对成品进行100%焊缝检查或超声波探伤,参考Ford CSP 23B56方案对已出厂产品进行补救(铆钉补强板安装)"
+      },
+      "rating_hint": { "severity": 7, "occurrence": 4, "detection": 4 },
+      "confidence": 0.87,
+      "source": "scraped: NHTSA PE23013 Investigation (2023-2024), OEMDTC.com, 593 VOQs, Ford CSP 23B56"
+    },
+    {
+      "rule_id": "KR-STAMPING-SLUG-PULLING-068",
+      "enabled": true,
+      "process_terms": ["冲压", "级进模", "落料", "stamping", "progressive die", "slug pulling", "chip crushing"],
+      "characteristic_terms": ["跳屑", "废料上浮", "压痕", "凹坑", "slug pull", "scrap pull-up", "dent", "scratch"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "级进模冲压跳屑/废料上浮——废料被从下模拉出并压入零件表面",
+        "failure_effect": "零件表面压痕/划伤,下模损伤,模具寿命降低",
+        "failure_cause": "冲头穿透深度不足,真空效应吸附废料,下模刃口磨损导致废料滞留不良"
+      },
+      "recommended_controls": {
+        "prevention_control": "废料防回弹设计(下模刃口倒锥/台阶),冲头穿透深度≥料厚,定期检查下模刃口磨损状态",
+        "detection_control": "in-die传感器(废料排出检测),空气吹扫确认废料脱离,首件外观检查+定期巡检",
+        "measurement_method": "目视检查/表面轮廓仪",
+        "sample_frequency": "首件和每批次巡检",
+        "reaction_plan": "立即停机,检查下模废料滞留状态和冲头穿透深度,修模或更换磨损刃口,隔离受影响件全检"
+      },
+      "rating_hint": { "severity": 5, "occurrence": 5, "detection": 4 },
+      "confidence": 0.78,
+      "source": "scraped: Yamanaka Gokin - Case Studies of Defects in Pressing, PiezoBolt monitoring"
+    },
+    {
+      "rule_id": "KR-STAMPING-GALLING-069",
+      "enabled": true,
+      "process_terms": ["冲压", "拉延", "成型", "stamping", "drawing", "forming"],
+      "characteristic_terms": ["拉毛", "粘着", "划伤", "galling", "scoring", "material transfer", "adhesion"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "冲压/拉延件拉毛(galling/scoring)——模具与工件间材料转移导致表面划伤",
+        "failure_effect": "零件表面划伤,涂层附着力下降,外观不良导致批量拒收",
+        "failure_cause": "润滑不足或润滑剂选型不当,模具表面粗糙度偏大,模具材料偏软,接触压力过高"
+      },
+      "recommended_controls": {
+        "prevention_control": "专用拉延油/润滑剂选型验证,模具表面抛光至Ra<0.4μm,模具材料硬度提升至HRC 58-62,模具表面涂层处理(TiN/CrN)",
+        "detection_control": "首件外观检查和表面粗糙度检测,定时巡检拉毛痕迹",
+        "measurement_method": "表面粗糙度仪/目视检查/光学显微镜",
+        "sample_frequency": "首件和每批次巡检",
+        "reaction_plan": "隔离可疑批次,检查润滑状态和模具表面,重新抛光/涂层处理模具表面,调整润滑参数后重新首件验证"
+      },
+      "rating_hint": { "severity": 5, "occurrence": 4, "detection": 4 },
+      "confidence": 0.78,
+      "source": "scraped: Yamanaka Gokin - 8 Common Press Defects (kajiri/galling), Neway Precision - 20 Defects"
+    },
+    {
+      "rule_id": "KR-STAMPING-DISTORTION-BOW-070",
+      "enabled": true,
+      "process_terms": ["冲压", "成型", "落料", "stamping", "forming", "blanking"],
+      "characteristic_terms": ["翘曲", "扭曲", "平面度", "bow", "distortion", "twist", "flatness", "warpage"],
+      "special_characteristic_required": false,
+      "risk": {
+        "failure_mode": "冲压件翘曲/扭曲/平面度超差——冲压后零件不平整",
+        "failure_effect": "装配配合不良,功能失效,影响后续工序定位精度",
+        "failure_cause": "材料应力分布不均,模具平行度偏差,温度变化导致热变形,材料残余应力未消除"
+      },
+      "recommended_controls": {
+        "prevention_control": "冲压前材料整平处理,冲压后去应力退火(根据材料牌号确定温度/时间),零件加强筋设计提高刚性,模具平行度定期校验(≤0.02mm/300mm)",
+        "detection_control": "首件平面度检查(塞尺/三坐标),冲压后定时巡检平面度",
+        "measurement_method": "平台+塞尺/CMM/激光平面度仪",
+        "sample_frequency": "首件和每批次巡检",
+        "reaction_plan": "隔离不合格批次,检查模具平行度和材料状态,增加整平工序或调整退火工艺,重新首件验证"
+      },
+      "rating_hint": { "severity": 5, "occurrence": 4, "detection": 4 },
+      "confidence": 0.78,
+      "source": "scraped: Yamanaka Gokin - 8 Common Press Defects (hansori/nejire), Neway Precision - 20 Defects"
+    }
+  ]
+}

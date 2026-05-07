@@ -1,9 +1,8 @@
-"""MINOS Windows desktop shell."""
+"""MINOS desktop sidecar and business service package."""
 
 from .app_state import (
     DesktopAIConfigState,
     DesktopExportRecord,
-    DesktopPage,
     DesktopProjectRecord,
     DesktopProjectState,
     DesktopRunRecord,
@@ -15,7 +14,6 @@ from .services import DesktopProjectStore, DesktopRunService, DesktopSettingsSto
 __all__ = [
     "DesktopAIConfigState",
     "DesktopExportRecord",
-    "DesktopPage",
     "DesktopProjectRecord",
     "DesktopProjectState",
     "DesktopProjectStore",

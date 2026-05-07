@@ -177,7 +177,7 @@ class ReviewIssueTests(unittest.TestCase):
                 "edited_by": "qe",
                 "reason": "确认闭环",
                 "items": [
-                    {"action": "accept_recommendation", "table": "metadata", "target_id": "KR-1"},
+                    {"action": "ignore_recommendation", "table": "metadata", "target_id": "KR-1", "reason": "V1.10: 当前不适用，已评估无需采纳"},
                     {"action": "resolve_change_impact", "table": "metadata", "target_id": "CI-1"},
                 ],
             },

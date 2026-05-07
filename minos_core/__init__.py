@@ -24,11 +24,13 @@ from .domain import (
     Characteristic,
     ControlItem,
     Drawing,
+    EntityType,
     Evidence,
     FailureMode,
     ProcessStep,
     Product,
     TraceLink,
+    TraceLinkType,
 )
 from .drawing_analysis import (
     DRAWING_ANALYSIS_SCHEMA_VERSION,
@@ -58,6 +60,13 @@ from .generate_pfd import generate_pfd_from_analysis
 from .generate_pfmea import generate_pfmea_from_candidates
 from .generate_control_plan import generate_control_plan_from_pfmea
 from .ingest import ingest_evidence_bundle
+from .knowledge_recommendation import (
+    recommend_from_knowledge,
+    recommend_from_local_knowledge,
+    unresolved_recommendations,
+)
+from .part_family_classifier import classify_part_family, get_default_family_index
+from .part_family_knowledge import load_part_family_index, load_part_family_knowledge
 from .pipeline import (
     apply_review,
     export_draft_fixture,
@@ -104,6 +113,22 @@ from .stage import (
     run_stage,
 )
 from .validation import validate_chain
+from .three_table_linkage import (
+    build_three_table_linkage_map,
+    evaluate_three_table_linkage,
+    find_linkage_gaps,
+)
+from .characteristic_registry import (
+    build_characteristic_registry,
+    attach_characteristics_to_three_tables,
+)
+from .change_management import (
+    compare_three_table_baseline,
+    analyze_linked_change_impacts,
+)
+from .risk_structure import (
+    build_risk_structure,
+)
 
 __all__ = [
     "APQPChain",
@@ -144,15 +169,19 @@ __all__ = [
     "StageContext",
     "StageQualityGate",
     "StageResult",
+    "EntityType",
     "TraceLink",
+    "TraceLinkType",
     "analyze_drawing_pages",
     "analyze_evidence_bundle",
     "analyze_evidence_bundle_with_ai",
+    "analyze_linked_change_impacts",
     "apply_review",
     "apply_edit_patch",
     "apply_review_patch",
     "assemble_generated_apqp_chain",
     "artifact_sha256",
+    "attach_characteristics_to_three_tables",
     "audit_chain",
     "automation_review_issue",
     "brainstorm_failure_modes_from_pfd",
@@ -160,7 +189,12 @@ __all__ = [
     "build_review_issue",
     "build_automation_review",
     "build_batch_confirm_patch",
+    "build_characteristic_registry",
+    "build_risk_structure",
     "build_run_manifest",
+    "build_three_table_linkage_map",
+    "classify_part_family",
+    "compare_three_table_baseline",
     "drawing_pages_to_evidence_bundle",
     "evaluate_analysis_bundle_gate",
     "evaluate_brainstorm_failure_modes_input_gate",
@@ -171,20 +205,27 @@ __all__ = [
     "evaluate_drawing_recognition_gate",
     "evaluate_edit_export_gate",
     "evaluate_stage_gate",
+    "evaluate_three_table_linkage",
     "export_draft_fixture",
     "export_edited_three_tables",
     "export_fixture",
+    "find_linkage_gaps",
     "generate_control_plan_from_pfmea",
     "generate_draft",
     "generate_three_tables_from_drawing",
     "generate_pfd_from_analysis",
     "generate_pfmea_from_candidates",
+    "get_default_family_index",
     "ingest_evidence_bundle",
     "infer_pfmea_from_process_flow",
     "infer_process_flow_from_drawing",
     "list_samples",
     "load_drawing_source",
+    "load_part_family_index",
+    "load_part_family_knowledge",
     "load_sample_metadata",
+    "recommend_from_knowledge",
+    "recommend_from_local_knowledge",
     "render_drawing_pages",
     "run_stage",
     "sha256_bytes",
@@ -192,5 +233,6 @@ __all__ = [
     "sha256_json",
     "validate_bundle_schema",
     "validate_chain",
+    "unresolved_recommendations",
     "unresolved_review_issues",
 ]

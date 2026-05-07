@@ -3,7 +3,32 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from collections.abc import Mapping
+from enum import Enum
 from typing import Any
+
+from ._text_utils import string_list
+
+
+class EntityType(str, Enum):
+    PROCESS_STEP = "process_step"
+    FAILURE_MODE_CANDIDATE = "failure_mode_candidate"
+    FAILURE_MODE = "failure_mode"
+    CONTROL_ITEM = "control_item"
+    EVIDENCE = "evidence"
+    DRAWING = "drawing"
+    CHARACTERISTIC = "characteristic"
+    PRODUCT = "product"
+
+
+class TraceLinkType(str, Enum):
+    PFD_TO_PFMEA = "pfd_to_pfmea"
+    PFMEA_TO_CP = "pfmea_to_control_plan"
+    CANDIDATE_TO_PFMEA = "candidate_to_pfmea"
+    STEP_TO_CANDIDATE = "step_to_candidate"
+    EVIDENCE_TO_ENTITY = "evidence_to_entity"
+    CHARACTERISTIC_TO_STEP = "characteristic_to_step"
+    DRAWING_TO_EVIDENCE = "drawing_to_evidence"
 
 
 @dataclass
@@ -18,8 +43,7 @@ class Product:
     def from_mapping(cls, data: Any) -> "Product":
         if isinstance(data, Product):
             return data
-        if not isinstance(data, dict):
-            return cls()
+        data = _require_mapping(data, cls.__name__)
         return cls(
             sample_id=str(data.get("sample_id", "")),
             part_number=str(data.get("part_number", "")),
@@ -49,6 +73,11 @@ class ProcessStep:
     special_characteristics: list[str] = field(default_factory=list)
     evidence_refs: list[str] = field(default_factory=list)
     needs_confirmation: bool = False
+    review_status: str = ""
+    deleted: bool = False
+    modified_at: str = ""
+    modified_by: str = ""
+    version: int = 0
 
     @property
     def id(self) -> str:
@@ -70,6 +99,7 @@ class ProcessStep:
     def from_mapping(cls, data: Any) -> "ProcessStep":
         if isinstance(data, ProcessStep):
             return data
+        data = _require_mapping(data, cls.__name__)
         return cls(
             process_step_id=str(data.get("process_step_id", data.get("id", ""))),
             sequence=int(data.get("sequence", 0) or 0),
@@ -83,29 +113,34 @@ class ProcessStep:
                     data.get("purpose", data.get("operation_purpose", "")),
                 )
             ),
-            product_characteristics=_string_list(
+            product_characteristics=string_list(
                 data.get("product_characteristics", data.get("product_characteristic_refs", []))
             ),
-            process_characteristics=_string_list(
+            process_characteristics=string_list(
                 data.get("process_characteristics", data.get("process_characteristic_refs", []))
             ),
             equipment=str(data.get("equipment", "")),
             tooling=str(data.get("tooling", data.get("fixture", ""))),
-            gauges=_string_list(
+            gauges=string_list(
                 data.get("gauges", data.get("inspection_gauges", data.get("measurement_devices", [])))
             ),
-            documents=_string_list(
+            documents=string_list(
                 data.get("documents", data.get("document_refs", data.get("files", [])))
             ),
             flow_type=str(data.get("flow_type", data.get("process_type", ""))),
             owner=str(data.get("owner", "")),
-            input_refs=_string_list(data.get("input_refs", [])),
-            output_refs=_string_list(data.get("output_refs", [])),
-            special_characteristics=_string_list(
+            input_refs=string_list(data.get("input_refs", [])),
+            output_refs=string_list(data.get("output_refs", [])),
+            special_characteristics=string_list(
                 data.get("special_characteristics", [])
             ),
-            evidence_refs=_string_list(data.get("evidence_refs", [])),
+            evidence_refs=string_list(data.get("evidence_refs", [])),
             needs_confirmation=bool(data.get("needs_confirmation", False)),
+            review_status=str(data.get("review_status", "")),
+            deleted=bool(data.get("deleted", False)),
+            modified_at=str(data.get("modified_at", "")),
+            modified_by=str(data.get("modified_by", "")),
+            version=int(data.get("version", 0) or 0),
         )
 
 
@@ -120,8 +155,7 @@ class Drawing:
     def from_mapping(cls, data: Any) -> "Drawing":
         if isinstance(data, Drawing):
             return data
-        if not isinstance(data, dict):
-            return cls()
+        data = _require_mapping(data, cls.__name__)
         return cls(
             drawing_id=str(data.get("drawing_id", data.get("id", ""))),
             title=str(data.get("title", data.get("name", ""))),
@@ -142,8 +176,7 @@ class Characteristic:
     def from_mapping(cls, data: Any) -> "Characteristic":
         if isinstance(data, Characteristic):
             return data
-        if not isinstance(data, dict):
-            return cls()
+        data = _require_mapping(data, cls.__name__)
         return cls(
             characteristic_id=str(data.get("characteristic_id", data.get("id", ""))),
             name=str(data.get("name", data.get("characteristic", ""))),
@@ -168,13 +201,16 @@ class FailureModeCandidate:
     source_process_step_id: str = ""
     characteristic_refs: list[str] = field(default_factory=list)
     created_by_stage: str = ""
+    modified_at: str = ""
+    modified_by: str = ""
+    version: int = 0
+    ai_reasoning: str = ""
 
     @classmethod
     def from_mapping(cls, data: Any) -> "FailureModeCandidate":
         if isinstance(data, FailureModeCandidate):
             return data
-        if not isinstance(data, dict):
-            return cls()
+        data = _require_mapping(data, cls.__name__)
         return cls(
             candidate_id=str(data.get("candidate_id", data.get("id", ""))),
             process_step_id=str(data.get("process_step_id", data.get("step_no", ""))),
@@ -185,12 +221,16 @@ class FailureModeCandidate:
             ),
             failure_mode=str(data.get("failure_mode", "")),
             source_rule=str(data.get("source_rule", "")),
-            evidence_refs=_string_list(data.get("evidence_refs", [])),
+            evidence_refs=string_list(data.get("evidence_refs", [])),
             needs_confirmation=bool(data.get("needs_confirmation", False)),
             ai_inferred=bool(data.get("ai_inferred", False)),
             source_process_step_id=str(data.get("source_process_step_id", "")),
-            characteristic_refs=_string_list(data.get("characteristic_refs", [])),
+            characteristic_refs=string_list(data.get("characteristic_refs", [])),
             created_by_stage=str(data.get("created_by_stage", "")),
+            modified_at=str(data.get("modified_at", "")),
+            modified_by=str(data.get("modified_by", "")),
+            version=int(data.get("version", 0) or 0),
+            ai_reasoning=str(data.get("ai_reasoning", "")),
         )
 
 
@@ -233,8 +273,14 @@ class FailureMode:
     evidence_refs: list[str] = field(default_factory=list)
     source_candidate_id: str = ""
     needs_confirmation: bool = False
+    review_status: str = ""
+    deleted: bool = False
     characteristic_refs: list[str] = field(default_factory=list)
     created_by_stage: str = ""
+    modified_at: str = ""
+    modified_by: str = ""
+    version: int = 0
+    ai_reasoning: str = ""
 
     @property
     def step_no(self) -> str:
@@ -268,6 +314,7 @@ class FailureMode:
     def from_mapping(cls, data: Any) -> "FailureMode":
         if isinstance(data, FailureMode):
             return data
+        data = _require_mapping(data, cls.__name__)
         return cls(
             pfmea_id=str(data.get("pfmea_id", data.get("id", ""))),
             process_step_id=str(data.get("process_step_id", data.get("step_no", ""))),
@@ -282,10 +329,10 @@ class FailureMode:
                 data.get("process_step_operation", data.get("operation", ""))
             ),
             process_function=str(data.get("process_function", data.get("process", ""))),
-            product_characteristics=_string_list(
+            product_characteristics=string_list(
                 data.get("product_characteristics", [])
             ),
-            process_characteristics=_string_list(
+            process_characteristics=string_list(
                 data.get("process_characteristics", [])
             ),
             failure_mode=str(data.get("failure_mode", "")),
@@ -313,11 +360,17 @@ class FailureMode:
             remarks=str(data.get("remarks", data.get("note", ""))),
             classification=str(data.get("classification", "")),
             linked_control_plan_id=str(data.get("linked_control_plan_id", "")),
-            evidence_refs=_string_list(data.get("evidence_refs", [])),
+            evidence_refs=string_list(data.get("evidence_refs", [])),
             source_candidate_id=str(data.get("source_candidate_id", "")),
             needs_confirmation=bool(data.get("needs_confirmation", False)),
-            characteristic_refs=_string_list(data.get("characteristic_refs", [])),
+            review_status=str(data.get("review_status", "")),
+            deleted=bool(data.get("deleted", False)),
+            characteristic_refs=string_list(data.get("characteristic_refs", [])),
             created_by_stage=str(data.get("created_by_stage", "")),
+            modified_at=str(data.get("modified_at", "")),
+            modified_by=str(data.get("modified_by", "")),
+            version=int(data.get("version", 0) or 0),
+            ai_reasoning=str(data.get("ai_reasoning", "")),
         )
 
 
@@ -336,6 +389,8 @@ class ControlItem:
     reaction_plan: str = ""
     evidence_refs: list[str] = field(default_factory=list)
     needs_confirmation: bool = False
+    review_status: str = ""
+    deleted: bool = False
     characteristic_refs: list[str] = field(default_factory=list)
     source_pfmea_id: str = ""
     source_failure_cause: str = ""
@@ -344,6 +399,9 @@ class ControlItem:
     source_special_characteristics: list[str] = field(default_factory=list)
     source_high_risk: bool = False
     created_by_stage: str = ""
+    modified_at: str = ""
+    modified_by: str = ""
+    version: int = 0
 
     @property
     def step_no(self) -> str:
@@ -361,6 +419,7 @@ class ControlItem:
     def from_mapping(cls, data: Any) -> "ControlItem":
         if isinstance(data, ControlItem):
             return data
+        data = _require_mapping(data, cls.__name__)
         return cls(
             control_plan_id=str(data.get("control_plan_id", data.get("id", ""))),
             process_step_id=str(data.get("process_step_id", data.get("step_no", ""))),
@@ -379,18 +438,23 @@ class ControlItem:
             sample_frequency=str(data.get("sample_frequency", "")),
             control_method=str(data.get("control_method", "")),
             reaction_plan=str(data.get("reaction_plan", "")),
-            evidence_refs=_string_list(data.get("evidence_refs", [])),
+            evidence_refs=string_list(data.get("evidence_refs", [])),
             needs_confirmation=bool(data.get("needs_confirmation", False)),
-            characteristic_refs=_string_list(data.get("characteristic_refs", [])),
+            review_status=str(data.get("review_status", "")),
+            deleted=bool(data.get("deleted", False)),
+            characteristic_refs=string_list(data.get("characteristic_refs", [])),
             source_pfmea_id=str(data.get("source_pfmea_id", "")),
             source_failure_cause=str(data.get("source_failure_cause", "")),
             source_prevention_control=str(data.get("source_prevention_control", "")),
             source_detection_control=str(data.get("source_detection_control", "")),
-            source_special_characteristics=_string_list(
+            source_special_characteristics=string_list(
                 data.get("source_special_characteristics", [])
             ),
             source_high_risk=bool(data.get("source_high_risk", False)),
             created_by_stage=str(data.get("created_by_stage", "")),
+            modified_at=str(data.get("modified_at", "")),
+            modified_by=str(data.get("modified_by", "")),
+            version=int(data.get("version", 0) or 0),
         )
 
 
@@ -407,8 +471,7 @@ class Evidence:
     def from_mapping(cls, data: Any) -> "Evidence":
         if isinstance(data, Evidence):
             return data
-        if not isinstance(data, dict):
-            return cls()
+        data = _require_mapping(data, cls.__name__)
         raw_confidence = data.get("confidence")
         try:
             confidence = None if raw_confidence in {None, ""} else float(raw_confidence)
@@ -431,8 +494,8 @@ class TraceLink:
     link_type: str = ""
     evidence_refs: list[str] = field(default_factory=list)
     trace_link_id: str = ""
-    from_type: str = ""
-    to_type: str = ""
+    from_type: str = ""  # Use EntityType values
+    to_type: str = ""    # Use EntityType values
     created_by_stage: str = ""
     confidence: float | None = None
     ai_inferred: bool = False
@@ -442,6 +505,7 @@ class TraceLink:
     def from_mapping(cls, data: Any) -> "TraceLink":
         if isinstance(data, TraceLink):
             return data
+        data = _require_mapping(data, cls.__name__)
         raw_confidence = data.get("confidence")
         try:
             confidence = None if raw_confidence in {None, ""} else float(raw_confidence)
@@ -451,7 +515,7 @@ class TraceLink:
             from_id=str(data.get("from", data.get("from_id", ""))),
             to_id=str(data.get("to", data.get("to_id", ""))),
             link_type=str(data.get("link_type", "")),
-            evidence_refs=_string_list(data.get("evidence_refs", [])),
+            evidence_refs=string_list(data.get("evidence_refs", [])),
             trace_link_id=str(data.get("trace_link_id", data.get("id", ""))),
             from_type=str(data.get("from_type", "")),
             to_type=str(data.get("to_type", "")),
@@ -473,8 +537,8 @@ class APQPChain:
     controls: list[ControlItem] = field(default_factory=list)
     evidence: list[Evidence] = field(default_factory=list)
     links: list[TraceLink] = field(default_factory=list)
-    pending_fields: list[Any] = field(default_factory=list)
-    ai_inferred_items: list[Any] = field(default_factory=list)
+    pending_fields: list[str] = field(default_factory=list)
+    ai_inferred_items: list[str] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
     schema_version: str = ""
     document_type: str = "apqp_chain"
@@ -690,12 +754,10 @@ def _first_list(*values: Any) -> list[Any]:
     return []
 
 
-def _string_list(value: Any) -> list[str]:
-    if value is None:
-        return []
-    if isinstance(value, (list, tuple, set)):
-        return [str(item) for item in value]
-    return [str(value)]
+def _require_mapping(data: Any, class_name: str) -> Mapping[str, Any]:
+    if isinstance(data, Mapping):
+        return data
+    raise TypeError(f"{class_name}.from_mapping expected a mapping, got {type(data).__name__}")
 
 
 def load_apqp_chain(fixture: Any) -> dict[str, Any]:

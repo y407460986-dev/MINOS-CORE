@@ -3,6 +3,7 @@ import os
 import tempfile
 import unittest
 import urllib.error
+import time
 from pathlib import Path
 from io import BytesIO
 from unittest.mock import patch
@@ -157,6 +158,19 @@ class OpenAIResponsesMultimodalDrawingAnalyzerTests(unittest.TestCase):
 
         with self.assertRaisesRegex(OpenAIMultimodalError, "stream failed"):
             _parse_responses_stream(BytesIO(raw), fallback_model="gpt-test")
+
+    def test_streaming_parser_times_out_when_line_read_hangs(self):
+        class _SlowStream:
+            def readline(self):
+                time.sleep(0.03)
+                return b"event: response.output_text.delta\n"
+
+        with self.assertRaisesRegex(OpenAIMultimodalError, "stream timed out"):
+            _parse_responses_stream(
+                _SlowStream(),
+                fallback_model="gpt-test",
+                timeout_seconds=0.01,
+            )
 
     def test_retry_status_helper(self):
         self.assertTrue(_should_retry_http_status(502))

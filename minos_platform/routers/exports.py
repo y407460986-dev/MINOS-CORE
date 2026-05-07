@@ -144,7 +144,7 @@ async def trigger_export(
         else:
             export_run.status = "draft_export_ready"
 
-    except Exception as exc:  # noqa: BLE001
+    except (OSError, ValueError, TypeError, RuntimeError, KeyError, AttributeError) as exc:
         export_run.status = "blocked"
         export_run.error_message = str(exc)
         project.status = "blocked"

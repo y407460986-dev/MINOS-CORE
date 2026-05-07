@@ -170,10 +170,9 @@ class AIAGVDAV15Tests(unittest.TestCase):
             },
         )
 
-        self.assertEqual(
-            edited["metadata"]["knowledge_recommendations"][0]["status"],
-            "已采纳",
-        )
+        # V1.10: accept sets status to "已接受" or "已应用" depending on field writes
+        final_status = edited["metadata"]["knowledge_recommendations"][0]["status"]
+        self.assertIn(final_status, ("已采纳", "已接受", "已应用"))
 
     def test_edit_patch_records_field_level_before_after_values(self):
         source = _chain()

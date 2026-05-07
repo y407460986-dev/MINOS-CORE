@@ -90,20 +90,43 @@ def build_automation_review(
             }
         )
 
+    # Cross-table semantic review
+    review_issues: list[dict[str, Any]] = []
+    try:
+        from .semantic_review import semantic_review_cross_table
+        pfd_steps = chain.get("process_steps", [])
+        pfmea_rows = chain.get("failure_modes", [])
+        cp_rows = chain.get("controls", [])
+        cross_issues = semantic_review_cross_table(pfd_steps, pfmea_rows, cp_rows)
+        for issue in cross_issues:
+            if isinstance(issue, dict):
+                review_issues.append(automation_review_issue(
+                    category=issue.get("category", "semantic"),
+                    message=issue.get("message", str(issue)),
+                    target=issue.get("target", ""),
+                    severity="review",
+                    fix_proposal=issue.get("fix_proposal"),
+                ))
+    except ImportError:
+        pass
+
     return {
         "automation_review_version": AUTOMATION_REVIEW_VERSION,
         "automation_tasks": automation_tasks,
         "batch_confirm_candidates": batch_confirm_candidates,
         "blocking_issues": blocking_issues,
+        "review_issues": review_issues,
         "summary": {
             "message": (
                 f"AI 预审完成：{len(batch_confirm_candidates)} 项可批量确认，"
                 f"{len(automation_tasks) - len(batch_confirm_candidates)} 项需要人工处理，"
-                f"{len(blocking_issues)} 项阻断问题。"
+                f"{len(blocking_issues)} 项阻断问题，"
+                f"{len(review_issues)} 项语义审查建议。"
             ),
             "batch_confirm_candidate_count": len(batch_confirm_candidates),
             "human_task_count": len(automation_tasks) - len(batch_confirm_candidates),
             "blocking_issue_count": len(blocking_issues),
+            "review_issue_count": len(review_issues),
             "min_confidence": min_confidence,
         },
     }
@@ -218,6 +241,14 @@ def _batch_reject_reasons(
         reasons.append("已有阻断问题")
     if _has_open_change_impact(source, target):
         reasons.append("存在未处理的变更影响")
+    # Semantic checks (per-row)
+    try:
+        from .semantic_review import semantic_review_row
+        pfd_steps = chain.get("process_steps", [])
+        pfmea_rows = chain.get("failure_modes", [])
+        reasons.extend(semantic_review_row(row, table, pfd_steps=pfd_steps, pfmea_rows=pfmea_rows))
+    except ImportError:
+        pass
     return _dedupe(reasons)
 
 
@@ -286,13 +317,58 @@ def _candidate(table: str, row_id: str, row: dict[str, Any]) -> dict[str, Any]:
 
 def _fix_proposal(table: str, row_id: str, row: dict[str, Any], reasons: list[str]) -> dict[str, Any]:
     changes: dict[str, Any] = {}
+    suggestion_parts: list[str] = []
+
     if any("缺少 evidence_refs" in reason for reason in reasons):
         changes["evidence_refs"] = []
+        suggestion_parts.append("请补充证据引用")
     if any("置信度" in reason for reason in reasons):
         changes["needs_confirmation"] = True
+        suggestion_parts.append("请人工确认并提高置信度")
+
+    # RPN arithmetic errors
+    if any("RPN" in reason or "rpn" in reason.lower() for reason in reasons):
+        sev = _int_or(row.get("severity"), 1)
+        occ = _int_or(row.get("occurrence"), 1)
+        det = _int_or(row.get("detection"), 1)
+        correct_rpn = sev * occ * det
+        changes["rpn"] = correct_rpn
+        suggestion_parts.append(
+            f"RPN应为 S x O x D = {sev} x {occ} x {det} = {correct_rpn}，请修正"
+        )
+
+    # Cause/effect logic issues
+    if any(
+        keyword in reason
+        for reason in reasons
+        for keyword in ("因果", "失效原因", "逻辑矛盾", "cause", "effect")
+    ):
+        changes["needs_cause_effect_clarification"] = True
+        suggestion_parts.append(
+            "请区分失效模式、失效后果与失效原因三个字段，确保因果关系逻辑清晰"
+        )
+
+    # Detection vs failure type mismatch
+    if any(
+        keyword in reason
+        for reason in reasons
+        for keyword in ("探测", "检测方法", "detection", "探测度")
+    ):
+        changes["needs_detection_method"] = True
+        suggestion_parts.append("请根据失效模式类型补充或调整探测/检测方法")
+
+    # Measurement vs tolerance mismatch
+    if any(
+        keyword in reason
+        for reason in reasons
+        for keyword in ("测量", "量测", "公差", "measurement", "tolerance")
+    ):
+        changes["needs_precise_measurement"] = True
+        suggestion_parts.append("请选用精度更高的测量方法以匹配公差要求")
+
     if not changes:
         return {}
-    return {
+    result: dict[str, Any] = {
         "edit_patch_version": EDIT_PATCH_VERSION,
         "action": "update",
         "table": table,
@@ -300,6 +376,16 @@ def _fix_proposal(table: str, row_id: str, row: dict[str, Any], reasons: list[st
         "changes": changes,
         "metadata": {"source": "ai_fix_proposal"},
     }
+    if suggestion_parts:
+        result["suggestion"] = "；".join(suggestion_parts)
+    return result
+
+
+def _int_or(value: Any, default: int = 0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
 
 
 def _row_id(table: str, row: dict[str, Any]) -> str:

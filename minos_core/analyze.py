@@ -369,7 +369,7 @@ def _drawing_clues(
     matched = [term for term in DRAWING_TERMS if term in lower]
     if not matched:
         return []
-    drawing_id = _extract_drawing_id(evidence.content)
+    drawing_id, drawing_id_match = _extract_drawing_id(evidence.content)
     revision = _extract_revision(evidence.content)
     if not drawing_id:
         pending_fields.append(
@@ -387,12 +387,22 @@ def _drawing_clues(
                 "source_ref": evidence.evidence_id,
             }
         )
+    source_section = evidence.evidence_id
+    page_number = getattr(evidence, "page_number", None)
+    if page_number is not None:
+        source_section = f"{source_section}:page-{page_number}"
+    elif matched:
+        source_section = f"{source_section}#{matched[0]}"
+    if drawing_id_match and drawing_id_match.get("span"):
+        start, end = drawing_id_match["span"]
+        source_section = f"{source_section}@b{start}-{end}"
     return [
         {
             "drawing_id": drawing_id,
             "title": matched[0],
             "revision": revision,
             "source_ref": evidence.evidence_id,
+            "source_section": source_section,
             "matched_terms": matched,
         }
     ]
@@ -406,13 +416,24 @@ def _characteristics(
         matched_terms = [term for term in rule["terms"] if term in lower]
         if not matched_terms:
             continue
+        spec, spec_match = _extract_specification(content, rule["spec_patterns"])
+        source_section = evidence.evidence_id
+        page_number = getattr(evidence, "page_number", None)
+        if page_number is not None:
+            source_section = f"{source_section}:page-{page_number}"
+        elif matched_terms:
+            source_section = f"{source_section}#{matched_terms[0]}"
+        if spec_match and spec_match.get("span"):
+            start, end = spec_match["span"]
+            source_section = f"{source_section}@b{start}-{end}"
         results.append(
             {
                 "characteristic_id": rule["characteristic_id"],
                 "name": rule["name"],
                 "classification": "",
-                "specification": _extract_specification(content, rule["spec_patterns"]),
+                "specification": spec,
                 "source_ref": evidence.evidence_id,
+                "source_section": source_section,
                 "matched_terms": matched_terms,
             }
         )
@@ -427,11 +448,18 @@ def _process_clues(evidence: Evidence, lower: str) -> list[dict[str, Any]]:
         if step_id.lower() in lower and operation in lower:
             matched_pxx_operations.add(operation)
             matched_pxx_tokens.update(operation.split())
+            source_section = evidence.evidence_id
+            page_number = getattr(evidence, "page_number", None)
+            if page_number is not None:
+                source_section = f"{source_section}:page-{page_number}"
+            else:
+                source_section = f"{source_section}#{step_id}"
             clues.append(
                 {
                     "process_step_id": step_id,
                     "operation": operation,
                     "source_ref": evidence.evidence_id,
+                    "source_section": source_section,
                     "matched_terms": [step_id, operation],
                     "confidence": evidence.confidence
                     if evidence.confidence is not None
@@ -442,11 +470,18 @@ def _process_clues(evidence: Evidence, lower: str) -> list[dict[str, Any]]:
         if operation in matched_pxx_operations:
             continue
         if operation in lower and not _phrase_is_covered_by_pxx(operation, matched_pxx_tokens):
+            source_section = evidence.evidence_id
+            page_number = getattr(evidence, "page_number", None)
+            if page_number is not None:
+                source_section = f"{source_section}:page-{page_number}"
+            else:
+                source_section = f"{source_section}#{operation}"
             clues.append(
                 {
                     "process_step_id": "",
                     "operation": operation,
                     "source_ref": evidence.evidence_id,
+                    "source_section": source_section,
                     "matched_terms": [operation],
                     "confidence": evidence.confidence
                     if evidence.confidence is not None
@@ -461,17 +496,33 @@ def _phrase_is_covered_by_pxx(operation: str, matched_tokens: set[str]) -> bool:
     return bool(operation_tokens and operation_tokens.issubset(matched_tokens))
 
 
-def _extract_specification(content: str, patterns: tuple[str, ...]) -> str:
+def _extract_specification(
+    content: str, patterns: tuple[str, ...]
+) -> tuple[str, dict[str, Any]]:
     for pattern in patterns:
         match = re.search(pattern, content, flags=re.IGNORECASE)
         if match:
-            return " ".join(match.group(1).split())
-    return ""
+            spec = " ".join(match.group(1).split())
+            match_info: dict[str, Any] = {
+                "pattern": pattern,
+                "span": match.span(),
+                "matched_text": match.group(0),
+            }
+            return spec, match_info
+    return "", {}
 
 
-def _extract_drawing_id(content: str) -> str:
+def _extract_drawing_id(content: str) -> tuple[str, dict[str, Any]]:
     match = re.search(r"\b(DRW[-_ ]?[A-Z0-9-]+)\b", content, flags=re.IGNORECASE)
-    return match.group(1).replace(" ", "-").upper() if match else ""
+    if match:
+        drawing_id = match.group(1).replace(" ", "-").upper()
+        match_info: dict[str, Any] = {
+            "pattern": r"\b(DRW[-_ ]?[A-Z0-9-]+)\b",
+            "span": match.span(),
+            "matched_text": match.group(0),
+        }
+        return drawing_id, match_info
+    return "", {}
 
 
 def _extract_revision(content: str) -> str:

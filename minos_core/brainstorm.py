@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import json
 import re
 from typing import Any
+
+from .evidence_relevance import filter_relevant_evidence_refs
+from minos_core._text_utils import string_list
 
 
 OPERATION_RULES = (
@@ -28,6 +32,7 @@ OPERATION_RULES = (
 def brainstorm_failure_modes_from_pfd(process_flow: dict[str, Any]) -> dict[str, Any]:
     candidates: list[dict[str, Any]] = []
     pending_fields = list(process_flow.get("pending_fields", []))
+    available_evidence: list[dict[str, Any]] = process_flow.get("evidence", [])
     seen: set[tuple[str, str]] = set()
 
     for step in process_flow.get("steps", process_flow.get("process_steps", [])):
@@ -52,12 +57,12 @@ def brainstorm_failure_modes_from_pfd(process_flow: dict[str, Any]) -> dict[str,
             )
             continue
         index = 1
-        for source_rule, failure_mode in step_candidates:
+        for source_rule, failure_mode, matched_terms in step_candidates:
             key = (step_id, _normalized_text(failure_mode))
             if key in seen:
                 continue
             seen.add(key)
-            candidates.append(_candidate(step, index, source_rule, failure_mode))
+            candidates.append(_candidate(step, index, source_rule, failure_mode, matched_terms, available_evidence))
             index += 1
 
     return {
@@ -81,20 +86,22 @@ def brainstorm_failure_modes_from_pfd(process_flow: dict[str, Any]) -> dict[str,
     }
 
 
-def _candidate_specs_for_step(step: dict[str, Any]) -> list[tuple[str, str]]:
+def _candidate_specs_for_step(step: dict[str, Any]) -> list[tuple[str, str, list[str]]]:
     operation = str(step.get("operation", step.get("name", ""))).strip()
     process_function = str(step.get("process_function", "")).strip()
     text = f"{operation} {process_function}".lower()
-    specs: list[tuple[str, str]] = []
+    specs: list[tuple[str, str, list[str]]] = []
     for terms, source_rule, failure_mode in OPERATION_RULES:
-        if any(term in text for term in terms):
-            specs.append((source_rule, failure_mode))
+        matched = [term for term in terms if term in text]
+        if matched:
+            specs.append((source_rule, failure_mode, matched))
             break
     if process_function:
         specs.append(
             (
                 "process_function:not_achieved",
                 f"Process function not achieved: {process_function}",
+                [],
             )
         )
     elif operation:
@@ -102,6 +109,7 @@ def _candidate_specs_for_step(step: dict[str, Any]) -> list[tuple[str, str]]:
             (
                 "operation:not_completed",
                 f"Operation not completed as intended: {operation}",
+                [],
             )
         )
     for characteristic in step.get("special_characteristics", []) or []:
@@ -111,6 +119,7 @@ def _candidate_specs_for_step(step: dict[str, Any]) -> list[tuple[str, str]]:
                 (
                     "special_characteristic:not_met",
                     f"Special characteristic not met: {characteristic_id}",
+                    [],
                 )
             )
     return specs
@@ -121,26 +130,87 @@ def _candidate(
     index: int,
     source_rule: str,
     failure_mode: str,
+    matched_terms: list[str],
+    available_evidence: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     step_id = str(step.get("process_step_id", step.get("id", ""))).strip()
+    raw_refs = [
+        str(ref).strip()
+        for ref in step.get("evidence_refs", [])
+        if str(ref).strip()
+    ]
+    # Build entity text combining the distinguishing fields so relevance
+    # scoring can match evidence content against this specific candidate.
+    operation = str(step.get("operation", step.get("name", ""))).strip()
+    process_function = str(step.get("process_function", "")).strip()
+    entity_text = f"{operation} {process_function} {failure_mode}"
+
+    # Compute confidence from step and evidence
+    filtered_refs = filter_relevant_evidence_refs(
+        evidence_refs=raw_refs,
+        entity_text=entity_text,
+        available_evidence=available_evidence or [],
+    )
+    step_confidence = step.get("confidence")
+    evidence_confidences = [
+        ev.get("confidence") for ev in (available_evidence or [])
+        if isinstance(ev, dict) and ev.get("evidence_id") in filtered_refs
+        and ev.get("confidence") is not None
+    ]
+    avg_confidence = (
+        sum(evidence_confidences) / len(evidence_confidences)
+        if evidence_confidences else (step_confidence if step_confidence is not None else 0.5)
+    )
+
+    # Build reasoning explaining why this failure mode was selected
+    reasoning_data = {
+        "method": "keyword_rule_match",
+        "source_rule": source_rule,
+        "matched_operation_terms": matched_terms,
+        "matched_operation_text": operation,
+        "confidence": 0.6,
+    }
+    reasoning = json.dumps(reasoning_data, ensure_ascii=False)
+
+    # Human-readable ai_reasoning
+    if matched_terms:
+        ai_reasoning = (
+            f"根据关键词规则匹配: 工序「{operation}」包含 '{'、'.join(matched_terms)}'"
+            f" → 推断失效模式「{failure_mode}」"
+        )
+    elif source_rule.startswith("process_function:"):
+        ai_reasoning = (
+            f"根据工序功能规则: 工序「{operation}」功能未达成"
+            f" → 推断失效模式「{failure_mode}」"
+        )
+    elif source_rule.startswith("special_characteristic:"):
+        ai_reasoning = (
+            f"根据特殊特性规则: 特殊特性未满足"
+            f" → 推断失效模式「{failure_mode}」"
+        )
+    else:
+        ai_reasoning = (
+            f"根据工序规则: 工序「{operation}」未按预期完成"
+            f" → 推断失效模式「{failure_mode}」"
+        )
+
     return {
         "candidate_id": f"FMC-{step_id}-{index:03d}",
         "process_step_id": step_id,
         "sequence": step.get("sequence", _sequence_from_step_id(step_id)),
-        "operation": str(step.get("operation", step.get("name", ""))).strip(),
-        "process_function": str(step.get("process_function", "")).strip(),
-        "process_step_name": str(step.get("operation", step.get("name", ""))).strip(),
-        "product_characteristics": _string_list(step.get("product_characteristics", [])),
-        "process_characteristics": _string_list(step.get("process_characteristics", [])),
-        "special_characteristics": _string_list(step.get("special_characteristics", [])),
+        "operation": operation,
+        "process_function": process_function,
+        "process_step_name": operation,
+        "product_characteristics": string_list(step.get("product_characteristics", [])),
+        "process_characteristics": string_list(step.get("process_characteristics", [])),
+        "special_characteristics": string_list(step.get("special_characteristics", [])),
         "failure_mode": failure_mode,
         "source_rule": source_rule,
-        "evidence_refs": [
-            str(ref).strip()
-            for ref in step.get("evidence_refs", [])
-            if str(ref).strip()
-        ],
-        "needs_confirmation": True,
+        "evidence_refs": filtered_refs,
+        "confidence": avg_confidence,
+        "needs_confirmation": avg_confidence < 0.85,
+        "reasoning": reasoning,
+        "ai_reasoning": ai_reasoning,
     }
 
 
@@ -153,11 +223,4 @@ def _normalized_text(value: str) -> str:
     return " ".join(value.strip().lower().split())
 
 
-def _string_list(value: Any) -> list[str]:
-    if isinstance(value, str):
-        values = [value]
-    elif isinstance(value, list):
-        values = value
-    else:
-        values = []
-    return [str(item).strip() for item in values if str(item).strip()]
+generate_failure_mode_candidates = brainstorm_failure_modes_from_pfd

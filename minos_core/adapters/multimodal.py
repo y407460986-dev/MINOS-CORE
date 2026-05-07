@@ -10,6 +10,7 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
+from socket import timeout as SocketTimeout
 from typing import Any, Protocol
 
 from minos_core.ai_config import load_openai_api_key, load_openai_responses_config
@@ -21,6 +22,7 @@ class MultimodalDrawingResult:
     content: str
     model: str = "fake"
     metadata: dict[str, Any] = field(default_factory=dict)
+    reasoning: str = ""
 
 
 class MultimodalDrawingAnalyzer(Protocol):
@@ -88,6 +90,8 @@ class OpenAIResponsesMultimodalDrawingAnalyzer:
         timeout: int = 120,
         max_retries: int = 2,
         retry_delay: float = 1.0,
+        json_mode: bool = True,
+        json_schema: dict[str, Any] | None = None,
     ) -> None:
         config = load_openai_responses_config()
         if config.wire_api != "responses":
@@ -101,6 +105,8 @@ class OpenAIResponsesMultimodalDrawingAnalyzer:
         self.store = config.store
         self.reasoning_effort = config.reasoning_effort
         self.user_agent = config.user_agent
+        self.json_mode = json_mode
+        self.json_schema = json_schema
         self.timeout = timeout
         self.max_retries = max(0, int(max_retries))
         self.retry_delay = max(0.0, float(retry_delay))
@@ -131,6 +137,7 @@ class OpenAIResponsesMultimodalDrawingAnalyzer:
                 "usage": response.get("usage", {}),
                 "page_count": len(pages),
             },
+            reasoning=str(response.get("reasoning_text", "")),
         )
 
     def _responses_url(self) -> str:
@@ -171,6 +178,17 @@ class OpenAIResponsesMultimodalDrawingAnalyzer:
             payload["store"] = self.store
         if self.reasoning_effort:
             payload["reasoning"] = {"effort": self.reasoning_effort}
+        if self.json_schema is not None:
+            payload["text"] = {
+                "format": {
+                    "type": "json_schema",
+                    "name": "drawing_analysis",
+                    "schema": self.json_schema,
+                    "strict": True,
+                }
+            }
+        elif self.json_mode:
+            payload["text"] = {"format": {"type": "json_object"}}
         payload["stream"] = True
         return payload
 
@@ -191,7 +209,11 @@ class OpenAIResponsesMultimodalDrawingAnalyzer:
             try:
                 with urllib.request.urlopen(request, timeout=self.timeout) as response:
                     if payload.get("stream") is True:
-                        return _parse_responses_stream(response, fallback_model=self.model)
+                        return _parse_responses_stream(
+                            response,
+                            fallback_model=self.model,
+                            timeout_seconds=self.timeout,
+                        )
                     raw = response.read().decode("utf-8")
                 break
             except urllib.error.HTTPError as exc:
@@ -208,6 +230,13 @@ class OpenAIResponsesMultimodalDrawingAnalyzer:
                     continue
                 raise OpenAIMultimodalError(
                     f"OpenAI Responses API connection failed after {attempt} attempt(s): {exc}"
+                ) from exc
+            except TimeoutError as exc:
+                if attempt < attempts:
+                    time.sleep(self.retry_delay * attempt)
+                    continue
+                raise OpenAIMultimodalError(
+                    f"OpenAI Responses API timed out after {self.timeout:g} second(s)"
                 ) from exc
         try:
             parsed = json.loads(raw)
@@ -233,6 +262,15 @@ def _drawing_analysis_prompt(context: dict[str, Any]) -> str:
         "例如 operation/process_step/process_sequence，并带 evidence_refs。不要在可以推断"
         "具体工序时只返回一段说明文字。需要通用工序名时，请使用中文且具体的名称，例如："
         "落料、冲孔、折弯、焊接、去毛刺、电镀、注塑、修边、装配、过程检验、最终检验、包装。"
+        "识别顺序必须先读图框/标题栏，再看技术要求、BOM、局部标注和视图细节。"
+        "drawing_identity.part_name 必须优先来自图框/标题栏中的整件名称；局部组件名、"
+        "引出标注、BOM 子件、技术要求中的对象不能覆盖整张图纸的零件名。例如图框写"
+        "“尾门铰链/尾门较链/door hinge/DH ASSY”，即使技术要求提到衬套、销轴或润滑，"
+        "part_name 仍应是尾门铰链，衬套等只进入 technical_requirements、"
+        "special_characteristics 或 manufacturing_clues。"
+        "判断零件族时请区分：门铰链通常包含铰链臂/铰链座/铰链销/旋转力矩/开闭角度；"
+        "限位器通常包含限位臂、限位杆、滚轮、弹簧、档位力或保持力；"
+        "冲压件通常是薄板成形件，含落料、冲孔、翻边、加强筋、SPCC/DC01 等线索。"
         "上下文："
         f"{context_text}"
     )
@@ -267,11 +305,18 @@ def _should_retry_http_status(status_code: int) -> bool:
     return status_code in {429, 500, 502, 503, 504}
 
 
-def _parse_responses_stream(response: Any, *, fallback_model: str = "") -> dict[str, Any]:
+def _parse_responses_stream(
+    response: Any,
+    *,
+    fallback_model: str = "",
+    timeout_seconds: float | None = None,
+) -> dict[str, Any]:
     event_name = ""
     data_lines: list[str] = []
     deltas: list[str] = []
+    reasoning_deltas: list[str] = []
     completed_response: dict[str, Any] | None = None
+    started_at = time.monotonic()
 
     def dispatch() -> None:
         nonlocal event_name, data_lines, completed_response
@@ -296,6 +341,10 @@ def _parse_responses_stream(response: Any, *, fallback_model: str = "") -> dict[
             delta = payload.get("delta")
             if isinstance(delta, str):
                 deltas.append(delta)
+        elif event_type == "response.reasoning_text.delta":
+            delta = payload.get("delta")
+            if isinstance(delta, str):
+                reasoning_deltas.append(delta)
         elif event_type == "response.completed":
             response_payload = payload.get("response")
             if isinstance(response_payload, dict):
@@ -306,7 +355,16 @@ def _parse_responses_stream(response: Any, *, fallback_model: str = "") -> dict[
             )
 
     while True:
-        line = response.readline()
+        if timeout_seconds is not None and time.monotonic() - started_at > timeout_seconds:
+            raise OpenAIMultimodalError(
+                f"OpenAI Responses API stream timed out after {timeout_seconds:g} second(s)"
+            )
+        try:
+            line = response.readline()
+        except (TimeoutError, SocketTimeout) as exc:
+            raise OpenAIMultimodalError(
+                f"OpenAI Responses API stream timed out after {timeout_seconds or 0:g} second(s)"
+            ) from exc
         if not line:
             dispatch()
             break
@@ -323,13 +381,20 @@ def _parse_responses_stream(response: Any, *, fallback_model: str = "") -> dict[
         if deltas and not _extract_output_text(completed_response):
             completed_response = dict(completed_response)
             completed_response["output_text"] = "".join(deltas)
+        if reasoning_deltas and "reasoning_text" not in completed_response:
+            completed_response = dict(completed_response)
+            completed_response["reasoning_text"] = "".join(reasoning_deltas)
         return completed_response
     text = "".join(deltas).strip()
     if text:
-        return {
+        result: dict[str, Any] = {
             "object": "response",
             "model": fallback_model,
             "output_text": text,
             "streamed": True,
         }
+        reasoning = "".join(reasoning_deltas).strip()
+        if reasoning:
+            result["reasoning_text"] = reasoning
+        return result
     raise OpenAIMultimodalError("OpenAI Responses API stream did not contain output text")

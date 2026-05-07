@@ -1,0 +1,150 @@
+{
+  "schema_version": "minos-core.process_inference.v1",
+  "family_key": "door_hinge",
+  "family_name": "门铰链",
+  "description": "汽车车门铰链——连接车门与车身的机械轴承部件，允许车门绕固定轴线旋转。按制造方式分为锻造铰链、冲压铰链、热轧型钢铰链；按可视性分为外露铰链和隐藏铰链；按结构分为C型、鹅颈、贯通钢琴、剪刀门等。核心部件：铰链页板(leaf)、铰链销轴(pin)、铰链筒(knuckle)、衬套(bushing)。典型材料：SAPH310/370/440、SPCC、DC01-04、Q345、45钢、黄铜，料厚1-4mm。",
+  "drawing_recognition_clues": {
+    "typical_shapes": ["L形/倒T形弯曲件", "页板+销轴孔", "C形断面", "铰链筒(卷圆圆筒)", "安装法兰面", "加强筋", "焊接螺母/压铆螺母"],
+    "typical_materials": ["SAPH310", "SAPH370", "SAPH440", "SPCC", "DC01", "DC04", "Q345", "B250P1", "45钢", "SUS304", "黄铜"],
+    "typical_thickness": "1.0-4.0mm（冲压型）, 丸钢棒Φ12-25mm（锻造型）",
+    "typical_features": ["铰链销轴孔(∮6-12mm,要求同轴)", "安装孔(∮8-13mm)", "卷圆/curl", "弯曲(90°/60°)", "翻孔/翻边", "镦粗增厚(螺纹区域)", "焊接方螺母", "压铆螺母", "衬套压入", "包边/hemming"],
+    "surface_requirements": ["无毛刺(喷涂件≤0.05mm)", "无开裂", "无起皱", "回弹控制在±0.5°以内", "销轴孔同轴度≤0.1mm"],
+    "tolerance_level": "IT12-IT14 (冲压), IT9-IT11 (精冲/铰链销轴孔)",
+    "typical_standards": ["GB 15086-2013 (纵载≥11000N/横载≥9000N)", "GTR No.1", "IATF 16949"]
+  },
+  "hinge_types": {
+    "forged_type": {
+      "description": "锻造铰链——丸钢棒热锻成形(950-1350°C),强度可达GB标准3倍以上,德系车主流",
+      "process_sequence": [
+        { "seq": 10, "operation": "来料检验", "equipment": "光谱仪/硬度计", "key_check": "丸钢棒材质、化学成分、直径" },
+        { "seq": 20, "operation": "加热", "equipment": "中频感应加热炉", "key_check": "加热温度950-1350°C" },
+        { "seq": 30, "operation": "热锻成形", "equipment": "热模锻压力机/电液锤", "key_check": "充填完整、无折叠、无裂纹" },
+        { "seq": 40, "operation": "切边", "equipment": "切边压力机", "key_check": "飞边切除干净" },
+        { "seq": 50, "operation": "轴孔冲制", "equipment": "冲孔压力机+锥形冲头(70-120°)", "key_check": "轴孔径、圆度、轴孔高≥孔径×2.0" },
+        { "seq": 60, "operation": "轴孔精整", "equipment": "压力机+精整冲头", "key_check": "孔径公差、内壁光洁度" },
+        { "seq": 70, "operation": "热处理", "equipment": "调质/正火炉", "key_check": "硬度、金相组织" },
+        { "seq": 80, "operation": "抛丸/清洗", "equipment": "抛丸机/清洗线", "key_check": "表面清洁度、粗糙度" },
+        { "seq": 90, "operation": "机加工(安装面/孔)", "equipment": "加工中心/专机", "key_check": "安装孔位置度、平面度" },
+        { "seq": 100, "operation": "表面处理", "equipment": "电泳/达克罗/电镀线", "key_check": "膜厚、附着力、盐雾≥114h" },
+        { "seq": 110, "operation": "压装衬套/销轴", "equipment": "压装机/铆接机", "key_check": "压入力、转动扭矩" },
+        { "seq": 120, "operation": "完工检验", "equipment": "CMM/检具/扭矩测试台", "key_check": "全尺寸、铰链刚度、开闭力矩" },
+        { "seq": 130, "operation": "包装入库", "equipment": "包装台/打码机", "key_check": "数量、标识、防锈" }
+      ]
+    },
+    "stamped_type": {
+      "description": "冲压铰链——钢板冷冲压级进模成形,成本低,日系/经济型车主流,强度可达GB标准2倍以上",
+      "process_sequence": [
+        { "seq": 10, "operation": "来料检验", "equipment": "检具/量具/光谱仪", "key_check": "材质(SAPH310等)、料厚(1-4mm)、卷料宽度" },
+        { "seq": 20, "operation": "开卷校平", "equipment": "开卷校平机", "key_check": "板形、表面清洁、送料顺畅" },
+        { "seq": 30, "operation": "级进模冲压(含多工位)", "equipment": "精密压力机(160-630T)+级进模(4-12工位)", "key_check": "工位1-2:导正孔/冲孔、工位3-4:切边/切槽、工位5-8:弯曲(90°/60°渐进)、工位9-10:卷圆(curling,铰链筒成形)、工位11:镦粗(螺纹区域)、工位12:切断" },
+        { "seq": 40, "operation": "去毛刺/清洗", "equipment": "振动光饰/超声波清洗", "key_check": "毛刺≤0.05mm、清洁度" },
+        { "seq": 50, "operation": "焊接螺母/压铆螺母", "equipment": "点焊机/压铆机", "key_check": "焊接电流50-110A、电压17-24V、扭矩测试" },
+        { "seq": 60, "operation": "压装衬套/销轴", "equipment": "压装机/铆接机", "key_check": "压入行程、压入力、销轴转动灵活" },
+        { "seq": 70, "operation": "表面处理", "equipment": "电泳/达克罗/电镀线", "key_check": "膜厚、附着力、盐雾≥114h" },
+        { "seq": 80, "operation": "完工检验", "equipment": "CMM/检具/扭矩测试台", "key_check": "铰链刚度、纵向≥11000N、横向≥9000N、转动扭矩、外观" },
+        { "seq": 90, "operation": "包装入库", "equipment": "包装台/打码机", "key_check": "数量、标识、防锈" }
+      ]
+    }
+  },
+  "feature_to_operation": {
+    "hinge_leaf": { "operation": "落料+弯曲", "equipment": "压力机+级进模", "note": "L形/倒T形弯曲,外→内顺序,回弹补偿0.05-0.1mm" },
+    "curl_knuckle": { "operation": "卷圆(Curling)", "equipment": "压力机+卷圆模", "note": "铰链筒成形,Wikipedia: Door hinges are a common example of curling die" },
+    "hinge_pin_hole": { "operation": "冲孔/铰孔", "equipment": "压力机+冲孔模(同轴要求)", "note": "∮6-12mm,同轴度≤0.1mm,同一工位一次冲出" },
+    "mount_hole": { "operation": "冲孔", "equipment": "压力机", "note": "∮8-13mm安装孔,孔边距>2t" },
+    "thread_boss": { "operation": "镦粗(Upsetting)+攻丝", "equipment": "压力机+镦粗模/攻丝机", "note": "8组拉深+4组镦粗形成螺纹柱,确保螺纹壁厚" },
+    "bend_hinge": { "operation": "多道弯曲", "equipment": "压力机+弯曲模/级进模", "note": "90°→60°渐进,弯曲线与纤维方向垂直或30-60°" },
+    "weld_nut": { "operation": "点焊螺母", "equipment": "点焊机", "note": "M8焊接方螺母,电流50-110A,电压17-24V" },
+    "press_nut": { "operation": "压铆螺母", "equipment": "压铆机", "note": "M8压铆螺母,压入力控制" },
+    "bush_press": { "operation": "衬套压入", "equipment": "压装机", "note": "衬套压入+铰孔定径,保证转动间隙" },
+    "pin_rivet": { "operation": "铰链销铆接", "equipment": "铆接机", "note": "销轴铆接,头部成形,转动灵活不松动" },
+    "surface_treat": { "operation": "电泳/达克罗/电镀", "equipment": "涂装线/电镀线", "note": "耐盐雾≥114h,膜厚按图纸要求" },
+    "cold_head_bulge": { "operation": "冷镦", "equipment": "压力机+冷镦模", "note": "钢板宽度方向端部冷镦成形圆柱状膨出部,材料向宽度方向挤出,非落料/冲裁" }
+  },
+  "process_flow_variants": {
+    "stamped_hinge_progressive": {
+      "description": "冲压型铰链级进模工艺——适合大批量生产(年产>50万件)",
+      "process_sequence": [
+        { "seq": 10, "operation": "来料检验", "equipment": "检具/量具", "key_check": "材质(SPCC/SAPH)、料厚(1-4mm)、卷宽" },
+        { "seq": 20, "operation": "开卷校平+送料", "equipment": "开卷校平机+伺服送料", "key_check": "板形、送料精度±0.01mm" },
+        { "seq": 30, "operation": "级进模冲压(12工位)", "equipment": "精密压力机(160-630T)", "key_check": "导正孔→冲孔→切边→多向弯曲(外→内)→卷圆→镦粗→切断" },
+        { "seq": 40, "operation": "去毛刺清洗", "equipment": "超声波/碳氢清洗", "key_check": "毛刺≤0.05mm" },
+        { "seq": 50, "operation": "焊接/压铆螺母", "equipment": "点焊机/压铆机", "key_check": "扭矩测试" },
+        { "seq": 60, "operation": "压装衬套+销轴铆接", "equipment": "压装机+铆接机", "key_check": "压入力、转动灵活、间隙" },
+        { "seq": 70, "operation": "表面处理", "equipment": "电泳/达克罗线", "key_check": "膜厚、盐雾≥114h" },
+        { "seq": 80, "operation": "完工检验", "equipment": "CMM/检具/扭矩台", "key_check": "GB15086纵向≥11000N/横向≥9000N" },
+        { "seq": 90, "operation": "包装入库", "equipment": "包装台", "key_check": "数量、标识" }
+      ]
+    },
+    "forged_hinge": {
+      "description": "锻造型铰链工艺——适合高强度/高安全要求车型(德系主流)",
+      "process_sequence": [
+        { "seq": 10, "operation": "来料检验", "equipment": "光谱仪/硬度计", "key_check": "丸钢棒材质、直径、炉号" },
+        { "seq": 20, "operation": "加热", "equipment": "中频感应炉", "key_check": "950-1350°C" },
+        { "seq": 30, "operation": "热锻成形+切边", "equipment": "热模锻压力机", "key_check": "无折叠/裂纹、飞边切除" },
+        { "seq": 40, "operation": "轴孔冲制+精整", "equipment": "冲孔压力机", "key_check": "锥形冲头70-120°,轴孔高≥2×孔径" },
+        { "seq": 50, "operation": "热处理(调质)", "equipment": "热处理炉", "key_check": "硬度、金相" },
+        { "seq": 60, "operation": "抛丸清洗", "equipment": "抛丸机", "key_check": "表面清洁" },
+        { "seq": 70, "operation": "机加工+表面处理", "equipment": "CNC+电泳线", "key_check": "安装面精度、盐雾≥114h" },
+        { "seq": 80, "operation": "压装衬套+销轴铆接", "equipment": "压装机+铆接机", "key_check": "转动扭矩" },
+        { "seq": 90, "operation": "完工检验", "equipment": "CMM/扭矩台", "key_check": "GB15086要求" },
+        { "seq": 100, "operation": "包装入库", "equipment": "包装台", "key_check": "防锈、标识" }
+      ]
+    },
+    "pressed_hinge_cold_heading": {
+      "description": "冲压铰链冷镦轴孔工艺(小川专利US2013/0061437)——钢板冷镦成形圆柱膨出部后冲制轴孔,省去锻坯,大幅减少材料去除量",
+      "process_sequence": [
+        { "seq": 10, "operation": "来料检验", "equipment": "检具/量具/光谱仪", "key_check": "材质(SAPH310/SPCC等)、料厚(1-4mm)、板宽,钢板毛坯" },
+        { "seq": 20, "operation": "冷镦成形圆柱膨出部", "equipment": "压力机+冷镦模", "key_check": "钢板宽度方向一端冷镦,材料挤出形成圆柱状膨出部(cylindrical bulging portion),用于后续冲制轴孔" },
+        { "seq": 30, "operation": "退火(可选)", "equipment": "退火炉", "key_check": "球化退火或软化退火,消除冷镦加工硬化,改善后续冲孔成形性;视材料与变形量决定是否实施" },
+        { "seq": 40, "operation": "轴孔冲制", "equipment": "冲孔压力机+锥形冲头(70-120°顶角)+第一模具", "key_check": "锥形冲头前端角度70-120°;第一模具与圆柱部保持间隙;轴孔高≥2.0×孔径;可温锻(450-900°C);前半程:不产生废料(slug),材料向外膨出;后半程:产生废料(slug)并冲出通孔" },
+        { "seq": 50, "operation": "壁厚增厚(可选)", "equipment": "压力机+剖分模具(split mold die)", "key_check": "利用剖分模具对坯料中间部分局部增厚,强化铰链颈部强度;视产品规格决定是否实施" },
+        { "seq": 60, "operation": "L形弯曲", "equipment": "压力机+弯曲模", "key_check": "将坯料弯曲成L形(L-shaped bend),形成车身侧或车门侧铰链页板的基本形状" },
+        { "seq": 70, "operation": "安装孔冲制", "equipment": "压力机+冲孔模", "key_check": "在平坦部位冲制安装孔(mounting holes),用于将铰链装到车身/车门上" },
+        { "seq": 80, "operation": "组装车身侧+车门侧铰链", "equipment": "组装台+压装机+铆接机", "key_check": "车身侧与车门侧铰链合组;轴孔中插入树脂缓冲管(resin buffer tube);插入带头铰链销轴(headed hinge pin);销轴末端镦粗/铆固(caulk/crimp tip),确保转动灵活不脱落" },
+        { "seq": 90, "operation": "完工检验", "equipment": "CMM/检具/扭矩测试台", "key_check": "全尺寸、轴孔同轴度≤0.1mm、铰链刚度(GB15086纵≥11000N/横≥9000N)、开闭力矩、外观" },
+        { "seq": 100, "operation": "包装入库", "equipment": "包装台/打码机", "key_check": "数量、标识、防锈" }
+      ]
+    }
+  },
+  "engineering_parameters": {
+    "tool_materials": {
+      "bending_punch": { "material": "Cr12MoV", "hardness": "HRC 58-62", "finish": "Ra <0.4μm" },
+      "flanging_punch": { "material": "W18Cr4V (高速钢)", "finish": "Ra <0.4μm" },
+      "die_wear_blocks": { "material": "YG15 硬质合金", "note": "螺栓固定可更换" },
+      "die_shoes": { "material": "HT300 铸钢/45钢", "note": "四导柱结构保证刚性" }
+    },
+    "die_parameters": {
+      "punch_die_clearance": "料厚5-10% (单边)",
+      "bend_springback_compensation": "弯角处负间隙0.05-0.1mm",
+      "flange_punch_gap": "1.05-1.1 × 料厚",
+      "pilot_clearance": "0.005-0.01mm",
+      "strip_guide_clearance": "0.1-0.2mm"
+    },
+    "force_formulas": {
+      "blanking_force": "F = K × L × t × τ (K=1.3, τ≈300MPa for mild steel)",
+      "bending_force_free": "Fz = 0.7 × b × t² × σb / (r + t)",
+      "stripping_force": "≈5% of blanking force",
+      "ejection_force": "≈6% of blanking force",
+      "total_press_capacity": "sum of all forces + 20-30% margin"
+    },
+    "quality_checks": {
+      "wear_block_inspection": "每50000冲次检查,磨损>0.02mm更换",
+      "bend_punch_inspection": "每20000冲次CMM检查,偏差>0.03mm返修",
+      "burr_control": "非喷涂件≤0.07mm,喷涂件≤0.05mm",
+      "hinge_load_test": "纵向≥11000N,横向≥9000N (GB 15086-2013)"
+    }
+  },
+  "references": [
+    {"title": "GB 15086-2013 汽车门锁及车门保持件的性能要求和试验方法", "url": "https://std.samr.gov.cn/gb/search/gbDetailed?id=71F772D803FED3A7E05397BE0A0AB82A", "type": "national_standard"},
+    {"title": "汽车门铰链座冲压工艺与级进模设计 (42页毕业设计全文)", "url": "https://www.renrendoc.com/paper/156079469.html", "type": "thesis"},
+    {"title": "ZN6491汽车后背门铰链座冲压工艺改进及级进模设计", "url": "https://www.mmsonline.com.cn/info/121082.shtml", "type": "article"},
+    {"title": "CN201693085U - 用于制造汽车车门铰链固定板的级进连续冲压模具", "url": "https://patents.google.com/patent/CN201693085U/en", "type": "patent"},
+    {"title": "CN205613918U - 一种汽车后门铰链组件连续冲压模具", "url": "https://patents.google.com/patent/CN205613918U/en", "type": "patent"},
+    {"title": "US 8,984,726 - Method of manufacturing automobile door hinge (forged type)", "url": "https://www.freepatentsonline.com/8984726.html", "type": "patent"},
+    {"title": "US 2013/0061437 - Method for manufacturing motor vehicle door hinge (press type)", "url": "https://patents.justia.com/patent/20130061437", "type": "patent"},
+    {"title": "Wikipedia - Stamping (metalworking)", "url": "https://en.wikipedia.org/wiki/Stamping_(metalworking)", "type": "encyclopedia"},
+    {"title": "Wikipedia - Hinge", "url": "https://en.wikipedia.org/wiki/Hinge", "type": "encyclopedia"},
+    {"title": "Wikipedia - Progressive stamping", "url": "https://en.wikipedia.org/wiki/Progressive_stamping", "type": "encyclopedia"},
+    {"title": "车门系统零部件设计及系统集成 (汤莹 著, 机械工业出版社 2017)", "url": "https://baike.baidu.com/item/50453371", "type": "book"}
+  ]
+}

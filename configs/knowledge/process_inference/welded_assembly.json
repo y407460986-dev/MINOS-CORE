@@ -1,0 +1,69 @@
+{
+  "schema_version": "minos-core.process_inference.v1",
+  "family_key": "welded_assembly",
+  "family_name": "焊接总成",
+  "description": "汽车焊接结构总成——通过熔化焊或电阻焊将多个冲压件、管材、板材连接为承力结构体。典型零件：副车架(subframe)、横梁(cross member)、纵梁(longitudinal beam)、支架(bracket)、加强板(reinforcement)、底盘焊接件。按焊接方式分为机器人MIG/MAG自动焊、手工MIG/MAG焊、凸焊/电阻点焊。典型材料：SPFH590、SPH440、SAPH440、QSTE420、DP780、22MnB5（热成形）、镀锌板SCGA。料厚范围0.7-3.2mm单件，总成厚度2-8mm。关键要求：焊缝强度≥母材、焊后扭曲≤1.5mm/m、熔深≥20%板厚、飞溅受限、无裂纹/气孔/咬边。",
+  "drawing_recognition_clues": {
+    "typical_shapes": ["U形断面梁", "箱形断面梁", "管材+冲压件组合", "多层板搭接", "加强筋板焊接", "翻边搭接", "支架焊接面", "法兰连接面", "封闭断面结构"],
+    "typical_materials_metal": ["SPFH590", "SPH440", "SAPH440", "QSTE420", "DP780", "DP980", "22MnB5", "SCGA270D", "SCGA440", "B340LA", "HC340LA", "B410LA", "SAPH590", "Q345", "SUS304", "SUS409L"],
+    "typical_materials_plastic": [],
+    "typical_thickness": "单件0.7-3.2mm，总成搭接2-8mm",
+    "typical_features": ["搭接焊缝(lap weld)", "角接焊缝(fillet weld)", "塞焊孔(plug weld hole,∮6-12mm)", "凸焊凸台(projection)", "焊接螺母/螺栓", "焊接定位孔(∮8-15mm)", "定位缺口/定位凸台", "MIG焊道(continuous bead)", "电阻焊点(indentation,∮4-8mm)", "断续焊(stitch weld)", "环焊缝(circumferential weld)"],
+    "surface_requirements": ["焊缝外形平整(余高≤1mm)", "无裂纹", "无气孔(单个气孔≤0.5mm)", "无咬边(深度≤0.3mm)", "飞溅直径≤1.0mm", "焊点压痕深度≤20%板厚", "焊接变形≤1.5mm/m", "焊缝颜色正常(银白色/淡黄色)"],
+    "tolerance_level": "焊接总成轮廓IT13-IT15，关键安装孔位置度±0.3mm，焊接面平面度0.5mm/300mm"
+  },
+  "process_flow_variants": {
+    "robotic_gmaw": {
+      "description": "机器人MIG/MAG自动焊接——适合大批量副车架/横梁生产线(年产>20万件)，6轴关节机器人+变位机工作站，脉冲MAG焊接，CO2或Ar+CO2混合气体保护",
+      "match_keywords": ["机器人焊接", "ROBOT", "GMAW", "MIG", "MAG", "脉冲焊", "自动焊", "变位机", "焊接工作站", "副车架焊接", "横梁焊接", "welding robot", "automated welding", "CO2 welding", "MAG welding cell"],
+      "process_sequence": [
+        { "seq": 10, "operation": "来料检验", "equipment": "检具/量具/光谱仪/膜厚仪", "key_check": "冲压件/管材材质、料厚、镀层厚度、无锈蚀、无变形" },
+        { "seq": 20, "operation": "清洗除油", "equipment": "碳氢清洗机/超声波清洗线", "key_check": "零件表面清洁度(达因值≥38)、无油污、无切屑" },
+        { "seq": 30, "operation": "焊接夹具定位组装", "equipment": "气动/液压焊接夹具+定位销", "key_check": "零件装配间隙≤0.3mm、定位销插入顺畅、夹紧力均匀；夹具设计遵循poka-yoke防错原则(contact method：形状识别防止装反)" },
+        { "seq": 40, "operation": "机器人脉冲MAG定位焊(打底)", "equipment": "6轴焊接机器人(ABB/KUKA/FANUC/YASKAWA)+数字化逆变焊机(350-500A)+变位机", "key_check": "焊接参数：电流180-260A、电压22-28V、送丝速度6-10m/min、焊丝直径∮1.0-1.2mm(ER70S-6/ER50-6)、保护气体80%Ar+20%CO2流量15-20L/min；定位焊点间距30-50mm" },
+        { "seq": 50, "operation": "机器人连续MAG焊接(主焊缝)", "equipment": "同上+焊缝跟踪传感器(激光/电弧跟踪)+自动清枪站", "key_check": "焊接电流220-320A、电压24-32V、焊接速度400-800mm/min、干伸长12-20mm、焊枪角度75-85°(推角)；每完成5-10道焊缝自动清枪+喷防飞溅剂；自工程完結：实时监控电流电压波形，偏离设定值±5%报警停焊" },
+        { "seq": 60, "operation": "焊缝外观检查+飞溅清理", "equipment": "目视+焊缝检验尺+飞溅铲刀", "key_check": "焊缝余高0-1mm、焊趾平滑过渡、无裂纹/气孔/咬边/未熔合；飞溅直径≤1.0mm,超标处修磨处理" },
+        { "seq": 70, "operation": "焊接尺寸校正(冷校)", "equipment": "液压校正机/压力机+校正模", "key_check": "关键安装孔位置度±0.3mm、安装面平面度0.5mm/300mm;校正力≤材料屈服极限80%" },
+        { "seq": 80, "operation": "焊缝无损检测(抽检/全检)", "equipment": "超声波探伤仪(UT)/渗透探伤(PT)/相控阵UT", "key_check": "按GB/T 11345检测焊缝内部无裂纹/未熔合/夹渣;关键安全件全检、非安全件批抽检(AQL 0.65)" },
+        { "seq": 90, "operation": "破坏性试验(首件/批次)", "equipment": "万能试验机+金相显微镜+硬度计", "key_check": "焊缝拉伸(断裂在母材不低于母材强度)、断面金相(熔深≥20%板厚,无内部缺陷)、焊缝及HAZ硬度(HV≤母材+100)" },
+        { "seq": 100, "operation": "表面处理", "equipment": "电泳涂装线/喷漆线/达克罗线", "key_check": "膜厚15-25μm(电泳)或5-10μm(达克罗)、附着力≤1级(划格法)、耐盐雾≥240h(底盘件)或≥720h(外观件)" },
+        { "seq": 110, "operation": "完工综合检验", "equipment": "CMM/综合检具/三坐标关节臂", "key_check": "全尺寸、关键特性CpK≥1.67、焊接总成刚度/固有频率(按图纸要求)、外观无流挂/露底" },
+        { "seq": 120, "operation": "包装入库", "equipment": "专用料架/周转箱+打码机", "key_check": "数量、批次号、防止搬运变形、防锈" }
+      ]
+    },
+    "manual_gmaw": {
+      "description": "手工MIG/MAG焊接——适合小批量/维修件/复杂空间位置焊接，人工操作焊枪，CO2或混合气体保护",
+      "match_keywords": ["手工焊", "手工MIG", "手工MAG", "CO2保护焊", "二保焊", "半自动焊", "焊工", "manual welding", "semi-automatic welding", "hand welding", "CO2 shielded", "repair welding"],
+      "process_sequence": [
+        { "seq": 10, "operation": "来料检验", "equipment": "检具/量具/光谱仪", "key_check": "零件材质、料厚、无锈蚀油污、无变形" },
+        { "seq": 20, "operation": "零件准备(打磨/除锈/除油)", "equipment": "角磨机/钢丝刷/丙酮清洗", "key_check": "焊接区及周边20mm范围无铁锈/氧化皮/油污;坡口角度及钝边符合焊接工艺卡(WPS)" },
+        { "seq": 30, "operation": "焊接夹具定位组对", "equipment": "焊接工装/快速夹钳/定位销", "key_check": "装配间隙≤0.5mm、错边≤0.5mm、点固焊定位(3-5点);工装设计考虑poka-yoke防错(contact method:不对称定位销防装反)" },
+        { "seq": 40, "operation": "手工MIG/MAG焊接", "equipment": "逆变MIG/MAG焊机(250-500A)+送丝机+焊枪(空冷/水冷)", "key_check": "焊接参数按WPS执行(电流/电压/送丝速度/气体流量/焊接速度);焊丝ER50-6∮1.0-1.2mm；保护气体CO2或80%Ar+20%CO2流量15-20L/min；焊接手法:推角(forehand)或拖角(backhand)按WPS;立焊采用下向焊或上向焊；変化点管理：焊工更换/焊丝批次更换/保护气体更换时做首件确认" },
+        { "seq": 50, "operation": "层间清理+目视检查", "equipment": "钢丝刷/角磨机+焊缝检验尺", "key_check": "多道焊每道焊后清除焊渣/飞溅;检查无裂纹/气孔/未熔合后方可焊下一道" },
+        { "seq": 60, "operation": "焊后飞溅清理+修磨", "equipment": "飞溅铲/角磨机/旋转锉", "key_check": "飞溅及焊瘤去除干净;焊缝余高修磨至≤1mm(若要求);修磨处与母材平滑过渡" },
+        { "seq": 70, "operation": "焊后尺寸检查+校正", "equipment": "检具/平台+百分表/液压校正机", "key_check": "关键尺寸(安装孔距/平面度/轮廓)符合图纸;超差处热校或冷校(热校温度≤母材回火温度)" },
+        { "seq": 80, "operation": "无损检测(MT/PT/UT)", "equipment": "磁粉探伤仪/渗透探伤剂/超声波探伤仪", "key_check": "表面裂纹检查(MT/PT)100%关键焊缝;内部缺陷检查(UT)按图纸规定比例;验收标准:GB/T 26951(MT)/GB/T 18851(PT)/GB/T 11345(UT)" },
+        { "seq": 90, "operation": "表面处理", "equipment": "喷漆/电泳/达克罗线", "key_check": "膜厚、附着力、盐雾按图纸规范" },
+        { "seq": 100, "operation": "完工检验", "equipment": "CMM/检具/焊规", "key_check": "全尺寸、焊缝外观、扭曲度≤1.5mm/m" },
+        { "seq": 110, "operation": "包装入库", "equipment": "料架/包装台", "key_check": "数量、标识、防锈" }
+      ]
+    },
+    "projection_welding": {
+      "description": "凸焊/电阻点焊——适合焊接螺母/螺栓/支架与薄板连接，利用工件上的凸台(projection)或电极压痕形成焊点，热影响区小，适合大批量自动化",
+      "match_keywords": ["凸焊", "点焊", "电阻焊", "projection welding", "spot welding", "resistance welding", "螺母焊", "螺栓焊", "电极", "焊点", "RSW", "nut welding", "stud welding"],
+      "process_sequence": [
+        { "seq": 10, "operation": "来料检验", "equipment": "检具/量具/光谱仪", "key_check": "冲压件/螺母/螺栓材质、料厚、凸台尺寸；镀锌板镀层无脱落" },
+        { "seq": 20, "operation": "零件清洗除油", "equipment": "碳氢清洗/超声波清洗", "key_check": "焊接面清洁度(达因值≥38)、无油污/锈蚀/氧化皮(电阻焊对表面清洁度要求极高,接触电阻不稳定会导致焊接质量波动)" },
+        { "seq": 30, "operation": "点焊/凸焊焊接", "equipment": "固定式点(凸)焊机(50-500kVA)+电极(铬锆铜/氧化铝弥散铜)+冷却水系统", "key_check": "焊接三要素(3-STEP): (1)预压:电极压力2-6kN确保工件贴紧; (2)通电:电流8-20kA/时间0.1-0.6s(板厚1+1mm约10kA/0.2s); (3)保压:维持压力0.1-0.3s使熔核凝固; 电极冷却水流量≥4L/min; 焊点直径≥4√t(t为薄板板厚); 焊点间距≥25mm/最小边距≥12mm; 自工程完結：每100点用电流监控仪记录焊接波形,偏离设定±10%报警" },
+        { "seq": 40, "operation": "电极修磨/更换", "equipment": "电极修磨机/车刀", "key_check": "按设定的焊接点数(通常500-2000点)修磨电极端面;电极端面直径磨损>20%必须更换;修磨后首件做剥离试验(peel test)确认熔核直径" },
+        { "seq": 50, "operation": "焊点破坏性检验(首件/批次抽检)", "equipment": "剥离试验台+金相显微镜+拉力试验机", "key_check": "剥离试验:焊点撕裂后母材撕裂,熔核直径≥4√t;拉伸剪切试验:焊点抗剪力≥设计要求;断面金相:熔核无裂纹/缩孔/未熔合,熔核直径及熔深合格" },
+        { "seq": 60, "operation": "焊点非破坏性检验(在线)", "equipment": "超声波点焊检测仪(spot weld UT)", "key_check": "熔核直径/厚度监测;欠焊(undersized nugget)/过焊(expulsion)/粘电极自动识别和报警" },
+        { "seq": 70, "operation": "焊后尺寸检查+校正", "equipment": "检具/CMM/液压校正机", "key_check": "焊接变形检查;关键尺寸超差处校正;焊接螺母/螺栓位置度±0.3mm" },
+        { "seq": 80, "operation": "焊接螺母/螺栓扭矩抽检", "equipment": "数显扭矩扳手/扭矩试验台", "key_check": "焊接螺母分级力矩测试:第1级(预紧扭矩,不脱焊)→第2级(保证扭矩,不脱焊/不滑丝);按图纸扭矩要求(通常在10-80Nm范围)" },
+        { "seq": 90, "operation": "表面处理", "equipment": "电泳/达克罗/喷漆线", "key_check": "膜厚、附着力、盐雾按图纸规范;注意电阻焊点处涂装覆盖性,缝隙处需额外关注" },
+        { "seq": 100, "operation": "完工检验", "equipment": "CMM/检具/扭矩试验台", "key_check": "全尺寸、焊点外观(无飞溅/裂纹/烧穿/过烧变色)、焊接螺母/螺栓扭矩、总成刚度" },
+        { "seq": 110, "operation": "包装入库", "equipment": "专用料架+打码机", "key_check": "数量、批次号、防锈、防止磕碰变形" }
+      ]
+    }
+  }
+}

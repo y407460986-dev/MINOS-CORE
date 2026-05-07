@@ -13,6 +13,7 @@ from .domain import APQPChain
 from .quality_gates import StageQualityGate
 from .review_issues import review_issue_from_manual_item
 from .validation import ChainValidationResult
+from minos_core._text_utils import dedupe, string_list
 
 
 DRAWING_ANALYSIS_SCHEMA_VERSION = "minos-core.drawing_analysis.v1"
@@ -153,6 +154,7 @@ def _drawing_analysis_report(bundle: dict[str, Any]) -> dict[str, Any]:
     ai_inferred_items: list[str] = []
     blocking_items: list[str] = []
     evidence_ref_repair_items: list[dict[str, Any]] = []
+    confidence_parse_error_items: list[dict[str, Any]] = []
 
     identity = _dict(bundle.get("drawing_identity"))
     for field_name in ("part_name", "drawing_number", "revision"):
@@ -171,7 +173,7 @@ def _drawing_analysis_report(bundle: dict[str, Any]) -> dict[str, Any]:
             pending_fields.append(block_name)
         for index, item in enumerate(items):
             label = _item_label(block_name, index, item)
-            refs = _string_list(item.get("evidence_refs") if isinstance(item, dict) else [])
+            refs = string_list(item.get("evidence_refs") if isinstance(item, dict) else [])
             if not refs:
                 missing_refs.append(f"{label}.evidence_refs")
             for ref in refs:
@@ -183,6 +185,12 @@ def _drawing_analysis_report(bundle: dict[str, Any]) -> dict[str, Any]:
             if isinstance(item, dict) and item.get("needs_confirmation"):
                 needs_confirmation_items.append(label)
             if isinstance(item, dict):
+                for error in _list(item.get("confidence_parse_errors")):
+                    if isinstance(error, dict):
+                        error_item = dict(error)
+                        error_item.setdefault("label", label)
+                        error_item.setdefault("block", block_name)
+                        confidence_parse_error_items.append(error_item)
                 for repair in _list(item.get("evidence_ref_repairs")):
                     if isinstance(repair, dict):
                         repair_item = dict(repair)
@@ -199,12 +207,13 @@ def _drawing_analysis_report(bundle: dict[str, Any]) -> dict[str, Any]:
         "stage_mode": "drawing_analysis",
         "next_stage": "infer_process_flow_from_drawing",
         "evidence_count": len(evidence_ids),
-        "pending_fields": _dedupe(pending_fields),
-        "missing_refs": _dedupe(missing_refs),
-        "needs_confirmation_items": _dedupe(needs_confirmation_items),
-        "ai_inferred_items": _dedupe(ai_inferred_items),
+        "pending_fields": dedupe(pending_fields),
+        "missing_refs": dedupe(missing_refs),
+        "needs_confirmation_items": dedupe(needs_confirmation_items),
+        "ai_inferred_items": dedupe(ai_inferred_items),
         "evidence_ref_repair_items": evidence_ref_repair_items,
-        "blocking_items": _dedupe(blocking_items),
+        "confidence_parse_error_items": confidence_parse_error_items,
+        "blocking_items": dedupe(blocking_items),
         "ok": ok,
     }
 
@@ -224,7 +233,7 @@ def _validate_all_refs_exist(bundle: dict[str, Any], evidence_ids: set[str]) -> 
         for index, item in enumerate(bundle.get(block_name, [])):
             if not isinstance(item, dict):
                 continue
-            for ref in _string_list(item.get("evidence_refs", [])):
+            for ref in string_list(item.get("evidence_refs", [])):
                 if ref not in evidence_ids:
                     if DRAWING_PAGE_REF_PATTERN.match(ref):
                         continue
@@ -248,6 +257,17 @@ def _drawing_manual_review_items(report: dict[str, Any]) -> list[AuditItem]:
                         "AI 引用了不存在的图纸页面证据，已标记为需要人工复核。",
                     )
                 ),
+                "review",
+            )
+        )
+    for error in report.get("confidence_parse_error_items", []):
+        if not isinstance(error, dict):
+            continue
+        items.append(
+            AuditItem(
+                str(error.get("label", error.get("path", "drawing_analysis"))),
+                "drawing_confidence_parse_error",
+                str(error.get("message", "图纸识别置信度无法解析，需要人工复核。")),
                 "review",
             )
         )
@@ -288,6 +308,10 @@ def _normalize_analysis_item(item: Any) -> Any:
         confidence = _collect_nested_confidence(normalized)
         if confidence is not None:
             normalized["confidence"] = confidence
+    confidence_errors = _collect_confidence_parse_errors(normalized)
+    if confidence_errors:
+        normalized["confidence_parse_errors"] = confidence_errors
+        normalized["needs_confirmation"] = True
     if "needs_confirmation" not in normalized:
         normalized["needs_confirmation"] = _collect_nested_confirmation(normalized)
     return normalized
@@ -371,7 +395,7 @@ def _repair_page_evidence_refs(
         for index, item in enumerate(bundle.get(block_name, [])):
             if not isinstance(item, dict):
                 continue
-            refs = _string_list(item.get("evidence_refs", []))
+            refs = string_list(item.get("evidence_refs", []))
             unknown_page_refs = [
                 ref for ref in refs if ref not in evidence_ids and DRAWING_PAGE_REF_PATTERN.match(ref)
             ]
@@ -412,16 +436,6 @@ def _repair_page_evidence_refs(
     return repairs
 
 
-def _string_list(value: Any) -> list[str]:
-    if isinstance(value, str):
-        values = [value]
-    elif isinstance(value, list):
-        values = value
-    else:
-        values = []
-    return [str(item).strip() for item in values if str(item).strip()]
-
-
 def _confidence(item: Any) -> float:
     if not isinstance(item, dict):
         return 0.0
@@ -436,7 +450,7 @@ def _collect_nested_refs(value: Any) -> list[str]:
     if isinstance(value, dict):
         direct = value.get("evidence_refs")
         if direct is not None:
-            for ref in _string_list(direct):
+            for ref in string_list(direct):
                 if ref not in refs:
                     refs.append(ref)
         for nested in value.values():
@@ -474,6 +488,31 @@ def _collect_nested_confidence(value: Any) -> float | None:
     return min(confidences)
 
 
+def _collect_confidence_parse_errors(value: Any, path: str = "") -> list[dict[str, str]]:
+    errors: list[dict[str, str]] = []
+    if isinstance(value, dict):
+        for key, nested in value.items():
+            next_path = f"{path}.{key}" if path else str(key)
+            if key == "confidence" and nested not in {None, ""}:
+                try:
+                    float(nested)
+                except (TypeError, ValueError):
+                    errors.append(
+                        {
+                            "path": next_path,
+                            "raw_value": repr(nested),
+                            "message": f"图纸识别置信度无法解析: {next_path}={nested!r}",
+                        }
+                    )
+            else:
+                errors.extend(_collect_confidence_parse_errors(nested, next_path))
+    elif isinstance(value, list):
+        for index, item in enumerate(value):
+            next_path = f"{path}[{index}]" if path else f"[{index}]"
+            errors.extend(_collect_confidence_parse_errors(item, next_path))
+    return errors
+
+
 def _collect_nested_confirmation(value: Any) -> bool:
     if isinstance(value, dict):
         if bool(value.get("needs_confirmation")):
@@ -491,16 +530,6 @@ def _item_label(block_name: str, index: int, item: Any) -> str:
             if value:
                 return f"{block_name}:{value}"
     return f"{block_name}[{index}]"
-
-
-def _dedupe(values: list[str]) -> list[str]:
-    result: list[str] = []
-    seen: set[str] = set()
-    for value in values:
-        if value and value not in seen:
-            result.append(value)
-            seen.add(value)
-    return result
 
 
 def _optional_text(value: Any) -> str:

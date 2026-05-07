@@ -12,6 +12,9 @@ from minos_core.adapters.fixture_json import load_fixture_payload
 from minos_core.pipeline import export_draft_fixture, export_fixture
 from minos_core.quality_gates import ExportGateError
 from minos_core.review_patch import REVIEW_PATCH_VERSION, apply_review_patch
+from minos_core.exporters.apqp_workbook import export_apqp_workbook
+from minos_core.exporters.three_table_workbooks import export_split_three_table_workbooks
+from minos_core.exporters.xlsx import WorkbookWriter, sanitize_sheet_name
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -175,6 +178,154 @@ class ExportModeTests(unittest.TestCase):
             self.assertEqual(draft_result.returncode, 0, draft_result.stderr)
             self.assertTrue(draft_output.exists())
             self.assertIn("draft_only", _workbook_text(draft_output))
+
+    def test_exporters_evaluate_gate_when_quality_gate_is_explicit_none(self):
+        fixture = _unreviewed_draft_fixture()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workbook = Path(tmp) / "draft.xlsx"
+            split_dir = Path(tmp) / "split"
+
+            export_apqp_workbook(
+                fixture,
+                workbook,
+                require_gate=False,
+                export_mode="draft",
+                quality_gate=None,
+            )
+            split = export_split_three_table_workbooks(
+                fixture,
+                split_dir,
+                export_mode="draft",
+                quality_gate=None,
+            )
+
+            _assert_xlsx_openable(self, workbook)
+            self.assertIn("质量门状态", _sheet_names(workbook))
+            self.assertEqual(set(split), {"process_flow", "pfmea", "control_plan"})
+            for path in split.values():
+                _assert_xlsx_openable(self, path)
+
+    def test_draft_export_succeeds_even_with_sync_blockers(self):
+        """草案导出即使存在三表同步阻断也仍然生成 workbook。"""
+        fixture = _unreviewed_draft_fixture()
+        # 新增孤儿 PFMEA 行制造三表同步阻断
+        orphan_row = {
+            "pfmea_id": "PFMEA-P99-ORPHAN",
+            "process_step_id": "P99",
+            "process_function": "Orphan step test",
+            "failure_mode": "Test orphan row",
+            "failure_effect": "This creates a linkage gap",
+            "severity": 1,
+            "occurrence": 1,
+            "detection": 1,
+            "action_priority": "L",
+        }
+        fixture["pfmea"]["rows"].append(orphan_row)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            output_path = Path(tmp) / "draft.xlsx"
+            result = export_draft_fixture(fixture, output_path)
+
+            self.assertEqual(result, output_path)
+            _assert_xlsx_openable(self, output_path)
+            workbook_text = _workbook_text(output_path)
+            # 草案导出肯定成功，有草案标记
+            self.assertIn("draft_only", workbook_text)
+            self.assertIn("仅限草案", workbook_text)
+
+    def test_final_export_blocked_by_sync_issues(self):
+        """有 sync_issues 时 evaluate_export_gate.allow_user_export 为 False。"""
+        fixture = _unreviewed_draft_fixture()
+        # 新增孤儿 PFMEA 行制造三表同步阻断
+        orphan_row = {
+            "pfmea_id": "PFMEA-P99-ORPHAN",
+            "process_step_id": "P99",
+            "process_function": "Orphan step test",
+            "failure_mode": "Test orphan row",
+            "failure_effect": "This creates a linkage gap",
+            "severity": 1,
+            "occurrence": 1,
+            "detection": 1,
+            "action_priority": "L",
+        }
+        fixture["pfmea"]["rows"].append(orphan_row)
+
+        from minos_core.quality_gates import evaluate_export_gate
+
+        gate = evaluate_export_gate(fixture)
+        # 有孤儿行导致 sync blocker，allow_user_export 应为 False
+        self.assertFalse(
+            gate.allow_user_export,
+            "sync_blockers should prevent allow_user_export",
+        )
+        # sync_issues 不应为空
+        self.assertTrue(
+            any(
+                isinstance(i, dict) and i.get("severity") == "blocker"
+                for i in gate.sync_issues
+            ),
+            "sync_issues should contain blocker items",
+        )
+
+    def test_knowledge_action_sheet_present_in_workbook(self):
+        """导出 workbook 包含'知识推荐与行动闭环' sheet。"""
+        fixture = _fixture()
+        if "metadata" not in fixture:
+            fixture["metadata"] = {}
+        fixture["metadata"]["knowledge_recommendations"] = [
+            {"recommendation_id": "KR-001", "lifecycle_status": "已采纳"},
+        ]
+        fixture["metadata"]["action_items"] = [
+            {"action_id": "ACT-001", "status": "进行中"},
+        ]
+
+        with tempfile.TemporaryDirectory() as tmp:
+            output_path = Path(tmp) / "draft.xlsx"
+            result = export_draft_fixture(fixture, output_path)
+
+            self.assertEqual(result, output_path)
+            _assert_xlsx_openable(self, output_path)
+            sheet_names = _sheet_names(output_path)
+            self.assertIn("知识推荐与行动闭环", sheet_names)
+            workbook_text = _workbook_text(output_path)
+            self.assertIn("KR-001", workbook_text)
+            self.assertIn("ACT-001", workbook_text)
+
+    def test_draft_export_handles_unhandled_knowledge_items(self):
+        """draft export 有未处理知识推荐/行动项时仍可导出不抛错。"""
+        fixture = _unreviewed_draft_fixture()
+        if "metadata" not in fixture:
+            fixture["metadata"] = {}
+        fixture["metadata"]["knowledge_recommendations"] = [
+            {"recommendation_id": "KR-UNHANDLED", "lifecycle_status": "pending"},
+        ]
+        fixture["metadata"]["action_items"] = [
+            {"action_id": "ACT-UNHANDLED", "status": "open"},
+        ]
+
+        with tempfile.TemporaryDirectory() as tmp:
+            output_path = Path(tmp) / "draft.xlsx"
+            result = export_draft_fixture(fixture, output_path)
+
+            self.assertEqual(result, output_path)
+            _assert_xlsx_openable(self, output_path)
+            self.assertIn("知识推荐与行动闭环", _sheet_names(output_path))
+
+    def test_xlsx_writer_sanitizes_and_deduplicates_sheet_names(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workbook = WorkbookWriter()
+            long_bad_name = "Invalid:/Name?With*Chars" * 2
+            workbook.add_sheet(long_bad_name, [["A"]])
+            workbook.add_sheet(long_bad_name.lower(), [["B"]])
+            path = workbook.save(Path(tmp) / "names.xlsx")
+
+            names = _sheet_names(path)
+
+            self.assertLessEqual(max(len(name) for name in names), 31)
+            self.assertNotIn(":", "".join(names))
+            self.assertEqual(len(names), len({name.lower() for name in names}))
+            self.assertEqual(sanitize_sheet_name("[]:*?/\\'"), "Sheet")
 
 
 if __name__ == "__main__":

@@ -2,20 +2,20 @@
 
 from __future__ import annotations
 
+import argparse
 import subprocess
 import sys
 
 
 def main(argv: list[str] | None = None) -> int:
     """Start the uvicorn server for minos_platform."""
-    host = "0.0.0.0"
-    port = 8000
-    if argv:
-        for i, arg in enumerate(argv):
-            if arg == "--host" and i + 1 < len(argv):
-                host = argv[i + 1]
-            elif arg == "--port" and i + 1 < len(argv):
-                port = argv[i + 1]
+    parser = argparse.ArgumentParser(prog="minos-platform")
+    parser.add_argument("--host", default="0.0.0.0")
+    parser.add_argument("--port", type=int, default=8000)
+    try:
+        args = parser.parse_args(argv)
+    except SystemExit as exc:
+        return exc.code if isinstance(exc.code, int) else 1
 
     return subprocess.run(
         [
@@ -24,9 +24,9 @@ def main(argv: list[str] | None = None) -> int:
             "uvicorn",
             "minos_platform.app:app",
             "--host",
-            host,
+            args.host,
             "--port",
-            port,
+            str(args.port),
             "--workers",
             "1",
         ],

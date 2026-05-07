@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from minos_platform import config, db, errors
@@ -21,12 +24,21 @@ from minos_platform.routers import (
     review_template,
 )
 
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize the async SQLite engine on startup, close it on shutdown."""
     db_url = config.get_db_url()
     await db.init_db(db_url)
+    token = os.getenv("MINOS_PLATFORM_API_TOKEN")
+    if not token:
+        logger.warning(
+            "MINOS_PLATFORM_API_TOKEN is not set — platform API is running "
+            "without authentication. Set the environment variable to enable "
+            "Bearer token auth."
+        )
     yield
     if db._engine is not None:
         await db._engine.dispose()
@@ -38,6 +50,37 @@ app = FastAPI(
     version="0.0.0",
     lifespan=lifespan,
 )
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://127.0.0.1:1420",
+        "http://localhost:1420",
+        "http://127.0.0.1:*",
+        "http://localhost:*",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.middleware("http")
+async def platform_auth_middleware(request: Request, call_next):
+    token = os.getenv("MINOS_PLATFORM_API_TOKEN")
+    if token:
+        authorization = request.headers.get("Authorization")
+        expected = f"Bearer {token}"
+        if authorization != expected:
+            return JSONResponse(
+                status_code=401,
+                content={
+                    "detail": "missing or invalid Authorization bearer token",
+                    "code": "UNAUTHORIZED",
+                },
+            )
+    response = await call_next(request)
+    return response
 
 
 @app.exception_handler(errors.APIError)

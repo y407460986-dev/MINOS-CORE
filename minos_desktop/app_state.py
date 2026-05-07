@@ -1,34 +1,10 @@
-"""UI-neutral state objects for the MINOS desktop shell."""
+"""UI-neutral state objects for the MINOS desktop sidecar."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
-
-
-@dataclass(frozen=True)
-class DesktopPage:
-    key: str
-    title: str
-
-
-DESKTOP_PAGES: tuple[DesktopPage, ...] = (
-    DesktopPage("project", "项目"),
-    DesktopPage("drawing_import", "图纸导入"),
-    DesktopPage("drawing_analysis", "AI 识别结果"),
-    DesktopPage("pfd", "PFD 草案"),
-    DesktopPage("pfmea", "PFMEA 草案"),
-    DesktopPage("control_plan", "CP 草案"),
-    DesktopPage("actions", "措施管理"),
-    DesktopPage("change_impacts", "变更影响"),
-    DesktopPage("knowledge", "知识库推荐"),
-    DesktopPage("automation_review", "AI 预审"),
-    DesktopPage("review", "人工复核"),
-    DesktopPage("export", "导出"),
-    DesktopPage("settings", "设置"),
-)
-
 
 @dataclass
 class DesktopProjectState:
@@ -79,6 +55,78 @@ class GenerationRunSummary:
 
 
 @dataclass(frozen=True)
+class StageConfirmState:
+    """单个链式阶段的确认状态。"""
+    status: str = "not_started"  # not_started | running | generated | confirmed | blocked | failed
+    generated_at: str = ""
+    confirmed_at: str = ""
+    confirmed_by: str = ""
+    row_count: int = 0
+    pending_count: int = 0
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "status": self.status,
+            "generated_at": self.generated_at,
+            "confirmed_at": self.confirmed_at,
+            "confirmed_by": self.confirmed_by,
+            "row_count": self.row_count,
+            "pending_count": self.pending_count,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "StageConfirmState":
+        return cls(
+            status=data.get("status", "not_started"),
+            generated_at=data.get("generated_at", ""),
+            confirmed_at=data.get("confirmed_at", ""),
+            confirmed_by=data.get("confirmed_by", ""),
+            row_count=data.get("row_count", 0),
+            pending_count=data.get("pending_count", 0),
+        )
+
+
+@dataclass(frozen=True)
+class ChainStageStates:
+    """链式三阶段确认状态聚合。"""
+    pfd: StageConfirmState = field(default_factory=StageConfirmState)
+    pfmea: StageConfirmState = field(default_factory=StageConfirmState)
+    cp: StageConfirmState = field(default_factory=StageConfirmState)
+    pipeline_mode: str = "batch"  # "batch" | "chain"
+
+    @property
+    def current_stage(self) -> str:
+        """当前活跃的阶段名。"""
+        if self.cp.status == "confirmed":
+            return "complete"
+        if self.pfmea.status == "confirmed":
+            return "cp"
+        if self.pfd.status == "confirmed":
+            return "pfmea"
+        if self.pfd.status in ("generated", "running"):
+            return "pfd"
+        return "pfd"
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "pfd": self.pfd.to_dict(),
+            "pfmea": self.pfmea.to_dict(),
+            "cp": self.cp.to_dict(),
+            "pipeline_mode": self.pipeline_mode,
+            "current_stage": self.current_stage,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "ChainStageStates":
+        return cls(
+            pfd=StageConfirmState.from_dict(data.get("pfd", {})),
+            pfmea=StageConfirmState.from_dict(data.get("pfmea", {})),
+            cp=StageConfirmState.from_dict(data.get("cp", {})),
+            pipeline_mode=data.get("pipeline_mode", "batch"),
+        )
+
+
+@dataclass(frozen=True)
 class DesktopRunState:
     status: str
     status_display: str
@@ -90,6 +138,7 @@ class DesktopRunState:
     manual_review_count: int
     manual_review_raw_count: int
     manual_review_items: tuple[Any, ...] = ()
+    chain_stages: ChainStageStates | None = None
 
 
 @dataclass(frozen=True)

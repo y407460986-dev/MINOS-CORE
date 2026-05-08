@@ -840,3 +840,22 @@ Phase 6 真实项目试运行已完成代码落地：input_package 接入 genera
 - 已验证：`python -m py_compile minos_core/drawing_to_pfd.py minos_core/pipeline_chain.py minos_desktop/table_editor.py`：通过。
 - 已验证：Tauri 前端 `npm run build` 通过。
 - 已验证：同一张 `JLV03000500_001_AC_RR DH ASSY.pdf` 真实 API 链式重跑成功，`run #13` 生成 PFD `12` 行，`8` 项待确认，耗时约 `103` 秒，无 `failure_message`。
+
+## V1.14.6 PFMEA 来源与 PFD 一致性修复
+
+- 当前状态：已完成 PFD -> PFMEA 链路修复，PFMEA 不再接受与确认后 PFD 不一致的工序编号和工序名称。
+- 已完成：`normalize_process_flow_steps` 不再把 `default_input_material` 插入为 `P05` 物料伪工序；物料名只补到首道真实工序的 `input_material`。
+- 已完成：链式 `generate_pfmea_from_confirmed_pfd` 会按确认 PFD 的 `process_step_id` 建立映射，PFMEA 行必须引用存在的 PFD 工序。
+- 已完成：PFMEA 行强制继承 PFD 的 `operation`、`process_step_name`、`process_step`、`structure_process_step`、`function_process_step` 和 `function_requirement`，避免表格名称和流程图名称错位。
+- 已完成：PFMEA 行缺少 `failure_mode` 或引用孤儿 PFD 编号时直接失败暴露，不生成“待工程人员填写失效模式”占位结果。
+- 已完成：桌面联动同步不再把 PFD gap 自动应用成 PFMEA 占位行。
+- 已完成：`live_linkage` 中 PFD 新增工序只提示“需要基于确认后的 PFD 重新推理 PFMEA”，不再生成 PFMEA stub add item。
+- 已完成：`three_table_linkage` 不再为 PFD 缺 PFMEA gap 生成 add PFMEA 同步建议；CP 仍可从已有 PFMEA 派生同步建议。
+- 已验证：`python -m pytest tests/test_ai_drawing_three_table_workflow.py::AIDrawingThreeTableWorkflowTests::test_llm_pfd_generation_normalizes_standard_process_flow_fields tests/test_ai_drawing_three_table_workflow.py::AIDrawingThreeTableWorkflowTests::test_normalize_process_flow_steps_does_not_create_material_pseudo_step tests/test_ai_drawing_three_table_workflow.py::AIDrawingThreeTableWorkflowTests::test_chain_pfmea_inherits_confirmed_pfd_process_fields tests/test_ai_drawing_three_table_workflow.py::AIDrawingThreeTableWorkflowTests::test_chain_pfmea_rejects_rows_not_from_confirmed_pfd -q`：4 项通过。
+- 已验证：`python -m pytest tests/test_desktop_api_sidecar.py::test_linkage_sync_does_not_create_pfmea_placeholder_for_chain_run -q`：1 项通过。
+- 已验证：`python -m pytest tests/test_live_linkage.py tests/test_three_table_linkage.py -q`：34 项通过。
+- 已验证：`python -m pytest tests/test_ai_drawing_three_table_workflow.py tests/test_desktop_api_sidecar.py tests/test_desktop_table_editor.py tests/test_desktop_shell.py -q`：86 项通过。
+- 已验证：`python -m pytest tests/test_ai_drawing_three_table_workflow.py tests/test_desktop_api_sidecar.py tests/test_live_linkage.py tests/test_three_table_linkage.py tests/test_desktop_table_editor.py tests/test_desktop_shell.py -q`：120 项通过。
+- 已验证：`python -m py_compile minos_core/drawing_to_pfd.py minos_core/pipeline_chain.py minos_core/live_linkage.py minos_core/three_table_linkage.py minos_desktop/api/jobs.py`：通过。
+- 已验证：`git diff --check`：通过。
+- 已验证：Tauri 前端 `npm run build` 通过。

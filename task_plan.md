@@ -1,5 +1,35 @@
 # MINOS-CORE 重建任务计划
 
+## 当前任务：PFMEA 必须按确认后的 PFD 推理生成
+
+目标是修复 PFMEA 与 PFD 不一致的问题：PFD 不能把零件/物料名伪造成工序；PFMEA 的工序编号、工序名称、功能字段必须从已确认 PFD 继承；任何联动同步入口都不能用“待工程人员填写失效模式”占位行冒充正式 PFMEA。
+
+```mermaid
+flowchart TD
+    PF0[用户指出 PFMEA 未按手册且与 PFD 不一致] --> PF1[复现 PFD 伪工序和 PFMEA 占位行]
+    PF1 --> PF2[确认 PFD 是 PFMEA 唯一上游]
+    PF2 --> PF3[修复 PFD 归一化<br/>不再插入物料伪工序]
+    PF2 --> PF4[修复链式 PFMEA<br/>继承确认 PFD 字段并拒绝孤儿编号]
+    PF2 --> PF5[横向收口联动同步<br/>禁止 PFMEA 占位 add]
+    PF3 --> PF6[回归测试和桌面链路验收]
+    PF4 --> PF6
+    PF5 --> PF6
+```
+
+/// 1. 用回归测试锁定 `default_input_material` 不得生成 PFD 伪工序，只能作为首道真实工序输入。
+/// 2. 用回归测试锁定链式 PFMEA 必须继承确认 PFD 的 `operation`、`process_step`、`structure_process_step`、`function_process_step`。
+/// 3. 用回归测试锁定 PFMEA 引用不存在的 PFD `process_step_id` 时必须失败暴露。
+/// 4. 用桌面 API 回归测试锁定联动同步不得生成 `PFMEA-SYNC-*` 或 PFMEA 占位行。
+/// 5. 横向排查 `live_linkage` 与 `three_table_linkage`，禁止 PFD 缺 PFMEA 时自动创建占位 PFMEA。
+/// 6. 运行三表生成、联动同步、桌面表格和 shell 回归，再做前端构建与可启动检查。
+
+### OpenSpec 四步闭环
+
+1. Define：本轮只修复 PFD/PFMEA/CP 链路可信度，不引入新的生成模式。
+2. Specify：PFMEA 行必须来自确认后的 PFD；缺 PFMEA 是待重新推理的问题，不是可机械补占位行的问题。
+3. Implement：最小修改 PFD 归一化、链式 PFMEA 后处理、桌面联动同步与 live linkage 同步建议。
+4. Verify：回归测试覆盖 PFD 伪工序、PFMEA 孤儿编号、PFMEA 字段继承、PFMEA 占位同步入口和桌面链式流程。
+
 ## 当前任务：MINOS-CORE 调查审核与问题修复
 
 目标是先对当前脏工作区做核心审核，找出会让 MINOS-CORE 直接崩溃、入口失效或公开契约漂移的问题，再做最小修复并验证。

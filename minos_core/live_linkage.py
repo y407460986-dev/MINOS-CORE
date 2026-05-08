@@ -301,11 +301,6 @@ def build_live_sync_patch(
             )
             items.extend(sub_items)
 
-        elif ra == "create_pfmea_stub":
-            item = _build_pfmea_stub(impact, link_event_id, after_state)
-            if item:
-                items.append(item)
-
         elif ra == "create_cp_stub":
             item = _build_cp_stub(impact, link_event_id, after_state)
             if item:
@@ -572,8 +567,8 @@ def _pfd_add_impacts(
 ) -> None:
     impacts.append(_mk_impact(
         "process_flow", step_id, "pfmea", "",
-        "review", "create_pfmea_stub",
-        f"PFD 新增工序 {step_id}，建议新增 PFMEA 风险分析。",
+        "review", "regenerate_pfmea_from_confirmed_pfd",
+        f"PFD 新增工序 {step_id}，需要基于确认后的 PFD 重新推理 PFMEA。",
         True,
     ))
 
@@ -742,53 +737,6 @@ def _build_sync_inherited_items(
         "sync_policy": "user_selected",
     })
     return items
-
-
-def _build_pfmea_stub(
-    impact: dict, link_event_id: str, after_state: dict,
-) -> dict | None:
-    """Generate a PFMEA add item from a create_pfmea_stub recommendation."""
-    source_id = impact.get("source_id", "")
-    step_id = source_id
-
-    # Read the PFD row to inherit operation/process_function
-    pfd_rows = _read_rows(after_state, "process_flow")
-    pfd_row = {}
-    for r in pfd_rows:
-        if _row_id(r, "process_flow") == step_id:
-            pfd_row = r
-            break
-
-    pfmea_id = f"PFMEA-{step_id}-001"
-    operation = text(pfd_row.get("operation"), "待确认")
-    process_function = text(pfd_row.get("process_function"), "待确认")
-
-    return {
-        "action": "add",
-        "table": "pfmea",
-        "row": {
-            "pfmea_id": pfmea_id,
-            "process_step_id": step_id,
-            "operation": operation,
-            "function_requirement": process_function,
-            "failure_mode": "待工程确认失效模式",
-            "failure_effect": "待评估失效影响",
-            "failure_cause": "待分析失效原因",
-            "severity": 5,
-            "occurrence": 5,
-            "detection": 5,
-            "action_priority": "",
-            "ai_inferred": False,
-            "needs_confirmation": True,
-            "review_status": "联动新增",
-        },
-        "needs_confirmation": True,
-        "review_status": "联动新增",
-        "source": "live_linkage",
-        "linkage_event_id": link_event_id,
-        "linkage_impact_id": impact.get("impact_id", ""),
-        "sync_policy": "user_selected",
-    }
 
 
 def _build_cp_stub(

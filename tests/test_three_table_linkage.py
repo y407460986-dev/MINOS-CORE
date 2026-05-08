@@ -531,6 +531,23 @@ class BuildThreeTableLinkageMapTests(unittest.TestCase):
         self.assertEqual(cp_suggestions[0]["status"], "待确认")
         self.assertIn("pfmea_id", cp_suggestions[0].get("suggested_fields", {}))
 
+    def test_no_sync_suggestion_creates_pfmea_placeholder(self):
+        """PFD 缺 PFMEA 只报差距，不生成 PFMEA 占位同步建议。"""
+        fixture = _make_fixture(
+            steps=[P10_STEP, P30_STEP],
+            pfmea=[PFMEA_P10_001],
+            control_plan=[CP_P10_001],
+        )
+
+        report = evaluate_three_table_linkage(fixture)
+
+        self.assertFalse(
+            [
+                s for s in report["sync_suggestions"]
+                if s.get("target_table") == "pfmea" and s.get("suggested_action") == "add"
+            ]
+        )
+
     def test_evaluate_linkage_returns_sync_fields(self):
         """evaluate 返回包含 sync_snapshot, sync_issues, sync_suggestions。"""
         fixture = _make_fixture(

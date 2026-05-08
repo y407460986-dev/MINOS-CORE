@@ -328,19 +328,7 @@ def _row_from_sync_suggestion(
     if not isinstance(fields, dict):
         fields = {}
     if table == "pfmea":
-        step_id = str(fields.get("process_step_id") or _source_id(suggestion, "process_flow")).strip()
-        if not step_id:
-            return {}
-        row_id = f"PFMEA-SYNC-{step_id}"
-        return {
-            "pfmea_id": row_id,
-            "process_step_id": step_id,
-            "failure_mode": fields.get("failure_mode", "待工程人员填写失效模式"),
-            "failure_effect": fields.get("failure_effect", "待评估失效影响"),
-            "failure_cause": fields.get("failure_cause", "待分析失效原因"),
-            "needs_confirmation": True,
-            "ai_inferred": False,
-        }
+        return {}
     pfmea_id = str(fields.get("pfmea_id") or _source_id(suggestion, "pfmea")).strip()
     if not pfmea_id:
         return {}

@@ -219,23 +219,6 @@ def _build_sync_suggestions(linkage_map: dict[str, Any]) -> list[dict[str, Any]]
                 },
                 "status": "待确认",
             })
-        # PFD step without PFMEA -> suggest adding a PFMEA row
-        elif ck == "pfd_pfmea_coverage":
-            step_id = gap["source"].replace("process_flow:", "")
-            suggestions.append({
-                "suggestion_id": f"SYNC-SUGG-ADD-PFMEA-{step_id}",
-                "source_issue_id": gap["gap_id"],
-                "target_table": "pfmea",
-                "target_id": "NEW",
-                "suggested_action": "add",
-                "suggested_fields": {
-                    "process_step_id": step_id,
-                    "failure_mode": "待工程人员填写失效模式",
-                    "failure_effect": "待评估失效影响",
-                    "failure_cause": "待分析失效原因",
-                },
-                "status": "待确认",
-            })
     return suggestions
 
 

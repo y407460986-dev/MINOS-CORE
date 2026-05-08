@@ -178,8 +178,8 @@ class LiveLinkagePreviewTests(unittest.TestCase):
         blockers = [i for i in result["impacts"] if i["severity"] == "blocker"]
         self.assertGreaterEqual(len(blockers), 1)
 
-    def test_pfd_add_previews_pfmea_stub(self):
-        """新增 PFD 预览建议新增 PFMEA"""
+    def test_pfd_add_previews_pfmea_regeneration_review(self):
+        """新增 PFD 预览提示重新生成 PFMEA，不自动造占位行"""
         before = _make_payload(steps=[P10])
         new_step = {"process_step_id": "P30", "operation": "检验", "process_function": "终检", "special_characteristics": []}
         patch = {
@@ -187,8 +187,9 @@ class LiveLinkagePreviewTests(unittest.TestCase):
             "items": [{"action": "add", "table": "process_flow", "target_id": "P30", "row": new_step}],
         }
         result = preview_live_linkage_impacts(before, patch)
-        stub_impacts = [i for i in result["impacts"] if i["recommended_action"] == "create_pfmea_stub"]
-        self.assertGreaterEqual(len(stub_impacts), 1)
+        pfmea_impacts = [i for i in result["impacts"] if i["target_table"] == "pfmea"]
+        self.assertGreaterEqual(len(pfmea_impacts), 1)
+        self.assertEqual(pfmea_impacts[0]["recommended_action"], "regenerate_pfmea_from_confirmed_pfd")
 
     def test_pfmea_high_ap_add_previews_cp_stub(self):
         """新增 AP=H PFMEA 预览建议新增 CP"""
@@ -250,8 +251,8 @@ class LiveSyncPatchTests(unittest.TestCase):
         self.assertGreater(len(sync_patch["items"]), 0)
         self.assertEqual(sync_patch["edit_patch_version"], EDIT_PATCH_VERSION)
 
-    def test_build_sync_patch_for_pfmea_stub(self):
-        """create_pfmea_stub 生成 add item"""
+    def test_build_sync_patch_does_not_create_pfmea_stub(self):
+        """PFD 新增后的联动同步不生成 PFMEA 占位 add item"""
         before = _make_payload(steps=[P10])
         new_step = {"process_step_id": "P30", "operation": "检验", "process_function": "终检", "special_characteristics": []}
         patch = {
@@ -259,14 +260,12 @@ class LiveSyncPatchTests(unittest.TestCase):
             "items": [{"action": "add", "table": "process_flow", "target_id": "P30", "row": new_step}],
         }
         preview = preview_live_linkage_impacts(before, patch)
-        impact_ids = [i["impact_id"] for i in preview["impacts"] if i["recommended_action"] == "create_pfmea_stub"]
+        impact_ids = [i["impact_id"] for i in preview["impacts"] if i["recommended_action"] == "regenerate_pfmea_from_confirmed_pfd"]
         self.assertGreater(len(impact_ids), 0)
 
         sync_patch = build_live_sync_patch(before, patch, impact_ids)
         add_items = [it for it in sync_patch["items"] if it["action"] == "add" and it["table"] == "pfmea"]
-        self.assertGreaterEqual(len(add_items), 1)
-        self.assertEqual(add_items[0]["row"]["review_status"], "联动新增")
-        self.assertEqual(add_items[0]["row"]["needs_confirmation"], True)
+        self.assertEqual(add_items, [])
 
     def test_build_sync_patch_for_cp_stub(self):
         """create_cp_stub 生成 add item"""

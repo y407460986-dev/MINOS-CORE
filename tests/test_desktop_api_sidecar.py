@@ -34,6 +34,17 @@ def _fake_result() -> dict:
         },
         "pfmea": {"rows": []},
         "control_plan": {"rows": []},
+        "linkage_report": {
+            "sync_suggestions": [
+                {
+                    "suggestion_id": "SYNC-PFD-P10-PFMEA",
+                    "source": "process_flow:P10",
+                    "target_table": "pfmea",
+                    "suggested_action": "add",
+                    "suggested_fields": {"process_step_id": "P10"},
+                }
+            ]
+        },
         "metadata": {
             "knowledge_recommendations": [
                 {"recommendation_id": "KR-1", "status": "待确认"}
@@ -294,3 +305,22 @@ async def test_missing_run_returns_structured_failure(client):
     assert body["code"] == "NOT_FOUND"
     assert "desktop run not found" in body["detail"]
     assert "failure_message" in body
+
+
+async def test_linkage_sync_does_not_create_pfmea_placeholder_for_chain_run(client):
+    project = (
+        await client.post(
+            "/api/projects",
+            json={"project_name": "PFMEA占位防护项目", "drawing_path": "drawing.pdf"},
+        )
+    ).json()
+    run = (await client.post(f"/api/projects/{project['id']}/runs")).json()
+
+    response = await client.post(
+        f"/api/runs/{run['id']}/linkage/apply-sync",
+        json={"apply_all": True},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["current_result"]["pfmea"]["rows"] == []

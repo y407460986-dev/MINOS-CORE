@@ -14,6 +14,7 @@ from typing import Any
 
 from ._text_utils import text
 from .adapters.llm_text import OpenAITextGenerator
+from .aiag_vda_pfmea import normalize_pfmea_row
 from .drawing_to_pfd import normalize_process_flow_steps
 
 logger = logging.getLogger(__name__)
@@ -600,13 +601,53 @@ def generate_pfmea_from_confirmed_pfd(
         model=model,
     )
 
-    pfmea_rows = _ensure_list(pfmea_result, "rows")
-    for row in pfmea_rows:
-        row["ai_inferred"] = True
-        if not row.get("pfmea_id"):
-            step = row.get("process_step_id", "XX")
-            idx = pfmea_rows.index(row) + 1
-            row["pfmea_id"] = f"PFMEA-{step}-{idx:02d}"
+    step_map = {
+        str(step.get("process_step_id", "")).strip(): step
+        for step in pfd_steps
+        if isinstance(step, dict) and str(step.get("process_step_id", "")).strip()
+    }
+    pfmea_rows = []
+    counters: dict[str, int] = {}
+    for raw_row in _ensure_list(pfmea_result, "rows"):
+        if not isinstance(raw_row, dict):
+            continue
+        step_id = str(raw_row.get("process_step_id", "")).strip()
+        if step_id not in step_map:
+            raise ValueError(f"PFMEA row references unknown confirmed PFD step: {step_id or '<empty>'}")
+        if not text(raw_row.get("failure_mode")):
+            raise ValueError(f"PFMEA row for {step_id} has no failure_mode")
+
+        step = step_map[step_id]
+        operation = text(step.get("operation"), step.get("process_step_name"), step_id)
+        process_function = text(
+            step.get("process_function"),
+            step.get("process_purpose"),
+            raw_row.get("function_process_step"),
+            operation,
+        )
+        counters[step_id] = counters.get(step_id, 0) + 1
+        row = dict(raw_row)
+        row.update(
+            {
+                "process_step_id": step_id,
+                "operation": operation,
+                "process_step_name": operation,
+                "process_function": process_function,
+                "process_step": operation,
+                "structure_process_step": operation,
+                "function_process_step": process_function,
+                "function_requirement": process_function,
+                "product_characteristics": step.get("product_characteristics", row.get("product_characteristics", "")),
+                "process_characteristics": step.get("process_characteristics", row.get("process_characteristics", "")),
+                "ai_inferred": True,
+            }
+        )
+        if not text(row.get("pfmea_id")):
+            row["pfmea_id"] = f"PFMEA-{step_id}-{counters[step_id]:02d}"
+        pfmea_rows.append(normalize_pfmea_row(row, step))
+
+    if not pfmea_rows:
+        raise ValueError("PFMEA generation returned no rows")
 
     logger.info("CHAIN [Stage 2] PFMEA generated: %d rows", len(pfmea_rows))
 

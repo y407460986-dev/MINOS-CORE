@@ -642,3 +642,11 @@ flowchart TD
     FIX350 --> FIX352[poll run after stage confirm<br/>show failed stage and raw error]
     FIX350 --> FIX353[504 gateway timeout<br/>fail fast instead of 3 long retries]
     FIX353 --> G
+
+    FIX360[PFMEA confirmed PFD consistency fix]
+    FIX360 --> FIX361[PFD normalization<br/>no material pseudo step]
+    FIX360 --> FIX362[PFMEA generation<br/>inherit confirmed PFD process fields]
+    FIX362 --> FIX363[reject orphan process_step_id<br/>reject empty failure_mode]
+    FIX360 --> FIX364[linkage sync hardening<br/>no PFMEA placeholder rows]
+    FIX364 --> FIX365[live linkage review only<br/>regenerate PFMEA from confirmed PFD]
+    FIX365 --> G

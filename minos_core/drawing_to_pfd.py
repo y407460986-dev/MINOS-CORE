@@ -1078,6 +1078,8 @@ def normalize_process_flow_steps(
         step.setdefault("next_step_ids", [])
 
     for i, step in enumerate(steps):
+        if default_input_material and i == 0 and not step.get("input_material"):
+            step["input_material"] = default_input_material
         if i > 0:
             prev_id = steps[i - 1].get("process_step_id", "")
             if not step["previous_step_ids"] and prev_id:
@@ -1086,33 +1088,6 @@ def normalize_process_flow_steps(
             next_id = steps[i + 1].get("process_step_id", "")
             if not step["next_step_ids"] and next_id:
                 step["next_step_ids"] = [next_id]
-
-    if default_input_material:
-        first = steps[0]
-        mid = {
-            "process_step_id": "P05",
-            "sequence": 5,
-            "operation": default_input_material,
-            "operation_type": "加工",
-            "input_material": "",
-            "output_result": default_input_material,
-            "process_function": "来料接收",
-            "flow_type": "operation",
-            "flow_symbol": "operation",
-            "equipment": "",
-            "product_characteristics": [],
-            "process_characteristics": [],
-            "special_characteristics": [],
-            "previous_step_ids": [],
-            "next_step_ids": [first.get("process_step_id", "P10")],
-            "ai_inferred": True,
-            "needs_confirmation": True,
-            "evidence_refs": first.get("evidence_refs", []),
-        }
-        first.setdefault("previous_step_ids", [])
-        if not first["previous_step_ids"]:
-            first["previous_step_ids"] = ["P05"]
-        steps.insert(0, mid)
 
 
 def _confidence(row: dict[str, Any]) -> float:

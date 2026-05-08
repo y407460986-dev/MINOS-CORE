@@ -32,7 +32,7 @@ from minos_core.pfd_to_pfmea_ai import (
     normalize_pfmea_rows,
 )
 from minos_core.pipeline import generate_three_tables_from_drawing
-from minos_core.pipeline_chain import generate_pfd_from_drawing
+from minos_core.pipeline_chain import generate_pfd_from_drawing, generate_pfmea_from_confirmed_pfd
 from minos_core.cli import main
 from minos_core.schemas import validate_bundle_schema
 
@@ -269,15 +269,13 @@ class AIDrawingThreeTableWorkflowTests(unittest.TestCase):
 
             pfd = generate_pfd_from_drawing({"drawing_identity": {"part_name": "Demo"}})
 
-        material_step, first, second = pfd["steps"]
-        self.assertEqual(material_step["process_step_id"], "P05")
-        self.assertEqual(material_step["operation"], "Demo")
+        first, second = pfd["steps"]
         self.assertEqual(first["flow_type"], "operation")
         self.assertEqual(first["flow_symbol"], "operation")
         self.assertEqual(first["flow_type_display"], "加工")
         self.assertEqual(first["input_material"], "Demo")
         self.assertEqual(first["output_result"], "冲孔完成")
-        self.assertEqual(first["previous_step_ids"], ["P05"])
+        self.assertEqual(first["previous_step_ids"], [])
         self.assertEqual(first["next_step_ids"], ["P20"])
         self.assertEqual(second["flow_type"], "inspection")
         self.assertEqual(second["previous_step_ids"], ["P10"])
@@ -349,6 +347,126 @@ class AIDrawingThreeTableWorkflowTests(unittest.TestCase):
         self.assertEqual(steps[1]["next_step_ids"], ["P10"])
         self.assertEqual(steps[2]["previous_step_ids"], ["P20"])
         self.assertEqual(steps[2]["next_step_ids"], [])
+
+    def test_normalize_process_flow_steps_does_not_create_material_pseudo_step(self):
+        steps = [
+            {
+                "process_step_id": "P05",
+                "operation": "压装铰链总成",
+            },
+            {
+                "process_step_id": "P10",
+                "operation": "过程检验",
+            },
+        ]
+
+        normalize_process_flow_steps(steps, default_input_material="D00R HINGE 尾门铰链")
+
+        self.assertEqual([step["process_step_id"] for step in steps], ["P05", "P10"])
+        self.assertEqual(steps[0]["operation"], "压装铰链总成")
+        self.assertEqual(steps[0]["input_material"], "D00R HINGE 尾门铰链")
+        self.assertEqual(steps[0]["previous_step_ids"], [])
+        self.assertEqual(steps[0]["next_step_ids"], ["P10"])
+
+    def test_chain_pfmea_inherits_confirmed_pfd_process_fields(self):
+        llm_payload = {
+            "rows": [
+                {
+                    "pfmea_id": "",
+                    "process_step_id": "P10",
+                    "process_item": "制造过程",
+                    "process_step_name": "",
+                    "work_element_4m": "机",
+                    "function_process_step": "",
+                    "function_work_element": "压力机稳定输出",
+                    "failure_effect": "下一工序无法装配",
+                    "severity": 8,
+                    "failure_mode": "安装孔偏移",
+                    "failure_cause": "定位销磨损",
+                    "prevention_control": "点检定位销",
+                    "occurrence": 4,
+                    "detection_control": "首件检验孔位",
+                    "detection": 5,
+                    "rpn": 160,
+                    "action_priority": "M",
+                    "special_characteristics": "SC",
+                    "preventive_action": "",
+                    "detection_action": "",
+                    "responsible_person": "",
+                    "target_date": "",
+                    "status": "未开始",
+                    "needs_confirmation": True,
+                }
+            ]
+        }
+        confirmed_pfd = {
+            "steps": [
+                {
+                    "process_step_id": "P10",
+                    "operation": "冲压安装孔",
+                    "process_function": "形成安装孔位置",
+                    "equipment": "压力机",
+                    "product_characteristics": "安装孔位置度",
+                    "process_characteristics": "冲压力",
+                }
+            ]
+        }
+
+        with patch("minos_core.pipeline_chain.OpenAITextGenerator") as generator:
+            generator.return_value.generate_structured.return_value = llm_payload
+
+            pfmea = generate_pfmea_from_confirmed_pfd({}, confirmed_pfd)
+
+        row = pfmea["rows"][0]
+        self.assertEqual(row["process_step_id"], "P10")
+        self.assertEqual(row["operation"], "冲压安装孔")
+        self.assertEqual(row["process_step"], "冲压安装孔")
+        self.assertEqual(row["process_step_name"], "冲压安装孔")
+        self.assertEqual(row["structure_process_step"], "冲压安装孔")
+        self.assertEqual(row["function_process_step"], "形成安装孔位置")
+        self.assertEqual(row["function_requirement"], "形成安装孔位置")
+        self.assertEqual(row["pfmea_id"], "PFMEA-P10-01")
+
+    def test_chain_pfmea_rejects_rows_not_from_confirmed_pfd(self):
+        llm_payload = {
+            "rows": [
+                {
+                    "pfmea_id": "PFMEA-P99-01",
+                    "process_step_id": "P99",
+                    "process_item": "制造过程",
+                    "process_step_name": "不存在工序",
+                    "work_element_4m": "机",
+                    "function_process_step": "不存在",
+                    "function_work_element": "不存在",
+                    "failure_effect": "影响装配",
+                    "severity": 8,
+                    "failure_mode": "尺寸偏差",
+                    "failure_cause": "参数错误",
+                    "prevention_control": "参数确认",
+                    "occurrence": 4,
+                    "detection_control": "检验",
+                    "detection": 5,
+                    "rpn": 160,
+                    "action_priority": "M",
+                    "special_characteristics": "无",
+                    "preventive_action": "",
+                    "detection_action": "",
+                    "responsible_person": "",
+                    "target_date": "",
+                    "status": "未开始",
+                    "needs_confirmation": True,
+                }
+            ]
+        }
+
+        with patch("minos_core.pipeline_chain.OpenAITextGenerator") as generator:
+            generator.return_value.generate_structured.return_value = llm_payload
+
+            with self.assertRaisesRegex(ValueError, "P99"):
+                generate_pfmea_from_confirmed_pfd(
+                    {},
+                    {"steps": [{"process_step_id": "P10", "operation": "冲压安装孔"}]},
+                )
 
     def test_normalize_pfmea_rows_outputs_aiag_vda_form_c_fields(self):
         rows = [

@@ -89,7 +89,7 @@ MINOS-CORE 当前不承诺、也不内置以下能力：
 
 ## 质量门字段语义
 
-质量门只负责表达“当前链路是否足够继续流转、是否需要人工介入”，不替代工程判断或客户批准。
+质量门只负责表达"当前链路是否足够继续流转、是否需要人工介入"，不替代工程判断或客户批准。
 
 - `passed`：当前质量门是否通过。为 `false` 时，表示存在阻断问题，不应无提示地继续生成下游交付。
 - `blocking_issues`：必须先解决的问题，例如关键过程步骤缺失、PFMEA 与控制计划链路断裂、证据引用缺失等。
@@ -147,7 +147,7 @@ out/desktop/minos_desktop.sqlite3
 - `DesktopRunService`：后台运行图纸识别、链式 PFD/PFMEA/CP 推理、编辑保存和导出服务，保存 run 记录和导出记录。
 - `DesktopRunState`、`DesktopRunRecord`、`DesktopExportRecord`：记录运行状态、运行结果和导出产物。
 
-Tauri UI 通过服务层刷新 AI/PFD/PFMEA/CP/复核/导出页面。链式生成不会在 PFD、PFMEA 或 CP 推理失败时静默回退到旧模板；运行失败时，桌面端会保留原始错误、原因判断和三种处理方案，且包含“放弃任务”。
+Tauri UI 通过服务层刷新 AI/PFD/PFMEA/CP/复核/导出页面。链式生成不会在 PFD、PFMEA 或 CP 推理失败时静默回退到旧模板；运行失败时，桌面端会保留原始错误、原因判断和三种处理方案，且包含"放弃任务"。
 
 桌面端测试：
 
@@ -165,7 +165,7 @@ python -m pytest tests/test_llm_text_responses.py tests/test_desktop_shell.py te
 
 - 不提交、不登记、不上传真实客户图纸。
 - demo 图纸必须是合成输入、脱敏输入，或已获得授权且去除客户/供应商/人员/价格/客户门户编号等敏感信息的内部样例。
-- demo 图纸只用于验证“图纸 -> PFD/PFMEA/CP 草案 -> 导出”的工具链，不代表客户正式 PPAP 文件。
+- demo 图纸只用于验证"图纸 -> PFD/PFMEA/CP 草案 -> 导出"的工具链，不代表客户正式 PPAP 文件。
 
 建议验收命令：
 

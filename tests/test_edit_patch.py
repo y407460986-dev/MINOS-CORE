@@ -163,6 +163,48 @@ class EditPatchTests(unittest.TestCase):
         self.assertFalse(_changed_any(updated_row, ("operation",)))
         self.assertFalse(_changed_any(updated_row, ()))
 
+    def test_process_flow_sequence_updates_reorder_steps_and_chain(self):
+        source = _three_table_result()
+
+        edited = apply_edit_patch(
+            source,
+            {
+                "edit_patch_version": EDIT_PATCH_VERSION,
+                "edited_by": "process.engineer",
+                "edited_at": "2026-05-10T10:00:00Z",
+                "reason": "拖拽调整 PFD 顺序",
+                "items": [
+                    {
+                        "action": "update",
+                        "table": "process_flow",
+                        "target_id": "P30",
+                        "changes": {"sequence": 10},
+                    },
+                    {
+                        "action": "update",
+                        "table": "process_flow",
+                        "target_id": "P10",
+                        "changes": {"sequence": 20},
+                    },
+                    {
+                        "action": "update",
+                        "table": "process_flow",
+                        "target_id": "P20",
+                        "changes": {"sequence": 30},
+                    },
+                ],
+            },
+        )
+
+        self.assertEqual(
+            [row["process_step_id"] for row in edited["process_flow"]["steps"]],
+            ["P30", "P10", "P20"],
+        )
+        self.assertEqual(
+            [row["process_step_id"] for row in edited["chain"]["process_steps"]],
+            ["P30", "P10", "P20"],
+        )
+
     def test_add_action_initializes_changed_fields_empty(self):
         """Add action sets changed_fields to empty list on the new row."""
         source = _three_table_result()

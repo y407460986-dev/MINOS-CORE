@@ -92,8 +92,10 @@ class AIAGVDAV15Tests(unittest.TestCase):
 
         self.assertEqual(row["AP"], "H")
         self.assertEqual(row["action_priority"], "H")
-        self.assertEqual(row["rpn"], 216)
         self.assertEqual(row["process_item"], "制造过程")
+        self.assertEqual(row["structure_process_item"], "制造过程")
+        self.assertNotIn("rpn", row)
+        self.assertNotIn("after_rpn", row)
 
     def test_action_closure_blocks_high_ap_missing_owner_due_date_and_after_scores(self):
         row = normalize_pfmea_row(

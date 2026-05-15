@@ -247,21 +247,39 @@ def _quality_gate_rows(
 
 
 def _process_flow_rows(chain: Any) -> list[list[Any]]:
-    rows = [["步骤", "过程名称", "说明"]]
+    rows = [
+        [
+            "工序编号",
+            "流程符号",
+            "工序名称",
+            "过程功能",
+            "设备/工装",
+            "产品特性",
+            "过程特性",
+            "特殊特性",
+            "责任",
+        ]
+    ]
     steps = _process_steps(chain)
     if not steps:
         aliases = _mapping(chain, "step_aliases")
         for step_no, names in aliases.items():
-            rows.append([step_no, _join(names), ""])
+            rows.append([step_no, "", _join(names), "", "", "", "", "", ""])
         return rows
     for step in steps:
         rows.append(
             [
-                _first_value(step, "step_no", "step", "operation_no", "id", default=""),
+                _first_value(step, "sequence", "operation_no", "process_step_id", "step_no", "step", "id", default=""),
+                _first_value(step, "flow_symbol", "flow_type_display", "flow_type", "operation_type", default=""),
                 _first_value(
                     step, "name", "process_name", "operation", "title", default=""
                 ),
-                _first_value(step, "description", "summary", "notes", default=""),
+                _first_value(step, "process_function", "description", "summary", "notes", default=""),
+                _first_value(step, "equipment", "machine", "tooling", default=""),
+                _join(_first_value(step, "product_characteristic", "product_characteristics", default=[])),
+                _join(_first_value(step, "process_characteristic", "process_characteristics", default=[])),
+                _join(_first_value(step, "special_characteristics", "special_characteristic", "classification", default=[])),
+                _first_value(step, "owner", "responsibility", default=""),
             ]
         )
     return rows
@@ -282,18 +300,24 @@ def _pfmea_rows(chain: Any) -> list[list[Any]]:
             "失效后果",
             "严重度 S",
             "失效原因",
+            "原因过程参数",
             "预防控制",
+            "预防控制对象",
+            "预防控制时机",
             "频度 O",
             "探测控制",
+            "探测对象",
+            "探测时机",
             "探测度 D",
             "AP",
-            "RPN",
+            "控制逻辑复核",
+            "特殊特性",
             "优化措施",
             "责任人",
             "目标完成日期",
             "状态",
             "实际完成日期",
-            "措施后 S/O/D/AP/RPN",
+            "措施后 S/O/D/AP",
             "证据",
             "复核状态",
         ]
@@ -331,12 +355,18 @@ def _pfmea_rows(chain: Any) -> list[list[Any]]:
                 _first_value(item, "effect", "failure_effect", "effects", default=""),
                 _first_value(item, "severity", "s", "S", default=""),
                 _first_value(item, "cause", "failure_cause", "causes", default=""),
+                _first_value(item, "cause_process_parameter", default=""),
                 _first_value(item, "prevention_control", default=""),
+                _first_value(item, "prevention_control_target", default=""),
+                _first_value(item, "prevention_control_timing", default=""),
                 _first_value(item, "occurrence", "o", "O", default=""),
                 _first_value(item, "detection_control", default=""),
+                _first_value(item, "detection_control_target", default=""),
+                _first_value(item, "detection_control_timing", default=""),
                 _first_value(item, "detection", "d", "D", default=""),
                 _first_value(item, "action_priority", "AP", default=""),
-                _first_value(item, "rpn", "RPN", default=""),
+                _first_value(item, "control_logic_review", default=""),
+                _join(_first_value(item, "special_characteristics", "special_characteristic", "special_characteristic_class", "classification", default=[])),
                 _first_value(item, "optimization_action", "recommended_action", default=""),
                 _first_value(item, "responsible_person", "responsibility", "owner", default=""),
                 _first_value(item, "target_date", default=""),
@@ -362,6 +392,13 @@ def _control_plan_rows(chain: Any) -> list[list[Any]]:
             "过程特性",
             "特殊特性分类",
             "规格和公差",
+            "过程参数",
+            "参数规格",
+            "过程控制方法",
+            "首件/换型确认",
+            "防错装置",
+            "防错验证",
+            "过程记录",
             "测量方法",
             "样本容量",
             "检查频次",
@@ -381,6 +418,13 @@ def _control_plan_rows(chain: Any) -> list[list[Any]]:
                 _first_value(item, "process_characteristic", default=""),
                 _first_value(item, "special_characteristic_class", "classification", default=""),
                 _first_value(item, "specification_tolerance", "specification", "spec", "tolerance", default=""),
+                _first_value(item, "process_parameter", default=""),
+                _first_value(item, "parameter_specification", default=""),
+                _first_value(item, "process_control_method", default=""),
+                _first_value(item, "setup_verification", default=""),
+                _first_value(item, "poka_yoke_device", default=""),
+                _first_value(item, "poka_yoke_verification", default=""),
+                _first_value(item, "process_record", "record_form", default=""),
                 _first_value(item, "measurement_method", "measurement", "evaluation_method", "method", default=""),
                 _first_value(item, "sample_size", default=""),
                 _first_value(item, "sample_frequency", "frequency", default=""),
@@ -614,7 +658,6 @@ def _after_action_text(item: Any) -> str:
         _first_value(item, "after_occurrence", default=""),
         _first_value(item, "after_detection", default=""),
         _first_value(item, "after_ap", default=""),
-        _first_value(item, "after_rpn", default=""),
     ]
     return "/".join(str(value) for value in values if value not in {"", None})
 

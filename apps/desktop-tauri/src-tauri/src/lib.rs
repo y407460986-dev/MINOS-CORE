@@ -1,6 +1,6 @@
 use once_cell::sync::OnceCell;
 use serde::Serialize;
-use std::net::{SocketAddr, TcpStream};
+use std::net::{SocketAddr, TcpListener, TcpStream};
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
 use std::path::PathBuf;
@@ -11,9 +11,16 @@ use tauri::Listener;
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
 
-static SIDECAR_CHILD: OnceCell<Mutex<Option<Child>>> = OnceCell::new();
+static SIDECAR_PROCESS: OnceCell<Mutex<Option<SidecarProcess>>> = OnceCell::new();
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
+const SIDECAR_PORT_START: u16 = 8000;
+const SIDECAR_PORT_END: u16 = 8020;
+
+struct SidecarProcess {
+    child: Child,
+    port: u16,
+}
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -28,15 +35,22 @@ struct BootstrapPayload {
 
 #[tauri::command]
 fn get_bootstrap(app: tauri::AppHandle) -> BootstrapPayload {
-    let api_base_url = std::env::var("MINOS_DESKTOP_API_BASE_URL")
-        .unwrap_or_else(|_| "http://127.0.0.1:8000".to_string());
-    let sidecar_managed = ensure_sidecar_running(&app);
+    let external_api_base_url = std::env::var("MINOS_DESKTOP_API_BASE_URL").ok();
+    let managed_port = if external_api_base_url.is_some() {
+        None
+    } else {
+        ensure_sidecar_running(&app)
+    };
+    let api_base_url = external_api_base_url.unwrap_or_else(|| {
+        let port = managed_port.unwrap_or(SIDECAR_PORT_START);
+        format!("http://127.0.0.1:{}", port)
+    });
     BootstrapPayload {
         app_name: "MINOS-CORE".to_string(),
         version: "1.14.0".to_string(),
         api_base_url,
         api_token: std::env::var("MINOS_DESKTOP_API_TOKEN").ok(),
-        sidecar_managed,
+        sidecar_managed: managed_port.is_some(),
         workspace_root: workspace_root().map(|path| path.to_string_lossy().to_string()),
     }
 }
@@ -74,21 +88,28 @@ fn reveal_file(app: tauri::AppHandle, path: String) -> Result<(), String> {
 
 #[tauri::command]
 fn shutdown_sidecar() -> Result<(), String> {
-    if let Some(slot) = SIDECAR_CHILD.get() {
-        if let Some(mut child) = slot.lock().map_err(|error| error.to_string())?.take() {
-            let _ = child.kill();
-            let _ = child.wait();
+    if let Some(slot) = SIDECAR_PROCESS.get() {
+        if let Some(mut process) = slot.lock().map_err(|error| error.to_string())?.take() {
+            let _ = process.child.kill();
+            let _ = process.child.wait();
         }
     }
     Ok(())
 }
 
-fn ensure_sidecar_running(app: &tauri::AppHandle) -> bool {
-    if is_api_port_open() {
-        return false;
+fn ensure_sidecar_running(app: &tauri::AppHandle) -> Option<u16> {
+    if let Some(slot) = SIDECAR_PROCESS.get() {
+        if let Ok(guard) = slot.lock() {
+            if let Some(process) = guard.as_ref() {
+                return Some(process.port);
+            }
+        }
     }
     let Some(root) = workspace_root() else {
-        return false;
+        return None;
+    };
+    let Some(port) = find_available_sidecar_port() else {
+        return None;
     };
     let log_dir = root.join("out").join("desktop-api");
     let _ = std::fs::create_dir_all(&log_dir);
@@ -103,15 +124,13 @@ fn ensure_sidecar_running(app: &tauri::AppHandle) -> bool {
 
     let mut command = Command::new("python");
     command
-        .args([
-            "-m",
-            "uvicorn",
-            "minos_desktop.api.app:app",
-            "--host",
-            "127.0.0.1",
-            "--port",
-            "8000",
-        ])
+        .arg("-m")
+        .arg("uvicorn")
+        .arg("minos_desktop.api.app:app")
+        .arg("--host")
+        .arg("127.0.0.1")
+        .arg("--port")
+        .arg(port.to_string())
         .current_dir(&root)
         .env_remove("MINOS_DESKTOP_API_TOKEN")
         .stdin(Stdio::null())
@@ -121,11 +140,12 @@ fn ensure_sidecar_running(app: &tauri::AppHandle) -> bool {
     command.creation_flags(CREATE_NO_WINDOW);
 
     let Ok(child) = command.spawn() else {
-        return false;
+        return None;
     };
-    let slot = SIDECAR_CHILD.get_or_init(|| Mutex::new(None));
-    if let Ok(mut guard) = slot.lock() {
-        *guard = Some(child);
+    let process = SidecarProcess { child, port };
+    let process_slot = SIDECAR_PROCESS.get_or_init(|| Mutex::new(None));
+    if let Ok(mut guard) = process_slot.lock() {
+        *guard = Some(process);
     }
     let app_handle = app.clone();
     app.listen("tauri://close-requested", move |_| {
@@ -133,17 +153,24 @@ fn ensure_sidecar_running(app: &tauri::AppHandle) -> bool {
         let _ = app_handle.exit(0);
     });
     for _ in 0..30 {
-        if is_api_port_open() {
-            return true;
+        if is_api_port_open(port) {
+            return Some(port);
         }
         std::thread::sleep(Duration::from_millis(200));
     }
-    true
+    Some(port)
 }
 
-fn is_api_port_open() -> bool {
-    let address = SocketAddr::from(([127, 0, 0, 1], 8000));
+fn is_api_port_open(port: u16) -> bool {
+    let address = SocketAddr::from(([127, 0, 0, 1], port));
     TcpStream::connect_timeout(&address, Duration::from_millis(200)).is_ok()
+}
+
+fn find_available_sidecar_port() -> Option<u16> {
+    (SIDECAR_PORT_START..=SIDECAR_PORT_END).find(|port| {
+        let address = SocketAddr::from(([127, 0, 0, 1], *port));
+        TcpListener::bind(address).is_ok()
+    })
 }
 
 fn workspace_root() -> Option<PathBuf> {

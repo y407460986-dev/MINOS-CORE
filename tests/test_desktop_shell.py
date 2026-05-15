@@ -309,6 +309,83 @@ class DesktopShellTests(unittest.TestCase):
         self.assertEqual(failed.state.chain_stages.pfmea.status, "failed")
         self.assertIn("PFMEA background failed", failed.failure_message)
 
+    def test_legacy_pfmea_sync_placeholders_are_hidden_when_generation_failed(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = os.path.join(tmpdir, "desktop.sqlite3")
+            service = DesktopRunService(db_path)
+            chain_stages = ChainStageStates(
+                pfd=StageConfirmState(status="confirmed", row_count=1),
+                pfmea=StageConfirmState(status="generated", row_count=1, pending_count=1),
+                pipeline_mode="chain",
+            )
+            raw_result = {
+                "document_type": "three_table_generation_result",
+                "status": "needs_review",
+                "process_flow": {
+                    "steps": [
+                        {
+                            "process_step_id": "P10",
+                            "operation": "来料检验",
+                            "needs_confirmation": False,
+                        }
+                    ]
+                },
+                "pfmea": {"rows": []},
+                "control_plan": {"rows": []},
+                "manual_review": {"required": False, "items": []},
+            }
+            current_result = {
+                **raw_result,
+                "pfmea": {
+                    "rows": [
+                        {
+                            "pfmea_id": "PFMEA-SYNC-P10",
+                            "process_step_id": "P10",
+                            "failure_mode": "待工程人员填写失效模式",
+                            "review_status": "联动新增",
+                            "needs_confirmation": True,
+                        }
+                    ]
+                },
+            }
+            legacy_envelope = {
+                "_desktop_storage_version": 1,
+                "raw_result": raw_result,
+                "current_result": current_result,
+                "edit_patch": {"edit_patch_version": "minos-core.edit_patch.v1", "items": []},
+                "chain_stages": chain_stages.to_dict(),
+            }
+            run = service.save_run(
+                None,
+                DesktopRunState(
+                    status="needs_review",
+                    status_display="待人工确认",
+                    blocked_stage="",
+                    exports=(),
+                    manifest_path="",
+                    manifest_run_id="",
+                    manual_review_required=False,
+                    manual_review_count=0,
+                    manual_review_raw_count=0,
+                    manual_review_items=(),
+                    chain_stages=chain_stages,
+                ),
+                tmpdir,
+                legacy_envelope,
+                "原始错误：LLM Responses HTTP 504 Gateway Time-out",
+            )
+            reloaded = service.get_run(run.id)
+
+        self.assertEqual(reloaded.current_result["pfmea"]["rows"], [])
+        self.assertEqual(reloaded.state.status, "failed")
+        self.assertEqual(reloaded.state.blocked_stage, "pfmea")
+        self.assertEqual(reloaded.state.chain_stages.pfmea.status, "failed")
+        self.assertEqual(reloaded.state.chain_stages.pfmea.row_count, 0)
+        self.assertEqual(reloaded.state.chain_stages.pfmea.pending_count, 0)
+        self.assertEqual(reloaded.current_result["status"], "failed")
+        self.assertEqual(reloaded.current_result["blocked_stage"], "pfmea")
+        self.assertIn("504 Gateway Time-out", reloaded.failure_message)
+
     def test_background_cp_generation_failure_is_persisted(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = os.path.join(tmpdir, "desktop.sqlite3")
@@ -799,12 +876,29 @@ class DesktopShellTests(unittest.TestCase):
         )
         self.assertEqual(len(reloaded.edit_patch["items"]), 2)
 
-    def test_automation_batch_confirm_service_marks_low_risk_rows(self):
+    def test_automation_batch_confirm_waits_until_cp_confirmed_and_after_control_plan_review_exists(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = os.path.join(tmpdir, "desktop.sqlite3")
             run_service = DesktopRunService(db_path)
-            run = run_service.save_result(
+            chain_stages = ChainStageStates(
+                pfd=StageConfirmState(status="confirmed", row_count=1),
+                pfmea=StageConfirmState(status="confirmed", row_count=1),
+                cp=StageConfirmState(status="generated", row_count=1, pending_count=1),
+                pipeline_mode="chain",
+            )
+            run = run_service.save_chain_run(
                 None,
+                desktop_run_state_from_result(
+                    {
+                        "document_type": "three_table_generation_result",
+                        "status": "needs_review",
+                        "process_flow": {"steps": []},
+                        "pfmea": {"rows": []},
+                        "control_plan": {"rows": []},
+                        "manual_review": {"required": False, "items": []},
+                    }
+                ),
+                tmpdir,
                 {
                     "document_type": "three_table_generation_result",
                     "status": "needs_review",
@@ -814,24 +908,76 @@ class DesktopShellTests(unittest.TestCase):
                                 "process_step_id": "P10",
                                 "operation": "来料检验",
                                 "review_status": "AI建议确认",
-                                "needs_confirmation": True,
+                                "needs_confirmation": False,
+                                "evidence_refs": ["EV-1"],
+                                "confidence": 0.95,
                             }
                         ]
                     },
-                    "pfmea": {"rows": []},
-                    "control_plan": {"rows": []},
+                    "pfmea": {
+                        "rows": [
+                            {
+                                "pfmea_id": "PFMEA-P10-OK",
+                                "process_step_id": "P10",
+                                "failure_mode": "来料错误",
+                                "failure_effect": "返工",
+                                "severity": 3,
+                                "occurrence": 2,
+                                "detection": 2,
+                                "rpn": 12,
+                                "action_priority": "L",
+                                "review_status": "AI建议确认",
+                                "needs_confirmation": False,
+                                "evidence_refs": ["EV-1"],
+                                "confidence": 0.95,
+                            }
+                        ]
+                    },
+                    "control_plan": {
+                        "rows": [
+                            {
+                                "control_plan_id": "CP-P10-OK",
+                                "process_step_id": "P10",
+                                "pfmea_id": "PFMEA-P10-OK",
+                                "control_method": "来料检验",
+                                "review_status": "AI建议确认",
+                                "needs_confirmation": True,
+                                "evidence_refs": ["EV-1"],
+                                "confidence": 0.95,
+                            }
+                        ]
+                    },
+                    "drawing_analysis": {"evidence": [{"evidence_id": "EV-1"}]},
                     "manual_review": {"required": True, "items": []},
                 },
-                tmpdir,
+                "",
+                chain_stages,
             )
 
-            updated = run_service.batch_confirm_automation_review(run.id)
-            model = three_table_to_table_model(updated.current_result, "process_flow")
+            blocked = run_service.batch_confirm_automation_review(run.id)
 
-        self.assertFalse(updated.current_result["process_flow"]["steps"][0]["needs_confirmation"])
-        self.assertEqual(updated.current_result["process_flow"]["steps"][0]["review_status"], "已批量确认")
+            confirmed = run_service.confirm_cp_stage(run.id, confirmed_by="qe")
+            updated = run_service.batch_confirm_automation_review(run.id)
+            model = three_table_to_table_model(updated.current_result, "pfmea")
+
+        self.assertNotIn("automation_review", blocked.current_result)
+        self.assertEqual(blocked.edit_patch["items"], [])
+        self.assertEqual(
+            blocked.current_result["pfmea"]["rows"][0]["review_status"],
+            "AI建议确认",
+        )
+        self.assertEqual(
+            confirmed.current_result["automation_review"]["review_stage"],
+            "after_control_plan",
+        )
+        self.assertTrue(confirmed.current_result["automation_review"]["human_decision_priority"])
+        self.assertFalse(updated.current_result["pfmea"]["rows"][0]["needs_confirmation"])
+        self.assertEqual(updated.current_result["pfmea"]["rows"][0]["review_status"], "已批量确认")
         self.assertEqual(model["rows"][0][ROW_STATUS_COLUMN], "已批量确认")
-        self.assertEqual(updated.edit_patch["items"][0]["confirmation_mode"], "ai_recommended_batch")
+        self.assertEqual(
+            updated.edit_patch["items"][0]["metadata"]["confirmation_mode"],
+            "ai_recommended_batch",
+        )
 
     def test_pfd_soft_delete_reload_hides_pfmea_and_cp_rows_until_restored(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1190,6 +1336,13 @@ class DesktopShellTests(unittest.TestCase):
         self.assertIn("原因判断：输出目录或输入文件可能没有访问权限。", message)
         self.assertIn("处理方案：", message)
         self.assertIn("放弃任务", message)
+
+    def test_failure_formatter_identifies_gateway_timeout(self):
+        message = format_desktop_failure("LLM Responses HTTP 504 Gateway Time-out")
+
+        self.assertIn("原始错误：LLM Responses HTTP 504 Gateway Time-out", message)
+        self.assertIn("原因判断：AI 上游模型或中转服务响应超时。", message)
+        self.assertIn("稍后重试", message)
 
 if __name__ == "__main__":
     unittest.main()

@@ -47,12 +47,35 @@ def _rows_for_step(step: dict[str, Any]) -> list[dict[str, Any]]:
     step_id = row_text(step, "process_step_id", default="P00")
     operation = row_text(step, "operation", default="")
     process_function = row_text(step, "process_function", default=f"执行{operation}")
+    process_parameter = row_text(
+        step,
+        "process_characteristics",
+        "process_characteristic",
+        "equipment",
+        default="关键过程参数/工装状态",
+    )
     refs = string_list(step.get("evidence_refs", []))
     special_characteristics = string_list(step.get("special_characteristics", []))
     confidence = _bounded_confidence(step.get("confidence", 0.0), cap=0.9)
     context = {
         "process_step_id": step_id,
         "operation": operation,
+        "process_item": "制造过程",
+        "process_step": operation,
+        "process_step_name": operation,
+        "process_work_element": row_text(step, "equipment", "tooling", default="人员/设备/工装/方法"),
+        "structure_process_item": "制造过程",
+        "structure_process_step": operation,
+        "structure_work_element": row_text(step, "equipment", "tooling", default="人员/设备/工装/方法"),
+        "function_process_item": "制造过程",
+        "function_process_step": process_function,
+        "function_work_element": row_text(
+            step,
+            "process_characteristics",
+            "process_characteristic",
+            "equipment",
+            default="按工艺要求稳定执行该工序",
+        ),
         "process_function": process_function,
         "classification": ",".join(special_characteristics),
         "evidence_refs": refs,
@@ -106,14 +129,29 @@ def _rows_for_step(step: dict[str, Any]) -> list[dict[str, Any]]:
                 "S": severity,
                 "severity": severity,
                 "failure_cause": risk["failure_cause"],
+                "cause_process_parameter": process_parameter,
                 "O": occurrence,
                 "occurrence": occurrence,
                 "prevention_control": risk["prevention_control"],
+                "prevention_control_target": (
+                    f"控制失效原因：{risk['failure_cause']}；关键过程参数：{process_parameter}"
+                ),
+                "prevention_control_timing": _control_timing(
+                    risk["prevention_control"], fallback="量产前、换型后和每班点检"
+                ),
                 "detection_control": risk["detection_control"],
+                "detection_control_target": risk["failure_mode"],
+                "detection_control_timing": _control_timing(
+                    risk["detection_control"], fallback="首件和巡检"
+                ),
                 "D": detection,
                 "detection": detection,
                 "AP": action_priority,
                 "action_priority": action_priority,
+                "control_logic_review": "预防控制已指向失效原因，探测控制独立覆盖失效模式。",
+                "preventive_action": risk["recommended_action"],
+                "detection_action": "",
+                "optimization_action": risk["recommended_action"],
                 "recommended_action": _recommended_action(
                     action_priority, needs_confirmation, risk["recommended_action"]
                 ),
@@ -429,6 +467,18 @@ def _recommended_action(
     return base_action
 
 
+def _control_timing(control_text: str, *, fallback: str) -> str:
+    if any(keyword in control_text for keyword in ("首件", "换型", "换模", "换批")):
+        return "首件/换型/换批时"
+    if any(keyword in control_text for keyword in ("生产前", "放行前", "开发前期", "量产前")):
+        return "生产前/放行前"
+    if any(keyword in control_text for keyword in ("每班", "定期", "巡检", "按频次", "每批")):
+        return "每班/按规定频次"
+    if any(keyword in control_text for keyword in ("100%", "全检")):
+        return "生产中全检"
+    return fallback
+
+
 def _reasoning(
     *,
     step_id: str,
@@ -479,49 +529,10 @@ def normalize_pfmea_rows(
             if sid:
                 step_map[sid] = step
 
-    for row in rows:
-        row.setdefault("structure_process_item", "")
-        row.setdefault("structure_process_step", "")
-        row.setdefault("structure_work_element", "")
-        row.setdefault("function_process_item", "")
-        row.setdefault("function_process_step", "")
-        row.setdefault("function_work_element", "")
-
+    for index, row in enumerate(rows):
         sid = row.get("process_step_id", "")
-        if sid and sid in step_map:
-            step = step_map[sid]
-            if not row.get("structure_process_step"):
-                row["structure_process_step"] = str(step.get("operation", ""))
-            if not row.get("function_process_step"):
-                row["function_process_step"] = str(
-                    step.get("process_function")
-                    or row.get("process_function", "")
-                )
-
-        row.setdefault("failure_effect", row.get("effect", ""))
-        row.setdefault("failure_mode", row.get("failure_mode", ""))
-        row.setdefault("failure_cause", row.get("cause", ""))
-        row.setdefault("prevention_control", row.get("prevention", ""))
-        row.setdefault("detection_control", row.get("detection", ""))
-
-        row.setdefault("severity", 0)
-        row.setdefault("occurrence", 0)
-        row.setdefault("detection", 0)
-
-        sev = row.get("severity", 0) or 0
-        occ = row.get("occurrence", 0) or 0
-        det = row.get("detection", 0) or 0
-        ap = "L"
-        if sev >= 7 and occ >= 3:
-            ap = "H"
-        elif sev >= 5 and det >= 5:
-            ap = "M"
-        row.setdefault("action_priority", ap)
-        row.setdefault("action_priority_was", "")
-
-        row.setdefault("optimization_action", "")
-        row.setdefault("responsible_person", "")
-        row.setdefault("target_date", "")
-        row.setdefault("status", "")
-        row.setdefault("needs_confirmation", row.get("ai_inferred", False))
+        normalized = normalize_pfmea_row(row, step_map.get(sid))
+        normalized.setdefault("action_priority_was", "")
+        row.clear()
+        row.update(normalized)
 

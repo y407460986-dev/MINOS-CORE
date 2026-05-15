@@ -53,6 +53,13 @@ function statusFromRow(row: Record<string, unknown>): RowStatus {
   return "draft";
 }
 
+function isLegacyPfmeaPlaceholder(row: Record<string, unknown>): boolean {
+  const pfmeaId = text(row.pfmea_id).trim();
+  const failureMode = text(row.failure_mode).trim();
+  const reviewStatus = text(row.review_status).trim();
+  return pfmeaId.startsWith("PFMEA-SYNC-") || (failureMode === "待工程人员填写失效模式" && reviewStatus === "联动新增");
+}
+
 function rowsFromDocument(result: Record<string, unknown>, table: TableKind, includeDeleted = false): WorkbenchRow[] {
   const sourceKey = table === "pfd" ? "process_flow" : table === "cp" ? "control_plan" : "pfmea";
   const containerKey = table === "pfd" ? "steps" : "rows";
@@ -60,12 +67,18 @@ function rowsFromDocument(result: Record<string, unknown>, table: TableKind, inc
   const document = result[sourceKey] as Record<string, unknown> | undefined;
   const rows = Array.isArray(document?.[containerKey]) ? (document?.[containerKey] as Record<string, unknown>[]) : [];
 
-  return rows.filter((row) => includeDeleted || (!row.deleted && !row.soft_deleted)).map((row, index) => {
+  const visibleRows = rows.filter((row) => {
+    if (table === "pfmea" && isLegacyPfmeaPlaceholder(row)) return false;
+    return includeDeleted || (!row.deleted && !row.soft_deleted);
+  });
+  const orderedRows = table === "pfd" ? sortPfdRowsBySequence(visibleRows) : visibleRows;
+
+  return orderedRows.map((row, index) => {
     const id = text(row[idKey], `${table.toUpperCase()}-${index + 1}`);
     return {
       id,
       table,
-      process: text(row.operation ?? row.process_step ?? row.process_item, "-"),
+      process: text(row.process_step_name ?? row.operation ?? row.process_step ?? row.process_step_id, "-"),
       characteristic: text(
         row.product_process_characteristic ??
           row.product_characteristics ??
@@ -86,9 +99,13 @@ function rowsFromDocument(result: Record<string, unknown>, table: TableKind, inc
   });
 }
 
-export function processFlowStepsFromResult(result: Record<string, unknown> | null | undefined): ProcessFlowStep[] {
-  const processFlow = result?.process_flow as Record<string, unknown> | undefined;
-  return Array.isArray(processFlow?.steps) ? (processFlow.steps as ProcessFlowStep[]) : [];
+export function sortPfdRowsBySequence(rows: Record<string, unknown>[]): Record<string, unknown>[] {
+  return [...rows].sort((left, right) => {
+    const leftSequence = Number(left.sequence ?? 0);
+    const rightSequence = Number(right.sequence ?? 0);
+    if (leftSequence !== rightSequence) return leftSequence - rightSequence;
+    return text(left.process_step_id).localeCompare(text(right.process_step_id));
+  });
 }
 
 export function processFlowStepsFromRows(rows: WorkbenchRow[]): ProcessFlowStep[] {

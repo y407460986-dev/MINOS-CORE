@@ -112,6 +112,8 @@ def build_automation_review(
 
     return {
         "automation_review_version": AUTOMATION_REVIEW_VERSION,
+        "review_stage": "after_control_plan",
+        "human_decision_priority": True,
         "automation_tasks": automation_tasks,
         "batch_confirm_candidates": batch_confirm_candidates,
         "blocking_issues": blocking_issues,
@@ -128,6 +130,7 @@ def build_automation_review(
             "blocking_issue_count": len(blocking_issues),
             "review_issue_count": len(review_issues),
             "min_confidence": min_confidence,
+            "decision_policy": "AI 只提供三表总审核建议；人工判断优先于 AI 建议。",
         },
     }
 

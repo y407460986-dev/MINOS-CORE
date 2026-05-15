@@ -150,6 +150,56 @@ class OpenAIResponsesMultimodalDrawingAnalyzerTests(unittest.TestCase):
         self.assertEqual(parsed["id"], "resp_test")
         self.assertEqual(parsed["output_text"], "MINOS_OK")
 
+    def test_streaming_parser_accepts_output_text_done_event(self):
+        raw = (
+            'event: response.output_text.done\n'
+            'data: {"type":"response.output_text.done","text":"{\\"ok\\":true}"}\n\n'
+            'event: response.completed\n'
+            'data: {"type":"response.completed","response":{"id":"resp_test","model":"gpt-test","output":[]}}\n\n'
+        ).encode("utf-8")
+
+        parsed = _parse_responses_stream(BytesIO(raw), fallback_model="gpt-test")
+
+        self.assertEqual(parsed["id"], "resp_test")
+        self.assertEqual(parsed["output_text"], '{"ok":true}')
+
+    def test_streaming_parser_accepts_response_done_output_text(self):
+        raw = (
+            'event: response.done\n'
+            'data: {"type":"response.done","response":{"id":"resp_test","model":"gpt-test","output_text":"{\\"ok\\":true}"}}\n\n'
+        ).encode("utf-8")
+
+        parsed = _parse_responses_stream(BytesIO(raw), fallback_model="gpt-test")
+
+        self.assertEqual(parsed["id"], "resp_test")
+        self.assertEqual(parsed["output_text"], '{"ok":true}')
+
+    def test_streaming_parser_accepts_output_item_done_message_content(self):
+        raw = (
+            'event: response.output_item.done\n'
+            'data: {"type":"response.output_item.done","item":{"type":"message","content":[{"type":"output_text","text":"{\\"ok\\":true}"}]}}\n\n'
+            'event: response.completed\n'
+            'data: {"type":"response.completed","response":{"id":"resp_test","model":"gpt-test","output":[]}}\n\n'
+        ).encode("utf-8")
+
+        parsed = _parse_responses_stream(BytesIO(raw), fallback_model="gpt-test")
+
+        self.assertEqual(parsed["id"], "resp_test")
+        self.assertEqual(parsed["output_text"], '{"ok":true}')
+
+    def test_streaming_parser_accepts_content_part_done_output_text(self):
+        raw = (
+            'event: response.content_part.done\n'
+            'data: {"type":"response.content_part.done","part":{"type":"output_text","text":"{\\"ok\\":true}"}}\n\n'
+            'event: response.completed\n'
+            'data: {"type":"response.completed","response":{"id":"resp_test","model":"gpt-test","output":[]}}\n\n'
+        ).encode("utf-8")
+
+        parsed = _parse_responses_stream(BytesIO(raw), fallback_model="gpt-test")
+
+        self.assertEqual(parsed["id"], "resp_test")
+        self.assertEqual(parsed["output_text"], '{"ok":true}')
+
     def test_streaming_parser_reports_failed_event(self):
         raw = (
             'event: response.failed\n'
@@ -158,6 +208,38 @@ class OpenAIResponsesMultimodalDrawingAnalyzerTests(unittest.TestCase):
 
         with self.assertRaisesRegex(OpenAIMultimodalError, "stream failed"):
             _parse_responses_stream(BytesIO(raw), fallback_model="gpt-test")
+
+    def test_post_json_retries_stream_server_overloaded(self):
+        analyzer = OpenAIResponsesMultimodalDrawingAnalyzer(
+            api_key="test-key",
+            base_url="https://proxy.example",
+            model="gpt-test",
+            responses_path="responses",
+            retry_delay=0,
+        )
+        calls = {"count": 0}
+
+        def fake_urlopen(_request, timeout=0):
+            calls["count"] += 1
+            if calls["count"] < 3:
+                raw = (
+                    b'event: error\n'
+                    b'data: {"type":"error","error":{"type":"service_unavailable_error","code":"server_is_overloaded","message":"Our servers are currently overloaded. Please try again later."},"sequence_number":3}\n\n'
+                )
+                return BytesIO(raw)
+            raw = (
+                b'event: response.output_text.delta\n'
+                b'data: {"type":"response.output_text.delta","delta":"ok"}\n\n'
+            )
+            return BytesIO(raw)
+
+        with patch("urllib.request.urlopen", side_effect=fake_urlopen):
+            parsed = analyzer._post_json(
+                analyzer._responses_url(), {"model": "gpt-test", "stream": True}
+            )
+
+        self.assertEqual(parsed["output_text"], "ok")
+        self.assertEqual(calls["count"], 3)
 
     def test_streaming_parser_times_out_when_line_read_hangs(self):
         class _SlowStream:

@@ -529,7 +529,10 @@ class BuildThreeTableLinkageMapTests(unittest.TestCase):
         ]
         self.assertGreaterEqual(len(cp_suggestions), 1)
         self.assertEqual(cp_suggestions[0]["status"], "待确认")
-        self.assertIn("pfmea_id", cp_suggestions[0].get("suggested_fields", {}))
+        suggested_fields = cp_suggestions[0].get("suggested_fields", {})
+        self.assertIn("pfmea_id", suggested_fields)
+        self.assertIn("process_parameter", suggested_fields)
+        self.assertIn("process_control_method", suggested_fields)
 
     def test_no_sync_suggestion_creates_pfmea_placeholder(self):
         """PFD 缺 PFMEA 只报差距，不生成 PFMEA 占位同步建议。"""

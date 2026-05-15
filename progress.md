@@ -2,6 +2,28 @@
 
 ## 当前任务：MINOS-CORE 调查审核与问题修复
 
+## PFMEA 标准链路与旧占位清理当前状态
+
+- 已定位：用户打开的旧运行里 `raw_result.pfmea.rows` 为空，`current_result.pfmea.rows` 是历史联动同步生成的 `PFMEA-SYNC-*` 占位；真正 PFMEA 文本模型生成失败，原始错误为 `LLM Responses HTTP 504 Gateway Time-out`。
+- 已修复：桌面服务读取 run 时会过滤 `PFMEA-SYNC-*` / “待工程人员填写失效模式 + 联动新增”旧占位，不再把它们作为 PFMEA 显示。
+- 已修复：如果过滤后 PFMEA 为空且 run 有失败消息，API 返回状态会还原为 `failed`，`blocked_stage=pfmea`，链式 PFMEA 阶段为 `failed` 且行数归零。
+- 已修复：Tauri 三表工作台阶段状态优先读取 API 顶层 `chain_stages`，避免旧 `raw_result/current_result` 中的阶段缓存误导界面。
+- 已修复：Tauri PFMEA 表改为按 AIAG-VDA 核心字段显示：过程步骤、工作要素、失效后果、严重度、失效模式、失效原因、预防控制、发生度、探测控制、探测度、AP、状态。
+- 已修复：PFMEA 多列编辑会写回对应字段，不再把失效原因、预防控制、探测控制误写成 `failure_mode`。
+- 已验证：`python -m pytest tests/test_desktop_shell.py::DesktopShellTests::test_legacy_pfmea_sync_placeholders_are_hidden_when_generation_failed tests/test_desktop_shell.py::DesktopShellTests::test_background_pfmea_generation_failure_is_persisted tests/test_ai_drawing_three_table_workflow.py::AIDrawingThreeTableWorkflowTests::test_chain_pfmea_inherits_confirmed_pfd_process_fields tests/test_ai_drawing_three_table_workflow.py::AIDrawingThreeTableWorkflowTests::test_chain_pfmea_rejects_rows_not_from_confirmed_pfd tests/test_desktop_tauri_app_state.py -q`：19 项通过。
+- 已验证：Tauri 前端 `npm run build` 通过。
+
+## 架构深挖问题修复当前状态
+
+- 已确认：GitHub issue #1 到 #5 已记录架构深挖问题，并已按 triage 规则标记为 `enhancement` + `ready-for-agent`。
+- 已启动：按用户要求直接按推荐顺序修复，先处理 pipeline 三表结果封装 seam，再处理桌面链式状态迁移，之后处理 edit patch 和 three_table_linkage 的报告装配分离。
+- 已完成：`minos_core/three_table_result.py` 抽出三表结果 envelope、manual review 和 status_display，`pipeline.py` 只保留委托入口。
+- 已完成：`minos_desktop/chain_state.py` 抽出桌面链式状态迁移，`minos_desktop/services.py` 仅做薄委托。
+- 已完成：`minos_core/edit_patch_reports.py` 抽出 review dashboard 和 manual review payload 装配，`edit_patch.py` 保留补丁内核。
+- 已完成：`minos_core/three_table_linkage_reports.py` 抽出 sync_snapshot / sync_issues / sync_suggestions 投影，`three_table_linkage.py` 保留 gap 检测。
+- 已验证：`python -m pytest tests/test_architecture_seams.py tests/test_edit_patch.py tests/test_three_table_linkage.py tests/test_ai_drawing_three_table_workflow.py -q`，100 passed, 12 subtests passed。
+- 进行中：继续补任务记录、问题发现和流程图，然后再看是否还有下一处值得深挖的 seam。
+
 ## 发布前完整验收当前状态
 
 - 已完成：发布前验收主线自动化检查已收口，当前未发现新的 core/platform/desktop API 代码缺陷。
@@ -14,7 +36,7 @@
 - 已验证：`python -m pytest tests/test_desktop_tauri_app_state.py tests/test_desktop_table_editor.py tests/test_desktop_shell.py tests/test_desktop_api_sidecar.py -q`：68 项通过；Tauri `npm run build` 通过。
 - 已定位：当前 run #17 失效模式分析不是本地计算慢，而是文本 Responses 请求多次返回 `504 Gateway Time-out`；后端已将 run 写成 `失败`，但图纸导入页没有持续刷新后台阶段状态。
 - 已修复：图纸导入页在确认过程流程图后持续轮询 run 状态，后台失败时显示“失效模式分析生成失败”和原始错误；文本模型默认推理强度保持 `medium`，未降到 `low`。
-- 已优化：文本 Responses 对 `504 Gateway Time-out` 不再重复三轮长等待，其他临时错误仍保留重试。
+- 已优化：文本 Responses 对 `504 Gateway Time-out` 已纳入临时上游错误重试；后续 PFMEA 超时主因通过按 PFD 工序拆分请求和流式输出继续收口。
 - 已验证：`python -m pytest tests/test_llm_text_responses.py tests/test_desktop_tauri_app_state.py tests/test_desktop_shell.py tests/test_desktop_api_sidecar.py -q`：49 项通过；Tauri `npm run build` 通过。
 - 已验证：`python -m pytest tests -q -m "not real_api"`：778 项通过、2 项跳过、61 个 subtests 通过。
 - 已验证：`python -m unittest discover -s tests -v`：719 项通过、1 项跳过。
@@ -75,7 +97,7 @@
 - 已完成：新增 `minos_core/adapters/multimodal.py`，定义云端多模态图纸识别 adapter 边界和 fake adapter。
 - 已完成：新增 `minos_core/ai_config.py`，MINOS 可复用 Codex 的 Responses 模型、中转地址和 auth 配置；密钥只在运行时读取，不写入仓库、不输出。
 - 已修复：当 Codex provider 配置 `requires_openai_auth = true` 时，MINOS 不再误用当前环境中的 `ARK_API_KEY`，会优先使用 Codex auth；Responses endpoint 也按 Codex 的 `responses` 路径调用，避免中转 URL 被拼成不一致的 `/v1/responses`。
-- 已完成：`python -m minos_core.cli ai-config` 可显示 AI 配置状态；当前推荐模型已收口为 `gpt-5.4`，并已用真实调用验证可在 Codex 配置的中转地址上完成三表草案生成。
+- 已完成：`python -m minos_core.cli ai-config` 可显示 AI 配置状态；当前默认模型已按项目要求收口为 `gpt-5.5`，并继续使用 Codex 配置的中转地址完成 Responses 调用。
 - 已完成：新增 `analyze-drawing` CLI，支持用当前 OpenAI/Codex Responses 配置调用云端多模态 AI，输出 `drawing_analysis_bundle` JSON。
 - 已完成：新增 `minos_core/drawing_analysis.py`，定义 `drawing_analysis_bundle`、AI JSON 解析、证据引用校验和图纸识别质量门。
 - 已完成：新增 `minos_core/drawing_to_pfd.py`，从图纸识别的 manufacturing clues 推理 PFD 草案。
@@ -440,9 +462,9 @@ Phase 6 真实项目试运行已完成代码落地：input_package 接入 genera
 本阶段已完成三类真实图纸样本的后端闭环验收，并补上了桌面依赖与 preflight 健壮性修复。
 
 ## 已完成
-- 修复 `load_openai_responses_config()` 的模型漂移：MINOS 不再默认继承 Codex 主模型，未显式配置时固定回落到 `gpt-5.4`，但继续复用 Codex `auth.json` 和中转 `base_url`。
+- 修复 `load_openai_responses_config()` 的模型漂移：MINOS 不再默认继承 Codex 主模型，未显式配置时固定回落到项目默认 `gpt-5.5`，但继续复用 Codex `auth.json` 和中转 `base_url`。
 - 同步修正桌面设置状态来源：`model_source` 现在只显示环境变量来源或 `default`，不再误报 `codex_config`。
-- 新增 `tests/test_ai_config.py` 回归场景，锁住“Codex 代理 + Codex 鉴权 + MINOS 默认模型仍为 `gpt-5.4`”。
+- 新增 `tests/test_ai_config.py` 回归场景，锁住“Codex 代理 + Codex 鉴权 + MINOS 默认模型为 `gpt-5.5`，显式环境变量仍可覆盖”。
 - 跑通第三类真实样本：`C:\Users\fgtan\Desktop\知识库种子\限位器\XWQ01000100-限位器.pdf`。
 - `accept-three-tables` 已验证限位器统一工作簿和三份独立 Excel 结构正常，可打开性检查通过。
 - 三类真实样本当前结果：
@@ -859,3 +881,119 @@ Phase 6 真实项目试运行已完成代码落地：input_package 接入 genera
 - 已验证：`python -m py_compile minos_core/drawing_to_pfd.py minos_core/pipeline_chain.py minos_core/live_linkage.py minos_core/three_table_linkage.py minos_desktop/api/jobs.py`：通过。
 - 已验证：`git diff --check`：通过。
 - 已验证：Tauri 前端 `npm run build` 通过。
+
+## V1.14.7 PFMEA 最新版格式修复
+
+- 当前状态：正在把 PFMEA 从旧 RPN 风格收口到 AIAG-VDA FMEA Handbook First Edition 2019 的七步法 / PFMEA Form C 风格。
+- 已完成：`normalize_pfmea_row` 统一补齐 `structure_process_item`、`structure_process_step`、`structure_work_element`、`function_process_item`、`function_process_step`、`function_work_element`、`preventive_action`、`detection_action`、`optimization_action`、`responsible_person`、`status`、`AP` 等字段。
+- 已完成：PFMEA 归一化保留 `calculate_rpn` 作为旧模块兼容函数，但新版 PFMEA 行不再默认输出 `rpn` / `after_rpn`。
+- 已完成：链式 PFMEA LLM prompt/schema 明确 AIAG-VDA 2019 AP 口径，删除旧 RPN 必填字段，增加结构分析、功能分析和优化措施字段。
+- 已完成：规则生成路径 `infer_pfmea_from_process_flow` 和 `normalize_pfmea_rows` 复用新版归一化，避免规则路径和 LLM 路径字段不一致。
+- 已完成：Tauri PFMEA 表格改为七步法分组字段：结构、功能、失效、风险和优化，不再显示旧 RPN 列。
+- 已完成：统一/拆分三表导出的 PFMEA 表头移除 `RPN` 与 `措施后 S/O/D/AP/RPN`，改为 `措施后 S/O/D/AP`。
+- 已完成：Tauri 启动自动恢复最近运行时跳过 `status=failed` 且 `blocked_stage=pfmea` 的旧失败运行，避免旧失败结果被误认为最新 PFMEA。
+- 已完成：Tauri 三表工作台新增“重新生成失效模式分析”按钮，PFMEA 阶段失败时可直接基于确认后的 PFD 重试。
+- 已完成：PFMEA 生成遇到 Responses `504 Gateway Time-out` 时会按临时上游错误重试，不再一次网关超时就直接失败；失败文案会明确提示“AI 上游模型或中转服务响应超时”。
+- 已定位：run 20 的已确认 PFD 有 11 个工序；真实实验中 1 个 PFD 工序的 PFMEA 请求约 52.8 秒成功生成 4 行，2 个工序合并请求约 185 秒后被中转返回 504，说明主要根因是 PFMEA 批量请求过重，不是 PFD 内容错误或模型完全不可用。
+- 已修复：链式 `generate_pfmea_from_confirmed_pfd(...)` 不再把整张确认 PFD 一次性发给文本 LLM，而是按每个 PFD 工序分别生成 PFMEA，再统一校验 `process_step_id`、继承 PFD 工序/功能/特性字段并汇总。
+- 已修复：文本 Responses 请求默认带 `stream=true`，并复用 SSE 解析器读取 `response.output_text.delta` / `response.completed`；流式用于减少中转空闲超时风险，核心降负载仍靠按工序拆分。
+- 已加固：单个 PFD 工序请求返回的 PFMEA 行必须匹配当前工序编号，不能串到另一个已确认工序；SSE 解析也兼容只有 `event:`、`data` 内无 `type` 的响应事件。
+- 已验证：真实 run 20 单工序拆分 smoke 已跑通，11 个 PFD 工序生成 44 条 PFMEA 行，耗时约 557 秒，结果写入 `out/desktop/pfmea_per_step_smoke_run20.json`。
+- 已验证：新增红灯回归测试覆盖后端 PFMEA Form C 字段、规则生成路径、导出表头、Tauri PFMEA 列、旧失败 run 自动恢复和 PFMEA 重生成入口。
+
+## V1.14.8 PFD 排序与三表总审核收口
+
+- 当前状态：已按用户反馈继续诊断 PFD 仍拖不动和 AI 审核时机问题，修复已完成并已重启发布版软件。
+- 已修复：PFD 表格行保持整行可拖，同时拖拽手柄自身也可触发 drag start，降低 Tauri WebView 中表格行原生拖拽不稳定的影响。
+- 已修复：PFD 左侧手柄改为 pointer 拖动兜底，不再和 HTML5 `draggable` 抢事件；拖出手柄/行区域后松手也会用 `elementFromPoint` 查找目标行。
+- 已修复：PFD 排序不再因为搜索、风险或状态筛选而被整体禁用；排序保存会把可见顺序映射回完整 PFD 行顺序并写入 `sequence` patch。
+- 已修复：PFD 手动排序保存现在同步重建线性 `previous_step_ids` / `next_step_ids`，避免上方流程图继续按旧连线显示错误箭头。
+- 已新增：PFD 排序保留上移/下移按钮作为可靠兜底，按钮和拖拽都走同一 `onReorderPfdRows` 保存链路。
+- 已修复：CP 确认后才生成 `automation_review`，其中写入 `review_stage=after_control_plan` 和 `human_decision_priority=True`。
+- 已修复：旧 `batch_confirm_automation_review` 服务入口增加后端门禁；CP 未确认或没有 after-control-plan 审核结果时直接返回当前 run，不再改任何行。
+- 已修复：桌面审核模型能读取 `automation_review.batch_confirm_candidates`，并让可批量确认候选优先于同目标普通人工任务。
+- 已验证：新增服务层行为测试已先红后绿，覆盖 CP 未确认时不能执行 AI 批量确认、CP 确认后才允许基于三表总审核结果执行。
+- 已验证：`python -m pytest tests/test_desktop_tauri_app_state.py -q`：22 项通过。
+- 已验证：`python -m pytest tests/test_desktop_shell.py -q`：26 项通过。
+- 已验证：`python -m pytest tests/test_automation_review.py -q`：4 项通过。
+- 已验证：`python -m pytest tests/test_closure_tasks.py -q`：3 项通过。
+- 已验证：`python -m pytest tests/test_desktop_table_editor.py tests/test_desktop_chain_state.py -q`：27 项通过。
+- 已验证：Tauri 前端 `npm run build` 通过；发布 exe `npm run tauri -- build --no-bundle` 通过。
+- 已验证：已启动 `D:\MINOS-CORE\apps\desktop-tauri\src-tauri\target\release\minos-core-desktop.exe`，进程响应正常，窗口标题为 `MINOS-CORE Workbench`。
+
+## V1.14.9 CP 生成 502 修复
+
+- 当前状态：已定位 CP 阶段 502 根因并完成后端修复。
+- 已定位：PFMEA 阶段已经拆成每个 PFD 工序一次请求，但 CP 阶段仍把全部高/中 AP 的 PFMEA 行和整张 PFD 一次性发给文本 LLM；这会在控制计划阶段再次触发上游 `502 upstream_error`。
+- 已修复：链式 `generate_cp_from_confirmed_pfmea(...)` 改为每条目标 PFMEA 行单独调用文本 LLM 生成 CP，再合并为控制计划。
+- 已加固：CP 返回行必须引用当前请求的 `pfmea_id`，并且 `process_step_id` 必须匹配该 PFMEA 行和已确认 PFD；串到其他 PFMEA 行会直接失败。
+- 已加固：CP schema 明确要求 `pfmea_id` 和 `characteristic_number`，避免生成结果缺少追溯来源。
+- 已验证：新增红灯回归测试先失败后通过，覆盖 CP 不再整批请求以及 CP 串 PFMEA ID 会被拒绝。
+- 已验证：`python -m pytest tests/test_ai_drawing_three_table_workflow.py tests/test_desktop_shell.py tests/test_desktop_tauri_app_state.py tests/test_llm_text_responses.py tests/test_openai_multimodal_adapter.py -q`：101 项通过。
+- 已验证：`git diff --check`：通过，仅有 CRLF 提示。
+- 已定位：用户再次看到 502 时，系统实际仍由旧窗口残留的 `python -m uvicorn ... --port 8000` sidecar 提供服务；新 Tauri 窗口没有接管端口，因此前端继续连到旧后端代码。
+- 已修复：Tauri sidecar 不再因为 `8000` 已打开就直接复用未知服务；如果没有显式 `MINOS_DESKTOP_API_BASE_URL`，会在 `8000-8020` 中选择空闲端口启动自己托管的 sidecar，并把实际端口回传给前端。
+- 已验证：人为用 `python -m http.server 8000` 占住 `8000` 后启动 MINOS，新版会把自己的 sidecar 启动到 `8001`，`8001/api/health` 通过。
+- 已验证：清理测试占用后重新打开 MINOS，当前 `minos-core-desktop.exe` 的子进程 `python.exe` 正常运行 `uvicorn ... --port 8000`，健康检查通过。
+- 已验证：run 23 第一条高风险 PFMEA `PFMEA-P01-01` 的单行 CP 真实 smoke 成功，13.2 秒生成 1 条 CP，证明新 CP 单行路径和模型可用。
+
+## V1.14.10 CP 过程控制可用性增强
+
+- 当前状态：已按用户反馈把 CP 从偏“结果检验计划”补成“过程控制 + 结果检验”的控制计划结构。
+- 已完成：链式 CP LLM schema/prompt 新增并要求 `process_parameter`、`parameter_specification`、`process_control_method`、`setup_verification`、`poka_yoke_device`、`poka_yoke_verification`、`process_record`。
+- 已完成：规则生成路径 `generate_control_plan_from_pfmea` 会从 PFMEA 的过程特性、失效原因、预防控制派生过程参数、参数规格/设定范围、过程控制方法、首件/换型确认、防错验证和过程记录。
+- 已完成：`normalize_control_plan_rows` 与 `ControlItem` 兼容新增字段，旧数据缺字段时不会断。
+- 已完成：桌面后端表格、Tauri CP 表格、统一三表工作簿和独立控制计划工作簿均显示新增过程控制字段。
+- 已修复：`tests/test_desktop_table_editor.py` 中措施管理用例原本依赖真实日期；当前日期为 2026-05-11 时会把 2026-05-10 判定为逾期。已改为测试内传入固定日期，避免后续日期漂移。
+- 已验证：新增红灯测试先失败后通过，覆盖 CP 过程控制字段、导出列和 Tauri 表格列。
+- 已验证：`python -m pytest tests/test_ai_drawing_three_table_workflow.py tests/test_generate_control_plan_stage.py tests/test_desktop_table_editor.py tests/test_desktop_tauri_app_state.py -q`：94 项通过。
+- 已验证：`python -m pytest tests/test_aiag_vda_v15.py tests/test_stage_result.py tests/test_quality_audit.py tests/test_three_table_linkage.py -q`：56 项和 4 个 subtests 通过。
+- 已验证：Tauri 前端 `npm run build` 通过；`git diff --check` 无空白错误，仅有 CRLF 提示。
+
+## V1.14.11 PFMEA 控制逻辑增强
+
+- 当前状态：已按用户确认的方案把 PFMEA 从“只列失效原因/预防/探测”增强为“风险控制逻辑可继承”的结构，但没有把 PFMEA 做成第二张 CP。
+- 已完成：PFMEA 行新增并稳定生成 `cause_process_parameter`、`prevention_control_target`、`prevention_control_timing`、`detection_control_target`、`detection_control_timing`、`control_logic_review`。
+- 已完成：`normalize_pfmea_row` 会从 PFD/PFMEA 的过程特性推导原因过程参数，从失效原因、预防控制、探测控制推导控制对象、控制时机和复核摘要。
+- 已完成：规则生成路径 `infer_pfmea_from_process_flow` 为每条风险行补齐控制逻辑字段，避免离线/规则模式继续输出薄 PFMEA。
+- 已完成：链式 PFMEA LLM prompt/schema 要求模型输出原因过程参数、预防控制对象/时机、探测对象/时机和控制逻辑复核；schema 为 strict JSON 字段。
+- 已完成：Tauri PFMEA 表格、桌面后端 PFMEA 表格、统一三表工作簿和独立 PFMEA 工作簿均显示新增控制逻辑字段。
+- 已完成：PFMEA 关键字段变更影响扩展到新增控制逻辑字段，控制逻辑改动会提示 CP 需同步确认。
+- 已完成：CP 继承路径优先使用 PFMEA `cause_process_parameter`，包括规则 CP 生成、链式 CP 后处理、桌面旧/手工 CP 行继承显示和联动新增 CP 建议。
+- 已完成：子代理只读审核指出的两个漏口已修复：桌面 CP 继承显示补 `cause_process_parameter -> process_parameter`；PFMEA 缺 CP 的联动建议补过程参数、过程控制、首件/防错/记录字段。
+- 已验证：新增红灯测试先失败后通过，覆盖 PFMEA 控制逻辑字段、CP 继承原因过程参数、桌面表格、Tauri 表格和联动新增 CP 建议。
+- 已验证：`python -m pytest tests/test_ai_drawing_three_table_workflow.py tests/test_generate_control_plan_stage.py tests/test_desktop_table_editor.py tests/test_desktop_tauri_app_state.py tests/test_three_table_linkage.py -q`：115 项通过。
+- 已验证：`python -m pytest tests/test_aiag_vda_v15.py tests/test_stage_result.py tests/test_quality_audit.py -q`：37 项和 4 个 subtests 通过。
+- 已验证：`python -m py_compile minos_core/aiag_vda_pfmea.py minos_core/pfd_to_pfmea_ai.py minos_core/pipeline_chain.py minos_core/generate_control_plan.py minos_core/exporters/three_table_workbooks.py minos_core/exporters/apqp_workbook.py minos_core/change_management.py minos_core/three_table_linkage_reports.py minos_desktop/table_editor.py`：通过。
+- 已验证：Tauri 前端 `npm run build` 通过。
+
+## V1.14.12 CP JSON 解析加固
+
+- 已定位：当前 run #25 卡在 CP 阶段不是 502/504，而是模型返回了完整 JSON 后又追加“原因判断 / 处理方案”等解释文字，导致严格 JSON 解析失败。
+- 已修复：文本 LLM 解析器在纯 JSON 和代码块解析失败后，会提取第一个完整 JSON 对象，能兼容“JSON + 额外说明”的真实返回。
+- 已收紧：CP system prompt 和单条 PFMEA prompt 明确要求只输出 schema JSON，不输出 Markdown、原因判断、处理方案或解释文字。
+- 已验证：新增红灯测试先失败后通过，覆盖 `{"rows": ...}` 后追加中文解释文字的流式响应。
+- 已验证：`python -m pytest tests/test_llm_text_responses.py -q`：9 项通过。
+- 已验证：`python -m pytest tests/test_ai_drawing_three_table_workflow.py -q -k "chain_cp or control_plan_generation"`：5 项通过，31 项未选中。
+- 已验证：`python -m py_compile minos_core\adapters\llm_text.py minos_core\pipeline_chain.py`：通过。
+
+## V1.14.13 Responses 流式事件横向加固
+
+- 已定位：run #27 的 PFMEA 失败不是路径权限问题，而是 Responses 流式返回没有被解析器识别到文本，错误为 `OpenAI Responses API stream did not contain output text`。
+- 已横向排查：项目中只有 `minos_core.adapters.multimodal._parse_responses_stream` 一个共享 Responses SSE 解析器；文本 LLM 和图纸多模态识别都复用它。
+- 已修复：流式解析器除 `response.output_text.delta` 外，继续兼容 `response.output_text.done`、`response.reasoning_text.done`、`response.done`、`response.output_item.done` 和 `response.content_part.done`。
+- 已验证：新增红灯测试覆盖 `output_text.done`、`response.done`、`output_item.done`、`content_part.done` 四类完成事件。
+- 已验证：`python -m pytest tests/test_openai_multimodal_adapter.py tests/test_llm_text_responses.py -q`：23 项通过。
+- 已验证：`python -m pytest tests/test_ai_drawing_three_table_workflow.py -q -k "chain_pfmea or chain_cp"`：6 项通过，30 项未选中。
+- 已验证：`python -m py_compile minos_core\adapters\multimodal.py`：通过；`git diff --check` 无空白错误，仅 CRLF 提示。
+
+## V1.14.14 SSE 上游过载重试
+
+- 已定位：run #28 的 PFMEA 失败不是解析器事件漏口，而是上游在 SSE 流里明确返回 `service_unavailable_error / server_is_overloaded`。
+- 根因：HTTP 429/500/502/503/504 已会重试，但同类临时错误如果包在 SSE `error` 事件里，会被 `_parse_responses_stream` 抛出后直接包装成阶段失败。
+- 已修复：新增共享 `is_retryable_responses_stream_error(...)`，识别 `server_is_overloaded`、`service_unavailable`、`temporarily unavailable`、`try again later` 和 `rate_limit`。
+- 已修复：文本 LLM 与多模态图纸识别两条 Responses 流式链路都复用该判断，遇到这类 SSE 临时上游错误会按已有 attempt 策略重试。
+- 已验证：新增红灯测试覆盖文本 PFMEA/PFD/CP 链路和图纸视觉链路的 SSE `server_is_overloaded` 重试。
+- 已验证：`python -m pytest tests/test_openai_multimodal_adapter.py tests/test_llm_text_responses.py -q`：25 项通过。
+- 已验证：`python -m pytest tests/test_ai_drawing_three_table_workflow.py -q -k "chain_pfmea or chain_cp"`：6 项通过，30 项未选中。
+- 已验证：`python -m py_compile minos_core\adapters\llm_text.py minos_core\adapters\multimodal.py`：通过；`git diff --check` 无空白错误，仅 CRLF 提示。

@@ -92,11 +92,17 @@ COLUMN_LABELS: dict[str, str] = {
     "failure_effect": "失效后果",
     "severity": "严重度 S",
     "failure_cause": "失效原因",
+    "cause_process_parameter": "原因过程参数",
     "occurrence": "发生度 O",
     "prevention_control": "预防控制",
+    "prevention_control_target": "预防控制对象",
+    "prevention_control_timing": "预防控制时机",
     "detection_control": "探测控制",
+    "detection_control_target": "探测对象",
+    "detection_control_timing": "探测时机",
     "detection": "探测度 D",
     "action_priority": "措施优先级 AP",
+    "control_logic_review": "控制逻辑复核",
     "rpn": "RPN",
     "recommended_action": "推荐措施",
     "optimization_action": "优化措施",
@@ -124,6 +130,14 @@ COLUMN_LABELS: dict[str, str] = {
     "sample_frequency": "检查频次",
     "frequency": "频次",
     "control_method": "控制方法",
+    "process_parameter": "过程参数",
+    "parameter_specification": "参数规格",
+    "process_control_method": "过程控制方法",
+    "setup_verification": "首件/换型确认",
+    "poka_yoke_device": "防错装置",
+    "poka_yoke_verification": "防错验证",
+    "process_record": "过程记录",
+    "record_form": "记录表单",
     "reaction_plan": "反应计划",
     ROW_STATUS_COLUMN: "行状态",
     "jump_target": "跳转目标",
@@ -208,10 +222,18 @@ TABLE_SPECS: dict[str, TableSpec] = {
             "failure_mode",
             "failure_effect",
             "failure_cause",
+            "cause_process_parameter",
+            "prevention_control",
+            "prevention_control_target",
+            "prevention_control_timing",
             "severity",
             "occurrence",
+            "detection_control",
+            "detection_control_target",
+            "detection_control_timing",
             "detection",
             "action_priority",
+            "control_logic_review",
             "optimization_action",
             "recommended_action",
             "responsible_person",
@@ -219,8 +241,6 @@ TABLE_SPECS: dict[str, TableSpec] = {
             "target_date",
             "status",
             "action_status",
-            "prevention_control",
-            "detection_control",
             "rpn",
             "actual_completion_date",
             "after_severity",
@@ -260,6 +280,13 @@ TABLE_SPECS: dict[str, TableSpec] = {
             "sample_size",
             "sample_frequency",
             "control_method",
+            "process_parameter",
+            "parameter_specification",
+            "process_control_method",
+            "setup_verification",
+            "poka_yoke_device",
+            "poka_yoke_verification",
+            "process_record",
             "reaction_plan",
             "gauges",
             "inspection_equipment",
@@ -1109,12 +1136,32 @@ def _automation_review_items(result: dict[str, Any]) -> list[dict[str, Any]]:
             metadata.get(key, [])
             for key in ("automation_review", "automation_review_items", "ai_pre_review")
         )
-    candidates.append(result.get("automation_review", []) if isinstance(result, dict) else [])
+    if isinstance(result, dict):
+        review = result.get("automation_review", [])
+        if isinstance(review, dict):
+            review_items: list[dict[str, Any]] = []
+            for item in review.get("batch_confirm_candidates", []):
+                if isinstance(item, dict):
+                    review_items.append({**item, "review_category": "可批量确认"})
+            for item in review.get("automation_tasks", []):
+                if isinstance(item, dict):
+                    review_items.append(item)
+            for item in review.get("blocking_issues", []):
+                if isinstance(item, dict):
+                    review_items.append({**item, "review_category": "阻断问题"})
+            for item in review.get("review_issues", []):
+                if isinstance(item, dict):
+                    review_items.append(item)
+            candidates.append(review_items)
+        else:
+            candidates.append(review)
     for value in candidates:
         if isinstance(value, dict):
             value = value.get("items", [])
         if isinstance(value, list):
-            return [item for item in value if isinstance(item, dict)]
+            items = [item for item in value if isinstance(item, dict)]
+            if items:
+                return items
     return []
 
 
@@ -1150,6 +1197,8 @@ def _automation_category(item: dict[str, Any]) -> str:
     if category in {"可批量确认", "需要人工判断", "阻断问题"}:
         return category
     action = str(item.get("recommended_action") or item.get("action") or "").strip()
+    if item.get("can_batch_confirm") is True:
+        return "可批量确认"
     risk = str(item.get("risk_level") or item.get("risk") or item.get("severity") or "").lower()
     if action in {"batch_confirm", "confirm"} or risk in {"low", "低", "low_risk"}:
         return "可批量确认"
@@ -1307,7 +1356,7 @@ def _is_low_risk_ai_confirmation_row(row: dict[str, Any]) -> bool:
 
 
 def _dedupe_automation_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    priority = {"阻断问题": 3, "需要人工判断": 2, "可批量确认": 1}
+    priority = {"阻断问题": 3, "可批量确认": 2, "需要人工判断": 1}
     by_key: dict[tuple[str, str], dict[str, Any]] = {}
     for row in rows:
         key = (
@@ -1644,8 +1693,17 @@ def _with_inherited_display_fields(
                 "process_characteristic",
                 "special_characteristic_class",
                 "specification_tolerance",
+                "process_parameter",
+                "parameter_specification",
+                "process_control_method",
+                "setup_verification",
+                "poka_yoke_device",
+                "poka_yoke_verification",
+                "process_record",
             ),
         )
+        if not enriched.get("process_parameter") and pfmea_row and pfmea_row.get("cause_process_parameter"):
+            enriched["process_parameter"] = copy.deepcopy(pfmea_row["cause_process_parameter"])
         _copy_cp_standard_characteristics(enriched, pfmea_row=pfmea_row, pfd_row=pfd_row)
         if not enriched.get("product_process_characteristic"):
             enriched["product_process_characteristic"] = _first_nonempty(
@@ -1680,10 +1738,12 @@ def _with_inherited_display_fields(
             enriched,
             (
                 ("process_name", "operation", "process_step"),
+                ("process_parameter", "cause_process_parameter"),
                 ("specification_tolerance", "specification", "tolerance"),
                 ("specification", "specification_tolerance", "tolerance"),
                 ("special_characteristic_class", "classification"),
                 ("classification", "special_characteristic_class"),
+                ("process_record", "record_form"),
             ),
         )
         return enriched

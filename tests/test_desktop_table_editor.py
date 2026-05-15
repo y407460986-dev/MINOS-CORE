@@ -1,5 +1,6 @@
 import copy
 import unittest
+from datetime import date
 
 from minos_desktop.table_editor import (
     AUTOMATION_BATCH_CONFIRM_MODE,
@@ -219,9 +220,22 @@ class DesktopTableEditorTests(unittest.TestCase):
         self.assertIn("function_requirement", model["columns"])
         self.assertIn("product_characteristics", model["columns"])
         self.assertIn("process_characteristics", model["columns"])
+        for field in (
+            "cause_process_parameter",
+            "prevention_control_target",
+            "prevention_control_timing",
+            "detection_control_target",
+            "detection_control_timing",
+            "control_logic_review",
+        ):
+            self.assertIn(field, model["columns"])
         self.assertEqual(
             model["column_labels"][model["columns"].index("structure_process_item")],
             "结构过程项",
+        )
+        self.assertEqual(
+            model["column_labels"][model["columns"].index("cause_process_parameter")],
+            "原因过程参数",
         )
         self.assertEqual(model["rows"][0]["operation"], "Incoming inspection")
         self.assertEqual(model["rows"][0]["structure_process_step"], "Incoming inspection")
@@ -292,6 +306,15 @@ class DesktopTableEditorTests(unittest.TestCase):
         self.assertEqual(model["rows"][0]["product_process_characteristic"], ["Material grade"])
         self.assertEqual(model["rows"][0]["measurement_method"], "Caliper check")
         self.assertEqual(model["rows"][0]["gauges"], ["Caliper"])
+
+    def test_control_plan_model_inherits_pfmea_cause_process_parameter(self):
+        result = _result()
+        result["pfmea"]["rows"][0]["cause_process_parameter"] = "来料批次状态"
+        result["control_plan"]["rows"][0].pop("process_parameter", None)
+
+        model = three_table_to_table_model(result, "control_plan")
+
+        self.assertEqual(model["rows"][0]["process_parameter"], "来料批次状态")
 
     def test_desktop_models_prefer_standard_fields_when_aliases_conflict(self):
         result = _result()
@@ -606,8 +629,8 @@ class DesktopTableEditorTests(unittest.TestCase):
         result["pfmea"]["rows"][0]["optimization_action"] = ""
         result["pfmea"]["rows"][0]["recommended_action"] = ""
 
-        model = action_management_model(result)
-        filtered = filter_pfmea_rows(result, "AP 高")
+        model = action_management_model(result, today=date(2026, 5, 10))
+        filtered = filter_pfmea_rows(result, "AP 高", today=date(2026, 5, 10))
 
         self.assertEqual(model["rows"][0]["status_display"], "待制定措施")
         self.assertEqual(filtered[0]["pfmea_id"], "PFMEA-P10-001")

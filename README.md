@@ -106,7 +106,7 @@ MINOS-CORE 当前不承诺、也不内置以下能力：
 - AI 线索不能单独满足下游质量门，必须经过规则证据、质量门和人工复核。
 - 图纸识别已接入 OpenAI Responses 兼容 adapter：`OpenAIResponsesMultimodalDrawingAnalyzer`。
 - 配置读取顺序为：显式 `MINOS_OPENAI_*`、`OPENAI_*` 优先；当 Codex provider 标记 `requires_openai_auth = true` 时，MINOS 会优先复用 Codex `auth.json` 的 OpenAI key，再考虑 `ARK_API_KEY`。
-- 当前推荐将 MINOS 运行模型固定为 `gpt-5.4`；在当前 Codex 中转配置下，这条链路已经验证可通过标准 HTTP Responses 请求完成真实三表草案生成。API key 只在运行时读取，不写入仓库、不打印到诊断输出。
+- 当前按项目要求将 MINOS 运行模型固定为 `gpt-5.5`；继续复用 Codex 中转配置和标准 HTTP Responses 请求链路。API key 只在运行时读取，不写入仓库、不打印到诊断输出。
 - `python -m minos_core.cli ai-config` 只显示模型、中转地址、key 是否已配置和来源，不显示 key 值。
 - 可用 `python -m minos_core.cli analyze-drawing --input path\to\drawing.png --output out\drawing_analysis.json` 调用真实多模态 AI 生成 `drawing_analysis_bundle`。
 - 可用 `python -m minos_core.cli generate-three-tables --input path\to\drawing.png --output-dir out\case001` 从图纸一键生成 PFD/PFMEA/CP 草案和 Excel。

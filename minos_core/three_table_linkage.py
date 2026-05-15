@@ -11,6 +11,11 @@ from typing import Any
 from .change_management import _rows, _group
 from minos_core._text_utils import text
 from .domain import EntityType, TraceLinkType
+from .three_table_linkage_reports import (
+    build_sync_issues as _build_sync_issues,
+    build_sync_snapshot as _build_sync_snapshot,
+    build_sync_suggestions as _build_sync_suggestions,
+)
 
 
 def build_three_table_linkage_map(source: dict[str, Any]) -> dict[str, Any]:
@@ -125,101 +130,6 @@ def find_linkage_gaps(source: dict[str, Any]) -> list[dict[str, Any]]:
     """
     linkage_map = build_three_table_linkage_map(source)
     return list(linkage_map.get("gaps", []))
-
-
-def _build_sync_snapshot(linkage_map: dict[str, Any]) -> dict[str, Any]:
-    """Build a sync snapshot from the linkage map gaps.
-
-    Extracts coverage statistics and groups gap sources by category_key
-    so downstream consumers can render a three-table sync dashboard.
-    """
-    summary = linkage_map.get("summary", {})
-    gaps = linkage_map.get("gaps", [])
-    return {
-        "process_step_count": summary.get("process_step_count", 0),
-        "pfmea_row_count": summary.get("pfmea_row_count", 0),
-        "control_plan_row_count": summary.get("control_plan_row_count", 0),
-        "pfd_steps_without_pfmea": [
-            g["source"] for g in gaps if g.get("category_key") == "pfd_pfmea_coverage"
-        ],
-        "pfmea_without_pfd": [
-            g["source"] for g in gaps if g.get("category_key") in ("orphan_pfmea",)
-        ],
-        "pfmea_without_cp": [
-            g["source"] for g in gaps if g.get("category_key") == "pfmea_cp_coverage"
-        ],
-        "cp_without_pfmea": [
-            g["source"] for g in gaps if g.get("category_key") in ("orphan_cp", "orphan_cp_step")
-        ],
-        "special_characteristics_missing_in_pfmea": [
-            g["source"] for g in gaps if g.get("category_key") == "special_char_step"
-        ],
-        "special_characteristics_missing_in_cp": [
-            g["source"] for g in gaps if g.get("category_key") == "special_char_cp"
-        ],
-        "cp_execution_gaps": [
-            g["source"] for g in gaps if g.get("category_key") in (
-                "cp_missing_measurement", "cp_missing_frequency", "cp_missing_reaction_plan",
-            )
-        ],
-    }
-
-
-def _build_sync_issues(linkage_map: dict[str, Any]) -> list[dict[str, Any]]:
-    """Convert gaps into a UI-friendly sync issue list.
-
-    Each issue carries a stable ``issue_id`` (derived from ``gap_id``) and
-    a ``category`` of ``"三表同步"`` to distinguish sync issues from raw
-    linkage gaps.
-    """
-    gaps = linkage_map.get("gaps", [])
-    return [
-        {
-            "issue_id": gap["gap_id"],
-            "category": "三表同步",
-            "category_key": gap.get("category_key", ""),
-            "severity": gap["severity"],
-            "source": gap["source"],
-            "target": gap.get("target", ""),
-            "message": gap["message"],
-            "recommended_action": gap.get("recommended_action", ""),
-            "status": "待处理",
-        }
-        for gap in gaps
-    ]
-
-
-def _build_sync_suggestions(linkage_map: dict[str, Any]) -> list[dict[str, Any]]:
-    """Generate actionable sync suggestions for blocker gaps.
-
-    Only gaps with ``severity == "blocker"`` are considered.  Suggestions are
-    limited to categories where a mechanical remediation can be proposed
-    (add a missing CP row or add a missing PFMEA row).
-    """
-    suggestions: list[dict[str, Any]] = []
-    gaps = linkage_map.get("gaps", [])
-    for gap in gaps:
-        if gap.get("severity") != "blocker":
-            continue
-        ck = gap.get("category_key", "")
-        # PFMEA without CP -> suggest adding a CP row
-        if ck == "pfmea_cp_coverage":
-            pfmea_id = gap["source"].replace("pfmea:", "")
-            suggestions.append({
-                "suggestion_id": f"SYNC-SUGG-ADD-CP-{pfmea_id}",
-                "source_issue_id": gap["gap_id"],
-                "target_table": "control_plan",
-                "target_id": "NEW",
-                "suggested_action": "add",
-                "suggested_fields": {
-                    "pfmea_id": pfmea_id,
-                    "measurement_method": "按 PFMEA 风险定义测量方法",
-                    "sample_frequency": "首件和巡检",
-                    "reaction_plan": "隔离并通知质量工程师",
-                },
-                "status": "待确认",
-            })
-    return suggestions
 
 
 # ---------------------------------------------------------------------------

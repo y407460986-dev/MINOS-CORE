@@ -14,6 +14,17 @@ from minos_core.ai_config import load_openai_responses_config
 from minos_core.knowledge_recommendation import DEFAULT_KNOWLEDGE_RULES
 from minos_core.pipeline import analyze_drawing_for_three_table_chain
 
+from .chain_state import (
+    chain_stages_from_envelope,
+    confirm_chain_table,
+    dedupe_texts as _chain_dedupe_texts,
+    failed_chain_stage,
+    init_chain_stages,
+    invalidate_chain_after_patch,
+    table_row_count,
+    pending_row_count,
+    table_rows_for_chain,
+)
 from .app_state import (
     ChainStageStates,
     DesktopAIConfigState,
@@ -673,6 +684,9 @@ class DesktopRunService:
             pipeline_mode="chain",
         )
         current["status"] = "draft_ready"
+        from minos_core.automation_review import build_automation_review
+
+        current["automation_review"] = build_automation_review(current)
         envelope = _desktop_result_envelope(
             run.raw_result,
             current_result=current,
@@ -1074,9 +1088,17 @@ class DesktopRunService:
 
     def batch_confirm_automation_review(self, run_id: int) -> DesktopRunRecord:
         current = self.get_run(run_id)
+        if not _can_apply_after_control_plan_automation_review(current):
+            return current
         patch = automation_batch_confirm_patch(current.current_result)
         if not patch.get("items"):
             return current
+        for item in patch["items"]:
+            if isinstance(item, dict):
+                metadata = item.setdefault("metadata", {})
+                if isinstance(metadata, dict):
+                    metadata.setdefault("confirmation_mode", "ai_recommended_batch")
+                    metadata.setdefault("source", "automation_review")
         return self.apply_edit_patch_to_run(run_id, patch)
 
     def accept_automation_fix_suggestion(
@@ -1325,11 +1347,7 @@ def format_desktop_failure(
 ) -> str:
     raw = str(error)
     reason_text = reason or _guess_failure_reason(raw)
-    action_items = actions or [
-        "检查图纸路径、输出目录权限和 AI 配置后重试。",
-        "保留当前项目记录，修正输入后重新运行。",
-        "放弃任务。",
-    ]
+    action_items = actions or _default_failure_actions(raw)
     if not any("放弃任务" in item for item in action_items):
         action_items.append("放弃任务。")
     return "\n".join(
@@ -1368,14 +1386,29 @@ def _run_from_row(row: sqlite3.Row) -> DesktopRunRecord:
     manual_review_items = _from_json_list(str(row["manual_review_json"]))
     raw_result = _from_json_object(str(row["raw_result_json"]))
     stored = _stored_result_parts(raw_result)
-    current_result = dict(stored["current_result"])
+    current_result = copy.deepcopy(stored["current_result"])
+    chain_stages = _chain_stages_from_envelope(raw_result)
+    failure_message = str(row["failure_message"])
+    current_result, chain_stages = _sanitize_legacy_pfmea_placeholders(
+        current_result,
+        chain_stages,
+        failure_message=failure_message,
+    )
     if stored.get("edit_patch"):
         current_result["edit_patch"] = stored["edit_patch"]
-    chain_stages = _chain_stages_from_envelope(raw_result)
+    state_status = str(row["status"])
+    state_blocked_stage = str(row["blocked_stage"])
+    if (
+        failure_message
+        and str(current_result.get("status") or "") == "failed"
+        and str(current_result.get("blocked_stage") or "") == "pfmea"
+    ):
+        state_status = "failed"
+        state_blocked_stage = "pfmea"
     state = DesktopRunState(
-        status=str(row["status"]),
-        status_display=_status_display(str(row["status"])),
-        blocked_stage=str(row["blocked_stage"]),
+        status=state_status,
+        status_display=_status_display(state_status),
+        blocked_stage=state_blocked_stage,
         exports=tuple(
             sorted(
                 (
@@ -1399,7 +1432,7 @@ def _run_from_row(row: sqlite3.Row) -> DesktopRunRecord:
         state=state,
         output_dir=str(row["output_dir"]),
         raw_result=current_result,
-        failure_message=str(row["failure_message"]),
+        failure_message=failure_message,
         created_at=str(row["created_at"]),
         original_result=stored["raw_result"],
         current_result=current_result,
@@ -1416,6 +1449,61 @@ def _stored_payload_for_run(store: DesktopSQLiteStore, run_id: int) -> dict[str,
     if row is None:
         raise KeyError(f"desktop run not found: {run_id}")
     return _from_json_object(str(row["raw_result_json"]))
+
+
+def _sanitize_legacy_pfmea_placeholders(
+    result: dict[str, Any],
+    chain_stages: ChainStageStates | None,
+    *,
+    failure_message: str,
+) -> tuple[dict[str, Any], ChainStageStates | None]:
+    pfmea = result.get("pfmea") if isinstance(result, dict) else None
+    rows = pfmea.get("rows") if isinstance(pfmea, dict) else None
+    if not isinstance(rows, list):
+        return result, chain_stages
+    kept_rows = [row for row in rows if not _is_legacy_pfmea_placeholder(row)]
+    removed_count = len(rows) - len(kept_rows)
+    if removed_count <= 0:
+        return result, chain_stages
+
+    pfmea["rows"] = kept_rows
+    if not kept_rows and failure_message:
+        result["status"] = "failed"
+        result["blocked_stage"] = "pfmea"
+        chain_stages = _mark_pfmea_stage_failed(chain_stages)
+    return result, chain_stages
+
+
+def _is_legacy_pfmea_placeholder(row: Any) -> bool:
+    if not isinstance(row, dict):
+        return False
+    pfmea_id = str(row.get("pfmea_id") or "").strip()
+    failure_mode = str(row.get("failure_mode") or "").strip()
+    review_status = str(row.get("review_status") or "").strip()
+    return pfmea_id.startswith("PFMEA-SYNC-") or (
+        failure_mode == "待工程人员填写失效模式"
+        and review_status == "联动新增"
+    )
+
+
+def _mark_pfmea_stage_failed(
+    chain_stages: ChainStageStates | None,
+) -> ChainStageStates | None:
+    if chain_stages is None:
+        return None
+    return ChainStageStates(
+        pfd=chain_stages.pfd,
+        pfmea=StageConfirmState(
+            status="failed",
+            generated_at=chain_stages.pfmea.generated_at,
+            confirmed_at=chain_stages.pfmea.confirmed_at,
+            confirmed_by=chain_stages.pfmea.confirmed_by,
+            row_count=0,
+            pending_count=0,
+        ),
+        cp=chain_stages.cp,
+        pipeline_mode=chain_stages.pipeline_mode,
+    )
 
 
 def _seed_knowledge_rules(connection: sqlite3.Connection) -> None:
@@ -1464,6 +1552,10 @@ def _knowledge_rule_from_row(row: sqlite3.Row) -> dict[str, Any]:
 
 def _guess_failure_reason(message: str) -> str:
     lowered = message.lower()
+    if "504" in lowered or "gateway time-out" in lowered or "gateway timeout" in lowered:
+        return "AI 上游模型或中转服务响应超时。"
+    if "timed out" in lowered or "timeout" in lowered:
+        return "AI 模型响应超时或网络链路过慢。"
     if "references unknown evidence" in lowered or "unknown evidence" in lowered:
         return "AI 引用了不存在的图纸页面证据，通常是模型页码引用和实际渲染页数不一致。"
     if "api" in lowered or "key" in lowered:
@@ -1473,6 +1565,21 @@ def _guess_failure_reason(message: str) -> str:
     if "not found" in lowered or "no such file" in lowered:
         return "输入文件或运行依赖的路径可能不存在。"
     return "不确定。"
+
+
+def _default_failure_actions(message: str) -> list[str]:
+    lowered = message.lower()
+    if "504" in lowered or "gateway time-out" in lowered or "gateway timeout" in lowered:
+        return [
+            "稍后重试失效模式分析生成；当前 PFD 已保留。",
+            "如果连续失败，降低文本模型推理强度或切换更稳定的 AI 服务。",
+            "放弃任务。",
+        ]
+    return [
+        "检查图纸路径、输出目录权限和 AI 配置后重试。",
+        "保留当前项目记录，修正输入后重新运行。",
+        "放弃任务。",
+    ]
 
 
 def _status_display(status: str) -> str:
@@ -1730,9 +1837,28 @@ def _apply_desktop_patch_marks(result: dict[str, Any], patch: dict[str, Any]) ->
 
 
 def _is_automation_batch_confirm(item: dict[str, Any]) -> bool:
+    metadata = item.get("metadata")
+    if isinstance(metadata, dict):
+        return (
+            str(metadata.get("confirmation_mode", "")) == "ai_recommended_batch"
+            and str(metadata.get("source", "")) == "automation_review"
+        )
     return (
         str(item.get("confirmation_mode", "")) == "ai_recommended_batch"
         and str(item.get("source", "")) == "automation_review"
+    )
+
+
+def _can_apply_after_control_plan_automation_review(run: DesktopRunRecord) -> bool:
+    chain_stages = _chain_stages_from_run(run)
+    if chain_stages.cp.status != "confirmed":
+        return False
+    review = run.current_result.get("automation_review")
+    if not isinstance(review, dict):
+        return False
+    return (
+        review.get("review_stage") == "after_control_plan"
+        and review.get("human_decision_priority") is True
     )
 
 
@@ -1885,19 +2011,11 @@ def _init_chain_stages(
     pfd_pending: int = 0,
 ) -> ChainStageStates:
     """创建初始的链式阶段状态。"""
-    now = _utc_now() if pfd_status not in ("not_started", "failed") else ""
-    return ChainStageStates(
-        pfd=StageConfirmState(
-            status=pfd_status,
-            generated_at=now,
-            row_count=pfd_rows,
-            pending_count=pfd_pending,
-        ),
-        pfmea=StageConfirmState(
-            status="running" if pfd_status == "confirmed" else "not_started"
-        ),
-        cp=StageConfirmState(status="not_started"),
-        pipeline_mode="chain",
+    return init_chain_stages(
+        pfd_status,
+        pfd_rows=pfd_rows,
+        pfd_pending=pfd_pending,
+        now=_utc_now(),
     )
 
 
@@ -1910,10 +2028,7 @@ def _chain_stages_from_run(run: DesktopRunRecord) -> ChainStageStates:
 
 def _chain_stages_from_envelope(envelope: dict[str, Any]) -> ChainStageStates | None:
     """从存储 envelope 中解析链式阶段状态。"""
-    data = envelope.get("chain_stages")
-    if data and isinstance(data, dict):
-        return ChainStageStates.from_dict(data)
-    return None
+    return chain_stages_from_envelope(envelope)
 
 
 def _chain_file_result(envelope: dict[str, Any]) -> dict[str, Any]:
@@ -1934,24 +2049,11 @@ def _confirm_chain_table(
     *,
     confirmed_by: str = "",
 ) -> None:
-    for row in _table_rows_for_chain(result, table):
-        if not isinstance(row, dict):
-            continue
-        row["needs_confirmation"] = False
-        row["ai_inferred"] = False
-        row["review_status"] = "已确认"
-        if confirmed_by:
-            row["confirmed_by"] = confirmed_by
+    confirm_chain_table(result, table, confirmed_by=confirmed_by)
 
 
 def _failed_chain_stage(chain_stages: ChainStageStates | None) -> str:
-    if chain_stages is None:
-        return ""
-    for stage_name in ("pfd", "pfmea", "cp"):
-        stage = getattr(chain_stages, stage_name)
-        if stage.status == "failed":
-            return stage_name
-    return ""
+    return failed_chain_stage(chain_stages)
 
 
 def _invalidate_chain_after_patch(
@@ -1960,57 +2062,7 @@ def _invalidate_chain_after_patch(
     chain_stages: ChainStageStates | None,
 ) -> tuple[dict[str, Any], ChainStageStates | None]:
     """Invalidate downstream staged outputs when an upstream table changes."""
-
-    if chain_stages is None or chain_stages.pipeline_mode != "chain":
-        return result, chain_stages
-    changed_tables = _changed_chain_tables(patch)
-    if not changed_tables:
-        return result, chain_stages
-
-    updated = copy.deepcopy(result)
-    metadata = updated.setdefault("metadata", {})
-    if not isinstance(metadata, dict):
-        metadata = {}
-        updated["metadata"] = metadata
-    invalidated = list(metadata.get("chain_invalidated_stages", []))
-
-    if "process_flow" in changed_tables:
-        updated["pfmea"] = {"rows": []}
-        updated["control_plan"] = {"rows": []}
-        invalidated = _dedupe_texts(invalidated + ["pfmea", "control_plan"])
-        chain_stages = ChainStageStates(
-            pfd=StageConfirmState(
-                status="generated",
-                generated_at=chain_stages.pfd.generated_at,
-                confirmed_at="",
-                confirmed_by="",
-                row_count=_table_row_count(updated, "process_flow"),
-                pending_count=_pending_row_count(updated, "process_flow"),
-            ),
-            pfmea=StageConfirmState(status="not_started"),
-            cp=StageConfirmState(status="not_started"),
-            pipeline_mode="chain",
-        )
-    elif "pfmea" in changed_tables:
-        updated["control_plan"] = {"rows": []}
-        invalidated = _dedupe_texts(invalidated + ["control_plan"])
-        chain_stages = ChainStageStates(
-            pfd=chain_stages.pfd,
-            pfmea=StageConfirmState(
-                status="generated",
-                generated_at=chain_stages.pfmea.generated_at,
-                confirmed_at="",
-                confirmed_by="",
-                row_count=_table_row_count(updated, "pfmea"),
-                pending_count=_pending_row_count(updated, "pfmea"),
-            ),
-            cp=StageConfirmState(status="not_started"),
-            pipeline_mode="chain",
-        )
-
-    metadata["chain_invalidated_stages"] = invalidated
-    updated["status"] = "needs_review"
-    return updated, chain_stages
+    return invalidate_chain_after_patch(result, patch, chain_stages)
 
 
 def _changed_chain_tables(patch: dict[str, Any]) -> set[str]:
@@ -2031,33 +2083,16 @@ def _changed_chain_tables(patch: dict[str, Any]) -> set[str]:
 
 
 def _table_row_count(result: dict[str, Any], table: str) -> int:
-    return len(_table_rows_for_chain(result, table))
+    return table_row_count(result, table)
 
 
 def _pending_row_count(result: dict[str, Any], table: str) -> int:
-    return sum(
-        1
-        for row in _table_rows_for_chain(result, table)
-        if isinstance(row, dict) and bool(row.get("needs_confirmation", False))
-    )
+    return pending_row_count(result, table)
 
 
 def _table_rows_for_chain(result: dict[str, Any], table: str) -> list[Any]:
-    document = result.get(table)
-    if not isinstance(document, dict):
-        return []
-    key = "steps" if table == "process_flow" else "rows"
-    rows = document.get(key, [])
-    return rows if isinstance(rows, list) else []
+    return table_rows_for_chain(result, table)
 
 
 def _dedupe_texts(values: list[Any]) -> list[str]:
-    seen: set[str] = set()
-    result: list[str] = []
-    for value in values:
-        text = str(value or "").strip()
-        if not text or text in seen:
-            continue
-        seen.add(text)
-        result.append(text)
-    return result
+    return _chain_dedupe_texts(values)

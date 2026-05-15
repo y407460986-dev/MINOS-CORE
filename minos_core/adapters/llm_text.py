@@ -16,7 +16,12 @@ from minos_core.ai_config import (
     load_openai_api_key,
     load_openai_responses_config,
 )
-from minos_core.adapters.multimodal import _extract_output_text
+from minos_core.adapters.multimodal import (
+    OpenAIMultimodalError,
+    _extract_output_text,
+    _parse_responses_stream,
+    is_retryable_responses_stream_error,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +80,7 @@ class OpenAITextGenerator:
                 },
             ],
             "max_output_tokens": max_tokens,
+            "stream": True,
         }
         if temperature is not None and not self._reasoning_effort:
             payload["temperature"] = temperature
@@ -99,8 +105,8 @@ class OpenAITextGenerator:
 
     def _post_json(self, url: str, payload: dict[str, Any]) -> dict[str, Any]:
         data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-        attempts = 3
-        for attempt in range(1, attempts + 1):
+        max_attempts = 4
+        for attempt in range(1, max_attempts + 1):
             req = urllib.request.Request(
                 url,
                 data=data,
@@ -113,21 +119,39 @@ class OpenAITextGenerator:
             )
             try:
                 with urllib.request.urlopen(req, timeout=self._timeout_seconds) as resp:
+                    if payload.get("stream") is True:
+                        return _parse_responses_stream(
+                            resp,
+                            fallback_model=str(payload.get("model") or ""),
+                            timeout_seconds=self._timeout_seconds,
+                        )
                     return json.loads(resp.read().decode("utf-8"))
             except (TimeoutError, socket.timeout) as exc:
+                if attempt < max_attempts:
+                    time.sleep(2 ** attempt)
+                    continue
                 raise RuntimeError(_timeout_message(self._timeout_seconds)) from exc
+            except OpenAIMultimodalError as exc:
+                msg = str(exc).lower()
+                if "timed out" in msg:
+                    if attempt < max_attempts:
+                        time.sleep(2 ** attempt)
+                        continue
+                    raise RuntimeError(_timeout_message(self._timeout_seconds)) from exc
+                if attempt < max_attempts and is_retryable_responses_stream_error(str(exc)):
+                    time.sleep(2 ** attempt)
+                    continue
+                raise RuntimeError(f"LLM Responses stream failed: {exc}") from exc
             except urllib.error.HTTPError as exc:
                 err_body = exc.read().decode("utf-8", errors="replace")
-                if attempt < attempts and exc.code in {429, 500, 502, 503}:
-                    time.sleep(attempt)
+                if attempt < max_attempts and exc.code in {429, 500, 502, 503, 504}:
+                    time.sleep(2 ** attempt)
                     continue
                 logger.error("LLM Responses HTTP %d: %s", exc.code, err_body[:500])
                 raise RuntimeError(f"LLM Responses HTTP {exc.code}: {err_body[:300]}") from exc
             except urllib.error.URLError as exc:
-                if isinstance(exc.reason, (TimeoutError, socket.timeout)):
-                    raise RuntimeError(_timeout_message(self._timeout_seconds)) from exc
-                if attempt < attempts:
-                    time.sleep(attempt)
+                if attempt < max_attempts:
+                    time.sleep(2 ** attempt)
                     continue
                 raise RuntimeError(f"LLM Responses connection failed: {exc}") from exc
         raise RuntimeError("LLM Responses call exhausted retries")
@@ -159,12 +183,48 @@ def _parse_json_content(content: str) -> dict[str, Any]:
             block = content.split("```", 1)[1].split("```", 1)[0]
             parsed = json.loads(block)
         else:
-            raise RuntimeError(
-                f"无法解析 LLM 输出为 JSON (前500字): {content[:500]}"
-            )
+            extracted = _extract_first_json_object(content)
+            if extracted is None:
+                raise RuntimeError(
+                    f"无法解析 LLM 输出为 JSON (前500字): {content[:500]}"
+                )
+            parsed = json.loads(extracted)
     if not isinstance(parsed, dict):
         raise RuntimeError("LLM JSON response must be an object")
     return parsed
+
+
+def _extract_first_json_object(content: str) -> str | None:
+    """Return the first balanced JSON object from mixed LLM text."""
+    start = content.find("{")
+    while start >= 0:
+        depth = 0
+        in_string = False
+        escaped = False
+        for index in range(start, len(content)):
+            char = content[index]
+            if in_string:
+                if escaped:
+                    escaped = False
+                elif char == "\\":
+                    escaped = True
+                elif char == '"':
+                    in_string = False
+                continue
+
+            if char == '"':
+                in_string = True
+            elif char == "{":
+                depth += 1
+            elif char == "}":
+                depth -= 1
+                if depth == 0:
+                    return content[start:index + 1]
+                if depth < 0:
+                    break
+
+        start = content.find("{", start + 1)
+    return None
 
 
 def _text_timeout_seconds() -> int:

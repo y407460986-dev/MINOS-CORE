@@ -99,6 +99,32 @@ def _control_row(row: dict[str, Any], index: int) -> dict[str, Any]:
     direct_sample_frequency = row_text(row, "sample_frequency", default="")
     direct_control_method = row_text(row, "control_method", default="")
     direct_reaction_plan = row_text(row, "reaction_plan", default="")
+    direct_process_parameter = row_text(
+        row,
+        "process_parameter",
+        "cause_process_parameter",
+        "process_characteristic",
+        "process_characteristics",
+        "function_work_element",
+        default="",
+    )
+    direct_parameter_specification = row_text(
+        row,
+        "parameter_specification",
+        "process_parameter_specification",
+        "parameter_tolerance",
+        default="",
+    )
+    direct_process_control_method = row_text(
+        row,
+        "process_control_method",
+        "parameter_control_method",
+        default="",
+    )
+    direct_setup_verification = row_text(row, "setup_verification", default="")
+    direct_poka_yoke_device = row_text(row, "poka_yoke_device", default="")
+    direct_poka_yoke_verification = row_text(row, "poka_yoke_verification", default="")
+    direct_process_record = row_text(row, "process_record", "record_form", default="")
 
     specification = direct_specification or _derived_specification(row)
     measurement_method = direct_measurement or _default_measurement_method(row)
@@ -106,6 +132,13 @@ def _control_row(row: dict[str, Any], index: int) -> dict[str, Any]:
     sample_frequency = direct_sample_frequency or _default_sample_frequency(risk_level)
     control_method = direct_control_method or _control_method(row)
     reaction_plan = direct_reaction_plan or _reaction_plan(risk_level)
+    process_parameter = direct_process_parameter or _process_parameter(row)
+    parameter_specification = direct_parameter_specification or _parameter_specification(row)
+    process_control_method = direct_process_control_method or _process_control_method(row)
+    setup_verification = direct_setup_verification or _setup_verification(row)
+    poka_yoke_device = direct_poka_yoke_device or _poka_yoke_device(row)
+    poka_yoke_verification = direct_poka_yoke_verification or _poka_yoke_verification(row)
+    process_record = direct_process_record or _process_record(row)
     inferred_fields = _inferred_control_fields(
         {
             "specification": direct_specification,
@@ -114,6 +147,13 @@ def _control_row(row: dict[str, Any], index: int) -> dict[str, Any]:
             "sample_frequency": direct_sample_frequency,
             "control_method": direct_control_method,
             "reaction_plan": direct_reaction_plan,
+            "process_parameter": direct_process_parameter,
+            "parameter_specification": direct_parameter_specification,
+            "process_control_method": direct_process_control_method,
+            "setup_verification": direct_setup_verification,
+            "poka_yoke_device": direct_poka_yoke_device,
+            "poka_yoke_verification": direct_poka_yoke_verification,
+            "process_record": direct_process_record,
         }
     )
     ai_inferred = bool(
@@ -151,6 +191,13 @@ def _control_row(row: dict[str, Any], index: int) -> dict[str, Any]:
         "sample_size": sample_size,
         "sample_frequency": sample_frequency,
         "control_method": control_method,
+        "process_parameter": process_parameter,
+        "parameter_specification": parameter_specification,
+        "process_control_method": process_control_method,
+        "setup_verification": setup_verification,
+        "poka_yoke_device": poka_yoke_device,
+        "poka_yoke_verification": poka_yoke_verification,
+        "process_record": process_record,
         "reaction_plan": reaction_plan,
         "characteristic_number": row_text(row, "characteristic_number", default=""),
         "equipment": row_text(
@@ -305,6 +352,84 @@ def _control_method(row: dict[str, Any]) -> str:
     return "定义常规过程控制方法"
 
 
+def _process_parameter(row: dict[str, Any]) -> str:
+    explicit = row_text(
+        row,
+        "process_parameter",
+        "cause_process_parameter",
+        "process_characteristic",
+        "process_characteristics",
+        "function_work_element",
+        default="",
+    )
+    if explicit:
+        return explicit
+    cause = row_text(row, "failure_cause", "cause", default="")
+    if cause:
+        return f"针对失效原因的过程参数：{cause}"
+    return row_text(row, "process_function", "process_step_name", "operation", default="过程参数待确认")
+
+
+def _parameter_specification(row: dict[str, Any]) -> str:
+    direct = row_text(
+        row,
+        "parameter_specification",
+        "process_parameter_specification",
+        "parameter_tolerance",
+        default="",
+    )
+    if direct:
+        return direct
+    cause = row_text(row, "failure_cause", "cause", default="")
+    parameter = _process_parameter(row)
+    if cause:
+        return f"控制 {cause}；{parameter} 的目标值/上下限待依据作业指导书确认"
+    return f"{parameter} 的目标值/上下限待依据作业指导书确认"
+
+
+def _process_control_method(row: dict[str, Any]) -> str:
+    direct = row_text(row, "process_control_method", "parameter_control_method", default="")
+    if direct:
+        return direct
+    prevention_control = row_text(row, "prevention_control", default="")
+    if prevention_control:
+        return prevention_control
+    control = _control_method(row)
+    return f"按过程参数点检执行：{control}"
+
+
+def _setup_verification(row: dict[str, Any]) -> str:
+    direct = row_text(row, "setup_verification", default="")
+    if direct:
+        return direct
+    parameter = _process_parameter(row)
+    return f"首件/换型后确认 {parameter} 设定、设备状态和工装状态"
+
+
+def _poka_yoke_device(row: dict[str, Any]) -> str:
+    direct = row_text(row, "poka_yoke_device", default="")
+    if direct:
+        return direct
+    parameter = _process_parameter(row)
+    return f"{parameter} 防错或参数权限控制"
+
+
+def _poka_yoke_verification(row: dict[str, Any]) -> str:
+    direct = row_text(row, "poka_yoke_verification", default="")
+    if direct:
+        return direct
+    device = _poka_yoke_device(row)
+    return f"每班/换型后验证 {device} 有效"
+
+
+def _process_record(row: dict[str, Any]) -> str:
+    direct = row_text(row, "process_record", "record_form", default="")
+    if direct:
+        return direct
+    parameter = _process_parameter(row)
+    return f"{parameter} 点检/首件确认记录"
+
+
 def _risk_level(row: dict[str, Any], classification: str) -> str:
     action_priority = row_text(row, "action_priority", default="").upper()
     severity = integer(row.get("severity"))
@@ -391,6 +516,13 @@ def _field_text(field_name: str) -> str:
         "sample_frequency": "检查频次",
         "control_method": "控制方法",
         "reaction_plan": "反应计划",
+        "process_parameter": "过程参数",
+        "parameter_specification": "参数规格",
+        "process_control_method": "过程控制方法",
+        "setup_verification": "首件/换型确认",
+        "poka_yoke_device": "防错装置",
+        "poka_yoke_verification": "防错验证",
+        "process_record": "过程记录",
     }.get(field_name, field_name)
 
 
@@ -451,6 +583,13 @@ def normalize_control_plan_rows(rows: list[dict[str, Any]]) -> None:
         row.setdefault("sample_size", "")
         row.setdefault("sample_frequency", "")
         row.setdefault("control_method", "")
+        row.setdefault("process_parameter", row.get("process_characteristic", ""))
+        row.setdefault("parameter_specification", "")
+        row.setdefault("process_control_method", "")
+        row.setdefault("setup_verification", "")
+        row.setdefault("poka_yoke_device", "")
+        row.setdefault("poka_yoke_verification", "")
+        row.setdefault("process_record", row.get("record_form", ""))
         row.setdefault("reaction_plan", "")
         row.setdefault("needs_confirmation", row.get("ai_inferred", False))
 

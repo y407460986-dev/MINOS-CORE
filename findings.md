@@ -2,6 +2,17 @@
 
 ## 当前任务发现：MINOS-CORE 调查审核与问题修复
 
+## 架构深挖问题修复发现
+
+- `generate_three_tables_from_drawing` 的浅接口问题不在 PFD/PFMEA/CP 推理本身，而在它同时承担链路推进、质量门收集、人工复核摘要、linkage/risk/review 派生视图、manifest 和导出结果封装。更深的 seam 应该让主入口只推进三表链路，把 envelope 和 manifest 装配收敛到专门模块。
+- 三表结果封装的半抽取风险已经出现过：`pipeline.py` 导入了 `three_table_result`，但后面又定义同名旧 helper，导致导入名被覆盖。这个风险说明 seam 不能只“搬一份代码”，还必须移除旧实现或让旧入口明确委托新模块。
+- `DesktopRunService` 的浅接口问题是运行生命周期和状态迁移规则混在一起。PFD 编辑使 PFMEA/CP 失效、PFMEA 编辑使 CP 失效，这些是稳定领域规则，不应埋在 SQLite 服务大文件底部。
+- `edit_patch` 的浅接口问题是补丁应用内核和 review/export 报告装配耦合。补丁语义应优先保持小接口，dashboard、manual review、linkage report 属于补丁后的派生视图。
+- `edit_patch` 里最适合先拆的不是行写入语义，而是把编辑结果翻译成 review dashboard、manual review payload 和导出复核项。补丁内核继续留在 `edit_patch.py`，报告装配进入 `edit_patch_reports.py`，后续改 UI 文案或复核摘要时不用碰行变更规则。
+- `three_table_linkage` 的核心价值是 linkage map 和 gap 检测；`sync_snapshot`、`sync_issues`、`sync_suggestions` 是给桌面/报告消费的适配层。分开后更容易测试纯规则，也能避免 UI 字段形状污染核心 linkage map。
+- `three_table_linkage` 的同步报告 seam 仍暴露一个后续清理点：`sync_snapshot` 预留了 `cp_execution_gaps`，但当前 gap 生成逻辑没有生成对应 category_key。这个不是本轮行为等价拆分范围，后续可单独决定是补 gap 规则还是删除未使用投影字段。
+- 本轮不适合先拆 `stage/assembler.py`。按 deletion test 看，它虽然有兼容输入判断，但删掉后复杂度会回到调用方，目前不是优先修复对象。
+
 ## 发布前完整验收发现
 
 - 桌面启动弹出的黑色命令行窗口有两个来源：主 Tauri exe 未声明 Windows GUI 子系统，Python sidecar 用普通 `Command::new("python")` 启动时也会继承可见控制台语义。
@@ -9,8 +20,8 @@
 - sidecar 需要在 Windows 下显式使用 `std::os::windows::process::CommandExt` 和 `CREATE_NO_WINDOW`，这样后端 API 仍正常运行，但不会给用户弹出额外命令行窗口。
 - 三表工作台的英文残留主要不是翻译文案漏改，而是前端直接把内部枚举值渲染出来：`risk=medium`、`status=approved`、流程符号 `OP/INSP`。应统一经过显示层映射，内部值继续保持稳定。
 - 过程流程图确认交互之前把“阶段确认”和“选中行”绑在一起，用户容易误以为必须一行一行处理；更清楚的设计是阶段区提供“确认全部过程流程图”，并同时展示行级确认状态。
-- 当前失效模式分析“生成慢”的主要证据是上游 Responses 网关 `504 Gateway Time-out`，不是本地 CPU 计算慢。继续原样重试 504 会让用户白等更久。
-- 不能把默认推理强度降到 `low`，因为这会牺牲工程推理质量；更稳妥的修复是保持 `medium`，但让 504 快速写回失败并刷新 UI。
+- 当前失效模式分析“生成慢”的主要证据是上游 Responses 网关 `504 Gateway Time-out`，不是本地 CPU 计算慢。只提高超时或继续整批请求重试会让用户白等更久。
+- 不能把默认推理强度降到 `low`，因为这会牺牲工程推理质量；更稳妥的修复是保持 `medium`，同时把 PFMEA 拆成按 PFD 工序生成的小请求，并让界面持续刷新失败/进度状态。
 - 当前代码层自动化验收已经覆盖 core、platform、desktop API、Tauri 前端、Rust 检查、Python wheel 构建、CLI smoke、合成三表导出和 OpenXML 基础可打开性检查；这些检查本轮均通过。
 - 真实 API 验收入口本身可运行，但没有真实图纸路径和显式开关时只能跳过；这不是代码失败，但意味着不能把“真实图纸 + 真实 Responses 调用”声明为本轮已验收。
 - Tauri 默认 `targets = all` 对当前 Windows 发布不够稳，会让发布命令长时间停在打包阶段且不生成 `bundle` 产物。当前最短稳定发布路径是 `tauri build --ci --no-sign --bundles nsis`。
@@ -52,7 +63,7 @@
 - PFD/PFMEA/CP 第一版应默认保留 `ai_inferred`、`confidence`、`needs_confirmation`，避免把 AI 草案包装成正式工程结论。
 - Codex 当前配置可作为 MINOS 第一版 AI 配置来源：读取 `config.toml` 的 Responses 模型和中转地址，读取 `auth.json` 或当前环境变量中的 key；诊断输出只能暴露来源和是否配置，不能输出密钥值。
 - Codex 能正常使用 `https://allinai7.cloud` 并不代表 MINOS 的请求完全一致；实际日志显示 Codex 的 Responses 路径是 `responses`，且 provider 声明 `requires_openai_auth = true`，因此 MINOS 必须避免用旧的 `ARK_API_KEY` 或固定 `/v1/responses` 造成鉴权/路径偏差。
-- 当前真实运行环境中，MINOS 已能解析 Codex 配置的中转地址和可用 API key；在当前中转上，`gpt-5.4` 已验证可走通标准 HTTP Responses 三表草案链路，而 `gpt-5.5` 暂不稳定。
+- 当前真实运行环境中，MINOS 已能解析 Codex 配置的中转地址和可用 API key；按用户最新要求，MINOS 默认模型统一切换为 `gpt-5.5`，仍保留显式环境变量覆盖能力。
 - 桌面端之前必须先稳定后端闭环；`generate_three_tables_from_drawing(...)` 现在是桌面端应调用的业务入口，避免把图纸识别、质量门和导出逻辑散落到 UI。
 - 桌面业务闭环 MVP 已落地后，桌面端的关键边界从“能打开界面”变成“通过服务层记录项目、run、export，并后台调用 core pipeline”；UI 不应复制三表生成逻辑。
 - SQLite `out/desktop/minos_desktop.sqlite3` 只应保存桌面项目、设置、运行状态和导出记录，不应保存明文 API key。
@@ -245,8 +256,8 @@
 - CLI `main()` 增加 argparse 后要兼容旧的单元测试直接调用方式；否则 unittest 自身参数会污染桌面 CLI 参数解析。
 
 ## 真实样本闭环验收与最小修复发现
-- MINOS 复用 Codex 配置时，应该只复用鉴权和中转地址，不应默认继承 Codex 主模型；否则会出现 README 写 `gpt-5.4`，运行时却悄悄回到 `gpt-5.5` 的配置漂移。
-- 对当前这条中转链路，`gpt-5.4` 已经被三类真实图纸样本验证可用，继续把它作为 MINOS 默认模型是当前最稳妥的选择。
+- MINOS 复用 Codex 配置时，应该只复用鉴权和中转地址，不应默认继承 Codex 主模型；按用户最新要求，项目默认模型明确写为 `gpt-5.5`，避免文档、CLI 和运行时各说各话。
+- `gpt-5.5` 作为全局默认后，PFMEA 504 风险仍主要靠按 PFD 工序拆分请求、Responses 流式输出和 `medium` 文本推理强度控制，而不是靠继续扩大单次请求。
 - 真实 AI 调用偶发 `503 Service temporarily unavailable` 仍会出现，但在未改代码的情况下重试成功，说明这更像上游网关瞬时抖动，不是当前三表链路的必然逻辑错误。
 - 三类真实图纸目前都能稳定产出 PFD/PFMEA/CP 和四个导出文件，但统一落在 `needs_review`，说明产品当前定位仍然是“工程草案生成器”，不是“可直接签发的正式工程文件生成器”。
 - 当前最主要的质量问题不是“导不出”，而是人工复核量偏大；后续优化应优先减少明显可自动补足的字段缺失和弱推断，而不是去放宽质量门。
@@ -553,3 +564,145 @@
 - CP 可以从已存在的 PFMEA 行创建同步建议，因为 PFMEA 已经是风险来源；但 PFMEA 不能从 PFD gap 创建占位建议，因为失效模式需要工程推理。
 
 - 桌面联动、live linkage 和三表 linkage 是三条不同入口，只修链式生成不够。所有能把 gap 应用成行的入口都必须同样禁止 PFMEA 占位。
+
+- 旧运行还可能在 `raw_result.pfmea.rows=[]` 的同时，把历史联动占位塞进 `current_result.pfmea.rows`。如果读取层不清理，用户会看到“待工程人员填写失效模式”，误以为系统已经完成 PFMEA。
+
+- PFMEA 生成失败和 PFMEA 缺口是两个不同状态。生成失败必须展示失败原因并允许用户重试；不能用同步占位行把失败包装成待复核草案。
+
+- Tauri 三表工作台之前用同一组“编号/过程/特性/风险/状态/责任”列展示三张表，会让 PFMEA 看起来不像 AIAG-VDA 手册里的 PFMEA。PFMEA 需要直接显示过程步骤、工作要素、失效后果、S、失效模式、失效原因、O、预防/探测控制、D 和 AP。
+
+- 前端阶段状态应以 API 顶层 `chain_stages` 为准。`raw_result` 和 `current_result` 是历史/当前结果载体，里面可能残留旧阶段缓存，不适合作为优先状态源。
+
+## V1.14.7 PFMEA 最新版格式发现
+
+- 这次用户看到的“PFMEA 不是最新版”，不是单纯表头问题。根因是后端 schema、归一化、规则生成、导出和 Tauri 表格仍混着旧 RPN 风格字段，前端换表头无法修正真实数据。
+
+- AIAG & VDA FMEA Handbook First Edition 2019 的核心变化是七步法和 AP 表，不应再把 RPN 当作 PFMEA 主排序/主列。MINOS 可以保留 `calculate_rpn` 兼容旧模块，但新版 PFMEA 行和导出不能继续默认写 `rpn`。
+
+- PFMEA Form C 的字段必须按结构分析、功能分析、失效分析、风险分析、优化来组织。只显示“过程步骤 / 工作要素 / 失效模式 / RPN”会让用户误以为系统仍在旧 FMEA 表。
+
+- `generate_pfmea_from_confirmed_pfd` 需要强制继承已确认 PFD 的工序名称、功能、设备/过程特性。否则 LLM 即使生成了 PFMEA JSON，也可能把 PFMEA 做成独立表，和 PFD 对不上。
+
+- 规则生成路径和 LLM 生成路径必须共用同一个 PFMEA 归一化函数。否则测试只覆盖 LLM 链路时，离线/规则模式仍会产出缺字段的旧格式 PFMEA。
+
+- 旧失败 run 自动恢复会放大数据问题。即使后端已经修复，启动时自动打开 `blocked_stage=pfmea` 的旧失败运行，也会让用户继续看到旧 PFD/PFMEA 状态，误以为软件没有更新。
+
+- PFMEA 失败状态必须给用户一个明确重试入口。只在图纸导入页有 regenerate API 不够；用户在三表工作台发现 PFMEA 错误时，应能从当前页重新基于已确认 PFD 生成。
+
+- 这次连续 504 的失败点不是本地 Tauri 或 OCR，而是已确认 PFD 后的 PFMEA 文本 Responses 调用；run 19 已有 10 个确认 PFD 工序，PFMEA 阶段被 `allinai7.cloud` 返回的 nginx `504 Gateway Time-out` 阻断。文本适配器此前只重试 429/500/502/503，漏掉 504，会把一次网关超时直接放大成阶段失败。
+
+- 后续用 run 20 做真实对照后，根因从“504 需要重试”进一步收窄为“整张确认 PFD 的 PFMEA 批量请求过重”。1 个 PFD 工序可以成功生成 PFMEA；2 个工序合并请求就可能在约 185 秒后 504；因此最短有效修复不是继续提高超时，而是把 PFMEA 按 PFD 工序拆成多个小请求。
+
+- 流式接口会有帮助，但不是因为模型会更快完成全部推理，而是因为 SSE delta 能让中转在长任务期间持续收到数据，降低“长时间没有响应片段”造成的 nginx/proxy 空闲超时风险。真正减少单次请求负载的是按工序拆分 PFMEA。
+
+- 按工序拆分后必须保留原有工程约束：每行 PFMEA 仍必须引用确认 PFD 中存在的 `process_step_id`，并由后处理强制继承 PFD 的工序名称、功能和特性字段。否则拆分虽然能绕过 504，但仍可能重新产生“内容对、行不对”的问题。
+
+- 单工序请求还要防止“串台”：P10 请求如果返回 P20，虽然 P20 也是已确认 PFD 工序，也不能静默接受。否则会重新出现行内容看似正确、但处在错误行/错误请求里的问题。
+
+- Responses SSE 事件不能假设 `data` JSON 一定包含 `type`。部分兼容服务可能只用 `event: response.output_text.delta` 标明事件类型，因此解析器必须保留当前 `event:` 名称作为兜底。
+
+## V1.14.8 PFD 排序与三表总审核发现
+
+- PFD 拖拽失败不能简单判断为用户操作问题。原生 HTML 拖拽落在表格行 `<tr>` 上，在 Windows WebView/Tauri 环境里比普通 `div` 更脆；更稳妥的是整行可拖、手柄也可拖，并保留上移/下移按钮。
+
+- 这次用户确认“上移/下移有用、最左边拖不动”后，根因进一步收窄为手柄事件入口，不是排序保存或 sequence patch。手柄同时使用 HTML5 `draggable` 和 pointer 事件会在 WebView 里互相抢事件，最小修复是让手柄走 pointer 拖动兜底，整行继续保留原生 drag/drop。
+
+- 上移/下移和拖拽能保存顺序后，上方 PFD 图仍可能画错箭头，根因是排序 patch 只更新 `sequence`，流程图仍按旧 `next_step_ids` 拓扑连线。手动排序是工程师对主流程顺序的显式纠正，因此保存时应同步重建线性 `previous_step_ids` / `next_step_ids`，否则图和表会长期不一致。
+
+- 之前把“有搜索/风险/状态筛选时禁用排序”看起来能避免误排局部列表，但实际会让用户在常见筛选状态下完全拖不动。更好的行为是按可见顺序重排，再映射回完整 PFD 行顺序。
+
+- AI 审核的关键边界不是按钮文案，而是后端门禁。即使前端移除了“批量确认低风险 AI 项”，旧 API/service 入口如果仍可执行，就仍然会绕过“控制计划确认后三表总审核”的产品规则。
+
+- `build_automation_review` 已经能生成 `batch_confirm_candidates`，但桌面审核模型之前只识别旧 `items` 结构，导致 CP 后生成的显式审核结果反而不会被旧批量入口使用。
+
+- 当同一个目标同时出现在 `batch_confirm_candidates` 和 `automation_tasks` 时，桌面去重必须让阻断问题最高，其次是可批量确认，再其次才是普通人工判断；否则低风险候选会被同目标普通任务覆盖。
+
+- AI 审核的产品语义已收口为：AI 提供三表总审核建议和线索，只有 CP confirmed 后才能生成/执行；人工判断优先于 AI 建议，旧批量确认入口只是兼容通道，不是审批权。
+
+## V1.14.9 CP 生成 502 发现
+
+- 这次 502 不是 PFD 或 PFMEA 数据本身坏了，也不是单纯“换模型能解决”。根因是 CP 阶段还保留整批请求：把整张 PFD 和全部高/中 AP PFMEA 行一次塞给文本 LLM。
+
+- PFMEA 504 已经通过“按 PFD 工序拆分 + 流式”缓解，但 CP 没有同步采用同样的降负载策略，所以流程推进到控制计划时又在上游中转层失败。
+
+- CP 最小有效修复不是继续加超时，而是把单次请求边界降到“1 条 PFMEA 风险行 -> 1 个或多个 CP 控制行”。这样单次上下文更短，也能保留明确追溯关系。
+
+- CP 拆分后必须像 PFMEA 一样防串行：模型如果在 PFMEA-P10-01 的请求里返回 PFMEA-P10-02，不能静默接受；否则会再次出现“内容看似对，但处在错误行”的问题。
+
+- CP 输出 schema 应强制包含 `pfmea_id` 和 `characteristic_number`。控制计划的核心价值是从 PFMEA 风险追溯到控制方法，缺少这些字段会让后续三表总审核和导出很难判断覆盖关系。
+
+- 这次“修完后仍 502”的直接原因不是 CP 拆分代码无效，而是旧 Tauri 窗口的 sidecar 没有随窗口退出，继续占着 `127.0.0.1:8000`。新窗口发现 8000 已打开后把它当作外部服务复用，导致前端仍在调用旧后端代码。
+
+- 桌面端不能只用“端口打开”判断 sidecar 已可复用。除非用户显式配置 `MINOS_DESKTOP_API_BASE_URL`，否则 Tauri 应该启动自己托管的后端；若 8000 被占用，应换 8001-8020 的空闲端口，并把实际地址返回给前端。
+
+- run 23 有 72 条 PFMEA，其中高/中 AP 共 70 条。即使按单行拆分，完整 CP 生成也会耗时较长；但第一条 `PFMEA-P01-01` 单行真实请求 13.2 秒成功，说明模型/中转对 CP schema 可用，剩余风险主要是个别 PFMEA 行的上游偶发失败或完整 70 行耗时体验。
+
+## V1.14.10 CP 过程控制可用性发现
+
+- 用户指出“CP 控制的只有结果没有过程”是准确的。此前 CP 虽然有 `process_characteristic`，但生成、前端展示和导出重点仍是 `measurement_method`、`sample_frequency`、`control_method`、`reaction_plan`，读起来更像检验计划。
+
+- 真正可用的控制计划需要把“过程怎么稳定住”和“结果怎么确认”分开。过程层至少要有过程参数、参数规格/设定范围、过程控制方法、首件/换型确认、防错装置、防错验证和过程记录；结果层才是测量方法、抽样频次和反应计划。
+
+- CP 的过程控制字段应优先来自 PFMEA 的失效原因、预防控制和 PFD/PFMEA 的过程特性。比如 PFMEA 写“冲压参数漂移 / 换型后参数点检并锁定”，CP 就应落成“冲压力 / 参数上下限待依据作业指导书确认 / 换型后参数点检并锁定 / 首件确认 / 参数权限锁 / 参数记录表”，而不是只写“尺寸巡检”。
+
+- `control_method` 不能继续承载所有含义。它可以做综合摘要，但不能替代更细的 `process_control_method`、`setup_verification`、`poka_yoke_*` 和 `process_record` 字段，否则现场人员仍然看不到该控制哪个参数、何时确认、如何记录。
+
+- 这次改动必须覆盖 LLM 和规则两条路径。只改 prompt 会让离线/规则路径继续输出薄 CP；只改规则路径会让真实链式生成继续接受缺过程控制的 LLM JSON。
+
+- 前端和 Excel 也必须同步扩列。否则后端已经生成过程参数，工程师在 Tauri 表格或导出的控制计划里仍然看不到，问题会表现为“软件还是只有结果检验”。
+
+- 本轮还发现一个日期脆弱测试：措施管理测试把目标日期固定为 2026-05-10，但当前日期已经是 2026-05-11，导致状态自然从“待制定措施”变成“已逾期”。测试应该传入固定 today，而不是依赖真实系统日期。
+
+## V1.14.11 PFMEA 控制逻辑发现
+
+- PFMEA 不应被改成第二张控制计划。PFMEA 的职责是解释风险链条：失效原因从哪个 4M/过程参数/工装或材料状态来，预防控制如何降低发生度，探测控制如何降低探测度；CP 再把这些控制落到现场执行字段。
+
+- 用户提出“PFMEA 是否也需要像 CP 一样控制”时，真正需要补的是控制逻辑而不是控制计划字段。PFMEA 应保留 AIAG-VDA Form C 主结构，同时补充原因过程参数、预防对象/时机、探测对象/时机和控制逻辑复核。
+
+- `failure_cause` 单独写“参数不稳定”“定位销磨损”还不够。后续 CP 需要知道它对应哪个过程参数或工装状态，所以必须有 `cause_process_parameter` 作为可继承的控制对象。
+
+- 预防控制和探测控制不能混在一起。像“首件检验孔位”属于探测结果，不应被当作真正的预防控制；高 AP 或特殊特性行如果预防控制偏检查结果，应标记人工复核。
+
+- LLM prompt/schema、规则生成和归一化必须同时改。只改 prompt 会让规则路径继续缺字段；只改归一化会让 strict schema 的真实 LLM 输出仍不知道需要这些字段。
+
+- 导出和桌面表格同样关键。工程师判断 PFMEA 是否能支撑 CP，必须能直接看到“预防控制对象/时机”和“探测对象/时机”，否则后端生成了也不可用。
+
+- CP 继承不能只看旧 `process_characteristic`。PFMEA 新增 `cause_process_parameter` 后，规则 CP、链式 CP、桌面继承显示和联动补 CP 建议都应优先使用它，否则旧/手工行和同步建议仍会退回结果检验视角。
+
+- 子代理审核发现的两个漏口说明这类字段要覆盖“主生成路径”和“修补路径”。主生成已经正确时，联动建议、旧行展示、手工新增行仍可能绕开主路径产生薄控制项。
+
+## V1.14.12 CP JSON 解析加固发现
+
+- run #25 的失败点不是网络层 502/504。结果文件显示 PFD 和 PFMEA 已确认，`blocked_stage=cp`，错误文本是“无法解析 LLM 输出为 JSON”，且前 500 字已经出现合法的 `{"rows": ...}` 前缀。
+
+- 根因是模型或中转兼容层在 schema JSON 之后追加了“原因判断 / 处理方案”等中文解释文字。`json.loads` 会把这种响应判定为 `Extra data`，当前解析器只会继续尝试 Markdown 代码块，因此真实合法 JSON 前缀也被整体拒绝。
+
+- 最小稳妥修复是解析器增加“第一个完整 JSON 对象”提取，而不是只靠 prompt。prompt 可以降低概率，但真实代理/模型仍可能追加说明；解析器需要容忍这个已观察到的边界。
+
+- 提取 JSON 时必须按字符扫描并尊重字符串和转义，不能简单按第一个 `}` 截断；否则控制计划中文字段里如果出现大括号或转义字符，会造成新的解析风险。
+
+- CP prompt 仍应同步收紧，因为模型输出“原因判断 / 处理方案”本来是失败报告语气，不属于控制计划 schema 内容。解析器兜底是防御，提示词收紧是降低再次发生概率。
+
+## V1.14.13 Responses 流式事件横向加固发现
+
+- `OpenAI Responses API stream did not contain output text` 不是“AI 配置缺失”的准确判断。当前健康检查和后端都正常，失败发生在 SSE 事件解析层：上游返回了事件，但解析器没有从事件形状里抽到文本。
+
+- MINOS 当前只有一个共享 Responses SSE 解析器：`minos_core.adapters.multimodal._parse_responses_stream`。文本模型链路 `llm_text.py` 直接复用它，所以这里的兼容性会同时影响 PFD、PFMEA、CP 和图纸视觉增强。
+
+- 原解析器只稳妥支持 `response.output_text.delta` 和 `response.completed`。真实 Responses / 兼容中转还可能用完成型事件交付文本，例如 `response.output_text.done`、`response.output_item.done`、`response.content_part.done` 或 `response.done`。这些事件如果不解析，就会误报“没有 output text”。
+
+- 横向修复应优先覆盖事件形状，而不是继续在桌面失败报告里改文案。文案只能更清楚地暴露问题，不能让真实流式返回进入后续 JSON 解析。
+
+- 这类兼容性测试应该放在 `test_openai_multimodal_adapter.py`，因为它验证的是共享 SSE 解析器；`test_llm_text_responses.py` 只需要证明文本 LLM 调用这个解析器后能得到 JSON。
+
+## V1.14.14 SSE 上游过载重试发现
+
+- run #28 的 PFMEA 失败根因不是 PFD/PFMEA 数据格式、JSON 解析或本地配置，而是 Responses SSE 流中返回了 `service_unavailable_error / server_is_overloaded`，原文提示上游服务器过载并要求稍后重试。
+
+- 之前的重试只覆盖 HTTP 层状态码 429/500/502/503/504。相同性质的临时失败如果被中转包装成 SSE `error` 事件，会先由共享流式解析器抛出，再被文本 LLM 包装成阶段失败，没有进入 HTTP 重试分支。
+
+- 这类错误应归类为“上游瞬时不可用”，不应被桌面失败摘要默认写成“AI 配置可能缺失或不可用”。配置、路径、权限都正常时，把原因指向配置会误导用户反复检查无关项。
+
+- 最小有效修复是把 SSE 错误消息也纳入同一类临时错误判断，识别 `server_is_overloaded`、`service_unavailable`、`temporarily unavailable`、`try again later` 和 `rate_limit`，并在文本 LLM 和多模态图纸链路共用。
+
+- 本次还有一个运行态误判点：run #28 发生在 2026-05-13 17:03 左右，而 SSE 过载重试代码落盘时间在 17:33 之后；如果不重启桌面后端，界面仍会继续调用旧进程，用户会看到“代码修了但还是报错”的假象。

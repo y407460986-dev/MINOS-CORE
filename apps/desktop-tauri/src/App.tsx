@@ -22,6 +22,10 @@ const navItems: NavItem<PageKey>[] = [
   { key: "settings", label: "设置", icon: Settings }
 ];
 
+function autoRestorableRun(run: DesktopRun): boolean {
+  return run.status !== "failed" || run.blocked_stage !== "pfmea";
+}
+
 export default function App() {
   const [page, setPage] = useState<PageKey>("workbench");
   const [selectedRow, setSelectedRow] = useState<WorkbenchRow | null>(null);
@@ -41,10 +45,11 @@ export default function App() {
       .then((value) => {
         setHealth(value);
         setApiState("online");
-        return getRecentRuns(1);
+        return getRecentRuns(5);
       })
       .then((runs) => {
-        if (runs[0]) setActiveRun(runs[0]);
+        const run = runs.find(autoRestorableRun);
+        if (run) setActiveRun(run);
       })
       .catch(() => setApiState("offline"));
   }, []);

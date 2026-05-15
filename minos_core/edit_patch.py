@@ -12,8 +12,12 @@ from .exporters.three_table_workbooks import (
     export_three_table_workbook,
 )
 from .knowledge_recommendation import recommend_from_knowledge
-from .pipeline import _three_table_manual_review
 from .quality_gates import evaluate_export_gate
+from .edit_patch_reports import (
+    build_manual_review_payload as _manual_review_payload,
+    build_review_dashboard as _build_review_dashboard,
+    manual_review_items_from_edit_gate as _manual_review_items_from_edit_gate,
+)
 
 
 EDIT_PATCH_VERSION = "minos-core.edit_patch.v1"
@@ -83,6 +87,9 @@ def apply_edit_patch(source: dict[str, Any], patch: dict[str, Any]) -> dict[str,
         _apply_normalized_item(payload, record)
         records.append(record)
 
+    if any(record["table"] == "process_flow" for record in records):
+        _sort_process_flow_rows_in_place(payload)
+
     _record_edit_history(payload, records)
     if _is_three_table_result(payload):
         return _refresh_three_table_result(payload)
@@ -127,132 +134,6 @@ def evaluate_edit_export_gate(source: dict[str, Any]) -> dict[str, Any]:
         "change_impacts": change_impact_items,
         "action_items": [item["action_id"] for item in action_items],
         "quality_gate": gate.model_dump(),
-    }
-
-
-def _build_review_dashboard(
-    payload: dict[str, Any],
-    edit_gate: dict[str, Any],
-    risk_structure: dict[str, Any] | None = None,
-    linkage_report: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    """Build a unified review dashboard from edit gate, risk structure and linkage report.
-
-    Returns a dashboard dict that summarises all unresolved review items across
-    the three-table editing lifecycle, helping operators decide whether the
-    document is ready for final export.
-    """
-    # --- 从 edit_gate 读取计数 ---
-    unconfirmed_row_count = len(edit_gate.get("unconfirmed_items", []))
-    unresolved_recommendation_count = len(edit_gate.get("knowledge_recommendations", []))
-    unresolved_change_impact_count = len(edit_gate.get("change_impacts", []))
-    manual_review_count = len(edit_gate.get("review_issues", []))
-    soft_deleted_count = len(edit_gate.get("soft_deleted_items", []))
-    final_export_allowed = bool(edit_gate.get("final_export_allowed", False))
-
-    # --- 从 risk_structure 读取 open_action_count ---
-    open_action_count = 0
-    if risk_structure and isinstance(risk_structure, dict):
-        summary = risk_structure.get("summary", {})
-        if isinstance(summary, dict):
-            open_action_count = int(summary.get("open_action_count", 0))
-
-    # --- 从 metadata 读取 action_items 统计 ---
-    action_summary = payload.get("metadata", {}).get("action_items_summary", {})
-    unresolved_action_count = action_summary.get("unresolved", 0) if isinstance(action_summary, dict) else 0
-    overdue_action_count = action_summary.get("overdue", 0) if isinstance(action_summary, dict) else 0
-    closed_wo_evidence_count = action_summary.get("closed_without_evidence", 0) if isinstance(action_summary, dict) else 0
-
-    # --- 从 linkage_report 读取 sync_blocker_count ---
-    sync_blocker_count = 0
-    if linkage_report and isinstance(linkage_report, dict):
-        sync_issues = linkage_report.get("sync_issues", [])
-        if isinstance(sync_issues, list):
-            sync_blocker_count = sum(
-                1 for i in sync_issues if isinstance(i, dict) and i.get("severity") == "blocker"
-            )
-
-    # --- 生成 next_actions ---
-    actions: list[dict[str, Any]] = []
-    if unconfirmed_row_count > 0:
-        actions.append({
-            "priority": 1,
-            "action": "确认或编辑所有活动三表行。",
-            "count": unconfirmed_row_count,
-        })
-    if sync_blocker_count > 0:
-        actions.append({
-            "priority": 2,
-            "action": "处理三表联动阻断项。",
-            "count": sync_blocker_count,
-        })
-    if open_action_count > 0:
-        actions.append({
-            "priority": 3,
-            "action": "补齐高 AP 风险的负责人、期限和完成状态。",
-            "count": open_action_count,
-        })
-    if unresolved_action_count > 0:
-        actions.append({
-            "priority": 4,
-            "action": f"关闭 {unresolved_action_count} 条高风险 PFMEA 行动项。",
-            "count": unresolved_action_count,
-        })
-    if overdue_action_count > 0:
-        actions.append({
-            "priority": 5,
-            "action": f"有 {overdue_action_count} 条行动项已逾期。",
-            "count": overdue_action_count,
-        })
-    if closed_wo_evidence_count > 0:
-        actions.append({
-            "priority": 6,
-            "action": f"{closed_wo_evidence_count} 条已关闭行动项缺少闭环证据。",
-            "count": closed_wo_evidence_count,
-        })
-    if unresolved_recommendation_count > 0:
-        actions.append({
-            "priority": 7,
-            "action": "处理知识库推荐：采纳、应用或忽略并说明理由。",
-            "count": unresolved_recommendation_count,
-        })
-    if unresolved_change_impact_count > 0:
-        actions.append({
-            "priority": 8,
-            "action": "处理人工编辑带来的下游影响。",
-            "count": unresolved_change_impact_count,
-        })
-    if soft_deleted_count > 0:
-        actions.append({
-            "priority": 9,
-            "action": "软删除行已排除，审计页保留记录。",
-            "count": soft_deleted_count,
-        })
-    if final_export_allowed:
-        actions.append({
-            "priority": 10,
-            "action": "全部完成，可以执行正式导出。",
-            "count": 0,
-        })
-
-    next_actions = actions[:10]
-
-    status = "ok" if final_export_allowed else "needs_review"
-
-    return {
-        "status": status,
-        "status_display": "可以导出" if status == "ok" else "待人工复核",
-        "final_export_allowed": final_export_allowed,
-        "sync_blocker_count": sync_blocker_count,
-        "open_action_count": open_action_count,
-        "unresolved_action_count": unresolved_action_count,
-        "overdue_action_count": overdue_action_count,
-        "closed_without_evidence_count": closed_wo_evidence_count,
-        "unconfirmed_row_count": unconfirmed_row_count,
-        "unresolved_recommendation_count": unresolved_recommendation_count,
-        "unresolved_change_impact_count": unresolved_change_impact_count,
-        "manual_review_count": manual_review_count,
-        "next_actions": next_actions,
     }
 
 
@@ -1003,6 +884,20 @@ def _filtered_rows(rows: Any) -> list[Any]:
     return [copy.deepcopy(row) for row in rows if not _is_deleted(row)]
 
 
+def _sort_process_flow_rows_in_place(payload: dict[str, Any]) -> None:
+    rows = _editable_rows(payload, "process_flow")
+    rows.sort(key=_process_flow_sort_key)
+
+
+def _process_flow_sort_key(item: Any) -> tuple[int, float, int]:
+    if not isinstance(item, dict):
+        return (1, 0, 0)
+    sequence = _float_or_none(item.get("sequence"))
+    if sequence is None:
+        return (1, 0, 0)
+    return (0, sequence, 0)
+
+
 def _filtered_rows_for_active_steps(rows: Any, active_step_ids: set[str]) -> list[Any]:
     result = []
     for row in _filtered_rows(rows):
@@ -1397,69 +1292,6 @@ def _metadata_debt_is_unresolved(item: dict[str, Any]) -> bool:
         if _optional_text(item.get("ignore_reason")):
             return False
     return True
-
-
-def _manual_review_payload(
-    quality_gates: dict[str, Any],
-    edit_gate: dict[str, Any],
-) -> dict[str, Any]:
-    manual_review = _three_table_manual_review(quality_gates)
-    edit_items = _manual_review_items_from_edit_gate(edit_gate)
-    raw_items = list(manual_review.get("raw_items", [])) + edit_items
-    manual_review["raw_items"] = raw_items
-    manual_review["items"] = list(manual_review.get("items", [])) + edit_items
-    manual_review["raw_count"] = len(raw_items)
-    manual_review["required"] = bool(raw_items)
-    manual_review["summary"] = {
-        "display_count": len(manual_review["items"]),
-        "raw_count": len(raw_items),
-        "message": f"当前编辑结果仍有 {len(edit_gate['unconfirmed_items'])} 行未逐行确认。",
-    }
-    return manual_review
-
-
-def _manual_review_items_from_edit_gate(gate_result: dict[str, Any]) -> list[dict[str, Any]]:
-    items = [
-        {
-            "item_id": item,
-            "category": "逐行确认",
-            "severity": "blocker",
-            "severity_display": "阻断",
-            "message": "正式导出前，所有未软删除的 PFD/PFMEA/CP 行都必须人工确认。",
-        }
-        for item in gate_result.get("unconfirmed_items", [])
-    ]
-    items.extend(
-        {
-            "item_id": item,
-            "category": "人工复核问题",
-            "severity": "blocker",
-            "severity_display": "阻断",
-            "message": "正式导出前，未处理的人工复核问题必须先关闭。",
-        }
-        for item in gate_result.get("review_issues", [])
-    )
-    items.extend(
-        {
-            "item_id": item,
-            "category": "知识库推荐",
-            "severity": "blocker",
-            "severity_display": "阻断",
-            "message": "高置信知识库推荐必须采纳，或填写忽略原因。",
-        }
-        for item in gate_result.get("knowledge_recommendations", [])
-    )
-    items.extend(
-        {
-            "item_id": item,
-            "category": "变更影响",
-            "severity": "blocker",
-            "severity_display": "阻断",
-            "message": "未处理的变更影响必须处理后才能正式导出。",
-        }
-        for item in gate_result.get("change_impacts", [])
-    )
-    return items
 
 
 def _is_three_table_result(payload: dict[str, Any]) -> bool:

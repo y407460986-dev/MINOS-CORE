@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, CheckCheck, RefreshCw, X } from "lucide-react";
+import { Check, RefreshCw, X } from "lucide-react";
 import {
   acceptRecommendation,
-  batchConfirmAutomation,
   getClosureTasks,
   ignoreRecommendation,
   resolveAction,
@@ -187,24 +186,17 @@ export default function ReviewClosurePage({ run, onRunUpdated }: ReviewClosurePa
     } catch (caught) { setActionError(errorMessage(caught)); }
   }
 
-  async function batchConfirm() {
-    if (!run) return;
-    setActionError("");
-    try { onRunUpdated(await batchConfirmAutomation(run.id)); } catch (caught) { setActionError(errorMessage(caught)); }
-  }
-
   return (
     <section className="grid gap-4">
       <div>
         <span className="text-primary text-xs font-bold">Review Closure</span>
-        <h2 className="mt-1 mb-0 text-[22px]">复核与行动闭环</h2>
+        <h2 className="mt-1 mb-0 text-[22px]">控制计划确认后三表总审核</h2>
+        <p className="m-0 mt-1 text-[13px] text-muted-foreground">
+          AI 只提供审核建议和线索，人工判断优先于 AI 建议。
+        </p>
       </div>
 
       <div className="flex items-center gap-2.5 min-h-12">
-        <Button variant="outline" disabled={!run} onClick={batchConfirm}>
-          <CheckCheck size={16} className="mr-[7px]" />
-          批量确认低风险 AI 项
-        </Button>
         <Button variant="outline" disabled={!run} onClick={() => void loadClosureTasks()}>
           <RefreshCw size={15} className="mr-[7px]" />
           刷新统一任务

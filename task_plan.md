@@ -22,6 +22,8 @@ flowchart TD
 /// 4. 用桌面 API 回归测试锁定联动同步不得生成 `PFMEA-SYNC-*` 或 PFMEA 占位行。
 /// 5. 横向排查 `live_linkage` 与 `three_table_linkage`，禁止 PFD 缺 PFMEA 时自动创建占位 PFMEA。
 /// 6. 运行三表生成、联动同步、桌面表格和 shell 回归，再做前端构建与可启动检查。
+/// 7. 修复历史 run 读取：如果 `current_result.pfmea.rows` 只剩 `PFMEA-SYNC-*` / “待工程人员填写失效模式”占位，桌面 API 必须隐藏这些行，并把 PFMEA 阶段还原为失败。
+/// 8. 修复 Tauri 三表工作台：阶段状态优先读取 API 顶层 `chain_stages`，PFMEA 表按 AIAG-VDA 核心字段显示，不再使用“过程/特性/风险”泛化列冒充 PFMEA。
 
 ### OpenSpec 四步闭环
 
@@ -29,6 +31,45 @@ flowchart TD
 2. Specify：PFMEA 行必须来自确认后的 PFD；缺 PFMEA 是待重新推理的问题，不是可机械补占位行的问题。
 3. Implement：最小修改 PFD 归一化、链式 PFMEA 后处理、桌面联动同步与 live linkage 同步建议。
 4. Verify：回归测试覆盖 PFD 伪工序、PFMEA 孤儿编号、PFMEA 字段继承、PFMEA 占位同步入口和桌面链式流程。
+
+## 当前任务：架构深挖问题修复
+
+目标是按架构深挖结果低风险修复三个浅接口问题：先抽出图纸到三表结果封装 seam，再抽出桌面链式状态迁移层，然后把 edit patch 与三表联动里的报告装配和核心规则分开。当前只做行为等价的组织拆分，不新增产品功能。
+
+```mermaid
+flowchart TD
+    AR0[架构深挖发现浅接口] --> AR1[记录问题和修复顺序]
+    AR1 --> AR2[pipeline 结果封装 seam]
+    AR2 --> AR3[DesktopRunService 状态迁移层]
+    AR3 --> AR4[edit_patch 报告装配层]
+    AR4 --> AR5[three_table_linkage 同步报告层]
+    AR5 --> AR6[聚焦回归和文档更新]
+```
+
+/// 1. 记录 `generate_three_tables_from_drawing` 同时承担链路推进、结果封装、manifest、人工复核摘要和导出视图的架构问题。
+/// 2. 通过测试锁定三表结果 envelope 字段不漂移，再把 `_three_table_generation_envelope` 与人工复核/manifest helper 抽到专门模块。
+/// 3. 记录 `DesktopRunService` 同时承担运行生命周期、SQLite 持久化、链式状态迁移和 edit patch 失效传播的架构问题。
+/// 4. 通过测试锁定 PFD/PFMEA 编辑后的下游失效规则，再把链式状态迁移 helper 抽到专门模块。
+/// 5. 记录 `edit_patch` 同时承担补丁内核、导出门、review dashboard、workbook 导出和刷新视图的架构问题。
+/// 6. 通过测试锁定 edit patch 刷新后的 review dashboard、manual_review、linkage_map 行为，再把报告装配 helper 抽出。
+/// 7. 记录 `three_table_linkage` 同时承担 linkage map 规则和 sync UI report 的架构问题。
+/// 8. 通过测试锁定 sync_snapshot / sync_issues / sync_suggestions 行为，再把同步报告装配 helper 抽出。
+/// 9. 运行 pipeline、desktop、edit_patch、three_table_linkage 聚焦回归，确认只改变模块深度，不改变用户可见输出。
+
+### OpenSpec 四步闭环
+
+1. Define：本轮是架构深挖后的低风险修复，不改变三表生成业务语义。
+2. Specify：公共入口、JSON 字段、质量门、桌面链式状态和导出行为必须保持兼容。
+3. Implement：按顺序抽出结果封装、链式状态迁移、edit patch 报告装配和 linkage sync 报告装配。
+4. Verify：运行聚焦测试和 `git diff --check`，记录通过项和剩余风险。
+
+### 当前完成状态
+
+/// 已完成 `three_table_result.py`，三表结果 envelope 与人工复核摘要不再藏在 `pipeline.py`。
+/// 已完成 `chain_state.py`，桌面链式阶段状态迁移不再藏在 `services.py`。
+/// 已完成 `edit_patch_reports.py`，编辑后的 review dashboard 与 manual review payload 不再藏在补丁内核里。
+/// 已完成 `three_table_linkage_reports.py`，同步快照、同步问题和同步建议不再藏在 linkage gap 核心里。
+/// 已新增 `tests/test_architecture_seams.py`，用架构 seam 测试防止后续把这些逻辑又塞回大文件。
 
 ## 当前任务：MINOS-CORE 调查审核与问题修复
 
@@ -112,7 +153,7 @@ flowchart TD
 /// 3. 图纸识别结果必须经过质量门，高风险、低置信度、证据不足内容进入人工复核。
 /// 4. PFD、PFMEA、CP 都保留 AI 推理标记、置信度、证据引用和 needs_confirmation。
 /// 5. 第一版输出统一三表工作簿和三份独立 Excel，不扩展完整 PPAP 18 项。
-/// 6. AI 配置优先读显式 MINOS/OPENAI 环境变量；当 Codex provider 要求 OpenAI auth 时，复用 `%USERPROFILE%\.codex\config.toml` 与 `auth.json`，并按 Codex 的 responses endpoint 调用；当前第一推荐模型固定为 `gpt-5.4`；密钥不写文件、不打印。
+/// 6. AI 配置优先读显式 MINOS/OPENAI 环境变量；当 Codex provider 要求 OpenAI auth 时，复用 `%USERPROFILE%\.codex\config.toml` 与 `auth.json`，并按 Codex 的 responses endpoint 调用；当前第一推荐模型固定为 `gpt-5.5`；密钥不写文件、不打印。
 /// 7. 后端闭环通过 `generate_three_tables_from_drawing(...)` 和 `generate-three-tables` CLI 提供给桌面端复用。
 /// 8. 桌面端第一版作为可选依赖 `.[desktop]`，业务逻辑只调用 core pipeline，不绕平台 HTTP 层。
 /// 9. 桌面端和交付给用户查看的摘要、表头、AI 识别内容、PFD/PFMEA/CP 草案业务文本默认使用中文；内部 JSON 字段名保持稳定，不作为 UI 表头直接展示。
@@ -571,7 +612,7 @@ flowchart TD
   - `三表独立文件\PFMEA.xlsx`
   - `三表独立文件\控制计划.xlsx`
 - `accept-three-tables` 已完成三类样本的 OpenXML 结构验收，当前未发现损坏的 `.xlsx`。
-- 已修复 MINOS 默认模型漂移，当前默认模型固定为 `gpt-5.4`。
+- 已修复 MINOS 默认模型漂移，当前默认模型固定为 `gpt-5.5`。
 - 已安装 `PySide6`，桌面 smoke preflight 已从 `warning` 升级为 `ready`。
 - 已修复 `PySide6` 导入异常时 preflight 直接崩溃的问题。
 
@@ -1214,4 +1255,82 @@ V1.14.1 在 V1.14 图纸事实到工程闭环的基础上，把图纸入口调�
 /// 7. 更新 `progress.md`、`findings.md`、`project_flow.mmd`，记录通过项、跳过项和剩余风险。
 /// 8. 修复发布版桌面启动时弹出命令行窗口：主 Tauri exe 使用 Windows GUI 子系统，Python sidecar 使用 `CREATE_NO_WINDOW` 隐藏控制台，并重新构建 NSIS 安装包。
 /// 9. 横向收口 Tauri 桌面中文化：风险、状态、阶段、检查器、本地服务、流程图符号、导入/导出页标题均显示中文；过程流程图支持一键确认全部可见行，并显示已确认/待确认进度。
-/// 10. 修复链式失效模式分析等待体验：保持文本模型默认 `medium` 推理强度，确认后轮询 run 状态并及时展示 504/失败；504 不再重复三轮长等待。
+/// 10. 修复链式失效模式分析等待体验：保持文本模型默认 `medium` 推理强度，确认后轮询 run 状态并及时展示 504/失败，避免整批 PFMEA 请求让用户长时间无反馈。
+/// 11. 修复 PFMEA 最新版格式：按 AIAG-VDA First Edition 2019 七步法/Form C 收口结构、功能、失效、风险、优化字段；PFMEA 输出和导出不再使用旧 RPN 列，AP 为主字段。
+/// 12. 修复旧失败 run 自动恢复：Tauri 启动不再把 `blocked_stage=pfmea` 的失败运行自动当作当前最新工作台结果；工作台提供“重新生成失效模式分析”入口。
+/// 13. 修复 PFMEA 生成 504 处理：Responses 文本链路把 504 Gateway Time-out 纳入临时上游错误重试，并给桌面失败文案明确提示上游模型/中转超时。
+/// 14. 修复 PFMEA 批量请求过重：基于已确认 PFD 的每个工序分别调用文本 LLM 生成 PFMEA，再统一归一化继承 PFD 字段，避免整张 PFD 一次性请求触发上游 504。
+/// 15. 文本 Responses 链路默认启用 `stream=true` 并解析 SSE 输出；流式不减少模型总推理量，但能让中转更早收到输出片段，降低长时间空闲导致的网关超时风险。
+
+---
+
+## V1.14.8 PFD 排序与三表总审核收口
+
+### 目标
+修复 Tauri 工作台里 PFD 拖拽排序不可靠的问题，并把 AI 审核收口到“控制计划确认之后的三表总审核”。AI 只给建议，人工判断优先。
+
+### OpenSpec 四步闭环
+1. Define：目标是修复真实交互和审核时机，不新增新的审批流程。
+2. Specify：PFD 行必须能通过整行拖拽和上移/下移调整顺序；AI 审核只能在 CP 确认后生成和执行。
+3. Implement：让 PFD 行和手柄都可拖拽，保留上移/下移兜底；后端旧批量确认入口增加 CP 后审核门禁。
+4. Verify：运行桌面服务、Tauri 状态、自动审核、闭环任务和前端构建，并重启发布版桌面软件。
+
+### 开发步骤
+/// 1. 复现 PFD 排序入口脆弱：原实现依赖表格行拖拽，且筛选状态曾关闭排序。
+/// 2. 增加回归测试，要求 PFD 支持整行拖拽、拖拽手柄拖拽、上移/下移按钮和 sequence patch。
+/// 3. 修改 Tauri 表格：行和拖拽手柄都写入 drag data；上移/下移直接调用同一排序保存入口。
+/// 3.1 用户确认上移/下移可用但左侧手柄不可拖后，把手柄从 HTML5 `draggable` 改为 pointer 拖动兜底，避免 WebView 事件冲突。
+/// 3.2 用户确认上方 PFD 图箭头仍不对后，把手动排序 patch 从只写 `sequence` 扩展为同步写 `previous_step_ids` / `next_step_ids`，让图和表使用同一条主流程顺序。
+/// 4. 增加服务层行为测试，确认 CP 未确认时旧 AI 批量确认入口不改任何行。
+/// 5. 修改 CP 确认：确认后生成 `automation_review.review_stage=after_control_plan` 且 `human_decision_priority=True`。
+/// 6. 收紧旧批量确认入口：只有 CP confirmed 且存在 after-control-plan 审核结果时才允许执行。
+/// 7. 修改桌面审核模型：显式读取 `batch_confirm_candidates`，并让可批量确认候选优先于同目标普通人工任务。
+/// 8. 运行 Python 聚焦测试、Tauri 构建、发布版构建和软件可打开性检查。
+/// 9. 继续修复 PFMEA 504：用真实 run 验证单工序 PFMEA 可生成，确认 2 个以上工序批量请求会被中转 504 后，把链式 PFMEA 改成按 PFD 工序拆分请求，并同步启用文本 Responses 流式。
+/// 10. 修复 CP 生成 502：确认 CP 仍一次性请求全部高/中 AP PFMEA 后，将链式 CP 改成每条 PFMEA 单独请求并合并，校验返回 `pfmea_id` / `process_step_id` 不得串行。
+/// 11. 修复旧 sidecar 端口复用：Tauri 默认必须启动自己托管的 sidecar；如果 `8000` 被旧进程占用，自动改用 `8001-8020` 的空闲端口，并将实际 `api_base_url` 回传给前端。
+
+---
+
+## V1.14.10 CP 过程控制可用性增强
+
+### 目标
+把控制计划从“偏结果检验的检查表”补成现场可用的控制计划：每条 CP 行必须同时表达过程参数、参数规格/设定范围、过程控制方法、首件/换型确认、防错验证、过程记录，以及原有的测量方法、抽样频次和反应计划。
+
+### OpenSpec 四步闭环
+1. Define：问题不是 CP 没有结果检验，而是缺少现场稳定过程所需的过程控制字段。
+2. Specify：过程控制字段必须从 PFMEA 失效原因、预防控制、PFD/PFMEA 过程特性继承或派生；结果检验字段不能替代过程控制。
+3. Implement：最小扩展 CP schema、规则生成、链式 LLM prompt/schema、桌面表格和 Excel 导出。
+4. Verify：先写红灯测试，再验证后端生成、归一化、导出、Tauri 表格和相邻质量门测试。
+
+### 开发步骤
+/// 1. 写红灯测试：CP 行必须包含 `process_parameter`、`parameter_specification`、`process_control_method`、`setup_verification`、`poka_yoke_device`、`poka_yoke_verification`、`process_record`。
+/// 2. 修改规则 CP 生成：从 PFMEA `process_characteristic`、`failure_cause`、`prevention_control` 派生过程参数、参数规格和过程控制方法。
+/// 3. 修改链式 CP LLM schema/prompt：要求单条 PFMEA 生成时明确区分过程控制层和结果检验层。
+/// 4. 修改 CP 归一化和 `ControlItem`，确保旧数据兼容且新增字段能稳定穿透。
+/// 5. 修改桌面后端表格、Tauri 工作台和两处 Excel 导出，显示过程参数、参数规格、过程控制方法、首件/换型确认、防错和过程记录。
+/// 6. 修复日期脆弱测试：措施管理测试注入固定 today，避免真实日期变化导致状态断言漂移。
+/// 7. 运行 CP、桌面表格、Tauri 状态、质量门、联动和前端构建验证。
+
+---
+
+## V1.14.11 PFMEA 控制逻辑增强
+
+### 目标
+PFMEA 不做成第二张控制计划，但必须把风险控制逻辑写清楚：每条 PFMEA 行要说明失效原因对应的过程参数/工装/材料状态，预防控制控制什么、何时控制，探测控制探测什么、何时探测，并给出控制逻辑复核摘要。这样 CP 可以从 PFMEA 继承更可靠的过程控制依据。
+
+### OpenSpec 四步闭环
+1. Define：问题不是 PFMEA 缺字段数量，而是“失效原因、预防控制、探测控制”没有清楚分层，导致 CP 难以继承过程控制。
+2. Specify：PFMEA 增加 `cause_process_parameter`、`prevention_control_target`、`prevention_control_timing`、`detection_control_target`、`detection_control_timing`、`control_logic_review`；高 AP 或特殊特性行若预防控制偏结果检查，应标记需要人工复核。
+3. Implement：按 TDD 最小扩展 PFMEA 标准化、规则生成、链式 LLM prompt/schema、桌面表格、Excel 导出、变更影响和 CP 继承。
+4. Verify：先确认红灯测试，再运行 PFMEA/CP/桌面/联动/质量门和 Tauri 前端构建。
+
+### 开发步骤
+/// 1. 写红灯测试：PFMEA 归一化、规则生成、链式 LLM schema/prompt、Excel 导出、Tauri PFMEA 表格和桌面表格都必须包含控制逻辑字段。
+/// 2. 修改 PFMEA 标准化：从 PFD/PFMEA 过程特性推导原因过程参数；从失效原因、预防控制和探测控制推导控制对象、控制时机和复核摘要。
+/// 3. 修改规则 PFMEA 生成：每条风险行写入原因过程参数、预防控制对象/时机、探测对象/时机和控制逻辑复核。
+/// 4. 修改链式 PFMEA LLM schema/prompt：要求预防控制必须控制失效原因或原因过程参数，探测控制必须单独说明对象和时机。
+/// 5. 修改桌面后端表格、Tauri PFMEA 表格和两处 Excel 导出，显示并可编辑 PFMEA 控制逻辑字段。
+/// 6. 修改 CP 继承路径：规则 CP、链式 CP、桌面继承显示和联动新增 CP 建议均优先使用 PFMEA `cause_process_parameter`。
+/// 7. 子代理做只读审核，主代理修复审核指出的 CP 继承显示和联动建议漏口。
+/// 8. 运行后端聚焦回归、质量门/联动回归、py_compile、Tauri `npm run build` 和 `git diff --check`。

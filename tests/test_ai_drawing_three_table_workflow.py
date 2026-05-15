@@ -32,7 +32,12 @@ from minos_core.pfd_to_pfmea_ai import (
     normalize_pfmea_rows,
 )
 from minos_core.pipeline import generate_three_tables_from_drawing
-from minos_core.pipeline_chain import generate_pfd_from_drawing, generate_pfmea_from_confirmed_pfd
+from minos_core.pipeline_chain import (
+    generate_cp_from_confirmed_pfmea,
+    generate_pfd_from_drawing,
+    generate_pfmea_from_confirmed_pfd,
+)
+from minos_core.three_table_result import build_three_table_generation_envelope
 from minos_core.cli import main
 from minos_core.schemas import validate_bundle_schema
 
@@ -387,11 +392,10 @@ class AIDrawingThreeTableWorkflowTests(unittest.TestCase):
                     "occurrence": 4,
                     "detection_control": "首件检验孔位",
                     "detection": 5,
-                    "rpn": 160,
                     "action_priority": "M",
                     "special_characteristics": "SC",
-                    "preventive_action": "",
-                    "detection_action": "",
+                    "preventive_action": "点检定位销并确认孔位能力",
+                    "detection_action": "增加孔位巡检频次",
                     "responsible_person": "",
                     "target_date": "",
                     "status": "未开始",
@@ -413,19 +417,160 @@ class AIDrawingThreeTableWorkflowTests(unittest.TestCase):
         }
 
         with patch("minos_core.pipeline_chain.OpenAITextGenerator") as generator:
-            generator.return_value.generate_structured.return_value = llm_payload
+            llm = generator.return_value
+            llm.generate_structured.return_value = llm_payload
 
             pfmea = generate_pfmea_from_confirmed_pfd({}, confirmed_pfd)
 
         row = pfmea["rows"][0]
+        call_kwargs = llm.generate_structured.call_args.kwargs
+        schema_items = (
+            call_kwargs["response_format"]["json_schema"]["schema"]["properties"]["rows"]["items"]
+        )
+        for field in _PFMEA_CONTROL_LOGIC_FIELDS:
+            self.assertIn(field, schema_items["properties"])
+            self.assertIn(field, schema_items["required"])
+        self.assertIn("原因过程参数", call_kwargs["system_prompt"])
+        self.assertIn("预防控制对象", call_kwargs["system_prompt"])
+        self.assertIn("探测对象", call_kwargs["system_prompt"])
+        self.assertIn("预防控制必须控制失效原因", call_kwargs["user_prompt"])
         self.assertEqual(row["process_step_id"], "P10")
         self.assertEqual(row["operation"], "冲压安装孔")
         self.assertEqual(row["process_step"], "冲压安装孔")
         self.assertEqual(row["process_step_name"], "冲压安装孔")
         self.assertEqual(row["structure_process_step"], "冲压安装孔")
+        self.assertEqual(row["structure_process_item"], "制造过程")
+        self.assertEqual(row["structure_work_element"], "压力机")
+        self.assertEqual(row["function_process_item"], "制造过程")
         self.assertEqual(row["function_process_step"], "形成安装孔位置")
+        self.assertEqual(row["function_work_element"], "压力机稳定输出")
         self.assertEqual(row["function_requirement"], "形成安装孔位置")
+        self.assertEqual(row["preventive_action"], "点检定位销并确认孔位能力")
+        self.assertEqual(row["detection_action"], "增加孔位巡检频次")
+        self.assertEqual(row["optimization_action"], "点检定位销并确认孔位能力；增加孔位巡检频次")
+        self.assertEqual(row["AP"], "M")
+        self.assertNotIn("rpn", row)
+        self.assertNotIn("after_rpn", row)
         self.assertEqual(row["pfmea_id"], "PFMEA-P10-01")
+        self.assertEqual(row["cause_process_parameter"], "冲压力")
+        self.assertIn("定位销磨损", row["prevention_control_target"])
+        self.assertTrue(row["prevention_control_timing"])
+        self.assertIn("安装孔", row["detection_control_target"])
+        self.assertTrue(row["detection_control_timing"])
+        self.assertIn("预防", row["control_logic_review"])
+        self.assertIn("探测", row["control_logic_review"])
+
+    def test_chain_pfmea_generates_one_llm_request_per_confirmed_pfd_step(self):
+        confirmed_pfd = {
+            "steps": [
+                {
+                    "process_step_id": "P10",
+                    "operation": "来料检验",
+                    "process_function": "确认来料符合图纸要求",
+                    "equipment": "检验台",
+                },
+                {
+                    "process_step_id": "P20",
+                    "operation": "冲压成形",
+                    "process_function": "形成铰链主体形状",
+                    "equipment": "压力机",
+                },
+            ]
+        }
+        payloads = [
+            {
+                "rows": [
+                    {
+                        "pfmea_id": "",
+                        "process_step_id": "P10",
+                        "process_item": "制造过程",
+                        "process_step_name": "",
+                        "structure_process_item": "制造过程",
+                        "structure_process_step": "",
+                        "structure_work_element": "检验台",
+                        "work_element_4m": "机",
+                        "function_process_item": "制造过程",
+                        "function_process_step": "",
+                        "function_work_element": "检验台执行来料确认",
+                        "failure_effect": "不合格物料流入后续工序",
+                        "severity": 7,
+                        "failure_mode": "来料状态误判",
+                        "failure_cause": "检验标准使用错误",
+                        "prevention_control": "检验标准版本确认",
+                        "occurrence": 3,
+                        "detection_control": "复核检验记录",
+                        "detection": 4,
+                        "action_priority": "M",
+                        "special_characteristics": "无",
+                        "preventive_action": "锁定检验标准版本",
+                        "detection_action": "抽查记录",
+                        "optimization_action": "锁定检验标准版本；抽查记录",
+                        "responsible_person": "",
+                        "target_date": "",
+                        "status": "未开始",
+                        "needs_confirmation": True,
+                    }
+                ]
+            },
+            {
+                "rows": [
+                    {
+                        "pfmea_id": "",
+                        "process_step_id": "P20",
+                        "process_item": "制造过程",
+                        "process_step_name": "",
+                        "structure_process_item": "制造过程",
+                        "structure_process_step": "",
+                        "structure_work_element": "压力机",
+                        "work_element_4m": "机",
+                        "function_process_item": "制造过程",
+                        "function_process_step": "",
+                        "function_work_element": "压力机形成主体形状",
+                        "failure_effect": "铰链安装间隙异常",
+                        "severity": 8,
+                        "failure_mode": "成形尺寸偏差",
+                        "failure_cause": "冲压参数漂移",
+                        "prevention_control": "首件参数确认",
+                        "occurrence": 4,
+                        "detection_control": "尺寸巡检",
+                        "detection": 5,
+                        "action_priority": "M",
+                        "special_characteristics": "SC",
+                        "preventive_action": "锁定压力机参数",
+                        "detection_action": "增加尺寸巡检",
+                        "optimization_action": "锁定压力机参数；增加尺寸巡检",
+                        "responsible_person": "",
+                        "target_date": "",
+                        "status": "未开始",
+                        "needs_confirmation": True,
+                    }
+                ]
+            },
+        ]
+
+        with patch("minos_core.pipeline_chain.OpenAITextGenerator") as generator:
+            llm = generator.return_value
+            llm.generate_structured.side_effect = payloads
+
+            pfmea = generate_pfmea_from_confirmed_pfd({}, confirmed_pfd)
+
+        self.assertEqual(llm.generate_structured.call_count, 2)
+        prompts = [
+            call.kwargs["user_prompt"]
+            for call in llm.generate_structured.call_args_list
+        ]
+        self.assertIn("P10", prompts[0])
+        self.assertNotIn("P20", prompts[0])
+        self.assertIn("P20", prompts[1])
+        self.assertNotIn("P10", prompts[1])
+        self.assertEqual(
+            [row["process_step_id"] for row in pfmea["rows"]],
+            ["P10", "P20"],
+        )
+        self.assertEqual(
+            pfmea["metadata"]["pfmea_generation_strategy"],
+            "per_pfd_step",
+        )
 
     def test_chain_pfmea_rejects_rows_not_from_confirmed_pfd(self):
         llm_payload = {
@@ -446,7 +591,6 @@ class AIDrawingThreeTableWorkflowTests(unittest.TestCase):
                     "occurrence": 4,
                     "detection_control": "检验",
                     "detection": 5,
-                    "rpn": 160,
                     "action_priority": "M",
                     "special_characteristics": "无",
                     "preventive_action": "",
@@ -468,6 +612,284 @@ class AIDrawingThreeTableWorkflowTests(unittest.TestCase):
                     {"steps": [{"process_step_id": "P10", "operation": "冲压安装孔"}]},
                 )
 
+    def test_chain_pfmea_rejects_step_request_returning_another_confirmed_step(self):
+        confirmed_pfd = {
+            "steps": [
+                {"process_step_id": "P10", "operation": "来料检验"},
+                {"process_step_id": "P20", "operation": "冲压成形"},
+            ]
+        }
+        payloads = [
+            {
+                "rows": [
+                    {
+                        "pfmea_id": "PFMEA-P20-01",
+                        "process_step_id": "P20",
+                        "process_item": "制造过程",
+                        "process_step_name": "冲压成形",
+                        "work_element_4m": "机",
+                        "function_process_step": "形成铰链主体",
+                        "function_work_element": "压力机输出",
+                        "failure_effect": "影响装配",
+                        "severity": 8,
+                        "failure_mode": "尺寸偏差",
+                        "failure_cause": "参数漂移",
+                        "prevention_control": "参数确认",
+                        "occurrence": 4,
+                        "detection_control": "尺寸检验",
+                        "detection": 5,
+                        "action_priority": "M",
+                        "special_characteristics": "无",
+                        "preventive_action": "",
+                        "detection_action": "",
+                        "responsible_person": "",
+                        "target_date": "",
+                        "status": "未开始",
+                        "needs_confirmation": True,
+                    }
+                ]
+            }
+        ]
+
+        with patch("minos_core.pipeline_chain.OpenAITextGenerator") as generator:
+            generator.return_value.generate_structured.side_effect = payloads
+
+            with self.assertRaisesRegex(ValueError, "expected P10"):
+                generate_pfmea_from_confirmed_pfd({}, confirmed_pfd)
+
+    def test_chain_cp_generates_per_pfmea_row_to_avoid_gateway_timeout(self):
+        confirmed_pfd = {
+            "steps": [
+                {"process_step_id": "P10", "operation": "来料检验"},
+                {"process_step_id": "P20", "operation": "冲压成形"},
+            ]
+        }
+        confirmed_pfmea = {
+            "rows": [
+                {
+                    "pfmea_id": "PFMEA-P10-01",
+                    "process_step_id": "P10",
+                    "process_step_name": "来料检验",
+                    "equipment": "检具",
+                    "failure_mode": "来料尺寸不符",
+                    "failure_cause": "供应商过程波动",
+                    "prevention_control": "供应商审核",
+                    "detection_control": "来料检验",
+                    "action_priority": "H",
+                    "special_characteristics": "SC",
+                },
+                {
+                    "pfmea_id": "PFMEA-P20-01",
+                    "process_step_id": "P20",
+                    "process_step_name": "冲压成形",
+                    "equipment": "压力机",
+                    "failure_mode": "成形尺寸偏差",
+                    "failure_cause": "冲压参数漂移",
+                    "prevention_control": "参数点检",
+                    "detection_control": "尺寸巡检",
+                    "action_priority": "M",
+                    "special_characteristics": "无",
+                },
+            ]
+        }
+        payloads = [
+            {
+                "rows": [
+                    {
+                        "control_plan_id": "CP-P10-01",
+                        "process_step_id": "P10",
+                        "pfmea_id": "PFMEA-P10-01",
+                        "process_name": "来料检验",
+                        "equipment": "检具",
+                        "characteristic_number": "PFMEA-P10-01",
+                        "product_characteristic": "来料尺寸",
+                        "process_characteristic": "供应商批次",
+                        "special_characteristic_class": "SC",
+                        "specification_tolerance": "按图纸要求",
+                        "measurement_method": "来料检验",
+                        "sample_size": "5 件",
+                        "sample_frequency": "每批",
+                        "control_method": "供应商审核；来料检验",
+                        "process_parameter": "供应商批次追溯",
+                        "parameter_specification": "批次状态受控且证书齐全",
+                        "process_control_method": "供应商放行清单与批次扫描",
+                        "setup_verification": "换批前确认供应商批次和材质证明",
+                        "poka_yoke_device": "批次扫码防错",
+                        "poka_yoke_verification": "每批首件扫码验证",
+                        "process_record": "来料批次追溯记录",
+                        "reaction_plan": "隔离批次并通知质量工程师",
+                        "needs_confirmation": True,
+                    }
+                ]
+            },
+            {
+                "rows": [
+                    {
+                        "control_plan_id": "CP-P20-01",
+                        "process_step_id": "P20",
+                        "pfmea_id": "PFMEA-P20-01",
+                        "process_name": "冲压成形",
+                        "equipment": "压力机",
+                        "characteristic_number": "PFMEA-P20-01",
+                        "product_characteristic": "成形尺寸",
+                        "process_characteristic": "冲压参数",
+                        "special_characteristic_class": "无",
+                        "specification_tolerance": "按图纸要求",
+                        "measurement_method": "尺寸巡检",
+                        "sample_size": "5 件",
+                        "sample_frequency": "每班",
+                        "control_method": "参数点检；尺寸巡检",
+                        "process_parameter": "冲压力",
+                        "parameter_specification": "按作业指导书设定范围",
+                        "process_control_method": "参数锁定并每班点检",
+                        "setup_verification": "首件确认冲压参数和模具状态",
+                        "poka_yoke_device": "压力机参数权限锁",
+                        "poka_yoke_verification": "换型后验证参数锁定有效",
+                        "process_record": "冲压参数点检表",
+                        "reaction_plan": "隔离产品并调整参数",
+                        "needs_confirmation": True,
+                    }
+                ]
+            },
+        ]
+
+        with patch("minos_core.pipeline_chain.OpenAITextGenerator") as generator:
+            llm = generator.return_value
+            llm.generate_structured.side_effect = payloads
+
+            cp = generate_cp_from_confirmed_pfmea({}, confirmed_pfd, confirmed_pfmea)
+
+        self.assertEqual(llm.generate_structured.call_count, 2)
+        prompts = [call.kwargs["user_prompt"] for call in llm.generate_structured.call_args_list]
+        self.assertIn("PFMEA-P10-01", prompts[0])
+        self.assertNotIn("PFMEA-P20-01", prompts[0])
+        self.assertIn("PFMEA-P20-01", prompts[1])
+        self.assertNotIn("PFMEA-P10-01", prompts[1])
+        self.assertEqual([row["pfmea_id"] for row in cp["rows"]], ["PFMEA-P10-01", "PFMEA-P20-01"])
+        for row in cp["rows"]:
+            for field in (
+                "process_parameter",
+                "parameter_specification",
+                "process_control_method",
+                "setup_verification",
+                "poka_yoke_device",
+                "poka_yoke_verification",
+                "process_record",
+            ):
+                self.assertIn(field, row)
+                self.assertTrue(row[field])
+        self.assertEqual(cp["metadata"]["cp_generation_strategy"], "per_pfmea_row")
+
+    def test_control_plan_generation_outputs_process_controls_not_only_result_checks(self):
+        pfmea_bundle = {
+            "document_type": "pfmea",
+            "rows": [
+                {
+                    "pfmea_id": "PFMEA-P20-01",
+                    "process_step_id": "P20",
+                    "process_step_name": "冲压成形",
+                    "equipment": "压力机",
+                    "process_characteristic": "冲压力",
+                    "failure_mode": "成形尺寸偏差",
+                    "failure_cause": "冲压参数漂移",
+                    "prevention_control": "换型后参数点检并锁定",
+                    "detection_control": "尺寸巡检",
+                    "action_priority": "H",
+                    "severity": 8,
+                    "occurrence": 6,
+                    "detection": 5,
+                }
+            ],
+        }
+
+        cp = generate_control_plan_from_pfmea(pfmea_bundle)
+
+        row = cp["rows"][0]
+        self.assertEqual(row["process_parameter"], "冲压力")
+        self.assertIn("冲压参数漂移", row["parameter_specification"])
+        self.assertIn("换型后参数点检并锁定", row["process_control_method"])
+        self.assertIn("首件", row["setup_verification"])
+        self.assertTrue(row["poka_yoke_device"])
+        self.assertTrue(row["poka_yoke_verification"])
+        self.assertTrue(row["process_record"])
+
+    def test_control_plan_generation_inherits_pfmea_cause_process_parameter(self):
+        pfmea_bundle = {
+            "document_type": "pfmea",
+            "rows": [
+                {
+                    "pfmea_id": "PFMEA-P20-01",
+                    "process_step_id": "P20",
+                    "process_step_name": "冲压成形",
+                    "equipment": "压力机",
+                    "cause_process_parameter": "冲压力",
+                    "failure_mode": "成形尺寸偏差",
+                    "failure_cause": "压力不足导致成形不到位",
+                    "prevention_control": "锁定压力机参数",
+                    "detection_control": "尺寸巡检",
+                    "action_priority": "H",
+                    "severity": 8,
+                    "occurrence": 6,
+                    "detection": 5,
+                }
+            ],
+        }
+
+        cp = generate_control_plan_from_pfmea(pfmea_bundle)
+
+        row = cp["rows"][0]
+        self.assertEqual(row["process_parameter"], "冲压力")
+        self.assertIn("压力不足导致成形不到位", row["parameter_specification"])
+
+    def test_chain_cp_rejects_row_request_returning_another_pfmea(self):
+        confirmed_pfd = {"steps": [{"process_step_id": "P10", "operation": "来料检验"}]}
+        confirmed_pfmea = {
+            "rows": [
+                {
+                    "pfmea_id": "PFMEA-P10-01",
+                    "process_step_id": "P10",
+                    "process_step_name": "来料检验",
+                    "failure_mode": "来料尺寸不符",
+                    "action_priority": "H",
+                },
+                {
+                    "pfmea_id": "PFMEA-P10-02",
+                    "process_step_id": "P10",
+                    "process_step_name": "来料检验",
+                    "failure_mode": "标签错误",
+                    "action_priority": "M",
+                },
+            ]
+        }
+        llm_payload = {
+            "rows": [
+                {
+                    "control_plan_id": "CP-P10-02",
+                    "process_step_id": "P10",
+                    "pfmea_id": "PFMEA-P10-02",
+                    "process_name": "来料检验",
+                    "equipment": "检具",
+                    "characteristic_number": "PFMEA-P10-02",
+                    "product_characteristic": "标签",
+                    "process_characteristic": "来料批次",
+                    "special_characteristic_class": "无",
+                    "specification_tolerance": "按包装规范",
+                    "measurement_method": "目视检查",
+                    "sample_size": "5 件",
+                    "sample_frequency": "每批",
+                    "control_method": "标签核对",
+                    "reaction_plan": "隔离并更换标签",
+                    "needs_confirmation": True,
+                }
+            ]
+        }
+
+        with patch("minos_core.pipeline_chain.OpenAITextGenerator") as generator:
+            generator.return_value.generate_structured.return_value = llm_payload
+
+            with self.assertRaisesRegex(ValueError, "expected PFMEA-P10-01"):
+                generate_cp_from_confirmed_pfmea({}, confirmed_pfd, confirmed_pfmea)
+
     def test_normalize_pfmea_rows_outputs_aiag_vda_form_c_fields(self):
         rows = [
             {
@@ -475,6 +897,8 @@ class AIDrawingThreeTableWorkflowTests(unittest.TestCase):
                 "process_step_id": "P10",
                 "operation": "冲压成形",
                 "process_function": "形成安装面",
+                "equipment": "压力机",
+                "process_characteristics": "冲压力",
                 "failure_mode": "安装面变形",
                 "failure_effect": "装配间隙不满足要求",
                 "failure_cause": "压力机参数不稳定",
@@ -487,10 +911,24 @@ class AIDrawingThreeTableWorkflowTests(unittest.TestCase):
             }
         ]
 
-        normalize_pfmea_rows(rows, process_steps=[{"process_step_id": "P10", "operation": "冲压成形"}])
+        normalize_pfmea_rows(
+            rows,
+            process_steps=[
+                {
+                    "process_step_id": "P10",
+                    "operation": "冲压成形",
+                    "process_function": "形成安装面",
+                    "equipment": "压力机",
+                    "process_characteristics": "冲压力",
+                }
+            ],
+        )
 
         row = rows[0]
         for field in (
+            "process_item",
+            "process_step",
+            "process_work_element",
             "structure_process_item",
             "structure_process_step",
             "structure_work_element",
@@ -502,6 +940,12 @@ class AIDrawingThreeTableWorkflowTests(unittest.TestCase):
             "failure_cause",
             "prevention_control",
             "detection_control",
+            "cause_process_parameter",
+            "prevention_control_target",
+            "prevention_control_timing",
+            "detection_control_target",
+            "detection_control_timing",
+            "control_logic_review",
             "severity",
             "occurrence",
             "detection",
@@ -511,11 +955,31 @@ class AIDrawingThreeTableWorkflowTests(unittest.TestCase):
             "target_date",
             "status",
             "needs_confirmation",
+            "S",
+            "O",
+            "D",
+            "AP",
         ):
             self.assertIn(field, row)
+        self.assertEqual(row["process_item"], "制造过程")
+        self.assertEqual(row["process_step"], "冲压成形")
+        self.assertEqual(row["process_work_element"], "压力机")
+        self.assertEqual(row["structure_process_item"], "制造过程")
         self.assertEqual(row["structure_process_step"], "冲压成形")
+        self.assertEqual(row["structure_work_element"], "压力机")
+        self.assertEqual(row["function_process_item"], "制造过程")
         self.assertEqual(row["function_process_step"], "形成安装面")
+        self.assertEqual(row["function_work_element"], "冲压力")
+        self.assertEqual(row["cause_process_parameter"], "冲压力")
+        self.assertIn("压力机参数不稳定", row["prevention_control_target"])
+        self.assertTrue(row["prevention_control_timing"])
+        self.assertIn("安装面", row["detection_control_target"])
+        self.assertIn("首件", row["detection_control_timing"])
+        self.assertIn("预防", row["control_logic_review"])
+        self.assertEqual(row["AP"], row["action_priority"])
         self.assertIn(row["action_priority"], {"H", "M", "L"})
+        self.assertNotIn("rpn", row)
+        self.assertNotIn("after_rpn", row)
         self.assertIsInstance(row["needs_confirmation"], bool)
 
     def test_normalize_control_plan_rows_outputs_cp_2024_fields(self):
@@ -553,10 +1017,17 @@ class AIDrawingThreeTableWorkflowTests(unittest.TestCase):
             "sample_size",
             "sample_frequency",
             "control_method",
-            "reaction_plan",
-            "needs_confirmation",
-        ):
-            self.assertIn(field, row)
+                "reaction_plan",
+                "process_parameter",
+                "parameter_specification",
+                "process_control_method",
+                "setup_verification",
+                "poka_yoke_device",
+                "poka_yoke_verification",
+                "process_record",
+                "needs_confirmation",
+            ):
+                self.assertIn(field, row)
         self.assertEqual(row["product_characteristic"], "安装面高度")
         self.assertEqual(row["specification_tolerance"], "10.0 +/- 0.2 mm")
         self.assertIsInstance(row["needs_confirmation"], bool)
@@ -622,10 +1093,18 @@ class AIDrawingThreeTableWorkflowTests(unittest.TestCase):
                     "failure_mode": "失效模式",
                     "failure_effect": "失效后果",
                     "failure_cause": "失效原因",
+                    "cause_process_parameter": "原因过程参数值",
+                    "prevention_control_target": "预防控制对象值",
+                    "prevention_control_timing": "预防控制时机值",
                     "severity": 7,
                     "occurrence": 4,
                     "detection": 5,
                     "action_priority": "M",
+                    "detection_control": "探测控制值",
+                    "detection_control_target": "探测对象值",
+                    "detection_control_timing": "探测时机值",
+                    "control_logic_review": "控制逻辑复核值",
+                    "special_characteristics": "CC",
                     "optimization_action": "标准优化措施",
                     "recommended_action": "旧推荐措施",
                     "responsible_person": "标准责任人",
@@ -652,6 +1131,13 @@ class AIDrawingThreeTableWorkflowTests(unittest.TestCase):
                     "measurement_method": "测量方法",
                     "sample_frequency": "每批",
                     "control_method": "控制方法",
+                    "process_parameter": "冲压力",
+                    "parameter_specification": "10-12 kN",
+                    "process_control_method": "参数锁定和首件确认",
+                    "setup_verification": "换型首件确认",
+                    "poka_yoke_device": "参数权限锁",
+                    "poka_yoke_verification": "每班验证参数锁有效",
+                    "process_record": "冲压参数记录表",
                     "reaction_plan": "反应计划",
                 }
             ],
@@ -673,26 +1159,56 @@ class AIDrawingThreeTableWorkflowTests(unittest.TestCase):
             self.assertIn("结构过程项", text)
             self.assertIn("功能过程项", text)
             self.assertIn("功能工作要素", text)
+            self.assertIn("措施后 S/O/D/AP", text)
+            self.assertIn("特殊特性", text)
+            self.assertIn("原因过程参数", text)
+            self.assertIn("预防控制对象", text)
+            self.assertIn("预防控制时机", text)
+            self.assertIn("探测对象", text)
+            self.assertIn("探测时机", text)
+            self.assertIn("控制逻辑复核", text)
+            self.assertIn("CC", text)
             self.assertIn("标准结构过程项", text)
             self.assertIn("标准功能过程项", text)
             self.assertIn("标准功能工作要素", text)
+            self.assertIn("原因过程参数值", text)
+            self.assertIn("预防控制对象值", text)
+            self.assertIn("预防控制时机值", text)
+            self.assertIn("探测对象值", text)
+            self.assertIn("探测时机值", text)
+            self.assertIn("控制逻辑复核值", text)
             self.assertIn("标准优化措施", text)
             self.assertIn("标准责任人", text)
             self.assertIn("标准状态", text)
             self.assertNotIn("旧过程项", text)
             self.assertNotIn("旧推荐措施", text)
+            self.assertNotIn("RPN", text)
         for text in (unified_text, split_cp_text):
             self.assertIn("特性编号", text)
             self.assertIn("产品特性", text)
             self.assertIn("过程特性", text)
             self.assertIn("特殊特性分类", text)
             self.assertIn("规格和公差", text)
+            self.assertIn("过程参数", text)
+            self.assertIn("参数规格", text)
+            self.assertIn("过程控制方法", text)
+            self.assertIn("首件/换型确认", text)
+            self.assertIn("防错装置", text)
+            self.assertIn("防错验证", text)
+            self.assertIn("过程记录", text)
             self.assertIn("标准设备", text)
             self.assertIn("CH-01", text)
             self.assertIn("标准产品特性", text)
             self.assertIn("标准过程特性", text)
             self.assertIn("标准特殊分类", text)
             self.assertIn("标准规格公差", text)
+            self.assertIn("冲压力", text)
+            self.assertIn("10-12 kN", text)
+            self.assertIn("参数锁定和首件确认", text)
+            self.assertIn("换型首件确认", text)
+            self.assertIn("参数权限锁", text)
+            self.assertIn("每班验证参数锁有效", text)
+            self.assertIn("冲压参数记录表", text)
             self.assertNotIn("旧合并特性", text)
             self.assertNotIn("旧规格", text)
 
@@ -1004,6 +1520,48 @@ class AIDrawingThreeTableWorkflowTests(unittest.TestCase):
             ]
             self.assertEqual(len(review_keys), len(set(review_keys)))
 
+    def test_three_table_result_builder_preserves_envelope_contract(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            final_gate = {
+                "stage": "final_three_table",
+                "can_continue": False,
+                "allow_user_export": False,
+                "manual_review_items": [
+                    {
+                        "item_id": "failure_mode:PFMEA-P10-001",
+                        "category": "pfmea",
+                        "severity": "blocker",
+                        "message": "PFMEA 行需要人工确认。",
+                    }
+                ],
+                "needs_confirmation_items": [],
+            }
+
+            envelope = build_three_table_generation_envelope(
+                status="needs_review",
+                drawing_analysis={"evidence": []},
+                process_flow={"steps": []},
+                pfmea={"rows": []},
+                control_plan={"rows": []},
+                chain={"metadata": {}},
+                quality_gates={"final_three_table": final_gate},
+                exports={},
+                output_dir=root,
+                inputs={"drawing_path": "drawing.png"},
+                blocked_stage=None,
+                warnings=["warning"],
+                part_family_classification={"family": "stamping"},
+                family_context={"route": "demo"},
+            )
+
+            self.assertEqual(envelope["document_type"], "three_table_generation_result")
+            self.assertEqual(envelope["quality_gate"], final_gate)
+            self.assertEqual(envelope["manual_review"]["raw_count"], 1)
+            self.assertEqual(envelope["manual_review"]["items"][0]["category"], "PFMEA 复核")
+            self.assertEqual(envelope["metadata"]["part_family_classification"]["family"], "stamping")
+            self.assertTrue(Path(envelope["manifest"]["path"]).exists())
+
     def test_generate_three_tables_final_export_blocks_unreviewed_ai_draft(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             image_path = self._write_png(Path(tmpdir) / "drawing.png")
@@ -1208,8 +1766,30 @@ def _rows_by_step(rows):
     return by_step
 
 
+_PFMEA_CONTROL_LOGIC_FIELDS = (
+    "cause_process_parameter",
+    "prevention_control_target",
+    "prevention_control_timing",
+    "detection_control_target",
+    "detection_control_timing",
+    "control_logic_review",
+)
+
+
 def _assert_pfmea_ai_risk_row(test_case, row):
     required_fields = {
+        "process_item",
+        "process_step",
+        "process_work_element",
+        "structure_process_item",
+        "structure_process_step",
+        "structure_work_element",
+        "function_process_item",
+        "function_process_step",
+        "function_work_element",
+        "failure_effect",
+        "failure_mode",
+        "failure_cause",
         "severity",
         "occurrence",
         "detection",
@@ -1220,7 +1800,14 @@ def _assert_pfmea_ai_risk_row(test_case, row):
         "AP",
         "prevention_control",
         "detection_control",
+        *_PFMEA_CONTROL_LOGIC_FIELDS,
+        "preventive_action",
+        "detection_action",
+        "optimization_action",
         "recommended_action",
+        "responsible_person",
+        "target_date",
+        "status",
         "ai_reasoning",
         "confidence",
         "ai_inferred",
@@ -1231,9 +1818,14 @@ def _assert_pfmea_ai_risk_row(test_case, row):
     test_case.assertIn(row["action_priority"], {"H", "M", "L"})
     test_case.assertTrue(row["prevention_control"])
     test_case.assertTrue(row["detection_control"])
+    for field in _PFMEA_CONTROL_LOGIC_FIELDS:
+        test_case.assertTrue(row[field], field)
+    test_case.assertTrue(row["optimization_action"])
     test_case.assertTrue(row["recommended_action"])
     test_case.assertTrue(row["ai_reasoning"])
     test_case.assertTrue(row["ai_inferred"])
+    test_case.assertNotIn("rpn", row)
+    test_case.assertNotIn("after_rpn", row)
     test_case.assertIsInstance(row["needs_confirmation"], bool)
     test_case.assertIsInstance(row["evidence_refs"], list)
     test_case.assertGreaterEqual(row["confidence"], 0.0)

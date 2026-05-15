@@ -64,7 +64,7 @@ class AIConfigTests(unittest.TestCase):
         self.assertTrue(config.api_key_configured)
         self.assertEqual(config.api_key_source, "codex_auth")
         self.assertEqual(config.api_key_env_name, "")
-        self.assertEqual(config.model, "gpt-5.4")
+        self.assertEqual(config.model, "gpt-5.5")
         self.assertEqual(config.base_url, "https://codex-proxy.example")
         self.assertEqual(config.wire_api, "responses")
         self.assertEqual(config.responses_path, "responses")

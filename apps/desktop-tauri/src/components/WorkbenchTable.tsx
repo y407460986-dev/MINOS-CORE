@@ -4,8 +4,8 @@ import {
   useReactTable,
   type ColumnDef,
 } from "@tanstack/react-table";
-import { useMemo, useState } from "react";
-import type { WorkbenchRow } from "../api/types";
+import { useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent, type ReactNode } from "react";
+import type { TableKind, WorkbenchRow } from "../api/types";
 import { riskLabel, rowStatusLabel } from "../state/workbench-display";
 import {
   Table,
@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { ArrowDown, ArrowUp, GripVertical } from "lucide-react";
 
 type DraftCell = {
   rowId: string;
@@ -30,24 +31,148 @@ type DraftChange = {
   value: string;
 };
 
+export type PfdNewRowDraft = {
+  process_step_id: string;
+  operation: string;
+  operation_type: string;
+  process_function: string;
+  equipment: string;
+  product_characteristic: string;
+  process_characteristic: string;
+  special_characteristic: string;
+  responsibility: string;
+};
+
 type WorkbenchColumnDef = ColumnDef<WorkbenchRow> & {
   editableField?: string;
 };
 
-const columns: WorkbenchColumnDef[] = [
-  { accessorKey: "id", header: "编号" },
-  { accessorKey: "process", header: "过程", editableField: "process" },
-  { accessorKey: "characteristic", header: "特性", editableField: "characteristic" },
-  { accessorKey: "risk", header: "风险", cell: ({ row }) => riskLabel(row.original.risk) },
-  { accessorKey: "status", header: "状态", cell: ({ row }) => rowStatusLabel(row.original.status) },
-  { accessorKey: "owner", header: "责任", editableField: "owner" },
-];
+const emptyPfdDraft: PfdNewRowDraft = {
+  process_step_id: "",
+  operation: "",
+  operation_type: "",
+  process_function: "",
+  equipment: "",
+  product_characteristic: "",
+  process_characteristic: "",
+  special_characteristic: "",
+  responsibility: ""
+};
+
+function text(value: unknown, fallback = ""): string {
+  if (Array.isArray(value)) return value.map((item) => text(item)).filter(Boolean).join(", ");
+  if (value === null || value === undefined || value === "") return fallback;
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
+}
+
+function firstText(row: WorkbenchRow, fields: string[], fallback = "-"): string {
+  for (const field of fields) {
+    const value = text(row.raw[field]);
+    if (value) return value;
+  }
+  return fallback;
+}
+
+function rawColumn(
+  id: string,
+  header: string,
+  fields: string[],
+  editableField?: string
+): WorkbenchColumnDef {
+  return {
+    id,
+    header,
+    accessorFn: (row) => firstText(row, fields),
+    editableField,
+  };
+}
+
+function columnsForTable(table: TableKind): WorkbenchColumnDef[] {
+  if (table === "pfmea") {
+    return [
+      { ...rawColumn("id", "编号", ["pfmea_id"]), header: "编号" },
+      { ...rawColumn("structure_process_item", "结构-过程项", ["structure_process_item", "process_item"]), header: "结构-过程项" },
+      { ...rawColumn("structure_process_step", "结构-过程步骤", ["structure_process_step", "process_step_name", "operation", "process_step", "process_step_id"]), header: "结构-过程步骤" },
+      { ...rawColumn("structure_work_element", "结构-工作要素", ["structure_work_element", "process_work_element", "work_element_4m"]), header: "结构-工作要素" },
+      { ...rawColumn("function_process_item", "功能-过程项", ["function_process_item", "process_item"]), header: "功能-过程项" },
+      { ...rawColumn("function_process_step", "功能-过程步骤", ["function_process_step", "function_requirement", "process_function"]), header: "功能-过程步骤" },
+      { ...rawColumn("function_work_element", "功能-工作要素", ["function_work_element", "process_characteristics", "process_characteristic"]), header: "功能-工作要素" },
+      { ...rawColumn("failure_effect", "失效后果", ["failure_effect", "effect"]), header: "失效后果" },
+      { ...rawColumn("severity", "严重度", ["severity"]), header: "严重度" },
+      { ...rawColumn("failure_mode", "失效模式", ["failure_mode"], "failure_mode"), header: "失效模式" },
+      { ...rawColumn("failure_cause", "失效原因", ["failure_cause", "cause"], "failure_cause"), header: "失效原因" },
+      { ...rawColumn("cause_process_parameter", "原因过程参数", ["cause_process_parameter"], "cause_process_parameter"), header: "原因过程参数" },
+      { ...rawColumn("prevention_control", "预防控制", ["prevention_control", "current_prevention_control"], "prevention_control"), header: "预防控制" },
+      { ...rawColumn("prevention_control_target", "预防控制对象", ["prevention_control_target"], "prevention_control_target"), header: "预防控制对象" },
+      { ...rawColumn("prevention_control_timing", "预防控制时机", ["prevention_control_timing"], "prevention_control_timing"), header: "预防控制时机" },
+      { ...rawColumn("occurrence", "发生度", ["occurrence"]), header: "发生度" },
+      { ...rawColumn("detection_control", "探测控制", ["detection_control", "current_detection_control"], "detection_control"), header: "探测控制" },
+      { ...rawColumn("detection_control_target", "探测对象", ["detection_control_target"], "detection_control_target"), header: "探测对象" },
+      { ...rawColumn("detection_control_timing", "探测时机", ["detection_control_timing"], "detection_control_timing"), header: "探测时机" },
+      { ...rawColumn("detection", "探测度", ["detection"]), header: "探测度" },
+      { ...rawColumn("ap", "AP", ["action_priority", "ap"]), header: "AP" },
+      { ...rawColumn("control_logic_review", "控制逻辑复核", ["control_logic_review"], "control_logic_review"), header: "控制逻辑复核" },
+      { ...rawColumn("special_characteristics", "特殊特性", ["special_characteristics", "special_characteristic", "special_characteristic_class", "classification"]), header: "特殊特性" },
+      { ...rawColumn("preventive_action", "预防措施", ["preventive_action"], "preventive_action"), header: "预防措施" },
+      { ...rawColumn("detection_action", "探测措施", ["detection_action"], "detection_action"), header: "探测措施" },
+      { ...rawColumn("responsible_person", "责任人", ["responsible_person", "responsibility", "owner"], "responsible_person"), header: "责任人" },
+      { ...rawColumn("target_date", "目标日期", ["target_date"], "target_date"), header: "目标日期" },
+      { accessorKey: "status", header: "状态", cell: ({ row }) => rowStatusLabel(row.original.status) },
+    ];
+  }
+
+  if (table === "cp") {
+    return [
+      rawColumn("id", "编号", ["control_plan_id"]),
+      rawColumn("process_step", "过程步骤", ["process_step_name", "operation", "process_step", "process_step_id"]),
+      rawColumn("pfmea_id", "PFMEA 来源", ["pfmea_id"]),
+      rawColumn("characteristic", "产品/过程特性", ["product_process_characteristic", "product_characteristic", "process_characteristic"], "product_process_characteristic"),
+      rawColumn("specification", "规范/公差", ["specification", "tolerance"], "specification"),
+      rawColumn("process_parameter", "过程参数", ["process_parameter"], "process_parameter"),
+      rawColumn("parameter_specification", "参数规格", ["parameter_specification"], "parameter_specification"),
+      rawColumn("process_control_method", "过程控制方法", ["process_control_method"], "process_control_method"),
+      rawColumn("setup_verification", "首件/换型确认", ["setup_verification"], "setup_verification"),
+      rawColumn("poka_yoke_device", "防错装置", ["poka_yoke_device"], "poka_yoke_device"),
+      rawColumn("poka_yoke_verification", "防错验证", ["poka_yoke_verification"], "poka_yoke_verification"),
+      rawColumn("process_record", "过程记录", ["process_record", "record_form"], "process_record"),
+      rawColumn("method", "测量方法", ["measurement_method", "evaluation_measurement_technique"], "measurement_method"),
+      rawColumn("frequency", "频次", ["sample_frequency", "frequency"], "sample_frequency"),
+      rawColumn("control_method", "控制方法", ["control_method"], "control_method"),
+      rawColumn("reaction_plan", "反应计划", ["reaction_plan"], "reaction_plan"),
+      { accessorKey: "status", header: "状态", cell: ({ row }) => rowStatusLabel(row.original.status) },
+      rawColumn("owner", "责任", ["owner", "responsibility"], "responsibility"),
+    ];
+  }
+
+  return [
+    rawColumn("sequence", "工序编号", ["sequence", "operation_no", "process_step_id"]),
+    rawColumn("flow_symbol", "流程符号", ["flow_type_display", "flow_symbol", "flow_type", "operation_type"], "operation_type"),
+    rawColumn("process", "工序名称", ["operation", "process_step", "process_step_name"], "operation"),
+    rawColumn("process_function", "过程功能", ["process_function", "description"], "process_function"),
+    rawColumn("equipment", "设备/工装", ["equipment", "machine", "tooling"], "equipment"),
+    rawColumn("product_characteristic", "产品特性", ["product_characteristic", "product_characteristics"], "product_characteristic"),
+    rawColumn("process_characteristic", "过程特性", ["process_characteristic", "process_characteristics"], "process_characteristic"),
+    rawColumn("special_characteristic", "特殊特性", ["special_characteristics", "special_characteristic", "classification"]),
+    rawColumn("owner", "责任", ["owner", "responsibility"], "responsibility"),
+    { accessorKey: "status", header: "复核状态", cell: ({ row }) => rowStatusLabel(row.original.status) },
+  ];
+}
+
+export function columnsForRows(rows: WorkbenchRow[], fallbackTable: TableKind = "pfd"): WorkbenchColumnDef[] {
+  const table = rows.find(Boolean)?.table ?? fallbackTable;
+  return columnsForTable(table);
+}
 
 type WorkbenchTableProps = {
   rows: WorkbenchRow[];
+  table: TableKind;
   selectedRow: WorkbenchRow | null;
   onSelectRow: (row: WorkbenchRow) => void;
   onSaveDrafts?: (changes: DraftChange[]) => Promise<void> | void;
+  onAddPfdRow?: (row: PfdNewRowDraft) => Promise<boolean | void> | boolean | void;
+  onReorderPfdRows?: (rows: WorkbenchRow[]) => Promise<void> | void;
+  canReorderRows?: boolean;
   onSoftDeleteRows?: (rows: WorkbenchRow[]) => Promise<void> | void;
   onMarkRowsForReview?: (rows: WorkbenchRow[]) => Promise<void> | void;
   busy?: boolean;
@@ -55,9 +180,13 @@ type WorkbenchTableProps = {
 
 export function WorkbenchTable({
   rows,
+  table: tableKind,
   selectedRow,
   onSelectRow,
   onSaveDrafts,
+  onAddPfdRow,
+  onReorderPfdRows,
+  canReorderRows = true,
   onSoftDeleteRows,
   onMarkRowsForReview,
   busy = false
@@ -65,6 +194,12 @@ export function WorkbenchTable({
   const [editingCell, setEditingCell] = useState<DraftCell | null>(null);
   const [draftChanges, setDraftChanges] = useState<Record<string, string>>({});
   const [selectedRowIds, setSelectedRowIds] = useState<Record<string, boolean>>({});
+  const [isAddingPfdRow, setIsAddingPfdRow] = useState(false);
+  const [pfdDraft, setPfdDraft] = useState<PfdNewRowDraft>(emptyPfdDraft);
+  const [draggedRowId, setDraggedRowId] = useState<string | null>(null);
+  const draggedRowIdRef = useRef<string | null>(null);
+  const pointerDragRowIdRef = useRef<string | null>(null);
+  const columns = useMemo(() => columnsForRows(rows, tableKind), [rows, tableKind]);
   const table = useReactTable({
     data: rows,
     columns,
@@ -85,6 +220,20 @@ export function WorkbenchTable({
       .filter(Boolean) as DraftChange[];
   }, [draftChanges, rows]);
   const hasContextActions = selectedRows.length > 0 || draftEntries.length > 0;
+
+  useEffect(() => {
+    async function finishWindowPointerDrag(event: globalThis.PointerEvent) {
+      if (!pointerDragRowIdRef.current) return;
+      await finishPointerDragAt(event.clientX, event.clientY);
+    }
+
+    window.addEventListener("pointerup", finishWindowPointerDrag);
+    window.addEventListener("pointercancel", finishWindowPointerDrag);
+    return () => {
+      window.removeEventListener("pointerup", finishWindowPointerDrag);
+      window.removeEventListener("pointercancel", finishWindowPointerDrag);
+    };
+  });
 
   function draftKey(row: WorkbenchRow, field: string): string {
     return `${row.rowId}::${field}`;
@@ -108,6 +257,14 @@ export function WorkbenchTable({
     setEditingCell(null);
   }
 
+  async function addPfdDraft() {
+    if (!onAddPfdRow) return;
+    const saved = await onAddPfdRow(pfdDraft);
+    if (saved === false) return;
+    setPfdDraft(emptyPfdDraft);
+    setIsAddingPfdRow(false);
+  }
+
   async function softDeleteRows() {
     if (!onSoftDeleteRows || selectedRows.length === 0) return;
     await onSoftDeleteRows(selectedRows);
@@ -128,8 +285,139 @@ export function WorkbenchTable({
     setSelectedRowIds(checked ? Object.fromEntries(visibleRows.map((row) => [row.rowId, true])) : {});
   }
 
+  function updatePfdDraft(field: keyof PfdNewRowDraft, value: string) {
+    setPfdDraft((current) => ({ ...current, [field]: value }));
+  }
+
+  async function reorderPfdRowToTarget(sourceRowId: string | null, targetRow: WorkbenchRow) {
+    if (!sourceRowId || sourceRowId === targetRow.rowId || !onReorderPfdRows) {
+      draggedRowIdRef.current = null;
+      pointerDragRowIdRef.current = null;
+      setDraggedRowId(null);
+      return;
+    }
+
+    const fromIndex = visibleRows.findIndex((row) => row.rowId === sourceRowId);
+    const toIndex = visibleRows.findIndex((row) => row.rowId === targetRow.rowId);
+    if (fromIndex < 0 || toIndex < 0) {
+      draggedRowIdRef.current = null;
+      pointerDragRowIdRef.current = null;
+      setDraggedRowId(null);
+      return;
+    }
+
+    const reorderedRows = [...visibleRows];
+    const [movedRow] = reorderedRows.splice(fromIndex, 1);
+    reorderedRows.splice(toIndex, 0, movedRow);
+    draggedRowIdRef.current = null;
+    pointerDragRowIdRef.current = null;
+    setDraggedRowId(null);
+    await onReorderPfdRows(reorderedRows);
+  }
+
+  async function dropPfdRow(targetRow: WorkbenchRow) {
+    await reorderPfdRowToTarget(draggedRowIdRef.current || draggedRowId, targetRow);
+  }
+
+  async function movePfdRow(row: WorkbenchRow, direction: -1 | 1) {
+    if (!canDragReorderPfdRows || !onReorderPfdRows) return;
+    const fromIndex = visibleRows.findIndex((item) => item.rowId === row.rowId);
+    const toIndex = fromIndex + direction;
+    if (fromIndex < 0 || toIndex < 0 || toIndex >= visibleRows.length) return;
+    const reorderedRows = [...visibleRows];
+    const [movedRow] = reorderedRows.splice(fromIndex, 1);
+    reorderedRows.splice(toIndex, 0, movedRow);
+    await onReorderPfdRows(reorderedRows);
+  }
+
+  function startDrag(row: WorkbenchRow, event: DragEvent<HTMLElement>) {
+    if (!canDragReorderPfdRows) return;
+    draggedRowIdRef.current = row.rowId;
+    setDraggedRowId(row.rowId);
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", row.rowId);
+  }
+
+  function endDrag() {
+    draggedRowIdRef.current = null;
+    setDraggedRowId(null);
+  }
+
+  function startPointerDrag(row: WorkbenchRow, event: PointerEvent<HTMLElement>) {
+    if (!canDragReorderPfdRows) return;
+    pointerDragRowIdRef.current = row.rowId;
+    draggedRowIdRef.current = row.rowId;
+    setDraggedRowId(row.rowId);
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    event.preventDefault();
+  }
+
+  async function finishPointerDragAt(clientX: number, clientY: number) {
+    const sourceRowId = pointerDragRowIdRef.current;
+    if (!sourceRowId) return;
+    const element = document.elementFromPoint(clientX, clientY);
+    const rowElement = element?.closest("[data-pfd-row-id]");
+    const targetRowId = rowElement?.getAttribute("data-pfd-row-id") || "";
+    const targetRow = visibleRows.find((row) => row.rowId === targetRowId);
+    pointerDragRowIdRef.current = null;
+    draggedRowIdRef.current = null;
+    setDraggedRowId(null);
+    if (targetRow) {
+      await reorderPfdRowToTarget(sourceRowId, targetRow);
+    }
+  }
+
+  async function finishPointerDrag(event: PointerEvent<HTMLElement>) {
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+    await finishPointerDragAt(event.clientX, event.clientY);
+  }
+
+  const canAddPfdRow = tableKind === "pfd" && Boolean(onAddPfdRow);
+  const canDragReorderPfdRows = tableKind === "pfd" && Boolean(onReorderPfdRows) && canReorderRows && !busy;
+  const canSavePfdDraft = Boolean(
+    pfdDraft.process_step_id.trim() &&
+    pfdDraft.operation.trim() &&
+    pfdDraft.operation_type.trim() &&
+    pfdDraft.process_function.trim() &&
+    pfdDraft.responsibility.trim()
+  );
+
   return (
     <div className="relative rounded-lg border bg-white overflow-hidden min-h-[480px]" aria-label="三表编辑画布">
+      {canAddPfdRow && (
+        <div className="border-b bg-white px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-[13px] text-muted-foreground">过程流程图</span>
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => setIsAddingPfdRow((current) => !current)}>
+              新增行
+            </Button>
+          </div>
+          {isAddingPfdRow && (
+            <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+              <Input aria-label="新增行编号" placeholder="编号" value={pfdDraft.process_step_id} onChange={(event) => updatePfdDraft("process_step_id", event.target.value)} />
+              <Input aria-label="新增行流程符号" placeholder="流程符号" value={pfdDraft.operation_type} onChange={(event) => updatePfdDraft("operation_type", event.target.value)} />
+              <Input aria-label="新增行工序名称" placeholder="工序名称" value={pfdDraft.operation} onChange={(event) => updatePfdDraft("operation", event.target.value)} />
+              <Input aria-label="新增行过程功能" placeholder="过程功能" value={pfdDraft.process_function} onChange={(event) => updatePfdDraft("process_function", event.target.value)} />
+              <Input aria-label="新增行设备工装" placeholder="设备/工装" value={pfdDraft.equipment} onChange={(event) => updatePfdDraft("equipment", event.target.value)} />
+              <Input aria-label="新增行产品特性" placeholder="产品特性" value={pfdDraft.product_characteristic} onChange={(event) => updatePfdDraft("product_characteristic", event.target.value)} />
+              <Input aria-label="新增行过程特性" placeholder="过程特性" value={pfdDraft.process_characteristic} onChange={(event) => updatePfdDraft("process_characteristic", event.target.value)} />
+              <Input aria-label="新增行特殊特性" placeholder="特殊特性" value={pfdDraft.special_characteristic} onChange={(event) => updatePfdDraft("special_characteristic", event.target.value)} />
+              <Input aria-label="新增行责任" placeholder="责任" value={pfdDraft.responsibility} onChange={(event) => updatePfdDraft("responsibility", event.target.value)} />
+              <div className="flex gap-2 sm:col-span-2 xl:col-span-5">
+                <Button size="sm" disabled={busy || !canSavePfdDraft} onClick={addPfdDraft}>
+                  保存新增行
+                </Button>
+                <Button size="sm" variant="ghost" disabled={busy} onClick={() => {
+                  setPfdDraft(emptyPfdDraft);
+                  setIsAddingPfdRow(false);
+                }}>
+                  取消
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
       {hasContextActions && (
         <div className="absolute right-4 top-4 z-20 flex items-center gap-2 rounded-lg border bg-white/95 px-3 py-2 text-[13px] shadow-[0_10px_30px_rgba(15,23,42,0.12)] backdrop-blur" aria-label="浮动上下文工具条">
           <span className="text-muted-foreground">
@@ -153,6 +441,7 @@ export function WorkbenchTable({
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
+              <TableHead className="w-10" />
               <TableHead className="w-10">
                 <input
                   type="checkbox"
@@ -174,13 +463,67 @@ export function WorkbenchTable({
             table.getRowModel().rows.map((row) => (
               <TableRow
                 key={row.original.id}
+                data-pfd-row-id={row.original.rowId}
+                draggable={canDragReorderPfdRows}
                 className={cn(
                   "cursor-pointer",
+                  canDragReorderPfdRows && "cursor-grab",
+                  draggedRowId === row.original.rowId && "opacity-50",
                   selectedRow?.id === row.original.id && "bg-accent",
                   selectedRowIds[row.original.rowId] && "bg-primary/5"
                 )}
                 onClick={() => onSelectRow(row.original)}
+                onDragStart={(event) => startDrag(row.original, event)}
+                onDragOver={(event) => {
+                  if (canDragReorderPfdRows) event.preventDefault();
+                }}
+                onDrop={(event) => {
+                  if (!canDragReorderPfdRows) return;
+                  event.preventDefault();
+                  const transferredRowId = event.dataTransfer.getData("text/plain");
+                  if (transferredRowId) {
+                    draggedRowIdRef.current = transferredRowId;
+                  }
+                  void dropPfdRow(row.original);
+                }}
+                onDragEnd={endDrag}
               >
+                <TableCell className="whitespace-nowrap" onClick={(event) => event.stopPropagation()}>
+                  <div className="inline-flex items-center gap-1">
+                    <span
+                      data-pfd-drag-handle
+                      aria-label={`整行拖拽调整 ${row.original.id} 顺序`}
+                      aria-disabled={!canDragReorderPfdRows}
+                      className={cn(
+                        "inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground",
+                        canDragReorderPfdRows && "cursor-grab hover:bg-muted hover:text-foreground"
+                      )}
+                      onPointerDown={(event) => startPointerDrag(row.original, event)}
+                      onPointerUp={(event) => void finishPointerDrag(event)}
+                      onPointerCancel={endDrag}
+                    >
+                      <GripVertical size={15} aria-hidden="true" />
+                    </span>
+                    <button
+                      type="button"
+                      aria-label={`${row.original.id} 上移`}
+                      disabled={!canDragReorderPfdRows}
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted disabled:opacity-40"
+                      onClick={() => void movePfdRow(row.original, -1)}
+                    >
+                      <ArrowUp size={14} aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`${row.original.id} 下移`}
+                      disabled={!canDragReorderPfdRows}
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted disabled:opacity-40"
+                      onClick={() => void movePfdRow(row.original, 1)}
+                    >
+                      <ArrowDown size={14} aria-hidden="true" />
+                    </button>
+                  </div>
+                </TableCell>
                 <TableCell onClick={(event) => event.stopPropagation()}>
                   <input
                     type="checkbox"
@@ -208,7 +551,7 @@ export function WorkbenchTable({
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={columns.length} className="py-8 text-center text-muted-foreground">
+              <TableCell colSpan={columns.length + 2} className="py-8 text-center text-muted-foreground">
                 当前没有可显示的三表记录。请先在图纸导入页生成运行，或调整筛选条件。
               </TableCell>
             </TableRow>
@@ -227,7 +570,7 @@ type EditableCellProps = {
   setEditingCell: (cell: DraftCell | null) => void;
   displayValue: (row: WorkbenchRow, field: string, fallback: unknown) => string;
   commitDraft: (row: WorkbenchRow, field: string, value: string) => void;
-  children: React.ReactNode;
+  children: ReactNode;
 };
 
 function EditableCell({

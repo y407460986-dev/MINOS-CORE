@@ -75,6 +75,248 @@ def test_workbench_rows_can_be_soft_deleted_and_chain_generation_is_polled() -> 
     assert "export function getRun" in client_source
 
 
+def test_workbench_uses_top_level_chain_stages_and_hides_legacy_pfmea_placeholders() -> None:
+    page_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "pages" / "ThreeTableWorkbench.tsx"
+    ).read_text(encoding="utf-8")
+    store_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "state" / "workbench-store.ts"
+    ).read_text(encoding="utf-8")
+
+    assert "chainStagesFromRun" in page_source
+    assert "updatedRun?.chain_stages" in page_source
+    assert "updatedRun?.raw_result?.chain_stages ?? updatedRun?.current_result?.chain_stages" not in page_source
+    assert "PFMEA-SYNC-" in store_source
+    assert "待工程人员填写失效模式" in store_source
+    assert "联动新增" in store_source
+
+
+def test_workbench_pfmea_columns_follow_aiag_vda_core_fields() -> None:
+    table_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "components" / "WorkbenchTable.tsx"
+    ).read_text(encoding="utf-8")
+
+    assert "columnsForRows" in table_source
+    assert 'header: "结构-过程项"' in table_source
+    assert 'header: "结构-过程步骤"' in table_source
+    assert 'header: "结构-工作要素"' in table_source
+    assert 'header: "功能-过程项"' in table_source
+    assert 'header: "功能-过程步骤"' in table_source
+    assert 'header: "功能-工作要素"' in table_source
+    assert 'header: "失效后果"' in table_source
+    assert 'header: "严重度"' in table_source
+    assert 'header: "失效模式"' in table_source
+    assert 'header: "失效原因"' in table_source
+    assert 'header: "原因过程参数"' in table_source
+    assert 'header: "预防控制"' in table_source
+    assert 'header: "预防控制对象"' in table_source
+    assert 'header: "预防控制时机"' in table_source
+    assert 'header: "发生度"' in table_source
+    assert 'header: "探测控制"' in table_source
+    assert 'header: "探测对象"' in table_source
+    assert 'header: "探测时机"' in table_source
+    assert 'header: "探测度"' in table_source
+    assert 'header: "AP"' in table_source
+    assert 'header: "控制逻辑复核"' in table_source
+    assert 'header: "特殊特性"' in table_source
+    assert '["special_characteristics", "special_characteristic", "special_characteristic_class", "classification"]' in table_source
+    assert 'header: "预防措施"' in table_source
+    assert 'header: "探测措施"' in table_source
+    assert 'header: "责任人"' in table_source
+    assert 'header: "目标日期"' in table_source
+    assert 'header: "RPN"' not in table_source
+    assert 'const columns: WorkbenchColumnDef[] = [' not in table_source
+
+
+def test_app_does_not_auto_open_failed_pfmea_run_as_latest_workbench_state() -> None:
+    app_source = (ROOT / "apps" / "desktop-tauri" / "src" / "App.tsx").read_text(encoding="utf-8")
+
+    assert "getRecentRuns(5)" in app_source
+    assert "autoRestorableRun" in app_source
+    assert "blocked_stage !== \"pfmea\"" in app_source
+    assert "runs[0]) setActiveRun(runs[0])" not in app_source
+
+
+def test_workbench_can_regenerate_failed_pfmea_stage() -> None:
+    page_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "pages" / "ThreeTableWorkbench.tsx"
+    ).read_text(encoding="utf-8")
+
+    assert "regeneratePfmeaStage" in page_source
+    assert "regeneratePfmea" in page_source
+    assert "重新生成失效模式分析" in page_source
+    assert 'stageStatus(run, "pfmea") === "failed"' in page_source
+
+
+def test_workbench_pfd_can_add_row_with_process_flow_patch() -> None:
+    page_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "pages" / "ThreeTableWorkbench.tsx"
+    ).read_text(encoding="utf-8")
+    table_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "components" / "WorkbenchTable.tsx"
+    ).read_text(encoding="utf-8")
+
+    assert "新增行" in table_source
+    assert "onAddPfdRow" in table_source
+    assert "saved === false" in table_source
+    assert "addPfdRow" in page_source
+    assert "return true" in page_source
+    assert "return false" in page_source
+    assert 'action: "add"' in page_source
+    assert 'table: "process_flow"' in page_source
+    assert "target_id: processStepId" in page_source
+    assert "row_id: processStepId" in page_source
+    assert "process_step_id" in page_source
+    assert "operation_type" in page_source
+    assert "flow_symbol" in page_source
+    assert "process_function" in page_source
+    assert "equipment" in page_source
+    assert "product_characteristic" in page_source
+    assert "process_characteristic" in page_source
+    assert "special_characteristics" in page_source
+    assert "responsibility" in page_source
+    assert 'review_status: "待确认"' in page_source
+    assert "needs_confirmation: true" in page_source
+
+
+def test_workbench_pfd_rows_can_be_drag_reordered_by_sequence_patch() -> None:
+    page_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "pages" / "ThreeTableWorkbench.tsx"
+    ).read_text(encoding="utf-8")
+    table_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "components" / "WorkbenchTable.tsx"
+    ).read_text(encoding="utf-8")
+    store_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "state" / "workbench-store.ts"
+    ).read_text(encoding="utf-8")
+
+    assert "onReorderPfdRows" in table_source
+    assert "GripVertical" in table_source
+    assert "ArrowUp" in table_source
+    assert "ArrowDown" in table_source
+    assert "整行拖拽调整" in table_source
+    assert "上移" in table_source
+    assert "下移" in table_source
+    assert "useRef" in table_source
+    assert "draggedRowIdRef" in table_source
+    assert 'event.dataTransfer.getData("text/plain")' in table_source
+    assert "movePfdRow" in table_source
+    assert "startPointerDrag" in table_source
+    assert "finishPointerDrag" in table_source
+    assert "document.elementFromPoint" in table_source
+    assert "data-pfd-row-id" in table_source
+    assert "data-pfd-drag-handle" in table_source
+    assert "onPointerDown" in table_source
+    assert "window.addEventListener(\"pointerup\"" in table_source
+    assert "releasePointerCapture" in table_source
+    assert "draggable={canDragReorderPfdRows}" in table_source
+    assert "onDragStart" in table_source
+    assert "onDrop" in table_source
+    assert "reorderPfdRows" in page_source
+    assert "buildPfdReorderPatch" in page_source
+    assert "fullPfdRowsFromVisibleReorder" in page_source
+    assert "visibleOrderIds" in page_source
+    assert "visibleQueue.shift()" in page_source
+    assert "hasPfdReorderFilter" not in page_source
+    assert "canReorderRows={!hasPfdReorderFilter}" not in page_source
+    assert "Array.isArray(items) || items.length === 0" in page_source
+    assert "const sequence = (index + 1) * 10" in page_source
+    assert "previousRow = reorderedRows[index - 1]" in page_source
+    assert "nextRow = reorderedRows[index + 1]" in page_source
+    assert "previousStepIds" in page_source
+    assert "nextStepIds" in page_source
+    assert "previous_step_ids: item.previousStepIds" in page_source
+    assert "next_step_ids: item.nextStepIds" in page_source
+    assert "changes: { sequence: item.sequence }" not in page_source
+    assert "sortPfdRowsBySequence" in store_source
+    assert "processFlowStepsFromResult" not in store_source
+
+
+def test_workbench_pfd_columns_follow_normal_apqp_process_flow_content() -> None:
+    table_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "components" / "WorkbenchTable.tsx"
+    ).read_text(encoding="utf-8")
+    page_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "pages" / "ThreeTableWorkbench.tsx"
+    ).read_text(encoding="utf-8")
+
+    assert 'rawColumn("sequence", "工序编号"' in table_source
+    assert 'rawColumn("flow_symbol", "流程符号"' in table_source
+    assert 'rawColumn("process", "工序名称"' in table_source
+    assert 'rawColumn("process_function", "过程功能"' in table_source
+    assert 'rawColumn("equipment", "设备/工装"' in table_source
+    assert 'rawColumn("product_characteristic", "产品特性"' in table_source
+    assert 'rawColumn("process_characteristic", "过程特性"' in table_source
+    assert 'rawColumn("special_characteristic", "特殊特性"' in table_source
+    assert 'header: "复核状态"' in table_source
+    assert '"输入"' not in table_source
+    assert '"输出"' not in table_source
+    assert "input_material" not in table_source
+    assert "output_result" not in table_source
+    assert "input_material" not in page_source
+    assert "output_result" not in page_source
+
+
+def test_exports_use_normal_process_flow_headers() -> None:
+    split_source = (
+        ROOT / "minos_core" / "exporters" / "three_table_workbooks.py"
+    ).read_text(encoding="utf-8")
+    workbook_source = (
+        ROOT / "minos_core" / "exporters" / "apqp_workbook.py"
+    ).read_text(encoding="utf-8")
+
+    for source in (split_source, workbook_source):
+        assert "工序编号" in source
+        assert "流程符号" in source
+        assert "工序名称" in source
+        assert "过程功能" in source
+        assert "设备/工装" in source
+        assert "产品特性" in source
+        assert "过程特性" in source
+        assert "特殊特性" in source
+
+
+def test_workbench_cp_columns_show_process_controls_separate_from_result_checks() -> None:
+    table_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "components" / "WorkbenchTable.tsx"
+    ).read_text(encoding="utf-8")
+    table_editor_source = (ROOT / "minos_desktop" / "table_editor.py").read_text(encoding="utf-8")
+
+    for source in (table_source, table_editor_source):
+        assert "过程参数" in source
+        assert "参数规格" in source
+        assert "过程控制方法" in source
+        assert "首件/换型确认" in source
+        assert "防错装置" in source
+        assert "防错验证" in source
+        assert "过程记录" in source
+
+    assert 'rawColumn("process_parameter", "过程参数"' in table_source
+    assert 'rawColumn("parameter_specification", "参数规格"' in table_source
+    assert 'rawColumn("process_control_method", "过程控制方法"' in table_source
+    assert 'rawColumn("setup_verification", "首件/换型确认"' in table_source
+    assert 'rawColumn("poka_yoke_device", "防错装置"' in table_source
+    assert 'rawColumn("poka_yoke_verification", "防错验证"' in table_source
+    assert 'rawColumn("process_record", "过程记录"' in table_source
+
+
+def test_review_closure_happens_after_control_plan_with_human_priority() -> None:
+    page_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "pages" / "ReviewClosurePage.tsx"
+    ).read_text(encoding="utf-8")
+    service_source = (ROOT / "minos_desktop" / "services.py").read_text(encoding="utf-8")
+    review_source = (ROOT / "minos_core" / "automation_review.py").read_text(encoding="utf-8")
+
+    assert "控制计划确认后三表总审核" in page_source
+    assert "人工判断优先于 AI 建议" in page_source
+    assert "批量确认低风险 AI 项" not in page_source
+    assert "build_automation_review(current)" in service_source
+    assert 'current["automation_review"]' in service_source
+    assert "_can_apply_after_control_plan_automation_review(current)" in service_source
+    assert '"review_stage": "after_control_plan"' in review_source
+    assert '"human_decision_priority": True' in review_source
+
+
 def test_workbench_clean_editing_surface_contract() -> None:
     page_source = (
         ROOT / "apps" / "desktop-tauri" / "src" / "pages" / "ThreeTableWorkbench.tsx"
@@ -160,6 +402,18 @@ def test_desktop_sidecar_starts_without_windows_console_window() -> None:
     assert "std::os::windows::process::CommandExt" in rust_source
     assert "CREATE_NO_WINDOW" in rust_source
     assert ".creation_flags(CREATE_NO_WINDOW)" in rust_source
+
+
+def test_desktop_sidecar_uses_owned_port_instead_of_stale_8000() -> None:
+    rust_source = (
+        ROOT / "apps" / "desktop-tauri" / "src-tauri" / "src" / "lib.rs"
+    ).read_text(encoding="utf-8")
+
+    assert "SidecarProcess" in rust_source
+    assert "find_available_sidecar_port" in rust_source
+    assert "format!(\"http://127.0.0.1:{}\", port)" in rust_source
+    assert "if is_api_port_open() {\n        return false;" not in rust_source
+    assert 'arg("8000")' not in rust_source
 
 
 def test_desktop_binary_uses_windows_gui_subsystem_in_release() -> None:

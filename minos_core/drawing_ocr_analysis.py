@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from minos_core._text_utils import float_or_none
+
 from .adapters.ocr import (
     CompositeOCRAdapter,
     OCRBlock,
@@ -720,7 +722,7 @@ def _page_units_from_evidence(evidence: list[dict[str, Any]]) -> list[_TextUnit]
                 evidence_id=str(item.get("evidence_id", "")),
                 page_number=int(item.get("page_number", 0) or 0),
                 text=text,
-                confidence=_float_or_none(item.get("confidence")),
+                confidence=float_or_none(item.get("confidence")),
                 bbox=None,
                 engine=str(item.get("engine", "")),
             )
@@ -838,11 +840,6 @@ def _confidence_value(value: float | None) -> float:
         return 0.7
 
 
-def _float_or_none(value: Any) -> float | None:
-    try:
-        return None if value in {None, ""} else float(value)
-    except (TypeError, ValueError):
-        return None
 
 
 def _split_semicolon_segments(line: str) -> list[str]:

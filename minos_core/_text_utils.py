@@ -82,6 +82,26 @@ def float_value(value: Any, default: float = 0.0) -> float:
         return default
 
 
+def float_or_none(value: Any) -> float | None:
+    """Convert *value* to float or return None for empty/invalid inputs."""
+    try:
+        return None if value in {None, ""} else float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def flow_type_display(flow_type: str) -> str:
+    """Map internal flow-type keys to Chinese display labels."""
+    return {
+        "operation": "加工",
+        "inspection": "检验",
+        "transport": "搬运",
+        "storage": "储存",
+        "rework": "返工",
+        "outsourced": "外协",
+    }.get(flow_type, flow_type)
+
+
 # ---------------------------------------------------------------------------
 # Deduplication
 # ---------------------------------------------------------------------------

@@ -6,6 +6,10 @@ import copy
 from pathlib import Path
 from typing import Any
 
+from minos_core._table_constants import TABLE_ROW_FIELDS as _TABLE_ROW_FIELDS, TABLE_ID_FIELDS as _ID_FIELDS, row_id as _row_id
+
+from minos_core._text_utils import float_or_none
+
 from .change_management import analyze_change_impacts
 from .exporters.three_table_workbooks import (
     export_split_three_table_workbooks,
@@ -36,20 +40,10 @@ _ACTIONS = {
     "resolve_review_issue",
     "resolve_action_item",
 }
-_TABLE_ROW_FIELDS = {
-    "process_flow": ("steps", "process_steps"),
-    "pfmea": ("rows", "failure_modes"),
-    "control_plan": ("rows", "controls"),
-}
 _CHAIN_ROW_FIELDS = {
     "process_flow": "process_steps",
     "pfmea": "failure_modes",
     "control_plan": "controls",
-}
-_ID_FIELDS = {
-    "process_flow": ("process_step_id", "id", "step_no"),
-    "pfmea": ("pfmea_id", "id"),
-    "control_plan": ("control_plan_id", "id"),
 }
 _TARGET_TYPES = {
     "process_flow": "process_step",
@@ -896,12 +890,6 @@ def _find_row(rows: list[Any], table: str, target_id: str) -> dict[str, Any] | N
     return None
 
 
-def _row_id(table: str, row: dict[str, Any]) -> str:
-    for field_name in _ID_FIELDS[table]:
-        value = _optional_text(row.get(field_name))
-        if value:
-            return value
-    return ""
 
 
 def _filtered_rows(rows: Any) -> list[Any]:
@@ -918,7 +906,7 @@ def _sort_process_flow_rows_in_place(payload: dict[str, Any]) -> None:
 def _process_flow_sort_key(item: Any) -> tuple[int, float, int]:
     if not isinstance(item, dict):
         return (1, 0, 0)
-    sequence = _float_or_none(item.get("sequence"))
+    sequence = float_or_none(item.get("sequence"))
     if sequence is None:
         return (1, 0, 0)
     return (0, sequence, 0)
@@ -1155,7 +1143,7 @@ def _ai_batch_confirmed_row_requires_human(
 ) -> bool:
     if not _row_evidence_refs(row):
         return True
-    confidence = _float_or_none(row.get("confidence"))
+    confidence = float_or_none(row.get("confidence"))
     if confidence is None or confidence < 0.85:
         return True
     if _row_has_high_ap(row):
@@ -1199,11 +1187,6 @@ def _row_has_special_characteristic(
     return False
 
 
-def _float_or_none(value: Any) -> float | None:
-    try:
-        return None if value in {None, ""} else float(value)
-    except (TypeError, ValueError):
-        return None
 
 
 def _soft_deleted_row_items(source: dict[str, Any]) -> list[str]:

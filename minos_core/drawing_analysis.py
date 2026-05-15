@@ -13,7 +13,7 @@ from .domain import APQPChain
 from .quality_gates import StageQualityGate
 from .review_issues import review_issue_from_manual_item
 from .validation import ChainValidationResult
-from minos_core._text_utils import dedupe, string_list
+from minos_core._text_utils import dedupe, string_list, float_or_none
 
 
 DRAWING_ANALYSIS_SCHEMA_VERSION = "minos-core.drawing_analysis.v1"
@@ -340,7 +340,7 @@ def _normalize_evidence_regions(value: Any) -> list[dict[str, Any]]:
                 "page_number": _positive_int(region.get("page_number", region.get("pageNumber"))),
                 "box": box,
                 "text": _optional_text(region.get("text", region.get("rawText", ""))),
-                "confidence": _float_or_none(region.get("confidence")),
+                "confidence": float_or_none(region.get("confidence")),
             }
         )
     return normalized
@@ -348,14 +348,14 @@ def _normalize_evidence_regions(value: Any) -> list[dict[str, Any]]:
 
 def _normalize_region_box(value: Any) -> dict[str, float]:
     if isinstance(value, dict):
-        left = _float_or_none(value.get("x", value.get("left")))
-        top = _float_or_none(value.get("y", value.get("top")))
-        width = _float_or_none(value.get("width", value.get("w")))
-        height = _float_or_none(value.get("height", value.get("h")))
-        if width is None and _float_or_none(value.get("right")) is not None and left is not None:
-            width = float(_float_or_none(value.get("right")) or 0.0) - left
-        if height is None and _float_or_none(value.get("bottom")) is not None and top is not None:
-            height = float(_float_or_none(value.get("bottom")) or 0.0) - top
+        left = float_or_none(value.get("x", value.get("left")))
+        top = float_or_none(value.get("y", value.get("top")))
+        width = float_or_none(value.get("width", value.get("w")))
+        height = float_or_none(value.get("height", value.get("h")))
+        if width is None and float_or_none(value.get("right")) is not None and left is not None:
+            width = float(float_or_none(value.get("right")) or 0.0) - left
+        if height is None and float_or_none(value.get("bottom")) is not None and top is not None:
+            height = float(float_or_none(value.get("bottom")) or 0.0) - top
         return {
             "x": max(0.0, left or 0.0),
             "y": max(0.0, top or 0.0),
@@ -363,10 +363,10 @@ def _normalize_region_box(value: Any) -> dict[str, float]:
             "height": max(0.0, height or 0.0),
         }
     if isinstance(value, list) and len(value) >= 4:
-        left = _float_or_none(value[0]) or 0.0
-        top = _float_or_none(value[1]) or 0.0
-        right_or_width = _float_or_none(value[2]) or 0.0
-        bottom_or_height = _float_or_none(value[3]) or 0.0
+        left = float_or_none(value[0]) or 0.0
+        top = float_or_none(value[1]) or 0.0
+        right_or_width = float_or_none(value[2]) or 0.0
+        bottom_or_height = float_or_none(value[3]) or 0.0
         width = right_or_width - left if right_or_width > left else right_or_width
         height = bottom_or_height - top if bottom_or_height > top else bottom_or_height
         return {"x": max(0.0, left), "y": max(0.0, top), "width": max(0.0, width), "height": max(0.0, height)}
@@ -546,8 +546,3 @@ def _positive_int(value: Any) -> int:
     return max(0, number)
 
 
-def _float_or_none(value: Any) -> float | None:
-    try:
-        return None if value in {None, ""} else float(value)
-    except (TypeError, ValueError):
-        return None

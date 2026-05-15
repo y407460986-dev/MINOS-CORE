@@ -13,6 +13,8 @@ from __future__ import annotations
 import copy
 from typing import Any
 
+from minos_core._table_constants import TABLE_ID_FIELDS as _ID_FIELDS
+
 from .change_management import _rows as _cm_rows, _group
 from minos_core._text_utils import text
 from .three_table_linkage import build_three_table_linkage_map
@@ -34,11 +36,6 @@ _TABLE_CHAIN_KEY = {
     "control_plan": "controls",
 }
 
-_ID_FIELDS: dict[str, tuple[str, ...]] = {
-    "process_flow": ("process_step_id", "id", "step_no"),
-    "pfmea": ("pfmea_id", "id"),
-    "control_plan": ("control_plan_id", "id"),
-}
 
 # ---------------------------------------------------------------------------
 # Metadata / non-sync actions (these do NOT produce linkage events)

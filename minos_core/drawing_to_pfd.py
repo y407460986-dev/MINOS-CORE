@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from minos_core._text_utils import row_text, string_list
+from minos_core._text_utils import row_text, string_list, flow_type_display
 
 
 _PROCESS_LIBRARY: dict[str, dict[str, Any]] = {
@@ -338,7 +338,7 @@ def _build_steps_from_clues(
                 ),
                 "flow_type": flow_type,
                 "flow_symbol": flow_type,
-                "operation_type": _flow_type_display(flow_type),
+                "operation_type": flow_type_display(flow_type),
                 "input_material": "",
                 "output_result": operation,
                 "special_characteristics": string_list(
@@ -871,15 +871,6 @@ def _infer_flow_type(operation_key: str) -> str:
     return "operation"
 
 
-def _flow_type_display(flow_type: str) -> str:
-    return {
-        "operation": "加工",
-        "inspection": "检验",
-        "transport": "搬运",
-        "storage": "存储",
-        "rework": "返工",
-        "outsourced": "外协",
-    }.get(flow_type, flow_type)
 
 
 def _library_clue(operation: str, route_family: str, evidence_refs: list[str]) -> dict[str, Any]:

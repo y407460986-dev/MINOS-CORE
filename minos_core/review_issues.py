@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from minos_core._text_utils import float_or_none
+
 
 REVIEW_ISSUE_VERSION = "minos-core.review_issue.v1"
 RESOLVED_REVIEW_ISSUE_STATUSES = {"已处理", "已确认", "已采纳", "无影响"}
@@ -85,7 +87,7 @@ def build_review_issue(
         field=str(field or ""),
         recommendation_id=str(recommendation_id or ""),
         change_impact_id=str(change_impact_id or ""),
-        confidence=_float_or_none(confidence),
+        confidence=float_or_none(confidence),
         automation_level=str(automation_level or ""),
         fix_proposal=dict(fix_proposal) if isinstance(fix_proposal, dict) else None,
         can_batch_confirm=_bool_or_none(can_batch_confirm),
@@ -147,11 +149,6 @@ def _item_payload(item: Any) -> dict[str, Any]:
     return {"item_id": text, "category": "人工复核", "message": text, "severity": "review"}
 
 
-def _float_or_none(value: Any) -> float | None:
-    try:
-        return None if value in {None, ""} else float(value)
-    except (TypeError, ValueError):
-        return None
 
 
 def _bool_or_none(value: Any) -> bool | None:

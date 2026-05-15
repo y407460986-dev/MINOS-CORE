@@ -12,7 +12,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
-from ._text_utils import text
+from ._text_utils import text, flow_type_display
 from .adapters.llm_text import OpenAITextGenerator
 from .aiag_vda_pfmea import normalize_pfmea_row
 from .drawing_to_pfd import normalize_process_flow_steps
@@ -506,15 +506,6 @@ def _infer_flow_type_from_step(step: dict) -> str:
     return "operation"
 
 
-def _flow_type_display(flow_type: str) -> str:
-    return {
-        "operation": "加工",
-        "inspection": "检验",
-        "transport": "搬运",
-        "storage": "存储",
-        "rework": "返工",
-        "outsourced": "外协",
-    }.get(flow_type, flow_type)
 
 
 # ---------------------------------------------------------------------------
@@ -586,7 +577,7 @@ def generate_pfd_from_drawing(
         if not step.get("flow_type"):
             step["flow_type"] = _infer_flow_type_from_step(step)
         step.setdefault("flow_symbol", step["flow_type"])
-        step.setdefault("flow_type_display", _flow_type_display(step.get("flow_type", "operation")))
+        step.setdefault("flow_type_display", flow_type_display(step.get("flow_type", "operation")))
         step.setdefault("operation_type", step["flow_type_display"])
         step.setdefault("input_material", default_input_material if i == 0 else "")
         step.setdefault("output_result", step.get("operation", ""))

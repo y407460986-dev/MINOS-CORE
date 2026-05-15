@@ -6,6 +6,8 @@ import copy
 import logging
 from typing import Any
 
+from minos_core._text_utils import float_or_none
+
 from .edit_patch import EDIT_PATCH_VERSION
 from .quality_gates import evaluate_export_gate
 from .review_issues import build_review_issue, unresolved_review_issues
@@ -230,7 +232,7 @@ def _batch_reject_reasons(
 ) -> list[str]:
     reasons: list[str] = []
     target = _target(table, row_id)
-    confidence = _float_or_none(row.get("confidence"))
+    confidence = float_or_none(row.get("confidence"))
     evidence_refs = [str(ref).strip() for ref in row.get("evidence_refs", []) if str(ref).strip()]
     if _is_deleted(row):
         reasons.append("软删除项目不能批量确认")
@@ -314,7 +316,7 @@ def _candidate(table: str, row_id: str, row: dict[str, Any]) -> dict[str, Any]:
         "table": table,
         "target_id": row_id,
         "target": _target(table, row_id),
-        "confidence": _float_or_none(row.get("confidence")),
+        "confidence": float_or_none(row.get("confidence")),
         "evidence_refs": [str(ref).strip() for ref in row.get("evidence_refs", []) if str(ref).strip()],
         "confirmation_mode": "ai_recommended_batch",
         "source": "automation_review",
@@ -475,11 +477,6 @@ def _metadata(source: dict[str, Any]) -> dict[str, Any]:
     return metadata
 
 
-def _float_or_none(value: Any) -> float | None:
-    try:
-        return None if value in {None, ""} else float(value)
-    except (TypeError, ValueError):
-        return None
 
 
 def _dedupe(values: list[str]) -> list[str]:

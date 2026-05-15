@@ -6,20 +6,12 @@ import copy
 import re
 from typing import Any
 
+from minos_core._table_constants import TABLE_ROW_FIELDS as _TABLE_ROW_FIELDS, TABLE_ID_FIELDS as _ID_FIELDS, row_id as _row_id
+
 from ._text_utils import string_list, text
 from .edit_patch import EDIT_PATCH_VERSION
 
 
-_TABLE_ROW_FIELDS = {
-    "process_flow": ("steps", "process_steps"),
-    "pfmea": ("rows", "failure_modes"),
-    "control_plan": ("rows", "controls"),
-}
-_ID_FIELDS = {
-    "process_flow": ("process_step_id", "id", "step_no"),
-    "pfmea": ("pfmea_id", "id"),
-    "control_plan": ("control_plan_id", "id"),
-}
 _TARGET_PREFIX = {
     "process_flow": "process_step",
     "pfmea": "failure_mode",
@@ -654,12 +646,6 @@ def _evidence_refs(item: dict[str, Any]) -> list[Any]:
     return []
 
 
-def _row_id(table: str, row: dict[str, Any]) -> str:
-    for field_name in _ID_FIELDS[table]:
-        value = text(row.get(field_name))
-        if value:
-            return value
-    return ""
 
 
 def _task_id(task_type: str, value: str) -> str:

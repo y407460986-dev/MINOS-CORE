@@ -915,6 +915,110 @@ def _build_cp_pfmea_row_prompt(
 只输出 JSON，不要输出原因判断、处理方案、Markdown 或任何解释文字。"""
 
 
+def _extract_cp_base_fields(
+    row: dict[str, Any],
+    pfmea_row: dict[str, Any],
+    pfd_step: dict[str, Any],
+    step_id: str,
+    pfmea_id: str,
+) -> dict[str, Any]:
+    return {
+        "pfmea_id": pfmea_id,
+        "source_pfmea_id": pfmea_id,
+        "process_step_id": step_id,
+        "process_name": text(
+            row.get("process_name"),
+            pfmea_row.get("process_step_name"),
+            pfmea_row.get("operation"),
+            pfd_step.get("operation"),
+            step_id,
+        ),
+        "equipment": text(row.get("equipment"), pfmea_row.get("equipment"), pfd_step.get("equipment")),
+        "characteristic_number": text(row.get("characteristic_number"), pfmea_id),
+        "product_characteristic": text(
+            row.get("product_characteristic"),
+            pfmea_row.get("product_characteristic"),
+            pfmea_row.get("product_characteristics"),
+        ),
+        "process_characteristic": text(
+            row.get("process_characteristic"),
+            pfmea_row.get("process_characteristic"),
+            pfmea_row.get("process_characteristics"),
+        ),
+        "special_characteristic_class": text(
+            row.get("special_characteristic_class"),
+            pfmea_row.get("special_characteristics"),
+            pfmea_row.get("special_characteristic_class"),
+            pfmea_row.get("classification"),
+            "无",
+        ),
+        "specification_tolerance": text(
+            row.get("specification_tolerance"),
+            row.get("specification"),
+            pfmea_row.get("specification_tolerance"),
+            pfmea_row.get("specification"),
+        ),
+    }
+
+
+def _extract_cp_control_fields(
+    row: dict[str, Any],
+    pfmea_row: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "process_parameter": text(
+            row.get("process_parameter"),
+            pfmea_row.get("process_parameter"),
+            pfmea_row.get("cause_process_parameter"),
+            pfmea_row.get("process_characteristic"),
+            pfmea_row.get("process_characteristics"),
+            pfmea_row.get("function_work_element"),
+        ),
+        "parameter_specification": text(
+            row.get("parameter_specification"),
+            pfmea_row.get("parameter_specification"),
+            pfmea_row.get("failure_cause"),
+            "参数目标值/上下限待依据作业指导书确认",
+        ),
+        "process_control_method": text(
+            row.get("process_control_method"),
+            pfmea_row.get("process_control_method"),
+            pfmea_row.get("prevention_control"),
+        ),
+        "setup_verification": text(
+            row.get("setup_verification"),
+            "首件/换型后确认过程参数、设备状态和工装状态",
+        ),
+        "poka_yoke_device": text(
+            row.get("poka_yoke_device"),
+            "过程参数防错或权限控制",
+        ),
+        "poka_yoke_verification": text(
+            row.get("poka_yoke_verification"),
+            "每班/换型后验证防错有效",
+        ),
+        "process_record": text(
+            row.get("process_record"),
+            row.get("record_form"),
+            "过程参数点检/首件确认记录",
+        ),
+        "measurement_method": text(row.get("measurement_method"), pfmea_row.get("detection_control")),
+        "control_method": text(
+            row.get("control_method"),
+            pfmea_row.get("prevention_control"),
+            pfmea_row.get("detection_control"),
+        ),
+    }
+
+
+def _extract_cp_reaction_fields(row: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "reaction_plan": text(row.get("reaction_plan"), "隔离可疑产品，通知质量人员，并验证纠正措施"),
+        "needs_confirmation": bool(row.get("needs_confirmation", True)),
+        "ai_inferred": True,
+    }
+
+
 def _normalize_chain_cp_row(
     raw_row: Any,
     pfd_map: dict[str, dict[str, Any]],
@@ -946,90 +1050,9 @@ def _normalize_chain_cp_row(
     pfd_step = pfd_map[step_id]
     counters[step_id] = counters.get(step_id, 0) + 1
     row = dict(raw_row)
-    row.update(
-        {
-            "pfmea_id": pfmea_id,
-            "source_pfmea_id": pfmea_id,
-            "process_step_id": step_id,
-            "process_name": text(
-                row.get("process_name"),
-                pfmea_row.get("process_step_name"),
-                pfmea_row.get("operation"),
-                pfd_step.get("operation"),
-                step_id,
-            ),
-            "equipment": text(row.get("equipment"), pfmea_row.get("equipment"), pfd_step.get("equipment")),
-            "characteristic_number": text(row.get("characteristic_number"), pfmea_id),
-            "product_characteristic": text(
-                row.get("product_characteristic"),
-                pfmea_row.get("product_characteristic"),
-                pfmea_row.get("product_characteristics"),
-            ),
-            "process_characteristic": text(
-                row.get("process_characteristic"),
-                pfmea_row.get("process_characteristic"),
-                pfmea_row.get("process_characteristics"),
-            ),
-            "special_characteristic_class": text(
-                row.get("special_characteristic_class"),
-                pfmea_row.get("special_characteristics"),
-                pfmea_row.get("special_characteristic_class"),
-                pfmea_row.get("classification"),
-                "无",
-            ),
-            "specification_tolerance": text(
-                row.get("specification_tolerance"),
-                row.get("specification"),
-                pfmea_row.get("specification_tolerance"),
-                pfmea_row.get("specification"),
-            ),
-            "process_parameter": text(
-                row.get("process_parameter"),
-                pfmea_row.get("process_parameter"),
-                pfmea_row.get("cause_process_parameter"),
-                pfmea_row.get("process_characteristic"),
-                pfmea_row.get("process_characteristics"),
-                pfmea_row.get("function_work_element"),
-            ),
-            "parameter_specification": text(
-                row.get("parameter_specification"),
-                pfmea_row.get("parameter_specification"),
-                pfmea_row.get("failure_cause"),
-                "参数目标值/上下限待依据作业指导书确认",
-            ),
-            "process_control_method": text(
-                row.get("process_control_method"),
-                pfmea_row.get("process_control_method"),
-                pfmea_row.get("prevention_control"),
-            ),
-            "setup_verification": text(
-                row.get("setup_verification"),
-                "首件/换型后确认过程参数、设备状态和工装状态",
-            ),
-            "poka_yoke_device": text(
-                row.get("poka_yoke_device"),
-                "过程参数防错或权限控制",
-            ),
-            "poka_yoke_verification": text(
-                row.get("poka_yoke_verification"),
-                "每班/换型后验证防错有效",
-            ),
-            "process_record": text(
-                row.get("process_record"),
-                row.get("record_form"),
-                "过程参数点检/首件确认记录",
-            ),
-            "measurement_method": text(row.get("measurement_method"), pfmea_row.get("detection_control")),
-            "control_method": text(
-                row.get("control_method"),
-                pfmea_row.get("prevention_control"),
-                pfmea_row.get("detection_control"),
-            ),
-            "reaction_plan": text(row.get("reaction_plan"), "隔离可疑产品，通知质量人员，并验证纠正措施"),
-            "needs_confirmation": bool(row.get("needs_confirmation", True)),
-            "ai_inferred": True,
-        }
-    )
+    row.update(_extract_cp_base_fields(row, pfmea_row, pfd_step, step_id, pfmea_id))
+    row.update(_extract_cp_control_fields(row, pfmea_row))
+    row.update(_extract_cp_reaction_fields(row))
     row.setdefault("sample_size", "")
     row.setdefault("sample_frequency", "")
     if not text(row.get("control_plan_id")):

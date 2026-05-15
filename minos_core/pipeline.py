@@ -233,30 +233,23 @@ def generate_three_tables_from_drawing(
 
     registry = build_characteristic_registry(drawing_analysis) if drawing_analysis else {}
 
-    process_flow = infer_process_flow_from_drawing(
-        drawing_analysis,
-        family_context=family_context or None,
+    pfd_result = _generate_pfd_stage(
+        drawing_analysis, family_context, registry,
+        infer_process_flow_from_drawing, attach_characteristics_to_three_tables,
+        evaluate_pfd_bundle_gate,
     )
-    if registry and registry.get("items"):
-        process_flow = attach_characteristics_to_three_tables(
-            {"process_flow": process_flow}, registry
-        )["process_flow"]
-    pfd_gate = evaluate_pfd_bundle_gate(process_flow, stage="drawing_to_pfd")
+    process_flow, pfd_gate = pfd_result["process_flow"], pfd_result["pfd_gate"]
     if not pfd_gate.can_continue:
         return _three_table_generation_envelope(
             status="blocked",
             drawing_analysis=drawing_analysis,
             process_flow=process_flow,
-            pfmea=None,
-            control_plan=None,
-            chain=None,
+            pfmea=None, control_plan=None, chain=None,
             quality_gates={
                 "drawing_recognition": drawing_gate.model_dump(),
                 "process_flow": pfd_gate.model_dump(),
             },
-            exports={},
-            output_dir=target_dir,
-            inputs=pipeline_inputs,
+            exports={}, output_dir=target_dir, inputs=pipeline_inputs,
             blocked_stage="process_flow",
             warnings=_dedupe_strings(
                 analysis_warnings + ["过程流程图质量门未通过，已阻止继续推导 PFMEA。"]
@@ -266,30 +259,25 @@ def generate_three_tables_from_drawing(
             family_context=family_context,
         )
 
-    pfmea = infer_pfmea_from_process_flow(process_flow)
-    if registry and registry.get("items"):
-        attached = attach_characteristics_to_three_tables(
-            {"process_flow": process_flow, "pfmea": pfmea}, registry
-        )
-        process_flow = attached["process_flow"]
-        pfmea = attached["pfmea"]
-    pfmea_gate = evaluate_pfmea_bundle_gate(pfmea, stage="pfd_to_pfmea")
+    pfmea_result = _generate_pfmea_stage(
+        process_flow, registry,
+        infer_pfmea_from_process_flow, attach_characteristics_to_three_tables,
+        evaluate_pfmea_bundle_gate,
+    )
+    process_flow = pfmea_result["process_flow"]
+    pfmea, pfmea_gate = pfmea_result["pfmea"], pfmea_result["pfmea_gate"]
     if not pfmea_gate.can_continue:
         return _three_table_generation_envelope(
             status="blocked",
             drawing_analysis=drawing_analysis,
             process_flow=process_flow,
-            pfmea=pfmea,
-            control_plan=None,
-            chain=None,
+            pfmea=pfmea, control_plan=None, chain=None,
             quality_gates={
                 "drawing_recognition": drawing_gate.model_dump(),
                 "process_flow": pfd_gate.model_dump(),
                 "pfmea": pfmea_gate.model_dump(),
             },
-            exports={},
-            output_dir=target_dir,
-            inputs=pipeline_inputs,
+            exports={}, output_dir=target_dir, inputs=pipeline_inputs,
             blocked_stage="pfmea",
             warnings=_dedupe_strings(
                 analysis_warnings + ["PFMEA 质量门未通过，已阻止继续生成控制计划。"]
@@ -299,6 +287,129 @@ def generate_three_tables_from_drawing(
             family_context=family_context,
         )
 
+    cp_result = _generate_cp_stage(
+        process_flow, pfmea, registry,
+        generate_control_plan_from_pfmea, attach_characteristics_to_three_tables,
+        evaluate_control_plan_bundle_gate,
+    )
+    process_flow = cp_result["process_flow"]
+    pfmea = cp_result["pfmea"]
+    control_plan = cp_result["control_plan"]
+    control_plan_gate = cp_result["control_plan_gate"]
+
+    chain = _assemble_three_table_chain(
+        drawing_analysis, process_flow, pfmea, control_plan,
+        characteristic_registry=registry,
+        part_family_classification=part_family_classification,
+        family_context=family_context,
+    )
+
+    analysis = _build_chain_analysis(chain, registry, part_family_classification, family_context)
+    linkage_map = analysis["linkage_map"]
+    linkage_gaps = analysis["linkage_gaps"]
+    risk_structure = analysis["risk_structure"]
+    review_dashboard = analysis["review_dashboard"]
+    knowledge_recs = analysis["knowledge_recs"]
+
+    final_gate = evaluate_export_gate(chain)
+    quality_gates = {
+        "drawing_recognition": drawing_gate.model_dump(),
+        "process_flow": pfd_gate.model_dump(),
+        "pfmea": pfmea_gate.model_dump(),
+        "control_plan": control_plan_gate.model_dump(),
+        "final_three_table": final_gate.model_dump(),
+    }
+
+    if not control_plan_gate.can_continue:
+        return _three_table_generation_envelope(
+            status="blocked",
+            drawing_analysis=drawing_analysis,
+            process_flow=process_flow, pfmea=pfmea,
+            control_plan=control_plan, chain=chain,
+            quality_gates=quality_gates, exports={},
+            output_dir=target_dir, inputs=pipeline_inputs,
+            blocked_stage="control_plan",
+            warnings=_dedupe_strings(
+                analysis_warnings + ["控制计划质量门未通过，已阻止导出工作簿。"]
+            ),
+            linkage_map=linkage_map, linkage_gaps=linkage_gaps,
+            characteristic_registry=registry,
+            knowledge_recommendations=knowledge_recs,
+            risk_structure=risk_structure, review_dashboard=review_dashboard,
+            part_family_classification=part_family_classification,
+            family_context=family_context,
+        )
+
+    if export_mode == "final" and not final_gate.allow_user_export:
+        return _three_table_generation_envelope(
+            status="blocked",
+            drawing_analysis=drawing_analysis,
+            process_flow=process_flow, pfmea=pfmea,
+            control_plan=control_plan, chain=chain,
+            quality_gates=quality_gates, exports={},
+            output_dir=target_dir, inputs=pipeline_inputs,
+            blocked_stage="final_three_table",
+            warnings=_dedupe_strings(
+                analysis_warnings + ["最终三表质量门未通过，已阻止正式导出。"]
+            ),
+            linkage_map=linkage_map, linkage_gaps=linkage_gaps,
+            characteristic_registry=registry,
+            knowledge_recommendations=knowledge_recs,
+            risk_structure=risk_structure, review_dashboard=review_dashboard,
+            part_family_classification=part_family_classification,
+            family_context=family_context,
+        )
+
+    return _export_and_finalize(
+        chain, target_dir, export_mode, final_gate, quality_gates,
+        analysis_source, analysis_warnings, drawing_analysis, process_flow,
+        pfmea, control_plan, pipeline_inputs, linkage_map, linkage_gaps,
+        registry, knowledge_recs, risk_structure, review_dashboard,
+        part_family_classification, family_context,
+    )
+
+
+def _generate_pfd_stage(
+    drawing_analysis, family_context, registry,
+    infer_process_flow_from_drawing, attach_characteristics_to_three_tables,
+    evaluate_pfd_bundle_gate,
+):
+    """Infer PFD from drawing analysis and evaluate quality gate."""
+    process_flow = infer_process_flow_from_drawing(
+        drawing_analysis,
+        family_context=family_context or None,
+    )
+    if registry and registry.get("items"):
+        process_flow = attach_characteristics_to_three_tables(
+            {"process_flow": process_flow}, registry
+        )["process_flow"]
+    pfd_gate = evaluate_pfd_bundle_gate(process_flow, stage="drawing_to_pfd")
+    return {"process_flow": process_flow, "pfd_gate": pfd_gate}
+
+
+def _generate_pfmea_stage(
+    process_flow, registry,
+    infer_pfmea_from_process_flow, attach_characteristics_to_three_tables,
+    evaluate_pfmea_bundle_gate,
+):
+    """Infer PFMEA from process flow and evaluate quality gate."""
+    pfmea = infer_pfmea_from_process_flow(process_flow)
+    if registry and registry.get("items"):
+        attached = attach_characteristics_to_three_tables(
+            {"process_flow": process_flow, "pfmea": pfmea}, registry
+        )
+        process_flow = attached["process_flow"]
+        pfmea = attached["pfmea"]
+    pfmea_gate = evaluate_pfmea_bundle_gate(pfmea, stage="pfd_to_pfmea")
+    return {"process_flow": process_flow, "pfmea": pfmea, "pfmea_gate": pfmea_gate}
+
+
+def _generate_cp_stage(
+    process_flow, pfmea, registry,
+    generate_control_plan_from_pfmea, attach_characteristics_to_three_tables,
+    evaluate_control_plan_bundle_gate,
+):
+    """Generate control plan from PFMEA and evaluate quality gate."""
     control_plan = generate_control_plan_from_pfmea(pfmea)
     if registry and registry.get("items"):
         attached = attach_characteristics_to_three_tables(
@@ -310,103 +421,50 @@ def generate_three_tables_from_drawing(
     control_plan_gate = evaluate_control_plan_bundle_gate(
         control_plan, stage="pfmea_to_control_plan"
     )
-    chain = _assemble_three_table_chain(
-        drawing_analysis, process_flow, pfmea, control_plan,
-        characteristic_registry=registry,
-        part_family_classification=part_family_classification,
-        family_context=family_context,
-    )
-    # --- 构建 PFMEA 行动项 ---
+    return {
+        "process_flow": process_flow, "pfmea": pfmea,
+        "control_plan": control_plan, "control_plan_gate": control_plan_gate,
+    }
+
+
+def _build_chain_analysis(chain, registry, part_family_classification, family_context):
+    """Build action items, linkage, risk structure, and review dashboard."""
     from .action_tracking import build_action_items, action_items_summary
+    from .three_table_linkage import build_three_table_linkage_map, evaluate_three_table_linkage
+    from .risk_structure import build_risk_structure
+    from .edit_patch import _build_review_dashboard, evaluate_edit_export_gate
 
     metadata = chain.setdefault("metadata", {})
     if isinstance(metadata, dict):
         metadata["action_items"] = build_action_items(chain)
         metadata["action_items_summary"] = action_items_summary(metadata["action_items"])
 
-    final_gate = evaluate_export_gate(chain)
-    quality_gates = {
-        "drawing_recognition": drawing_gate.model_dump(),
-        "process_flow": pfd_gate.model_dump(),
-        "pfmea": pfmea_gate.model_dump(),
-        "control_plan": control_plan_gate.model_dump(),
-        "final_three_table": final_gate.model_dump(),
-    }
-    # --- 构建三表联动 ---
-    from .three_table_linkage import build_three_table_linkage_map, evaluate_three_table_linkage
-
     linkage_map = build_three_table_linkage_map(chain)
     linkage_report = evaluate_three_table_linkage(chain)
     linkage_gaps = linkage_map.get("gaps", [])
-
-    # --- 构建 APIS 风格风险结构视图 ---
-    from .risk_structure import build_risk_structure
-
     risk_structure = build_risk_structure(chain)
-
-    # knowledge recommendations 已在 _assemble_three_table_chain 中生成
     knowledge_recs = chain.get("metadata", {}).get("knowledge_recommendations", [])
-
-    # --- 构建评审面板 ---
-    from .edit_patch import _build_review_dashboard, evaluate_edit_export_gate
-
     edit_gate_for_envelope = evaluate_edit_export_gate(chain)
     review_dashboard = _build_review_dashboard(
         chain, edit_gate_for_envelope, risk_structure, linkage_report,
     )
+    return {
+        "linkage_map": linkage_map,
+        "linkage_gaps": linkage_gaps,
+        "risk_structure": risk_structure,
+        "review_dashboard": review_dashboard,
+        "knowledge_recs": knowledge_recs,
+    }
 
-    if not control_plan_gate.can_continue:
-        return _three_table_generation_envelope(
-            status="blocked",
-            drawing_analysis=drawing_analysis,
-            process_flow=process_flow,
-            pfmea=pfmea,
-            control_plan=control_plan,
-            chain=chain,
-            quality_gates=quality_gates,
-            exports={},
-            output_dir=target_dir,
-            inputs=pipeline_inputs,
-            blocked_stage="control_plan",
-            warnings=_dedupe_strings(
-                analysis_warnings + ["控制计划质量门未通过，已阻止导出工作簿。"]
-            ),
-            linkage_map=linkage_map,
-            linkage_gaps=linkage_gaps,
-            characteristic_registry=registry,
-            knowledge_recommendations=knowledge_recs,
-            risk_structure=risk_structure,
-            review_dashboard=review_dashboard,
-            part_family_classification=part_family_classification,
-            family_context=family_context,
-        )
 
-    if export_mode == "final" and not final_gate.allow_user_export:
-        return _three_table_generation_envelope(
-            status="blocked",
-            drawing_analysis=drawing_analysis,
-            process_flow=process_flow,
-            pfmea=pfmea,
-            control_plan=control_plan,
-            chain=chain,
-            quality_gates=quality_gates,
-            exports={},
-            output_dir=target_dir,
-            inputs=pipeline_inputs,
-            blocked_stage="final_three_table",
-            warnings=_dedupe_strings(
-                analysis_warnings + ["最终三表质量门未通过，已阻止正式导出。"]
-            ),
-            linkage_map=linkage_map,
-            linkage_gaps=linkage_gaps,
-            characteristic_registry=registry,
-            knowledge_recommendations=knowledge_recs,
-            risk_structure=risk_structure,
-            review_dashboard=review_dashboard,
-            part_family_classification=part_family_classification,
-            family_context=family_context,
-        )
-
+def _export_and_finalize(
+    chain, target_dir, export_mode, final_gate, quality_gates,
+    analysis_source, analysis_warnings, drawing_analysis, process_flow,
+    pfmea, control_plan, pipeline_inputs, linkage_map, linkage_gaps,
+    registry, knowledge_recs, risk_structure, review_dashboard,
+    part_family_classification, family_context,
+):
+    """Export workbooks and build the final generation envelope."""
     manual_review = _three_table_manual_review(quality_gates)
     unified = export_three_table_workbook(
         chain,

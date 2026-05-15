@@ -207,48 +207,67 @@ def infer_process_flow_from_drawing(
     steps and keeps every step marked for review because the route is AI
     inferred from a drawing, not confirmed process planning.
     """
+    family_context = _resolve_family_context(family_context)
+    steps, pending_fields = _build_steps_from_clues(analysis_bundle, family_context)
+    return _finalize_process_flow(steps, analysis_bundle, family_context, pending_fields)
 
-    # Resolve family_context templates when only family_key is given
-    if family_context and not family_context.get("process_route_templates"):
-        family_key = family_context.get("family_key")
-        if family_key:
-            # Try classifier templates first (operation_key format)
-            try:
-                from minos_core.part_family_classifier import get_default_family_index
-                family_index = get_default_family_index()
-                family_data = family_index.get(family_key)
-                if family_data:
-                    family_context = dict(family_context)
-                    family_context["process_route_templates"] = list(
-                        family_data.get("process_route_templates", [])
-                    )
-                    if not family_context.get("knowledge_source_refs"):
-                        family_context["knowledge_source_refs"] = list(
-                            family_data.get("knowledge_source_refs", [])
-                        )
-            except (KeyError, ImportError):
-                pass
 
-            # Fallback: load from knowledge base for process_inference data
-            if not family_context.get("process_route_templates") or not family_context.get("process_inference"):
-                try:
-                    from minos_core.part_family_knowledge import load_part_family_knowledge
-                    knowledge = load_part_family_knowledge(family_key)
-                    if not family_context.get("process_route_templates"):
-                        family_context = dict(family_context)
-                        family_context["process_route_templates"] = knowledge.get(
-                            "process_route_templates", []
-                        )
-                    if knowledge.get("process_inference"):
-                        family_context = dict(family_context) if family_context.get("process_inference") is None else family_context
-                        family_context["process_inference"] = knowledge["process_inference"]
-                    if not family_context.get("knowledge_source_refs"):
-                        family_context["knowledge_source_refs"] = knowledge.get(
-                            "knowledge_source_refs", []
-                        )
-                except (KeyError, FileNotFoundError, ImportError):
-                    pass
+def _resolve_family_context(
+    family_context: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    """Resolve family_context templates when only family_key is given."""
+    if not family_context or family_context.get("process_route_templates"):
+        return family_context
 
+    family_key = family_context.get("family_key")
+    if not family_key:
+        return family_context
+
+    # Try classifier templates first (operation_key format)
+    try:
+        from minos_core.part_family_classifier import get_default_family_index
+        family_index = get_default_family_index()
+        family_data = family_index.get(family_key)
+        if family_data:
+            family_context = dict(family_context)
+            family_context["process_route_templates"] = list(
+                family_data.get("process_route_templates", [])
+            )
+            if not family_context.get("knowledge_source_refs"):
+                family_context["knowledge_source_refs"] = list(
+                    family_data.get("knowledge_source_refs", [])
+                )
+    except (KeyError, ImportError):
+        pass
+
+    # Fallback: load from knowledge base for process_inference data
+    if not family_context.get("process_route_templates") or not family_context.get("process_inference"):
+        try:
+            from minos_core.part_family_knowledge import load_part_family_knowledge
+            knowledge = load_part_family_knowledge(family_key)
+            if not family_context.get("process_route_templates"):
+                family_context = dict(family_context)
+                family_context["process_route_templates"] = knowledge.get(
+                    "process_route_templates", []
+                )
+            if knowledge.get("process_inference"):
+                family_context = dict(family_context) if family_context.get("process_inference") is None else family_context
+                family_context["process_inference"] = knowledge["process_inference"]
+            if not family_context.get("knowledge_source_refs"):
+                family_context["knowledge_source_refs"] = knowledge.get(
+                    "knowledge_source_refs", []
+                )
+        except (KeyError, FileNotFoundError, ImportError):
+            pass
+
+    return family_context
+
+
+def _build_steps_from_clues(
+    analysis_bundle: dict[str, Any],
+    family_context: dict[str, Any] | None,
+) -> tuple[list[dict[str, Any]], list[str]]:
+    """Iterate manufacturing clues and build the steps list."""
     clues = _expand_manufacturing_clues(analysis_bundle.get("manufacturing_clues", []))
     clues = _enrich_with_process_library(analysis_bundle, clues, family_context)
     family_knowledge_refs: list[str] = []
@@ -339,7 +358,16 @@ def infer_process_flow_from_drawing(
                 "source": row_text(clue, "source", default="drawing_recognition"),
             }
         )
+    return steps, pending_fields
 
+
+def _finalize_process_flow(
+    steps: list[dict[str, Any]],
+    analysis_bundle: dict[str, Any],
+    family_context: dict[str, Any] | None,
+    pending_fields: list[str],
+) -> dict[str, Any]:
+    """Build metadata and assemble the final process_flow dict."""
     metadata: dict[str, Any] = {
         "generation_mode": "drawing_analysis_process_flow_inference",
         "llm_used": True,

@@ -370,117 +370,143 @@ def _apply_metadata_action(payload: dict[str, Any], record: dict[str, Any]) -> N
         raise EditPatchError("metadata must be an object")
     action = record["action"]
     target_id = record["target_id"]
-    if action == "accept_recommendation":
-        rec = _find_recommendation(payload, target_id)
-        if rec is None:
-            raise EditPatchError(f"recommendation not found: {target_id}")
+    dispatch = {
+        "accept_recommendation": _apply_metadata_accept_recommendation,
+        "apply_recommendation": _apply_metadata_apply_recommendation,
+        "ignore_recommendation": _apply_metadata_ignore_recommendation,
+        "resolve_change_impact": _apply_metadata_resolve_change_impact,
+        "resolve_review_issue": _apply_metadata_resolve_review_issue,
+        "resolve_action_item": _apply_metadata_resolve_action_item,
+    }
+    handler = dispatch.get(action)
+    if handler is not None:
+        handler(payload, metadata, record, target_id)
+
+
+def _apply_metadata_accept_recommendation(
+    payload: dict[str, Any], metadata: dict[str, Any], record: dict[str, Any], target_id: str
+) -> None:
+    rec = _find_recommendation(payload, target_id)
+    if rec is None:
+        raise EditPatchError(f"recommendation not found: {target_id}")
+    rec["status"] = "已接受"
+    rec["lifecycle_status"] = "accepted"
+    rec["accepted_by"] = record.get("edited_by", "")
+    rec["accepted_at"] = record.get("edited_at", "")
+    rec["decision"] = "accepted"
+
+
+def _apply_metadata_apply_recommendation(
+    payload: dict[str, Any], metadata: dict[str, Any], record: dict[str, Any], target_id: str
+) -> None:
+    rec = _find_recommendation(payload, record["target_id"])
+    if rec is None:
+        raise EditPatchError(f"recommendation not found: {record['target_id']}")
+    _apply_recommendation_fields(payload, record, rec)
+    applied_fields = record.get("applied_fields", [])
+    if applied_fields:
+        rec["status"] = "已应用"
+        rec["lifecycle_status"] = "applied"
+        rec["applied_fields"] = list(applied_fields)
+    else:
         rec["status"] = "已接受"
         rec["lifecycle_status"] = "accepted"
-        rec["accepted_by"] = record.get("edited_by", "")
-        rec["accepted_at"] = record.get("edited_at", "")
-        rec["decision"] = "accepted"
-        return
-    if action == "apply_recommendation":
-        rec = _find_recommendation(payload, record["target_id"])
-        if rec is None:
-            raise EditPatchError(f"recommendation not found: {record['target_id']}")
-        # Execute field writes
-        _apply_recommendation_fields(payload, record, rec)
-        # Check if fields were actually written
-        applied_fields = record.get("applied_fields", [])
-        if applied_fields:
-            rec["status"] = "已应用"
-            rec["lifecycle_status"] = "applied"
-            rec["applied_fields"] = list(applied_fields)
-        else:
-            rec["status"] = "已接受"
-            rec["lifecycle_status"] = "accepted"
-        rec["applied_by"] = record.get("edited_by", "")
-        rec["applied_at"] = record.get("edited_at", "")
-        return
-    if action == "ignore_recommendation":
+    rec["applied_by"] = record.get("edited_by", "")
+    rec["applied_at"] = record.get("edited_at", "")
+
+
+def _apply_metadata_ignore_recommendation(
+    payload: dict[str, Any], metadata: dict[str, Any], record: dict[str, Any], target_id: str
+) -> None:
+    reason = record.get("reason", "").strip()
+    if not reason:
+        raise EditPatchError("ignore_recommendation requires reason")
+    rec = _find_recommendation(payload, target_id)
+    if rec is None:
+        raise EditPatchError(f"recommendation not found: {target_id}")
+    rec["status"] = "已忽略"
+    rec["lifecycle_status"] = "ignored"
+    rec["ignore_reason"] = reason
+    rec["ignored_by"] = record.get("edited_by", "")
+    rec["ignored_at"] = record.get("edited_at", "")
+
+
+def _apply_metadata_resolve_change_impact(
+    payload: dict[str, Any], metadata: dict[str, Any], record: dict[str, Any], target_id: str
+) -> None:
+    items = metadata.setdefault("change_impacts", [])
+    _ensure_list(items, "metadata.change_impacts")
+    item = _find_metadata_item(items, "item_id", target_id)
+    if item is None:
+        item = {"item_id": target_id}
+        items.append(item)
+    status = record.get("changes", {}).get("status") or "已处理"
+    item["status"] = status
+    if status == "已忽略":
+        reason = record.get("reason", "")
+        if not reason:
+            raise EditPatchError("ignored change impact requires reason")
+        item["ignore_reason"] = reason
+
+
+def _apply_metadata_resolve_review_issue(
+    payload: dict[str, Any], metadata: dict[str, Any], record: dict[str, Any], target_id: str
+) -> None:
+    items = metadata.setdefault("review_issues", [])
+    _ensure_list(items, "metadata.review_issues")
+    item = _find_metadata_item(items, "issue_id", target_id)
+    if item is None:
+        item = {"issue_id": target_id}
+        items.append(item)
+    status = record.get("changes", {}).get("status") or "已处理"
+    item["status"] = status
+    if record.get("edited_by"):
+        item["resolved_by"] = record.get("edited_by", "")
+    if record.get("edited_at"):
+        item["resolved_at"] = record.get("edited_at", "")
+    if status == "已忽略":
+        reason = record.get("reason", "")
+        if not reason:
+            raise EditPatchError("ignored review issue requires reason")
+        item["ignore_reason"] = reason
+
+
+def _apply_metadata_resolve_action_item(
+    payload: dict[str, Any], metadata: dict[str, Any], record: dict[str, Any], target_id: str
+) -> None:
+    action_id = record["target_id"]
+    items = metadata.setdefault("action_items", [])
+    _ensure_list(items, "metadata.action_items")
+    target = None
+    for item in items:
+        if item.get("action_id") == action_id:
+            target = item
+            break
+    if target is None:
+        target = {"action_id": action_id, "created_from": "manual"}
+        items.append(target)
+
+    changes = record.get("changes", {})
+    new_status = changes.get("status", "")
+
+    if new_status == "closed":
+        if not changes.get("closure_evidence_refs") and not changes.get("manual_confirmation_event"):
+            raise EditPatchError(
+                f"close action {action_id} requires closure_evidence_refs or manual_confirmation_event"
+            )
+    if new_status == "ignored":
         reason = record.get("reason", "").strip()
         if not reason:
-            raise EditPatchError("ignore_recommendation requires reason")
-        rec = _find_recommendation(payload, target_id)
-        if rec is None:
-            raise EditPatchError(f"recommendation not found: {target_id}")
-        rec["status"] = "已忽略"
-        rec["lifecycle_status"] = "ignored"
-        rec["ignore_reason"] = reason
-        rec["ignored_by"] = record.get("edited_by", "")
-        rec["ignored_at"] = record.get("edited_at", "")
-        return
-    if action == "resolve_change_impact":
-        items = metadata.setdefault("change_impacts", [])
-        _ensure_list(items, "metadata.change_impacts")
-        item = _find_metadata_item(items, "item_id", target_id)
-        if item is None:
-            item = {"item_id": target_id}
-            items.append(item)
-        status = record.get("changes", {}).get("status") or "已处理"
-        item["status"] = status
-        if status == "已忽略":
-            reason = record.get("reason", "")
-            if not reason:
-                raise EditPatchError("ignored change impact requires reason")
-            item["ignore_reason"] = reason
-        return
-    if action == "resolve_review_issue":
-        items = metadata.setdefault("review_issues", [])
-        _ensure_list(items, "metadata.review_issues")
-        item = _find_metadata_item(items, "issue_id", target_id)
-        if item is None:
-            item = {"issue_id": target_id}
-            items.append(item)
-        status = record.get("changes", {}).get("status") or "已处理"
-        item["status"] = status
-        if record.get("edited_by"):
-            item["resolved_by"] = record.get("edited_by", "")
-        if record.get("edited_at"):
-            item["resolved_at"] = record.get("edited_at", "")
-        if status == "已忽略":
-            reason = record.get("reason", "")
-            if not reason:
-                raise EditPatchError("ignored review issue requires reason")
-            item["ignore_reason"] = reason
-        return
-    if action == "resolve_action_item":
-        action_id = record["target_id"]
-        items = metadata.setdefault("action_items", [])
-        _ensure_list(items, "metadata.action_items")
-        target = None
-        for item in items:
-            if item.get("action_id") == action_id:
-                target = item
-                break
-        if target is None:
-            target = {"action_id": action_id, "created_from": "manual"}
-            items.append(target)
+            raise EditPatchError(f"ignore action {action_id} requires reason")
+        target["ignore_reason"] = reason
 
-        changes = record.get("changes", {})
-        new_status = changes.get("status", "")
+    for key in ("status", "owner", "due_date", "closure_evidence_refs", "manual_confirmation_event", "closed_at", "closed_by"):
+        if key in changes:
+            target[key] = changes[key]
 
-        if new_status == "closed":
-            if not changes.get("closure_evidence_refs") and not changes.get("manual_confirmation_event"):
-                raise EditPatchError(
-                    f"close action {action_id} requires closure_evidence_refs or manual_confirmation_event"
-                )
-        if new_status == "ignored":
-            reason = record.get("reason", "").strip()
-            if not reason:
-                raise EditPatchError(f"ignore action {action_id} requires reason")
-            target["ignore_reason"] = reason
-
-        # Apply changes
-        for key in ("status", "owner", "due_date", "closure_evidence_refs", "manual_confirmation_event", "closed_at", "closed_by"):
-            if key in changes:
-                target[key] = changes[key]
-
-        if new_status in ("closed", "ignored"):
-            target["resolved_by"] = record.get("edited_by", "")
-            target["resolved_at"] = record.get("edited_at", "")
-        return
+    if new_status in ("closed", "ignored"):
+        target["resolved_by"] = record.get("edited_by", "")
+        target["resolved_at"] = record.get("edited_at", "")
 
 
 def _apply_recommendation_fields(

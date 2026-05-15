@@ -49,7 +49,15 @@ class OpenAILLMAdapter:
     ) -> None:
         config = load_openai_responses_config()
         self.api_key = api_key if api_key is not None else load_openai_api_key()
-        self.base_url = (base_url or config.base_url).rstrip("/")
+        base_url_value = (base_url or config.base_url).rstrip("/")
+
+        # Validate base_url must use HTTPS to protect API key
+        if not base_url_value.startswith("https://"):
+            raise ValueError(
+                f"base_url must use HTTPS to protect API key, got: {base_url_value}"
+            )
+
+        self.base_url = base_url_value
         self.model = model or config.model
         self.reasoning_effort = (
             reasoning_effort if reasoning_effort is not None else config.reasoning_effort
@@ -70,8 +78,8 @@ class OpenAILLMAdapter:
         """
         if not self.api_key:
             raise OpenAILLMError(
-                "OpenAI API key is not configured; set MINOS_OPENAI_API_KEY, OPENAI_API_KEY, "
-                "ARK_API_KEY, or sign in through Codex so ~/.codex/auth.json is available"
+                "OpenAI API key is not configured. "
+                "See documentation for configuration instructions."
             )
         payload = self._build_payload(messages)
         response = self._post_json(self._chat_url(), payload)
@@ -90,8 +98,8 @@ class OpenAILLMAdapter:
         """
         if not self.api_key:
             raise OpenAILLMError(
-                "OpenAI API key is not configured; set MINOS_OPENAI_API_KEY, OPENAI_API_KEY, "
-                "ARK_API_KEY, or sign in through Codex so ~/.codex/auth.json is available"
+                "OpenAI API key is not configured. "
+                "See documentation for configuration instructions."
             )
         payload = self._build_payload(messages, structured=True, json_schema=json_schema)
         response = self._post_json(self._chat_url(), payload)
@@ -167,9 +175,10 @@ class OpenAILLMAdapter:
                 if attempt < attempts and _should_retry_http_status(exc.code):
                     time.sleep(self.retry_delay * attempt)
                     continue
+                # Do not include response body (may contain sensitive information)
                 raise OpenAILLMError(
                     f"OpenAI Chat Completions API failed after {attempt} attempt(s): "
-                    f"{exc.code}: {detail}"
+                    f"HTTP {exc.code}"
                 ) from exc
             except urllib.error.URLError as exc:
                 if attempt < attempts:

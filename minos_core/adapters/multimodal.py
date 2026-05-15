@@ -118,8 +118,8 @@ class OpenAIResponsesMultimodalDrawingAnalyzer:
     ) -> MultimodalDrawingResult:
         if not self.api_key:
             raise OpenAIMultimodalError(
-                "OpenAI API key is not configured; set MINOS_OPENAI_API_KEY, OPENAI_API_KEY, "
-                "ARK_API_KEY, or sign in through Codex so ~/.codex/auth.json is available"
+                "OpenAI API key is not configured. "
+                "See documentation for configuration instructions."
             )
         if not pages:
             raise OpenAIMultimodalError("drawing analysis requires at least one page")
@@ -238,6 +238,11 @@ class OpenAIResponsesMultimodalDrawingAnalyzer:
                 raise OpenAIMultimodalError(
                     f"OpenAI Responses API timed out after {self.timeout:g} second(s)"
                 ) from exc
+            except OpenAIMultimodalError as exc:
+                if attempt < attempts and is_retryable_responses_stream_error(str(exc)):
+                    time.sleep(self.retry_delay * attempt)
+                    continue
+                raise
         try:
             parsed = json.loads(raw)
         except json.JSONDecodeError as exc:
@@ -305,6 +310,21 @@ def _should_retry_http_status(status_code: int) -> bool:
     return status_code in {429, 500, 502, 503, 504}
 
 
+def is_retryable_responses_stream_error(message: str) -> bool:
+    lower = message.lower()
+    return any(
+        marker in lower
+        for marker in (
+            "server_is_overloaded",
+            "service_unavailable",
+            "temporarily unavailable",
+            "try again later",
+            "rate_limit",
+            "stream_read_error",
+        )
+    )
+
+
 def _parse_responses_stream(
     response: Any,
     *,
@@ -324,6 +344,7 @@ def _parse_responses_stream(
             event_name = ""
             return
         raw_data = "\n".join(data_lines).strip()
+        current_event_name = event_name
         event_name = ""
         data_lines = []
         if not raw_data or raw_data == "[DONE]":
@@ -336,16 +357,32 @@ def _parse_responses_stream(
             ) from exc
         if not isinstance(payload, dict):
             return
-        event_type = str(payload.get("type") or event_name)
+        event_type = str(payload.get("type") or current_event_name)
         if event_type == "response.output_text.delta":
             delta = payload.get("delta")
             if isinstance(delta, str):
                 deltas.append(delta)
+        elif event_type == "response.output_text.done":
+            text = payload.get("text")
+            if isinstance(text, str):
+                deltas.append(text)
         elif event_type == "response.reasoning_text.delta":
             delta = payload.get("delta")
             if isinstance(delta, str):
                 reasoning_deltas.append(delta)
-        elif event_type == "response.completed":
+        elif event_type == "response.reasoning_text.done":
+            text = payload.get("text")
+            if isinstance(text, str):
+                reasoning_deltas.append(text)
+        elif event_type == "response.output_item.done":
+            text = _extract_output_text({"output": [payload.get("item")]})
+            if text:
+                deltas.append(text)
+        elif event_type == "response.content_part.done":
+            text = _extract_content_part_text(payload.get("part"))
+            if text:
+                deltas.append(text)
+        elif event_type in {"response.completed", "response.done"}:
             response_payload = payload.get("response")
             if isinstance(response_payload, dict):
                 completed_response = response_payload
@@ -398,3 +435,10 @@ def _parse_responses_stream(
             result["reasoning_text"] = reasoning
         return result
     raise OpenAIMultimodalError("OpenAI Responses API stream did not contain output text")
+
+
+def _extract_content_part_text(part: Any) -> str:
+    if not isinstance(part, dict):
+        return ""
+    text = part.get("text")
+    return text if isinstance(text, str) else ""

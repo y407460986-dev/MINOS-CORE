@@ -33,6 +33,11 @@ class TraceLinkType(str, Enum):
 
 @dataclass
 class Product:
+    """产品信息。
+
+    注意：虽然字段技术上可变，但应视为不可变对象。
+    创建后不应修改字段值。如需修改，使用 dataclasses.replace()。
+    """
     sample_id: str = ""
     part_number: str = ""
     part_name: str = ""
@@ -282,6 +287,15 @@ class FailureMode:
     version: int = 0
     ai_reasoning: str = ""
 
+    def __post_init__(self) -> None:
+        """验证字段值的合理性。"""
+        if self.severity and not (1 <= self.severity <= 10):
+            raise ValueError(f"severity must be 1-10, got {self.severity}")
+        if self.occurrence and not (1 <= self.occurrence <= 10):
+            raise ValueError(f"occurrence must be 1-10, got {self.occurrence}")
+        if self.detection and not (1 <= self.detection <= 10):
+            raise ValueError(f"detection must be 1-10, got {self.detection}")
+
     @property
     def step_no(self) -> str:
         return self.process_step_id
@@ -386,6 +400,13 @@ class ControlItem:
     sample_size: str = ""
     sample_frequency: str = ""
     control_method: str = ""
+    process_parameter: str = ""
+    parameter_specification: str = ""
+    process_control_method: str = ""
+    setup_verification: str = ""
+    poka_yoke_device: str = ""
+    poka_yoke_verification: str = ""
+    process_record: str = ""
     reaction_plan: str = ""
     evidence_refs: list[str] = field(default_factory=list)
     needs_confirmation: bool = False
@@ -437,6 +458,13 @@ class ControlItem:
             sample_size=str(data.get("sample_size", "")),
             sample_frequency=str(data.get("sample_frequency", "")),
             control_method=str(data.get("control_method", "")),
+            process_parameter=str(data.get("process_parameter", "")),
+            parameter_specification=str(data.get("parameter_specification", "")),
+            process_control_method=str(data.get("process_control_method", "")),
+            setup_verification=str(data.get("setup_verification", "")),
+            poka_yoke_device=str(data.get("poka_yoke_device", "")),
+            poka_yoke_verification=str(data.get("poka_yoke_verification", "")),
+            process_record=str(data.get("process_record", data.get("record_form", ""))),
             reaction_plan=str(data.get("reaction_plan", "")),
             evidence_refs=string_list(data.get("evidence_refs", [])),
             needs_confirmation=bool(data.get("needs_confirmation", False)),
@@ -544,7 +572,24 @@ class APQPChain:
     document_type: str = "apqp_chain"
 
     def __init__(self, **payload: Any) -> None:
+        """从字典构造 APQPChain。
+
+        Args:
+            **payload: 包含 APQP 链数据的字典
+
+        Raises:
+            TypeError: 如果 payload 不是字典
+            ValueError: 如果必需字段缺失
+        """
+        if not isinstance(payload, dict):
+            raise TypeError(f"APQPChain requires dict payload, got {type(payload)}")
+
         normalized = normalize_fixture_payload(payload)
+
+        # Validate required fields
+        if "product" not in normalized:
+            raise ValueError("APQPChain requires 'product' field")
+
         self.product = Product.from_mapping(normalized.get("product", {}))
         self.drawings = [
             Drawing.from_mapping(item) for item in normalized.get("drawings", [])

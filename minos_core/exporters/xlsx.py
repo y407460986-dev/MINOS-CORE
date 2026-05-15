@@ -9,6 +9,7 @@ from typing import Iterable, Sequence
 from zipfile import ZIP_DEFLATED, ZipFile
 import html
 import re
+import re
 
 INVALID_SHEET_CHARS = re.compile(r"[\[\]:*?/\\]")
 MAX_SHEET_NAME_LEN = 31
@@ -62,18 +63,29 @@ class WorkbookWriter:
 
         output = Path(path)
         output.parent.mkdir(parents=True, exist_ok=True)
-        with ZipFile(output, "w", ZIP_DEFLATED) as archive:
-            archive.writestr("[Content_Types].xml", self._content_types())
-            archive.writestr("_rels/.rels", self._root_rels())
-            archive.writestr("xl/workbook.xml", self._workbook_xml())
-            archive.writestr("xl/_rels/workbook.xml.rels", self._workbook_rels())
-            archive.writestr("xl/styles.xml", self._styles_xml())
-            for index, sheet in enumerate(self._sheets, start=1):
-                archive.writestr(
-                    f"xl/worksheets/sheet{index}.xml",
-                    self._worksheet_xml(sheet),
-                )
-        return output
+
+        # Use temporary file + atomic rename to prevent corrupted files
+        temp_path = output.with_suffix('.tmp')
+        try:
+            with ZipFile(temp_path, "w", ZIP_DEFLATED) as archive:
+                archive.writestr("[Content_Types].xml", self._content_types())
+                archive.writestr("_rels/.rels", self._root_rels())
+                archive.writestr("xl/workbook.xml", self._workbook_xml())
+                archive.writestr("xl/_rels/workbook.xml.rels", self._workbook_rels())
+                archive.writestr("xl/styles.xml", self._styles_xml())
+                for index, sheet in enumerate(self._sheets, start=1):
+                    archive.writestr(
+                        f"xl/worksheets/sheet{index}.xml",
+                        self._worksheet_xml(sheet),
+                    )
+
+            # Atomic replace (works on both Windows and Unix)
+            temp_path.replace(output)
+            return output
+        except Exception:
+            # Clean up temporary file on failure
+            temp_path.unlink(missing_ok=True)
+            raise
 
     def _unique_sheet_name(self, title: str) -> str:
         base = sanitize_sheet_name(title)
@@ -267,7 +279,17 @@ def split_cell_ref(ref: str) -> tuple[str, str]:
 
 
 def escape_xml(value: str) -> str:
-    return html.escape(value, quote=True)
+    """Escape XML special characters and remove illegal control characters.
+
+    XML 1.0 prohibits the following characters:
+    - U+0000-U+0008 (except U+0009 TAB)
+    - U+000B-U+000C (except U+000A LF)
+    - U+000E-U+001F (except U+000D CR)
+    """
+    # Remove XML illegal control characters (preserve TAB, LF, CR)
+    cleaned = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F]', '', value)
+    # Escape XML special characters
+    return html.escape(cleaned, quote=True)
 
 
 def write_xlsx(path: str | Path, sheets: Iterable[dict[str, object] | Worksheet]) -> Path:

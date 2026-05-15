@@ -76,17 +76,15 @@ def load_openai_responses_config(
         os.getenv("MINOS_OPENAI_MODEL")
         or os.getenv("OPENAI_MODEL")
         or os.getenv("ARK_MODEL")
-        or "gpt-5.4"
+        or "gpt-5.5"
     )
     env_base_url_name = _first_set_env_name(
         ("MINOS_OPENAI_BASE_URL", "OPENAI_BASE_URL", "ARK_BASE_URL")
     )
     codex_base_url = _codex_base_url(codex_config)
-    base_url = (
-        (os.getenv(env_base_url_name, "") if env_base_url_name else "")
-        or codex_base_url
-        or "https://api.openai.com"
-    )
+    # Fix empty string check logic
+    env_base_url = os.getenv(env_base_url_name, "") if env_base_url_name else ""
+    base_url = env_base_url or codex_base_url or "https://api.openai.com"
     codex_config_path = _codex_file(codex_home, "config.toml") if allow_codex else None
     return AIProviderConfig(
         provider="openai_responses",

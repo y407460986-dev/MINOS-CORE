@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 from io import BytesIO
 from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
+
+logger = logging.getLogger(__name__)
 
 OCRBBox = tuple[float, float, float, float]
 
@@ -263,7 +266,8 @@ def _image_bbox(source_ref: str, content: bytes) -> OCRBBox | None:
         else:
             with Image.open(BytesIO(content)) as image:
                 width, height = image.size
-    except Exception:
+    except Exception as exc:
+        logger.debug("Image bbox extraction failed for %s: %s", source_ref, exc)
         return None
     return (0.0, 0.0, float(width), float(height))
 
@@ -364,7 +368,8 @@ def _pymupdf_blocks(page: Any, source_ref: str, engine_name: str) -> list[OCRBlo
     blocks: list[OCRBlock] = []
     try:
         raw_blocks = page.get_text("blocks") or []
-    except Exception:
+    except Exception as exc:
+        logger.debug("PyMuPDF block extraction failed for %s: %s", source_ref, exc)
         return blocks
     for index, raw in enumerate(raw_blocks, start=1):
         if not isinstance(raw, (list, tuple)) or len(raw) < 5:

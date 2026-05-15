@@ -276,6 +276,8 @@ def evaluate_stage_gate(
             linkage_summary = linkage_map.get("summary", {})
             sync_issues = linkage_report.get("sync_issues", [])
         except Exception as exc:
+            # Log full stack trace for debugging
+            logger.exception("三表联动检查执行失败，链接报告数据可能不完整")
             linkage_gaps = [{
                 "gap_id": "GAP-LINKAGE-EVALUATION-ERROR",
                 "category": "三表联动",

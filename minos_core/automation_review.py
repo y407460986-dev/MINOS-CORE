@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import copy
+import logging
 from typing import Any
 
 from .edit_patch import EDIT_PATCH_VERSION
 from .quality_gates import evaluate_export_gate
 from .review_issues import build_review_issue, unresolved_review_issues
+
+
+logger = logging.getLogger(__name__)
 
 
 AUTOMATION_REVIEW_VERSION = "minos-core.automation_review.v1"
@@ -108,7 +112,7 @@ def build_automation_review(
                     fix_proposal=issue.get("fix_proposal"),
                 ))
     except ImportError:
-        pass
+        logger.info("semantic_review module not available, skipping cross-table semantic review")
 
     return {
         "automation_review_version": AUTOMATION_REVIEW_VERSION,
@@ -251,7 +255,7 @@ def _batch_reject_reasons(
         pfmea_rows = chain.get("failure_modes", [])
         reasons.extend(semantic_review_row(row, table, pfd_steps=pfd_steps, pfmea_rows=pfmea_rows))
     except ImportError:
-        pass
+        logger.info("semantic_review module not available, skipping per-row semantic review")
     return _dedupe(reasons)
 
 

@@ -659,13 +659,19 @@ def generate_pfmea_from_confirmed_pfd(
                 model=model,
             )
         except Exception as exc:
-            logger.warning("CHAIN [Stage 2] PFMEA generation failed for %s: %s", step_id, exc)
-            failed_step_ids.append(step_id)
-            continue
+            logger.error("CHAIN [Stage 2] PFMEA generation failed for %s: %s", step_id, exc)
+            raise ValueError(
+                f"Cannot generate PFMEA for step {step_id}: {exc}"
+            ) from exc
         for raw_row in _ensure_list(pfmea_result, "rows"):
             try:
                 row = _normalize_chain_pfmea_row(raw_row, step_map, counters, expected_step_id=step_id)
+            except ValueError as exc:
+                # Validation error (data integrity issue) → fail immediately
+                logger.error("CHAIN [Stage 2] PFMEA row validation failed for %s: %s", step_id, exc)
+                raise
             except Exception as exc:
+                # Other errors (e.g., type conversion) → log and skip row
                 logger.warning("CHAIN [Stage 2] PFMEA row normalization failed for %s: %s", step_id, exc)
                 continue
             if row:
@@ -838,9 +844,10 @@ def generate_cp_from_confirmed_pfmea(
                 model=model,
             )
         except Exception as exc:
-            logger.warning("CHAIN [Stage 3] CP generation failed for %s: %s", pfmea_id, exc)
-            failed_row_ids.append(pfmea_id)
-            continue
+            logger.error("CHAIN [Stage 3] CP generation failed for %s: %s", pfmea_id, exc)
+            raise ValueError(
+                f"Cannot generate Control Plan for PFMEA {pfmea_id}: {exc}"
+            ) from exc
         for raw_row in _ensure_list(cp_result, "rows"):
             try:
                 row = _normalize_chain_cp_row(
@@ -850,7 +857,12 @@ def generate_cp_from_confirmed_pfmea(
                     counters,
                     expected_pfmea_id=pfmea_id,
                 )
+            except ValueError as exc:
+                # Validation error → fail immediately
+                logger.error("CHAIN [Stage 3] CP row validation failed for %s: %s", pfmea_id, exc)
+                raise
             except Exception as exc:
+                # Other errors → log and skip row
                 logger.warning("CHAIN [Stage 3] CP row normalization failed for %s: %s", pfmea_id, exc)
                 continue
             if row:

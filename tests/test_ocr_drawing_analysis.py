@@ -227,6 +227,239 @@ class OCRDrawingAnalysisTests(unittest.TestCase):
         self.assertEqual(bundle["manufacturing_clues"][0]["operation"], "injection molding")
         self.assertTrue(bundle["manufacturing_clues"][0]["needs_confirmation"])
 
+    def test_extract_drawing_number_from_ocr_text(self):
+        ocr_result = OCRResult(
+            source_ref="test.pdf",
+            pages=[
+                OCRPageText(
+                    page_number=1,
+                    text="Drawing No: ABC-12345-REV-A\nPart Name: Test Bracket",
+                    confidence=0.92,
+                    engine="test_ocr",
+                    source_ref="test.pdf",
+                )
+            ],
+        )
+
+        bundle = build_drawing_analysis_bundle_from_ocr([_page_evidence()], ocr_result)
+
+        self.assertEqual(bundle["drawing_identity"]["drawing_number"], "ABC-12345-REV-A")
+        self.assertTrue(bundle["drawing_identity"]["field_evidence_refs"]["drawing_number"])
+        self.assertTrue(bundle["drawing_identity"]["ocr_inferred"])
+
+    def test_extract_part_name_from_ocr_text(self):
+        ocr_result = OCRResult(
+            source_ref="test.pdf",
+            pages=[
+                OCRPageText(
+                    page_number=1,
+                    text="Drawing No: TEST-001\nPart Name: Door Hinge Assembly\nMaterial: SPCC",
+                    confidence=0.89,
+                    engine="test_ocr",
+                    source_ref="test.pdf",
+                )
+            ],
+        )
+
+        bundle = build_drawing_analysis_bundle_from_ocr([_page_evidence()], ocr_result)
+
+        self.assertEqual(bundle["drawing_identity"]["part_name"], "Door Hinge Assembly")
+        self.assertTrue(bundle["drawing_identity"]["field_evidence_refs"]["part_name"])
+        self.assertTrue(bundle["drawing_identity"]["ocr_inferred"])
+
+    def test_extract_material_from_ocr_text(self):
+        ocr_result = OCRResult(
+            source_ref="test.pdf",
+            pages=[
+                OCRPageText(
+                    page_number=1,
+                    text="Drawing No: MAT-001\nMaterial: SPCC t=1.5\nSurface: Zinc plated",
+                    confidence=0.91,
+                    engine="test_ocr",
+                    source_ref="test.pdf",
+                )
+            ],
+        )
+
+        bundle = build_drawing_analysis_bundle_from_ocr([_page_evidence()], ocr_result)
+
+        self.assertTrue(bundle["materials"])
+        self.assertIn("SPCC", bundle["materials"][0]["name"])
+        self.assertTrue(bundle["materials"][0]["ocr_inferred"])
+        self.assertTrue(bundle["materials"][0]["evidence_refs"])
+
+    def test_extract_surface_treatment_from_ocr_text(self):
+        ocr_result = OCRResult(
+            source_ref="test.pdf",
+            pages=[
+                OCRPageText(
+                    page_number=1,
+                    text="Drawing No: SURF-001\nSurface treatment: Zinc plated\nMaterial: SPCC",
+                    confidence=0.88,
+                    engine="test_ocr",
+                    source_ref="test.pdf",
+                )
+            ],
+        )
+
+        bundle = build_drawing_analysis_bundle_from_ocr([_page_evidence()], ocr_result)
+
+        self.assertTrue(bundle["surface_treatments"])
+        self.assertIn("Zinc plated", bundle["surface_treatments"][0]["name"])
+        self.assertTrue(bundle["surface_treatments"][0]["ocr_inferred"])
+        self.assertTrue(bundle["surface_treatments"][0]["evidence_refs"])
+
+    def test_confidence_calculation_for_high_quality_ocr(self):
+        ocr_result = OCRResult(
+            source_ref="high_quality.pdf",
+            pages=[
+                OCRPageText(
+                    page_number=1,
+                    text="Drawing No: HQ-001\nPart Name: High Quality Part\nMaterial: SPCC",
+                    confidence=0.96,
+                    engine="test_ocr",
+                    source_ref="high_quality.pdf",
+                    blocks=[
+                        OCRBlock(
+                            block_number=1,
+                            text="Drawing No: HQ-001",
+                            confidence=0.98,
+                            bbox=(10.0, 20.0, 50.0, 30.0),
+                            engine="test_ocr",
+                            source_ref="high_quality.pdf",
+                        )
+                    ],
+                )
+            ],
+        )
+
+        bundle = build_drawing_analysis_bundle_from_ocr([_page_evidence()], ocr_result)
+
+        self.assertGreaterEqual(bundle["drawing_identity"]["confidence"], 0.9)
+        self.assertEqual(bundle["evidence"][1]["confidence"], 0.98)
+
+    def test_confidence_calculation_for_low_quality_ocr(self):
+        ocr_result = OCRResult(
+            source_ref="low_quality.pdf",
+            pages=[
+                OCRPageText(
+                    page_number=1,
+                    text="Drawing No: LQ-001\nPart Name: Low Quality Part",
+                    confidence=0.62,
+                    engine="test_ocr",
+                    source_ref="low_quality.pdf",
+                    blocks=[
+                        OCRBlock(
+                            block_number=1,
+                            text="Drawing No: LQ-001",
+                            confidence=0.65,
+                            bbox=(10.0, 20.0, 50.0, 30.0),
+                            engine="test_ocr",
+                            source_ref="low_quality.pdf",
+                        )
+                    ],
+                )
+            ],
+        )
+
+        bundle = build_drawing_analysis_bundle_from_ocr([_page_evidence()], ocr_result)
+
+        self.assertLess(bundle["drawing_identity"]["confidence"], 0.75)
+        self.assertTrue(bundle["drawing_identity"]["needs_confirmation"])
+
+    def test_confidence_propagation_to_fields(self):
+        ocr_result = OCRResult(
+            source_ref="test.pdf",
+            pages=[
+                OCRPageText(
+                    page_number=1,
+                    text="Drawing No: CONF-001\nMaterial: SPCC\nSurface: Zinc plated",
+                    confidence=0.85,
+                    engine="test_ocr",
+                    source_ref="test.pdf",
+                    blocks=[
+                        OCRBlock(
+                            block_number=1,
+                            text="Material: SPCC",
+                            confidence=0.82,
+                            bbox=(10.0, 20.0, 50.0, 30.0),
+                            engine="test_ocr",
+                            source_ref="test.pdf",
+                        )
+                    ],
+                )
+            ],
+        )
+
+        bundle = build_drawing_analysis_bundle_from_ocr([_page_evidence()], ocr_result)
+
+        self.assertTrue(bundle["materials"])
+        self.assertIsNotNone(bundle["materials"][0]["confidence"])
+        self.assertGreater(bundle["materials"][0]["confidence"], 0.0)
+        self.assertLessEqual(bundle["materials"][0]["confidence"], 1.0)
+
+    def test_handles_invalid_ocr_results(self):
+        ocr_result = OCRResult(
+            source_ref="invalid.pdf",
+            pages=[
+                OCRPageText(
+                    page_number=1,
+                    text="",
+                    confidence=0.0,
+                    engine="test_ocr",
+                    source_ref="invalid.pdf",
+                )
+            ],
+        )
+
+        bundle = build_drawing_analysis_bundle_from_ocr([_page_evidence()], ocr_result)
+
+        self.assertTrue(validate_bundle_schema(bundle, "drawing_analysis_bundle"))
+        self.assertTrue(bundle["uncertainties"])
+        self.assertGreater(len(bundle["uncertainties"]), 0)
+
+    def test_handles_missing_required_fields(self):
+        ocr_result = OCRResult(
+            source_ref="missing_fields.pdf",
+            pages=[
+                OCRPageText(
+                    page_number=1,
+                    text="Some random text without any structured fields",
+                    confidence=0.88,
+                    engine="test_ocr",
+                    source_ref="missing_fields.pdf",
+                )
+            ],
+        )
+
+        bundle = build_drawing_analysis_bundle_from_ocr([_page_evidence()], ocr_result)
+
+        self.assertTrue(validate_bundle_schema(bundle, "drawing_analysis_bundle"))
+        self.assertTrue(bundle["uncertainties"])
+        uncertainty_texts = [u["text"] for u in bundle["uncertainties"]]
+        self.assertTrue(any("OCR" in text for text in uncertainty_texts))
+        self.assertGreater(len(bundle["uncertainties"]), 2)
+
+    def test_fallback_to_filename_when_ocr_fails(self):
+        ocr_result = OCRResult(
+            source_ref="DWG-001 Door Bracket.pdf",
+            pages=[
+                OCRPageText(
+                    page_number=1,
+                    text="No structured data here",
+                    confidence=0.75,
+                    engine="test_ocr",
+                    source_ref="DWG-001 Door Bracket.pdf",
+                )
+            ],
+        )
+
+        bundle = build_drawing_analysis_bundle_from_ocr([_page_evidence()], ocr_result)
+
+        self.assertIn("DWG-001", bundle["drawing_identity"]["drawing_number"])
+        self.assertIn("Door Bracket", bundle["drawing_identity"]["part_name"])
+        self.assertTrue(bundle["drawing_identity"]["needs_confirmation"])
+
     def test_missing_rapidocr_dependency_error_is_clear(self):
         with patch.dict(sys.modules, {"rapidocr_onnxruntime": None}):
             with self.assertRaisesRegex(

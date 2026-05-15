@@ -239,6 +239,217 @@ class PipelineOCRFirstTests(unittest.TestCase):
             "尾门较链",
         )
 
+    def test_generate_draft_complete_workflow(self) -> None:
+        """完整草案生成工作流：从证据到草案，验证所有阶段执行。"""
+        from minos_core.pipeline import generate_draft
+
+        captured: dict[str, object] = {}
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            evidence_path = root / "evidence.json"
+            evidence_path.write_text('{"type": "test_evidence"}', encoding="utf-8")
+            output_path = root / "draft.json"
+
+            with patch("minos_core.stage.run_stage", side_effect=_mock_stage_runner(captured)):
+                result = generate_draft(str(evidence_path), output_path=str(output_path))
+
+            self.assertIn("status", result)
+            self.assertIn(result["status"], {"draft_ready", "blocked"})
+            self.assertTrue(output_path.exists())
+
+        self.assertIn("ingest", captured)
+        self.assertIn("analyze", captured)
+        self.assertIn("generate_pfd", captured)
+
+    def test_generate_three_tables_complete_workflow(self) -> None:
+        """完整三表生成工作流：从图纸到三表导出，验证所有阶段执行。"""
+        captured: dict[str, object] = {}
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            drawing_path = root / "drawing.png"
+            drawing_path.write_bytes(b"fake drawing")
+            result = _run_pipeline_without_fake_ocr_module(
+                root,
+                drawing_path,
+                analysis_mode="ocr_only",
+                analyzer=_FailingAnalyzer(captured),
+                captured=captured,
+                export_mode="draft",
+            )
+
+        self.assertEqual(result["status"], "needs_review")
+        self.assertIn("drawing_analysis", result)
+        self.assertIn("process_flow", result)
+        self.assertIn("pfmea", result)
+        self.assertIn("control_plan", result)
+        self.assertIn("unified_workbook", result["exports"])
+        self.assertEqual(result["drawing_analysis"]["metadata"]["analysis_source"], "ocr")
+
+    def test_hybrid_mode_switches_to_ocr_on_vision_failure(self) -> None:
+        """混合模式在视觉识别失败时切换到 OCR 结果。"""
+        captured: dict[str, object] = {}
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            drawing_path = root / "drawing.png"
+            drawing_path.write_bytes(b"fake drawing")
+            result = _run_pipeline_without_fake_ocr_module(
+                root,
+                drawing_path,
+                analysis_mode="hybrid",
+                analyzer=_FailingAnalyzer(captured),
+                captured=captured,
+            )
+
+        self.assertEqual(result["status"], "needs_review")
+        self.assertEqual(
+            result["drawing_analysis"]["metadata"]["analysis_source"],
+            "hybrid_ocr_fallback",
+        )
+        self.assertIn(HYBRID_OCR_FALLBACK_WARNING, result["warnings"])
+        error_text = str(result["drawing_analysis"]["metadata"]["analysis_errors"])
+        self.assertIn("AI 视觉识别中断，已保留 OCR 识别结果。", error_text)
+        self.assertIn("stream_read_error", error_text)
+
+    def test_ocr_only_mode_skips_vision_analysis(self) -> None:
+        """OCR-only 模式跳过视觉识别，直接使用 OCR 结果。"""
+        captured: dict[str, object] = {}
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            drawing_path = root / "drawing.png"
+            drawing_path.write_bytes(b"fake drawing")
+            result = _run_pipeline_without_fake_ocr_module(
+                root,
+                drawing_path,
+                analysis_mode="ocr_only",
+                analyzer=_FailingAnalyzer(captured),
+                captured=captured,
+            )
+
+        self.assertEqual(result["drawing_analysis"]["metadata"]["analysis_source"], "ocr")
+        self.assertNotIn("vision_context", captured)
+        self.assertNotIn(HYBRID_OCR_FALLBACK_WARNING, result["warnings"])
+
+    def test_vision_only_mode_skips_ocr_analysis(self) -> None:
+        """Vision-only 模式跳过 OCR 识别，仅使用视觉分析。"""
+        captured: dict[str, object] = {}
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            drawing_path = root / "drawing.png"
+            drawing_path.write_bytes(b"fake drawing")
+            patches = _pipeline_patches(captured)
+            with ExitStack() as stack:
+                stack.enter_context(patch("minos_core.drawing_input.load_drawing_source", return_value={"path": str(drawing_path)}))
+                stack.enter_context(patch("minos_core.drawing_input.render_drawing_pages", return_value=[_page_evidence()]))
+                stack.enter_context(patch("minos_core.drawing_analysis.analyze_drawing_pages", return_value=_vision_only_analysis()))
+                for item in patches:
+                    stack.enter_context(item)
+                result = generate_three_tables_from_drawing(
+                    drawing_path,
+                    root / "out",
+                    context={"analysis_mode": "vision_only"},
+                    analysis_mode="vision_only",
+                    ocr_engine="rapidocr",
+                    ocr_adapter=_FakeOCRAdapter(),
+                    analyzer=None,
+                )
+
+        self.assertEqual(result["drawing_analysis"]["metadata"]["analysis_source"], "vision")
+        self.assertNotIn("ocr", result["drawing_analysis"]["metadata"])
+
+    def test_export_gate_blocks_unreviewed_draft(self) -> None:
+        """导出质量门阻止未复核的草案正式导出。"""
+        captured: dict[str, object] = {}
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            drawing_path = root / "drawing.png"
+            drawing_path.write_bytes(b"fake drawing")
+            result = _run_pipeline_without_fake_ocr_module(
+                root,
+                drawing_path,
+                analysis_mode="ocr_only",
+                analyzer=_FailingAnalyzer(captured),
+                captured=captured,
+                export_mode="final",
+            )
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertEqual(result["blocked_stage"], "final_three_table")
+        self.assertEqual(result["exports"], {})
+        self.assertIn("最终三表质量门未通过，已阻止正式导出。", result["warnings"])
+
+    def test_export_gate_allows_reviewed_draft(self) -> None:
+        """导出质量门允许已复核的草案正式导出。"""
+        captured: dict[str, object] = {}
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            drawing_path = root / "drawing.png"
+            drawing_path.write_bytes(b"fake drawing")
+            patches = _pipeline_patches(
+                captured,
+                final_gate=_Gate(can_continue=True, allow_user_export=True, needs_human_review=False),
+            )
+            with ExitStack() as stack:
+                stack.enter_context(patch("minos_core.drawing_input.load_drawing_source", return_value={"path": str(drawing_path)}))
+                stack.enter_context(patch("minos_core.drawing_input.render_drawing_pages", return_value=[_page_evidence()]))
+                stack.enter_context(patch("minos_core.drawing_analysis.analyze_drawing_pages", return_value=_vision_only_analysis()))
+                for item in patches:
+                    stack.enter_context(item)
+                result = generate_three_tables_from_drawing(
+                    drawing_path,
+                    root / "out",
+                    context={"analysis_mode": "vision_only"},
+                    analysis_mode="vision_only",
+                    ocr_engine="rapidocr",
+                    ocr_adapter=_FakeOCRAdapter(),
+                    analyzer=None,
+                    export_mode="final",
+                )
+
+        self.assertEqual(result["status"], "draft_ready")
+        self.assertIsNone(result["blocked_stage"])
+        self.assertIn("unified_workbook", result["exports"])
+
+    def test_quality_gate_evaluation_with_blockers(self) -> None:
+        """质量门评估检测阻断项并阻止继续。"""
+        captured: dict[str, object] = {}
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            drawing_path = root / "drawing.png"
+            drawing_path.write_bytes(b"fake drawing")
+            patches = _pipeline_patches(captured)
+            # Replace the default drawing recognition gate with a blocking one.
+            patches[0] = patch(
+                "minos_core.drawing_analysis.evaluate_drawing_recognition_gate",
+                return_value=_Gate(can_continue=False, manual_review_items=[{"item_id": "blocker", "severity": "blocker"}]),
+            )
+            with ExitStack() as stack:
+                stack.enter_context(patch("minos_core.drawing_input.load_drawing_source", return_value={"path": str(drawing_path)}))
+                stack.enter_context(patch("minos_core.drawing_input.render_drawing_pages", return_value=[_page_evidence()]))
+                for item in patches:
+                    stack.enter_context(item)
+                result = generate_three_tables_from_drawing(
+                    drawing_path,
+                    root / "out",
+                    context={"analysis_mode": "ocr_only"},
+                    analysis_mode="ocr_only",
+                    ocr_engine="rapidocr",
+                    ocr_adapter=_FakeOCRAdapter(),
+                    analyzer=_FailingAnalyzer(captured),
+                )
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertEqual(result["blocked_stage"], "drawing_recognition")
+        self.assertEqual(result["exports"], {})
+        self.assertIn("图纸识别质量门未通过，已阻止继续推导过程流程图。", result["warnings"])
+
 
 class _FailingAnalyzer:
     def __init__(self, captured: dict[str, object]) -> None:
@@ -622,6 +833,46 @@ def _write_split_exports(chain, output_dir, **kwargs):
         path.write_bytes(b"test workbook")
         result[name] = path
     return result
+
+
+def _mock_stage_runner(captured: dict[str, object]):
+    """Mock stage runner for generate_draft workflow."""
+    from minos_core.stage import StageResult
+
+    def run_stage(stage_input, stage: str):
+        captured[stage] = stage_input
+        return StageResult(
+            stage=stage,
+            status="ok",
+            output={"stage": stage, "result": "success"},
+        )
+
+    return run_stage
+
+
+def _vision_only_analysis() -> dict[str, object]:
+    """Vision-only 分析结果（无 OCR）。"""
+    return {
+        "document_type": "drawing_analysis_bundle",
+        "schema_version": "minos-core.drawing_analysis.v1",
+        "drawing_identity": {"part_name": "视觉支架", "drawing_number": "VIS-001"},
+        "materials": [{"name": "SPCC", "confidence": 0.9, "evidence_refs": ["drawing_page_001"]}],
+        "surface_treatments": [],
+        "dimensions": [],
+        "tolerances": [],
+        "special_characteristics": [],
+        "technical_requirements": [],
+        "inspection_requirements": [],
+        "manufacturing_clues": [
+            {"operation": "来料检验", "confidence": 0.9, "evidence_refs": ["drawing_page_001"]}
+        ],
+        "uncertainties": [],
+        "evidence": [{"evidence_id": "drawing_page_001", "source": "drawing_page"}],
+        "metadata": {
+            "source_stage": "drawing_vision_analysis",
+            "analysis_source": "vision",
+        },
+    }
 
 
 if __name__ == "__main__":

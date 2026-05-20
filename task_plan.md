@@ -1403,3 +1403,24 @@ PFMEA 不做成第二张控制计划，但必须把风险控制逻辑写清楚�
 /// 3. 删除 `AppShell` inspector prop、渲染槽位和 `grid-cols-[236px_minmax(620px,1fr)_300px]`。
 /// 4. 删除 `App.tsx` 的 `InspectorPanel` import 和 `inspector={...}` 块，保留 `selectedRow`、`health`、`bootstrap` state。
 /// 5. 运行聚焦测试、Tauri 状态测试、前端构建和 diff 检查。
+
+---
+
+## V1.14.18 AI 默认 URL 切换
+
+### 目标
+按用户要求把 MINOS-CORE 默认 AI Responses 地址切换为 `https://cx.allincoding.cc/`，同时保留显式环境变量覆盖能力和 Codex auth 复用能力。
+
+### OpenSpec 四步闭环
+1. Define：本轮只改变默认 AI base URL，不改变模型、密钥存储或三表生成业务逻辑。
+2. Specify：`MINOS_OPENAI_BASE_URL`、`OPENAI_BASE_URL`、`ARK_BASE_URL` 仍优先；无显式环境变量时默认使用 `https://cx.allincoding.cc`，Responses endpoint path 为 `responses`。
+3. Implement：集中修改 `minos_core.ai_config` 默认配置，桌面设置状态同步显示 `default` 来源，并补回归测试锁定 Codex base URL 不再覆盖 MINOS 默认地址。
+4. Verify：运行 AI 配置、桌面状态、Responses adapter、Tauri 状态和前端构建验证。
+
+### 开发步骤
+/// 1. 新增默认 AI Responses base URL 常量 `https://cx.allincoding.cc`。
+/// 2. 修改 `load_openai_responses_config()`：显式环境变量优先，否则使用 MINOS 默认 URL；Codex 继续只提供 auth、wire_api、store、reasoning 和 user-agent。
+/// 3. 默认 `responses_path` 收口为 `responses`，避免新中转被拼成 `/v1/responses`。
+/// 4. 桌面设置页的 base URL 来源在无显式环境变量时显示为 `default`。
+/// 5. 增加回归测试覆盖无 Codex、存在 Codex base URL、环境变量覆盖三种路径。
+/// 6. 运行聚焦测试、Tauri 前端构建、运行时配置检查和 `git diff --check`。

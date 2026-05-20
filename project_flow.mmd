@@ -735,4 +735,9 @@ flowchart TD
     FIX462 --> FIX470[remove right inspector panel<br/>recover 300px workspace]
     FIX470 --> FIX471[AppShell two columns<br/>no inspector slot]
     FIX471 --> FIX472[PreviewRail kept<br/>selected row summary remains]
-    FIX472 --> G
+    FIX472 --> FIX480[AI default URL switch<br/>cx.allincoding.cc]
+    FIX480 --> FIX481[env base URL still overrides<br/>MINOS OPENAI ARK]
+    FIX481 --> FIX482[Codex auth reused<br/>Codex base_url ignored for MINOS default]
+    FIX482 --> FIX483[Responses path<br/>responses]
+    FIX483 --> FIX484[desktop settings source<br/>default]
+    FIX484 --> G

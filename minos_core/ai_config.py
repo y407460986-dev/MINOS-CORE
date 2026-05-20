@@ -14,6 +14,9 @@ except ModuleNotFoundError:  # pragma: no cover - Python < 3.11 fallback
     tomllib = None  # type: ignore[assignment]
 
 
+DEFAULT_OPENAI_RESPONSES_BASE_URL = "https://cx.allincoding.cc"
+
+
 @dataclass(frozen=True)
 class AIProviderConfig:
     provider: str
@@ -25,7 +28,7 @@ class AIProviderConfig:
     codex_config_path: str = ""
     codex_auth_path: str = ""
     wire_api: str = "responses"
-    responses_path: str = "v1/responses"
+    responses_path: str = "responses"
     requires_openai_auth: bool = False
     store: bool | None = None
     reasoning_effort: str = ""
@@ -84,7 +87,7 @@ def load_openai_responses_config(
     codex_base_url = _codex_base_url(codex_config)
     # Fix empty string check logic
     env_base_url = os.getenv(env_base_url_name, "") if env_base_url_name else ""
-    base_url = env_base_url or codex_base_url or "https://api.openai.com"
+    base_url = env_base_url or DEFAULT_OPENAI_RESPONSES_BASE_URL
     codex_config_path = _codex_file(codex_home, "config.toml") if allow_codex else None
     return AIProviderConfig(
         provider="openai_responses",
@@ -283,6 +286,8 @@ def _user_agent(config: dict[str, Any]) -> str:
 
 def _responses_path(base_url: str, has_codex_base_url: bool) -> str:
     normalized = base_url.rstrip("/")
+    if normalized == DEFAULT_OPENAI_RESPONSES_BASE_URL:
+        return "responses"
     if normalized.endswith("/v1"):
         return "responses"
     if has_codex_base_url:

@@ -1054,3 +1054,14 @@ Phase 6 真实项目试运行已完成代码落地：input_package 接入 genera
 - 已验证：重新执行 `powershell -ExecutionPolicy Bypass -File .\scripts\build_sidecar.ps1` 通过，one-folder 内 sidecar `--help` 可运行；带 `Authorization: Bearer smoke` 访问 `/api/health` 返回 `{"ok":true,"status":"ok","service":"minos-desktop-api","version":"1.14.0"}`。
 - 已验证：重新执行 `npm run release:nsis` 通过，新的安装包已生成到 `apps\desktop-tauri\src-tauri\target\release\bundle\nsis\MINOS-CORE_1.14.0_x64-setup.exe`，大小约 95 MB。
 - 已验证：启动 `apps\desktop-tauri\src-tauri\target\release\minos-core-desktop.exe` 后，进程能拉起自己的 `minos-desktop-api.exe` 子进程，并传入本地用户目录下的 SQLite DB 与输出目录。
+
+## V1.14.18 AI 默认 URL 切换
+
+- 已完成：MINOS-CORE 默认 AI Responses base URL 改为 `https://cx.allincoding.cc`；实际 Responses 请求路径为 `https://cx.allincoding.cc/responses`。
+- 已保留：显式 `MINOS_OPENAI_BASE_URL`、`OPENAI_BASE_URL`、`ARK_BASE_URL` 仍优先于默认值。
+- 已保留：Codex 的 auth、wire_api、store、reasoning 和 user-agent 仍可复用；Codex `base_url` 不再作为 MINOS 默认 AI 地址。
+- 已同步：桌面设置状态在无显式 URL 环境变量时显示 `base_url_source=default`，`responses_path=responses`。
+- 已验证：`python -m pytest tests/test_ai_config.py tests/desktop/test_shell.py tests/test_llm_text_responses.py tests/test_openai_multimodal_adapter.py -q`：49 项通过。
+- 已验证：`python -m pytest tests/test_desktop_tauri_app_state.py -q`：25 项通过。
+- 已验证：Tauri 前端 `npm run build` 通过；运行时配置读取显示 `https://cx.allincoding.cc`、`base_url_source=default`、`responses_path=responses`。
+- 已验证：`git diff --check` 通过，仅有 CRLF 换行提示。

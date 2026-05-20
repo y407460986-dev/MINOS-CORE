@@ -33,7 +33,7 @@ class DesktopAIConfigState:
     api_key_source: str = ""
     api_key_env_name: str = ""
     wire_api: str = "responses"
-    responses_path: str = "v1/responses"
+    responses_path: str = "responses"
 
 
 @dataclass(frozen=True)

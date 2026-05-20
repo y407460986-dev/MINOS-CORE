@@ -146,8 +146,7 @@ class DesktopSettingsStore:
             model_source=model_env or "default",
             base_url=config.base_url,
             base_url_configured=bool(config.base_url),
-            base_url_source=base_url_env
-            or ("codex_config" if config.codex_config_path else "default"),
+            base_url_source=base_url_env or "default",
             api_key_configured=config.api_key_configured,
             api_key_source=config.api_key_source,
             api_key_env_name=config.api_key_env_name,

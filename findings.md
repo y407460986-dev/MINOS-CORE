@@ -759,3 +759,13 @@
 - 验证 sidecar 时必须运行 one-folder 目录内的 exe，而不是复制到 `binaries` 根目录的那份单独 exe。后者旁边没有 `_internal`，脱离目录直接运行会在 Python 代码启动前失败；Tauri 打包后会把 `_internal` 映射到 exe 同级运行目录。
 
 - `/api/health` 受本地 API token 保护。手工 smoke 如果不带 `Authorization: Bearer <token>` 会得到 401，这表示服务已启动但未授权，不是健康路由缺失。
+
+## V1.14.18 AI 默认 URL 切换发现
+
+- 用户要改的是 MINOS-CORE 自己的默认 AI URL，不是覆盖所有用户显式配置。因此环境变量 `MINOS_OPENAI_BASE_URL`、`OPENAI_BASE_URL`、`ARK_BASE_URL` 必须继续有最高优先级。
+
+- Codex 配置仍有价值，但职责应收口为复用 auth、wire_api、store、reasoning 和 user-agent。继续复用 Codex `base_url` 会让 MINOS 打开后仍连到旧中转，和用户指定的新默认地址相冲突。
+
+- `https://cx.allincoding.cc/` 作为根地址时，Responses path 应为 `responses`。如果沿用 OpenAI 根地址默认的 `v1/responses`，实际请求会变成新中转不一定支持的 `/v1/responses`。
+
+- 桌面设置页的 `base_url_source` 需要显示 `default`，否则用户会误以为仍然来自 Codex 配置。

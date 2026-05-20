@@ -736,3 +736,13 @@
 - `cargo check` 也会执行 Tauri build script 并校验 `externalBin` 是否存在。为了让开发时静态检查可跑，debug/check 场景需要占位 sidecar；正式 release 不能依赖占位，必须由 `scripts/build_sidecar.ps1` 先生成真实 PyInstaller 产物。
 
 - 旧测试里 mock `generate_pfmea_from_confirmed_pfd` 没有接受新增的 `on_progress` 参数，会把服务层正常调用误判为 PFMEA 生成失败。测试桩要跟真实函数签名同步，避免遮蔽本轮路径改造验证。
+
+- 打包后真正的启动失败根因不是 Tauri 权限，而是 PyInstaller 入口仍指向包内 `minos_desktop/api/cli.py`。这个文件含相对导入，冻结后作为 `__main__` 执行会触发 `ImportError: attempted relative import with no known parent package`。
+
+- 外部入口脚本放到 `scripts/` 后，还必须把仓库根目录放进 PyInstaller `pathex`。否则入口本身能被分析到，但 `minos_core`、`minos_desktop` hidden imports 会全部报 not found，构建出的 windowed exe 仍会早退。
+
+- windowed PyInstaller 程序遇到早期异常时没有控制台，错误会被藏起来。给启动器补 stdout/stderr 到本地日志文件的兜底，可以让后续打包问题落到 `%LOCALAPPDATA%\MINOS-CORE\logs\api-bootstrap.log`。
+
+- 验证 sidecar 时必须运行 one-folder 目录内的 exe，而不是复制到 `binaries` 根目录的那份单独 exe。后者旁边没有 `_internal`，脱离目录直接运行会在 Python 代码启动前失败；Tauri 打包后会把 `_internal` 映射到 exe 同级运行目录。
+
+- `/api/health` 受本地 API token 保护。手工 smoke 如果不带 `Authorization: Bearer <token>` 会得到 401，这表示服务已启动但未授权，不是健康路由缺失。

@@ -1379,3 +1379,5 @@ PFMEA 不做成第二张控制计划，但必须把风险控制逻辑写清楚�
 /// 6. 改造 Tauri：配置 `externalBin` 和 `_internal` 资源映射，新增 shell 权限和插件依赖，Rust 端用 shell sidecar 启动后端。
 /// 7. 生成 Tauri 图标尺寸，补资源路径与桌面默认路径测试。
 /// 8. 验证 Python 回归、`py_compile`、Rust `cargo check`、Tauri `npm run build`、PyInstaller sidecar 构建、NSIS 打包和 `git diff --check`。
+/// 9. 修复 PyInstaller 入口：禁止直接把 `minos_desktop/api/cli.py` 作为脚本入口，改用外部启动器调用包模块 `minos_desktop.api.cli.main()`，避免冻结环境相对导入失败。
+/// 10. 修复 PyInstaller 分析路径和 windowed 日志：spec 显式加入仓库根 `pathex`，启动器在无 stdout/stderr 时写入本地 bootstrap 日志。

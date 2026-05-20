@@ -8,6 +8,37 @@ from unittest.mock import patch
 
 
 class RuntimePathsTest(unittest.TestCase):
+    def test_pyinstaller_spec_uses_package_entrypoint_launcher(self):
+        spec_text = Path("minos-desktop-api.spec").read_text(encoding="utf-8")
+
+        self.assertIn('"scripts/entrypoint_desktop_api.py"', spec_text)
+        self.assertNotIn('"minos_desktop/api/cli.py"', spec_text)
+        self.assertIn('pathex=[str(repo_root)]', spec_text)
+
+    def test_desktop_api_entrypoint_restores_missing_standard_streams(self):
+        import scripts.entrypoint_desktop_api as entrypoint
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch.dict(os.environ, {"LOCALAPPDATA": tmpdir}), patch.object(
+                sys, "stdout", None
+            ), patch.object(sys, "stderr", None):
+                entrypoint._ensure_standard_streams()
+                stdout_stream = sys.stdout
+                stderr_stream = sys.stderr
+                sys.stdout.write("stdout smoke\n")
+                sys.stderr.write("stderr smoke\n")
+                sys.stdout.flush()
+                sys.stderr.flush()
+                stdout_stream.close()
+                if stderr_stream is not stdout_stream:
+                    stderr_stream.close()
+
+            log_path = Path(tmpdir) / "MINOS-CORE" / "logs" / "api-bootstrap.log"
+            log_text = log_path.read_text(encoding="utf-8")
+
+        self.assertIn("stdout smoke", log_text)
+        self.assertIn("stderr smoke", log_text)
+
     def test_configs_dir_uses_env_override_lazily(self):
         import minos_core.config as sample_config
         import minos_core.knowledge_base as knowledge_base

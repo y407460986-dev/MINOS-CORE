@@ -1027,3 +1027,10 @@ Phase 6 真实项目试运行已完成代码落地：input_package 接入 genera
 - 已验证：Tauri Rust `cargo check` 通过。
 - 已验证：`powershell -ExecutionPolicy Bypass -File .\scripts\build_sidecar.ps1` 通过，真实 PyInstaller one-folder sidecar 已生成并复制到 Tauri binaries。
 - 已验证：`npm run release:nsis` 通过，生成 `apps\desktop-tauri\src-tauri\target\release\bundle\nsis\MINOS-CORE_1.14.0_x64-setup.exe`，大小约 95 MB。
+- 已修复：打包后 sidecar 启动失败的根因是 `minos-desktop-api.spec` 仍直接把 `minos_desktop/api/cli.py` 当脚本入口，导致包内相对导入 `from .app import create_app` 在冻结环境下失败；已新增 `scripts/entrypoint_desktop_api.py`，改为以包模块身份调用 `minos_desktop.api.cli.main()`。
+- 已修复：外部入口位于 `scripts/` 后，PyInstaller 需要显式 `pathex=[str(repo_root)]`，否则分析阶段会找不到 `minos_core` / `minos_desktop`；spec 已改为基于 `SPECPATH` 的仓库根路径，并用绝对 configs 路径收集资源。
+- 已加固：windowed PyInstaller sidecar 在无标准输出/错误流时会把启动日志写入 `%LOCALAPPDATA%\MINOS-CORE\logs\api-bootstrap.log`，避免后续启动异常完全不可见。
+- 已验证：新增回归测试先红后绿，覆盖 spec 不再指向 `cli.py`、必须包含仓库 `pathex`、windowed sidecar 标准流兜底；`python -m unittest tests.test_runtime_paths tests.desktop.test_services -v`：22 项通过。
+- 已验证：重新执行 `powershell -ExecutionPolicy Bypass -File .\scripts\build_sidecar.ps1` 通过，one-folder 内 sidecar `--help` 可运行；带 `Authorization: Bearer smoke` 访问 `/api/health` 返回 `{"ok":true,"status":"ok","service":"minos-desktop-api","version":"1.14.0"}`。
+- 已验证：重新执行 `npm run release:nsis` 通过，新的安装包已生成到 `apps\desktop-tauri\src-tauri\target\release\bundle\nsis\MINOS-CORE_1.14.0_x64-setup.exe`，大小约 95 MB。
+- 已验证：启动 `apps\desktop-tauri\src-tauri\target\release\minos-core-desktop.exe` 后，进程能拉起自己的 `minos-desktop-api.exe` 子进程，并传入本地用户目录下的 SQLite DB 与输出目录。

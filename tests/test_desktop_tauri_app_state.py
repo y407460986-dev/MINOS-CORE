@@ -363,15 +363,19 @@ def test_workbench_clean_editing_surface_contract() -> None:
     assert "position:absolute" in table_source or "absolute" in table_source
 
 
-def test_workbench_visible_statuses_are_chinese_and_pfd_can_confirm_all() -> None:
+def test_workbench_removes_right_inspector_panel_and_keeps_preview_summary() -> None:
+    app_source = (ROOT / "apps" / "desktop-tauri" / "src" / "App.tsx").read_text(encoding="utf-8")
+    shell_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "components" / "AppShell.tsx"
+    ).read_text(encoding="utf-8")
     page_source = (
         ROOT / "apps" / "desktop-tauri" / "src" / "pages" / "ThreeTableWorkbench.tsx"
     ).read_text(encoding="utf-8")
     table_source = (
         ROOT / "apps" / "desktop-tauri" / "src" / "components" / "WorkbenchTable.tsx"
     ).read_text(encoding="utf-8")
-    inspector_source = (
-        ROOT / "apps" / "desktop-tauri" / "src" / "components" / "InspectorPanel.tsx"
+    preview_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "components" / "PreviewRail.tsx"
     ).read_text(encoding="utf-8")
     diagram_source = (
         ROOT / "apps" / "desktop-tauri" / "src" / "components" / "PfdFlowDiagram.tsx"
@@ -382,8 +386,14 @@ def test_workbench_visible_statuses_are_chinese_and_pfd_can_confirm_all() -> Non
 
     assert "riskLabel" in table_source
     assert "rowStatusLabel" in table_source
-    assert "riskLabel(row.risk)" in inspector_source
-    assert "rowStatusLabel(row.status)" in inspector_source
+    assert "InspectorPanel" not in app_source
+    assert "inspector=" not in app_source
+    assert "inspector:" not in shell_source
+    assert "{inspector}" not in shell_source
+    assert "grid-cols-[236px_minmax(620px,1fr)_300px]" not in shell_source
+    assert "grid-cols-[236px_minmax(620px,1fr)]" in shell_source
+    assert "选中行摘要" in preview_source
+    assert "<PreviewRail" in page_source
     assert "确认全部过程流程图" in page_source
     assert "pfdConfirmSummary" in page_source
     assert "待确认" in page_source and "已确认" in page_source
@@ -391,10 +401,6 @@ def test_workbench_visible_statuses_are_chinese_and_pfd_can_confirm_all() -> Non
     assert 'code: "检验"' in diagram_source
     assert 'medium: "中风险"' in display_source
     assert 'approved: "已确认"' in display_source
-    assert "<strong>检查器</strong>" in inspector_source
-    assert "<strong>Inspector</strong>" not in inspector_source
-    assert "<dt className=\"text-muted-foreground\">本地后端</dt>" in inspector_source
-    assert "<dt className=\"text-muted-foreground\">Sidecar</dt>" not in inspector_source
 
 
 def test_workbench_soft_delete_can_be_undone_and_pfd_diagram_uses_visible_rows() -> None:
@@ -423,10 +429,12 @@ def test_desktop_sidecar_starts_without_windows_console_window() -> None:
     rust_source = (
         ROOT / "apps" / "desktop-tauri" / "src-tauri" / "src" / "lib.rs"
     ).read_text(encoding="utf-8")
+    spec_source = (ROOT / "minos-desktop-api.spec").read_text(encoding="utf-8")
 
-    assert "std::os::windows::process::CommandExt" in rust_source
-    assert "CREATE_NO_WINDOW" in rust_source
-    assert ".creation_flags(CREATE_NO_WINDOW)" in rust_source
+    assert "app.shell().sidecar(SIDECAR_NAME)" in rust_source
+    assert 'const SIDECAR_NAME: &str = "minos-desktop-api";' in rust_source
+    assert "console=False" in spec_source
+    assert 'name="minos-desktop-api-x86_64-pc-windows-msvc"' in spec_source
 
 
 def test_desktop_sidecar_uses_owned_port_instead_of_stale_8000() -> None:

@@ -2,6 +2,12 @@
 
 ## 当前任务发现：MINOS-CORE 调查审核与问题修复
 
+## 删除右侧检查器面板发现
+
+- 右侧检查器的行级字段已经由主表格和底部 `PreviewRail` 承载，服务状态也由顶部工具栏和设置页承载；固定 300px 面板没有必要继续占据所有页面空间。
+- 删除检查器时不能删除 `selectedRow`，因为三表工作台和底部选中行摘要仍依赖它；也不能删除 `health` / `bootstrap`，因为顶部工具栏和设置页仍要显示本地服务状态。
+- 本轮应保持纯前端布局调整，不触碰 Tauri 配置、Rust sidecar 或 Python 后端。
+
 ## 打包后 OCR 动态模块修复发现
 
 - 这次“`OCR 识别未完成`”不是 `analyze_drawing_with_ocr(...)` 函数不存在，而是冻结后的 sidecar 没有包含 `minos_core.drawing_ocr_analysis` 模块。

@@ -5,7 +5,6 @@ import type { BootstrapPayload, DesktopRun, HealthResponse, WorkbenchRow } from 
 import { AppShell } from "./components/AppShell";
 import { Sidebar, type NavItem } from "./components/Sidebar";
 import { Toolbar } from "./components/Toolbar";
-import { InspectorPanel } from "./components/InspectorPanel";
 import DrawingImportPage from "./pages/DrawingImportPage";
 import ThreeTableWorkbench from "./pages/ThreeTableWorkbench";
 import ReviewClosurePage from "./pages/ReviewClosurePage";
@@ -60,14 +59,6 @@ export default function App() {
     <AppShell
       sidebar={<Sidebar items={navItems} activeKey={page} onSelect={setPage} />}
       toolbar={<Toolbar title={title} apiState={apiState} version={bootstrap?.version ?? "1.14"} />}
-      inspector={
-        <InspectorPanel
-          row={selectedRow}
-          health={health}
-          bootstrap={bootstrap}
-          emptyHint={page === "workbench" ? "选择一行查看联动证据" : "当前页面无选中对象"}
-        />
-      }
     >
       {page === "workbench" && (
         <ThreeTableWorkbench

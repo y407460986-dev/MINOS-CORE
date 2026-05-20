@@ -1383,3 +1383,23 @@ PFMEA 不做成第二张控制计划，但必须把风险控制逻辑写清楚�
 /// 10. 修复 PyInstaller 分析路径和 windowed 日志：spec 显式加入仓库根 `pathex`，启动器在无 stdout/stderr 时写入本地 bootstrap 日志。
 /// 11. 修复打包后 OCR 动态导入缺失：`minos-desktop-api.spec` 用 `collect_submodules("minos_core")` 和 `collect_submodules("minos_desktop")` 收齐业务包子模块，覆盖 `drawing_ocr_analysis`、`adapters.ocr` 等 `importlib`/延迟导入链路。
 /// 12. 验证运行时路径回归、桌面服务回归、PyInstaller TOC、one-folder sidecar `/api/health` 和 NSIS 安装包重建。
+
+---
+
+## V1.14.17 删除右侧检查器面板
+
+### 目标
+删除桌面端右侧固定 300px 检查器面板，把空间还给三表工作台、图纸导入、评审闭环、导出和设置主内容区。底部 `PreviewRail` 选中行摘要继续保留。
+
+### OpenSpec 四步闭环
+1. Define：右侧检查器信息与主表格、底部选中行摘要、阶段操作和顶部服务状态重复。
+2. Specify：删除 `InspectorPanel` 组件、`AppShell` 的 inspector 槽位和三列网格，不动底部 `PreviewRail`、健康检查状态和后端逻辑。
+3. Implement：按计划只改 `App.tsx`、`AppShell.tsx`、删除 `InspectorPanel.tsx`，并更新静态回归测试。
+4. Verify：运行桌面 Tauri 状态测试、前端 `npm run build` 和 `git diff --check`。
+
+### 开发步骤
+/// 1. 写红灯测试：确认 App 不再注入 InspectorPanel，AppShell 不再有 inspector prop 和 300px 第三列，同时 PreviewRail 仍存在。
+/// 2. 删除 `InspectorPanel.tsx`。
+/// 3. 删除 `AppShell` inspector prop、渲染槽位和 `grid-cols-[236px_minmax(620px,1fr)_300px]`。
+/// 4. 删除 `App.tsx` 的 `InspectorPanel` import 和 `inspector={...}` 块，保留 `selectedRow`、`health`、`bootstrap` state。
+/// 5. 运行聚焦测试、Tauri 状态测试、前端构建和 diff 检查。

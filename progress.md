@@ -2,6 +2,16 @@
 
 ## 当前任务：MINOS-CORE 调查审核与问题修复
 
+## 删除右侧检查器面板当前状态
+
+- 已定位：右侧 300px 检查器面板在工作台里与主表格、底部“选中行摘要”和阶段操作重复，在其它页面只显示空壳和本地服务信息。
+- 已修复：`AppShell` 改为左侧导航 + 主内容两列布局，删除 inspector prop 和右侧固定 300px 列。
+- 已修复：`App.tsx` 不再导入或注入 `InspectorPanel`，底部 `PreviewRail` 选中行摘要和工作台 `selectedRow` 状态保留。
+- 已删除：`apps/desktop-tauri/src/components/InspectorPanel.tsx`。
+- 已新增：`tests/test_desktop_tauri_app_state.py` 静态回归测试，先红后绿锁定右侧检查器移除且 `PreviewRail` 保留。
+- 已验证：`python -m pytest tests/test_desktop_tauri_app_state.py -q`：25 项通过。
+- 已验证：Tauri 前端 `npm run build` 通过；`git diff --check` 通过。
+
 ## 打包后 OCR 动态模块修复当前状态
 
 - 已定位：桌面 sidecar 能启动但导入图纸时报“`OCR 识别未完成`”，根因是 `pipeline.py` 通过 `importlib.import_module(".drawing_ocr_analysis", __package__)` 动态加载 OCR 分析模块，旧 PyInstaller spec 的手写 hiddenimports 没有收进 `minos_core.drawing_ocr_analysis` 和 `minos_core.adapters.ocr`。

@@ -363,7 +363,14 @@ def _process_parameter(row: dict[str, Any]) -> str:
         default="",
     )
     if explicit:
-        return explicit
+        if explicit.startswith("是否"):
+            explicit = explicit[2:].strip()
+            if not explicit:
+                explicit = ""
+            else:
+                return explicit
+        else:
+            return explicit
     cause = row_text(row, "failure_cause", "cause", default="")
     if cause:
         return f"针对失效原因的过程参数：{cause}"

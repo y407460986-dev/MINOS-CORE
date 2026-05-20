@@ -125,10 +125,11 @@ function columnsForTable(table: TableKind): WorkbenchColumnDef[] {
   if (table === "cp") {
     return [
       rawColumn("id", "编号", ["control_plan_id"]),
-      rawColumn("process_step", "过程步骤", ["process_step_name", "operation", "process_step", "process_step_id"]),
+      rawColumn("process_step", "过程步骤", ["process_name", "process_step_name", "operation", "process_step", "process_step_id"]),
       rawColumn("pfmea_id", "PFMEA 来源", ["pfmea_id"]),
       rawColumn("characteristic", "产品/过程特性", ["product_process_characteristic", "product_characteristic", "process_characteristic"], "product_process_characteristic"),
-      rawColumn("specification", "规范/公差", ["specification", "tolerance"], "specification"),
+      rawColumn("special_characteristic_class", "特殊特性分类", ["special_characteristic_class", "classification", "special_characteristics"]),
+      rawColumn("specification", "规范/公差", ["specification_tolerance", "specification", "tolerance"], "specification_tolerance"),
       rawColumn("process_parameter", "过程参数", ["process_parameter"], "process_parameter"),
       rawColumn("parameter_specification", "参数规格", ["parameter_specification"], "parameter_specification"),
       rawColumn("process_control_method", "过程控制方法", ["process_control_method"], "process_control_method"),
@@ -203,6 +204,7 @@ export function WorkbenchTable({
   const table = useReactTable({
     data: rows,
     columns,
+    getRowId: (row) => row.rowId,
     getCoreRowModel: getCoreRowModel(),
   });
   const visibleRows = table.getRowModel().rows.map((row) => row.original);

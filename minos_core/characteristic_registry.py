@@ -98,6 +98,41 @@ def attach_characteristics_to_three_tables(
     return result
 
 
+def characteristics_for_step(
+    registry: dict[str, Any],
+    step: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Return registry items relevant to a specific PFD step.
+
+    Matches based on substring overlap between the characteristic name
+    and the step's operation/process_function fields.
+    """
+    items = _list(registry.get("items", []))
+    combined = (
+        text(step.get("operation"), step.get("name", ""))
+        + " "
+        + text(step.get("process_function"), step.get("description", ""))
+    ).strip()
+    if not combined:
+        return []
+    matched = []
+    for item in items:
+        name = text(item.get("name"))
+        if not name:
+            continue
+        if name in combined or _keyword_overlap(name, combined):
+            matched.append(item)
+    return matched
+
+
+def _keyword_overlap(name: str, combined: str) -> bool:
+    """Check if key terms from the characteristic name appear in the step text."""
+    keywords = [w for w in name.replace("≥", " ").replace("≤", " ").split() if len(w) >= 2]
+    if not keywords:
+        return False
+    return sum(1 for kw in keywords if kw in combined) >= max(1, len(keywords) // 2)
+
+
 # ---------------------------------------------------------------------------
 # Internal: name / specification extraction
 # ---------------------------------------------------------------------------

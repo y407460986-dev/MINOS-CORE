@@ -260,7 +260,7 @@ def _process_flow_rows(chain: Any) -> list[list[Any]]:
             "责任",
         ]
     ]
-    steps = _process_steps(chain)
+    steps = [s for s in _process_steps(chain) if not _first_value(s, "deleted", default=False)]
     if not steps:
         aliases = _mapping(chain, "step_aliases")
         for step_no, names in aliases.items():

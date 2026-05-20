@@ -506,6 +506,7 @@ class DesktopRunService:
     def generate_pfmea_for_confirmed_pfd(self, run_id: int) -> DesktopRunRecord:
         """Generate PFMEA for an already confirmed PFD."""
         from minos_core.pipeline_chain import generate_pfmea_from_confirmed_pfd
+        from .api.sse import create_channel, remove_channel
 
         run = self.get_run(run_id)
         current = run.current_result
@@ -516,13 +517,57 @@ class DesktopRunService:
             run.raw_result, current_result=current, edit_patch=run.edit_patch
         )
 
+        channel = create_channel(run_id, "pfmea")
+        checkpoint_rows: list[dict[str, Any]] = []
+
+        def _save_pfmea_checkpoint() -> None:
+            if not checkpoint_rows:
+                return
+            partial_pfmea = copy.deepcopy(current.get("pfmea") or {})
+            partial_pfmea["rows"] = copy.deepcopy(checkpoint_rows)
+            metadata = partial_pfmea.setdefault("metadata", {})
+            if not isinstance(metadata, dict):
+                metadata = {}
+                partial_pfmea["metadata"] = metadata
+            metadata["chain_stage_status"] = "partial"
+            current["pfmea"] = partial_pfmea
+            partial_stages = ChainStageStates(
+                pfd=chain_stages.pfd,
+                pfmea=StageConfirmState(
+                    status="running",
+                    generated_at=chain_stages.pfmea.generated_at,
+                    row_count=len(checkpoint_rows),
+                    pending_count=sum(1 for row in checkpoint_rows if row.get("needs_confirmation")),
+                ),
+                cp=chain_stages.cp,
+                pipeline_mode="chain",
+            )
+            checkpoint_envelope = _desktop_result_envelope(
+                run.raw_result, current_result=current, edit_patch=run.edit_patch
+            )
+            checkpoint_envelope["chain_stages"] = partial_stages.to_dict()
+            self._persist_chain_update(run_id, checkpoint_envelope)
+
+        def _on_progress(event):
+            event["run_id"] = run_id
+            channel.emit(event)
+            if event.get("type") == "step_complete":
+                new_rows = event.get("new_rows")
+                if isinstance(new_rows, list):
+                    checkpoint_rows.extend(row for row in new_rows if isinstance(row, dict))
+                    _save_pfmea_checkpoint()
+
         # 生成 PFMEA
         try:
             pfmea_bundle = generate_pfmea_from_confirmed_pfd(
                 drawing_analysis,
                 confirmed_pfd,
+                on_progress=_on_progress,
             )
         except Exception as exc:
+            channel.emit({"type": "error", "stage": "pfmea", "run_id": run_id, "message": str(exc)})
+            channel.close()
+            remove_channel(run_id, "pfmea")
             failure = format_desktop_failure(exc)
             chain_stages = ChainStageStates(
                 pfd=chain_stages.pfd,
@@ -530,8 +575,11 @@ class DesktopRunService:
                 cp=StageConfirmState(status="not_started"),
                 pipeline_mode="chain",
             )
-            envelope["chain_stages"] = chain_stages.to_dict()
-            self._persist_chain_update(run_id, envelope, failure_message=failure)
+            failure_envelope = _desktop_result_envelope(
+                run.raw_result, current_result=current, edit_patch=run.edit_patch
+            )
+            failure_envelope["chain_stages"] = chain_stages.to_dict()
+            self._persist_chain_update(run_id, failure_envelope, failure_message=failure)
             return self.get_run(run_id)
 
         # 合并 PFMEA 到 current_result
@@ -554,6 +602,9 @@ class DesktopRunService:
         )
         envelope["chain_stages"] = chain_stages.to_dict()
         self._persist_chain_update(run_id, envelope)
+        channel.emit({"type": "done", "stage": "pfmea", "run_id": run_id, "total_rows": len(pfmea_rows), "status": "generated"})
+        channel.close()
+        remove_channel(run_id, "pfmea")
         return self.get_run(run_id)
 
     def confirm_pfmea_stage(
@@ -602,6 +653,7 @@ class DesktopRunService:
     def generate_cp_for_confirmed_pfmea(self, run_id: int) -> DesktopRunRecord:
         """Generate CP for an already confirmed PFMEA."""
         from minos_core.pipeline_chain import generate_cp_from_confirmed_pfmea
+        from .api.sse import create_channel, remove_channel
 
         run = self.get_run(run_id)
         current = run.current_result
@@ -613,14 +665,24 @@ class DesktopRunService:
             run.raw_result, current_result=current, edit_patch=run.edit_patch
         )
 
+        channel = create_channel(run_id, "cp")
+
+        def _on_progress(event):
+            event["run_id"] = run_id
+            channel.emit(event)
+
         # 生成 CP
         try:
             cp_bundle = generate_cp_from_confirmed_pfmea(
                 drawing_analysis,
                 confirmed_pfd,
                 confirmed_pfmea,
+                on_progress=_on_progress,
             )
         except Exception as exc:
+            channel.emit({"type": "error", "stage": "cp", "run_id": run_id, "message": str(exc)})
+            channel.close()
+            remove_channel(run_id, "cp")
             failure = format_desktop_failure(exc)
             chain_stages = ChainStageStates(
                 pfd=chain_stages.pfd,
@@ -652,6 +714,9 @@ class DesktopRunService:
         )
         envelope["chain_stages"] = chain_stages.to_dict()
         self._persist_chain_update(run_id, envelope)
+        channel.emit({"type": "done", "stage": "cp", "run_id": run_id, "total_rows": len(cp_rows), "status": "generated"})
+        channel.close()
+        remove_channel(run_id, "cp")
         return self.get_run(run_id)
 
     def confirm_cp_stage(
@@ -699,6 +764,7 @@ class DesktopRunService:
     def regenerate_pfmea_stage(self, run_id: int) -> DesktopRunRecord:
         """重新生成 PFMEA（用户对当前结果不满意）。"""
         from minos_core.pipeline_chain import generate_pfmea_from_confirmed_pfd
+        from .api.sse import create_channel, remove_channel
 
         run = self.get_run(run_id)
         current = run.current_result
@@ -713,11 +779,54 @@ class DesktopRunService:
             pipeline_mode="chain",
         )
 
+        channel = create_channel(run_id, "pfmea")
+        checkpoint_rows: list[dict[str, Any]] = []
+
+        def _save_pfmea_checkpoint() -> None:
+            if not checkpoint_rows:
+                return
+            partial_pfmea = copy.deepcopy(current.get("pfmea") or {})
+            partial_pfmea["rows"] = copy.deepcopy(checkpoint_rows)
+            metadata = partial_pfmea.setdefault("metadata", {})
+            if not isinstance(metadata, dict):
+                metadata = {}
+                partial_pfmea["metadata"] = metadata
+            metadata["chain_stage_status"] = "partial"
+            current["pfmea"] = partial_pfmea
+            partial_stages = ChainStageStates(
+                pfd=chain_stages.pfd,
+                pfmea=StageConfirmState(
+                    status="running",
+                    generated_at=chain_stages.pfmea.generated_at,
+                    row_count=len(checkpoint_rows),
+                    pending_count=sum(1 for row in checkpoint_rows if row.get("needs_confirmation")),
+                ),
+                cp=chain_stages.cp,
+                pipeline_mode="chain",
+            )
+            checkpoint_envelope = _desktop_result_envelope(
+                run.raw_result, current_result=current, edit_patch=run.edit_patch
+            )
+            checkpoint_envelope["chain_stages"] = partial_stages.to_dict()
+            self._persist_chain_update(run_id, checkpoint_envelope)
+
+        def _on_progress(event):
+            event["run_id"] = run_id
+            channel.emit(event)
+            if event.get("type") == "step_complete":
+                new_rows = event.get("new_rows")
+                if isinstance(new_rows, list):
+                    checkpoint_rows.extend(row for row in new_rows if isinstance(row, dict))
+                    _save_pfmea_checkpoint()
+
         try:
             pfmea_bundle = generate_pfmea_from_confirmed_pfd(
-                drawing_analysis, confirmed_pfd
+                drawing_analysis, confirmed_pfd, on_progress=_on_progress,
             )
         except Exception as exc:
+            channel.emit({"type": "error", "stage": "pfmea", "run_id": run_id, "message": str(exc)})
+            channel.close()
+            remove_channel(run_id, "pfmea")
             failure = format_desktop_failure(exc)
             chain_stages = ChainStageStates(
                 pfd=chain_stages.pfd,
@@ -725,11 +834,11 @@ class DesktopRunService:
                 cp=StageConfirmState(status="not_started"),
                 pipeline_mode="chain",
             )
-            envelope = _desktop_result_envelope(
+            failure_envelope = _desktop_result_envelope(
                 run.raw_result, current_result=current, edit_patch=run.edit_patch
             )
-            envelope["chain_stages"] = chain_stages.to_dict()
-            self._persist_chain_update(run_id, envelope, failure_message=failure)
+            failure_envelope["chain_stages"] = chain_stages.to_dict()
+            self._persist_chain_update(run_id, failure_envelope, failure_message=failure)
             return self.get_run(run_id)
         current["pfmea"] = pfmea_bundle
         pfmea_rows = pfmea_bundle.get("rows", [])
@@ -750,11 +859,15 @@ class DesktopRunService:
         )
         envelope["chain_stages"] = chain_stages.to_dict()
         self._persist_chain_update(run_id, envelope)
+        channel.emit({"type": "done", "stage": "pfmea", "run_id": run_id, "total_rows": len(pfmea_rows), "status": "generated"})
+        channel.close()
+        remove_channel(run_id, "pfmea")
         return self.get_run(run_id)
 
     def regenerate_cp_stage(self, run_id: int) -> DesktopRunRecord:
         """重新生成 CP。"""
         from minos_core.pipeline_chain import generate_cp_from_confirmed_pfmea
+        from .api.sse import create_channel, remove_channel
 
         run = self.get_run(run_id)
         current = run.current_result
@@ -770,11 +883,20 @@ class DesktopRunService:
             pipeline_mode="chain",
         )
 
+        channel = create_channel(run_id, "cp")
+
+        def _on_progress(event):
+            event["run_id"] = run_id
+            channel.emit(event)
+
         try:
             cp_bundle = generate_cp_from_confirmed_pfmea(
-                drawing_analysis, confirmed_pfd, confirmed_pfmea
+                drawing_analysis, confirmed_pfd, confirmed_pfmea, on_progress=_on_progress,
             )
         except Exception as exc:
+            channel.emit({"type": "error", "stage": "cp", "run_id": run_id, "message": str(exc)})
+            channel.close()
+            remove_channel(run_id, "cp")
             failure = format_desktop_failure(exc)
             chain_stages = ChainStageStates(
                 pfd=chain_stages.pfd,
@@ -807,6 +929,9 @@ class DesktopRunService:
         )
         envelope["chain_stages"] = chain_stages.to_dict()
         self._persist_chain_update(run_id, envelope)
+        channel.emit({"type": "done", "stage": "cp", "run_id": run_id, "total_rows": len(cp_rows), "status": "generated"})
+        channel.close()
+        remove_channel(run_id, "cp")
         return self.get_run(run_id)
 
     def get_chain_state(self, run_id: int) -> dict[str, Any]:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Request
@@ -150,19 +151,24 @@ def chain_state(run_id: int, request: Request) -> dict[str, Any]:
 
 
 @router.post("/runs/{run_id}/chain/pfd-confirm")
-def chain_confirm_pfd(
+async def chain_confirm_pfd(
     run_id: int,
     payload: ChainConfirmRequest,
     request: Request,
     background_tasks: BackgroundTasks,
 ) -> dict[str, Any]:
     try:
+        from .sse import create_channel, get_channel
         record = jobs.confirm_pfd_stage(
             request.app.state.db_path,
             run_id,
             payload.confirmed_by,
             payload.edit_patch,
         )
+        channel = get_channel(run_id, "pfmea")
+        if channel is None:
+            channel = create_channel(run_id, "pfmea")
+        channel.bind_loop(asyncio.get_running_loop())
         background_tasks.add_task(
             jobs.generate_pfmea_for_confirmed_pfd,
             request.app.state.db_path,
@@ -174,29 +180,44 @@ def chain_confirm_pfd(
 
 
 @router.post("/runs/{run_id}/chain/pfmea-regenerate")
-def chain_regenerate_pfmea(run_id: int, request: Request) -> dict[str, Any]:
+async def chain_regenerate_pfmea(
+    run_id: int, request: Request, background_tasks: BackgroundTasks
+) -> dict[str, Any]:
     try:
-        return run_to_dict(
-            jobs.regenerate_pfmea_stage(request.app.state.db_path, run_id)
+        from .sse import create_channel, get_channel
+        svc = DesktopRunService(request.app.state.db_path)
+        run = svc.get_run(run_id)
+        channel = get_channel(run_id, "pfmea")
+        if channel is None:
+            channel = create_channel(run_id, "pfmea")
+        channel.bind_loop(asyncio.get_running_loop())
+        background_tasks.add_task(
+            jobs.regenerate_pfmea_stage, request.app.state.db_path, run_id
         )
+        return run_to_dict(run)
     except (KeyError, ValueError, TypeError, OSError) as exc:
         raise failure_from_exception(exc) from exc
 
 
 @router.post("/runs/{run_id}/chain/pfmea-confirm")
-def chain_confirm_pfmea(
+async def chain_confirm_pfmea(
     run_id: int,
     payload: ChainConfirmRequest,
     request: Request,
     background_tasks: BackgroundTasks,
 ) -> dict[str, Any]:
     try:
+        from .sse import create_channel, get_channel
         record = jobs.confirm_pfmea_stage(
             request.app.state.db_path,
             run_id,
             payload.confirmed_by,
             payload.edit_patch,
         )
+        channel = get_channel(run_id, "cp")
+        if channel is None:
+            channel = create_channel(run_id, "cp")
+        channel.bind_loop(asyncio.get_running_loop())
         background_tasks.add_task(
             jobs.generate_cp_for_confirmed_pfmea,
             request.app.state.db_path,
@@ -208,11 +229,21 @@ def chain_confirm_pfmea(
 
 
 @router.post("/runs/{run_id}/chain/cp-regenerate")
-def chain_regenerate_cp(run_id: int, request: Request) -> dict[str, Any]:
+async def chain_regenerate_cp(
+    run_id: int, request: Request, background_tasks: BackgroundTasks
+) -> dict[str, Any]:
     try:
-        return run_to_dict(
-            jobs.regenerate_cp_stage(request.app.state.db_path, run_id)
+        from .sse import create_channel, get_channel
+        svc = DesktopRunService(request.app.state.db_path)
+        run = svc.get_run(run_id)
+        channel = get_channel(run_id, "cp")
+        if channel is None:
+            channel = create_channel(run_id, "cp")
+        channel.bind_loop(asyncio.get_running_loop())
+        background_tasks.add_task(
+            jobs.regenerate_cp_stage, request.app.state.db_path, run_id
         )
+        return run_to_dict(run)
     except (KeyError, ValueError, TypeError, OSError) as exc:
         raise failure_from_exception(exc) from exc
 

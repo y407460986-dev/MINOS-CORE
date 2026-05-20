@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -31,6 +31,7 @@ import {
   selectOutputDir,
   updatePartFamily
 } from "../api/client";
+import { subscribeToChainStream } from "../api/sse-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -75,11 +76,7 @@ type ImportInsights = {
   };
 };
 
-const analysisModeOptions: Array<{ value: DrawingAnalysisMode; label: string }> = [
-  { value: "hybrid", label: "混合识别（推荐）" },
-  { value: "ocr_only", label: "仅 OCR" },
-  { value: "vision_only", label: "仅 AI 视觉" }
-];
+const analysisMode: DrawingAnalysisMode = "ocr_only";
 
 const analysisBlockKeys = [
   "materials",
@@ -96,8 +93,6 @@ const analysisBlockKeys = [
 export default function DrawingImportPage({ activeRun, onRunCreated, onRunUpdated, onOpenWorkbench }: DrawingImportPageProps) {
   const [drawingPath, setDrawingPath] = useState("");
   const [outputDir, setOutputDir] = useState("");
-  const [projectName, setProjectName] = useState("MINOS-APQP-Project");
-  const [analysisMode, setAnalysisMode] = useState<DrawingAnalysisMode>("hybrid");
   const [status, setStatus] = useState("等待选择图纸");
   const [runState, setRunState] = useState<"idle" | "running" | "success" | "failed" | "blocked" | "chain_active">("idle");
   const [error, setError] = useState("");
@@ -106,7 +101,6 @@ export default function DrawingImportPage({ activeRun, onRunCreated, onRunUpdate
   const [chainGenerating, setChainGenerating] = useState(false);
   const [analysisOverride, setAnalysisOverride] = useState<DrawingAnalysisResponse | null>(null);
   const [partFamilyOverride, setPartFamilyOverride] = useState<PartFamilyResponse | null>(null);
-  const [partFamilyDraft, setPartFamilyDraft] = useState("");
   const [panelMessage, setPanelMessage] = useState("");
   const [syncMessage, setSyncMessage] = useState("");
 
@@ -115,8 +109,8 @@ export default function DrawingImportPage({ activeRun, onRunCreated, onRunUpdate
     () => buildImportInsights(visibleRun, analysisOverride, partFamilyOverride),
     [analysisOverride, partFamilyOverride, visibleRun]
   );
-  const partFamilyValue = partFamilyDraft || (insights.partFamily === "未设置" ? "" : insights.partFamily);
-  const canStart = Boolean(drawingPath.trim() && projectName.trim() && runState !== "running");
+  const partFamilyValue = insights.partFamily === "未设置" ? "" : insights.partFamily;
+  const canStart = Boolean(drawingPath.trim() && runState !== "running");
   const startButtonLabel =
     runState === "running" ? "生成中..." : runState === "chain_active" ? "重新开始" : "开始生成";
   const startHint =
@@ -144,17 +138,18 @@ export default function DrawingImportPage({ activeRun, onRunCreated, onRunUpdate
     setError(""); setPanelMessage(""); setSyncMessage("");
     setAnalysisOverride(null); setPartFamilyOverride(null);
     setCompletedRun(null);
-    if (!drawingPath.trim() || !projectName.trim()) {
+    if (!drawingPath.trim()) {
       setRunState("blocked");
-      setStatus(!drawingPath.trim() ? "请先选择图纸" : "请先填写项目名");
+      setStatus("请先选择图纸");
       return;
     }
     setRunState("running"); setStatus("正在建立项目记录并启动链式流程...");
     try {
+      const autoProjectName = drawingPath.split(/[/\\]/).pop()?.replace(/\.[^.]+$/, "") || "MINOS-Project";
       const project = await createProject({
-        project_name: projectName, drawing_path: drawingPath,
+        project_name: autoProjectName, drawing_path: drawingPath,
         output_dir: outputDir,
-        context: { source: "tauri-react-desktop", part_family: partFamilyDraft.trim() || undefined, analysis_mode: analysisMode, ocr_engine: "auto" },
+        context: { source: "tauri-react-desktop", analysis_mode: analysisMode, ocr_engine: "auto" },
       });
       setStatus("正在分析图纸并生成过程流程图（第一步）...");
       const run = await startChainRun(project.id);
@@ -195,19 +190,17 @@ export default function DrawingImportPage({ activeRun, onRunCreated, onRunUpdate
         onRunUpdated(latest);
         const cs = extractChainState(latest);
         if (cs) setChainState(cs);
-        const stageStatus = stageStatusFromChainState(cs, stage);
-        if (latest.status === "failed" || stageStatus === "failed") {
+        const status = stageStatusFromChainState(cs, stage);
+        if (latest.status === "failed" || status === "failed") {
           window.clearInterval(timer);
           setRunState("failed");
           setStatus(stageFailureTitle(stage));
           setError(latest.failure_message || "后台生成失败，请查看本地服务日志后重试。");
           setChainGenerating(false);
-          return;
-        }
-        if (stageStatus && stageStatus !== "running") {
+        } else if (status && status !== "running") {
           window.clearInterval(timer);
           setRunState("chain_active");
-          setStatus(stageStatus === "generated" ? "下一阶段已生成，请继续确认。" : "阶段状态已更新。");
+          setStatus("下一阶段已生成，请继续确认。");
           setChainGenerating(false);
         }
       } catch (caught) {
@@ -218,6 +211,74 @@ export default function DrawingImportPage({ activeRun, onRunCreated, onRunUpdate
         setChainGenerating(false);
       }
     }, 2500);
+  }
+
+  const sseCleanupRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    return () => { sseCleanupRef.current?.(); };
+  }, []);
+
+  function startStreamingStage(runId: number, stage: "pfmea" | "cp") {
+    sseCleanupRef.current?.();
+
+    const cleanup = subscribeToChainStream(runId, stage, {
+      onProgress: (event) => {
+        setStatus(`正在生成（${event.step_index + 1}/${event.total_steps} 步，已生成 ${event.rows_so_far} 行）`);
+      },
+      onStepFailed: (event) => {
+        setStatus(`${event.step_id} 生成失败，继续生成中；已生成 ${event.rows_so_far} 行。`);
+      },
+      onConnectionStateChange: (state, retryCount) => {
+        if (state === "reconnecting") {
+          setStatus(`连接中断，正在自动重连${retryCount ? `（第 ${retryCount} 次）` : ""}...`);
+        }
+      },
+      onDone: async (event) => {
+        sseCleanupRef.current = null;
+        const latest = await getRun(runId);
+        setCompletedRun(latest);
+        onRunUpdated(latest);
+        const cs = extractChainState(latest);
+        if (cs) setChainState(cs);
+        if (event.status === "failed") {
+          setRunState("failed");
+          setStatus(stageFailureTitle(stage));
+          setError(event.failure_message || "后台生成失败，请查看本地服务日志后重试。");
+        } else {
+          setRunState("chain_active");
+          setStatus("下一阶段已生成，请继续确认。");
+        }
+        setChainGenerating(false);
+      },
+      onError: async () => {
+        sseCleanupRef.current = null;
+        try {
+          const latest = await getRun(runId);
+          setCompletedRun(latest);
+          onRunUpdated(latest);
+          const cs = extractChainState(latest);
+          if (cs) setChainState(cs);
+          const stageStatus = stageStatusFromChainState(cs, stage);
+          if (latest.status === "failed" || stageStatus === "failed") {
+            setRunState("failed");
+            setStatus(stageFailureTitle(stage));
+            setError(latest.failure_message || "后台生成失败，请查看本地服务日志后重试。");
+          } else {
+            setRunState("chain_active");
+            setStatus("阶段状态已更新。");
+          }
+        } catch (caught) {
+          setRunState("failed");
+          setStatus("阶段状态刷新失败");
+          setError(errorMessage(caught));
+        }
+        setChainGenerating(false);
+      },
+    });
+
+    sseCleanupRef.current = cleanup;
+    pollRunUntilStageSettled(runId, stage);
   }
 
   async function refreshChainState() {
@@ -241,9 +302,10 @@ export default function DrawingImportPage({ activeRun, onRunCreated, onRunUpdate
       const cs = extractChainState(updated);
       if (cs) setChainState(cs);
       if (stage === "pfd") {
-        pollRunUntilStageSettled(updated.id, "pfmea");
+        startStreamingStage(updated.id, "pfmea");
+        onOpenWorkbench();
       } else if (stage === "pfmea") {
-        pollRunUntilStageSettled(updated.id, "cp");
+        startStreamingStage(updated.id, "cp");
       } else {
         setChainGenerating(false);
       }
@@ -288,7 +350,6 @@ export default function DrawingImportPage({ activeRun, onRunCreated, onRunUpdate
     try {
       const response = await getPartFamily(visibleRun.id);
       setPartFamilyOverride(response);
-      setPartFamilyDraft(response.part_family);
       setPanelMessage("零件族已刷新。");
     } catch (caught) {
       setPanelMessage(errorMessage(caught));
@@ -301,7 +362,6 @@ export default function DrawingImportPage({ activeRun, onRunCreated, onRunUpdate
     try {
       const response = await updatePartFamily(visibleRun.id, partFamilyValue.trim());
       setPartFamilyOverride(response);
-      setPartFamilyDraft(response.part_family);
       setPanelMessage("零件族已保存。");
     } catch (caught) {
       setPanelMessage(errorMessage(caught));
@@ -358,18 +418,6 @@ export default function DrawingImportPage({ activeRun, onRunCreated, onRunUpdate
               </Button>
             </div>
           </label>
-          <label className="grid gap-[7px]">
-            <span className="text-[#56565b] text-[13px]">项目名</span>
-            <Input value={projectName} onChange={(event) => setProjectName(event.target.value)} />
-          </label>
-          <label className="grid gap-[7px]">
-            <span className="text-[#56565b] text-[13px]">识别模式</span>
-            <SegmentedControl options={analysisModeOptions} value={analysisMode} onChange={setAnalysisMode} />
-          </label>
-          <label className="grid gap-[7px]">
-            <span className="text-[#56565b] text-[13px]">零件族</span>
-            <Input value={partFamilyDraft} onChange={(event) => setPartFamilyDraft(event.target.value)} placeholder="例如 stamping、machining、casting" />
-          </label>
           <Button
             disabled={!canStart}
             onClick={startChainFlow}
@@ -386,16 +434,16 @@ export default function DrawingImportPage({ activeRun, onRunCreated, onRunUpdate
         </CardContent>
       </Card>
 
-      {/* 链式流程步骤指示器 */}
-      {runState === "chain_active" && chainState && completedRun && (
-        <ChainStepper
-          chainState={chainState}
-          run={completedRun}
-          isGenerating={chainGenerating}
-          onConfirm={handleChainConfirm}
-          onRegenerate={handleChainRegenerate}
-          onViewTable={() => onOpenWorkbench()}
-        />
+      {/* 链式流程已启动，引导用户到三表工作台 */}
+      {runState === "chain_active" && completedRun && (
+        <Card>
+          <CardContent className="p-4 grid gap-3">
+            <div className="text-[13px] text-[#56565b]">过程流程图已生成，请到三表工作台进行确认和编辑。</div>
+            <Button variant="outline" size="sm" onClick={() => onOpenWorkbench()} className="w-fit">
+              打开三表工作台
+            </Button>
+          </CardContent>
+        </Card>
       )}
 
       {/* 结果卡片 */}
@@ -456,15 +504,10 @@ export default function DrawingImportPage({ activeRun, onRunCreated, onRunUpdate
                 <span>零件族</span>
               </div>
               <h3 className="m-0 text-base leading-[1.35]">{insights.partFamily}</h3>
-              <label className="grid gap-[5px]">
-                <span className="text-[#56565b] text-[13px]">当前值</span>
-                <Input value={partFamilyValue} onChange={(event) => setPartFamilyDraft(event.target.value)} placeholder="输入零件族" />
-              </label>
               <div className="flex gap-2 items-center">
                 <Button variant="outline" size="sm" disabled={!visibleRun} onClick={() => void refreshPartFamily()}>
-                  <RefreshCw size={15} className="mr-[7px]" />读取
+                  <RefreshCw size={15} className="mr-[7px]" />重新识别
                 </Button>
-                <Button variant="outline" size="sm" disabled={!visibleRun || !partFamilyValue.trim()} onClick={() => void savePartFamily()}>保存</Button>
               </div>
               {panelMessage && <small className={isProblemMessage(panelMessage) ? "text-destructive text-xs leading-[1.4]" : "text-[#56565b] text-xs leading-[1.4]"}>{panelMessage}</small>}
             </CardContent>

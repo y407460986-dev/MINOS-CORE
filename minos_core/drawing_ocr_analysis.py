@@ -94,6 +94,8 @@ def build_drawing_analysis_bundle_from_ocr(
     dimensions = _dimension_items(text_units, fallback_refs)
     tolerances = _tolerance_items(text_units, fallback_refs)
     special_characteristics = _special_characteristic_items(text_units, fallback_refs)
+    numeric_specifications, numeric_sc = _numeric_specification_items(text_units, fallback_refs)
+    special_characteristics.extend(numeric_sc)
     technical_requirements = _requirement_items(
         text_units,
         fallback_refs,
@@ -131,6 +133,7 @@ def build_drawing_analysis_bundle_from_ocr(
         "dimensions": dimensions,
         "tolerances": tolerances,
         "special_characteristics": special_characteristics,
+        "numeric_specifications": numeric_specifications,
         "technical_requirements": technical_requirements,
         "inspection_requirements": inspection_requirements,
         "manufacturing_clues": manufacturing_clues,
@@ -194,6 +197,25 @@ def _source_ref(source: Any) -> str:
     return "drawing"
 
 
+_OCR_CORRECTIONS: dict[str, str] = {
+    "较链": "铰链",
+    "银件": "锻件",
+    "朝质模管件": "钢质模锻件",
+    "模管件": "模锻件",
+    "性偿要求": "性能要求",
+    "可遍测性": "可追溯性",
+    "气氢腐性": "气氛腐蚀",
+    "盐雾试册": "盐雾试验",
+    "模被件": "模锻件",
+}
+
+
+def _correct_ocr_text(text: str) -> str:
+    for wrong, right in _OCR_CORRECTIONS.items():
+        text = text.replace(wrong, right)
+    return text
+
+
 def _source_bytes(source_path: Path | None) -> bytes:
     if source_path is None:
         raise ValueError("OCR drawing analysis requires a readable drawing source path")
@@ -207,6 +229,7 @@ def _ocr_evidence_and_units(ocr_result: OCRResult) -> tuple[list[dict[str, Any]]
     for page_index, page in enumerate(ocr_result.pages, start=1):
         page_id = f"ocr_page_{page_index:03d}"
         page_text = str(page.text or "").strip()
+        page_text = _correct_ocr_text(page_text)
         page_confidence = page.confidence
         evidence.append(
             _evidence_record(
@@ -233,6 +256,7 @@ def _ocr_evidence_and_units(ocr_result: OCRResult) -> tuple[list[dict[str, Any]]
             )
         for block_index, block in enumerate(page.blocks, start=1):
             block_text = str(block.text or "").strip()
+            block_text = _correct_ocr_text(block_text)
             if not block_text:
                 continue
             block_id = f"{page_id}_block_{block_index:04d}"
@@ -516,6 +540,45 @@ def _special_characteristic_items(
             )
         )
     return _dedupe_items(items, "name")[:10]
+
+
+def _numeric_specification_items(
+    units: list[_TextUnit], fallback_refs: list[str]
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Extract numeric specs (e.g. ≥5.0KN) and return (specs, extra_sc_items)."""
+    specs: list[dict[str, Any]] = []
+    sc_items: list[dict[str, Any]] = []
+    for unit in _line_units(units):
+        m = _NUMERIC_SPEC_PATTERN.search(unit.text)
+        if not m:
+            continue
+        refs = [unit.evidence_id] or fallback_refs
+        specs.append(
+            _ocr_item(
+                {
+                    "name": m.group(0),
+                    "value": m.group(1),
+                    "unit": m.group(2),
+                    "source_text": unit.text,
+                },
+                refs,
+                unit.confidence,
+            )
+        )
+        sc_items.append(
+            _ocr_item(
+                {
+                    "id": f"OCR-NS-{len(sc_items) + 1:03d}",
+                    "name": m.group(0),
+                    "classification": "PTC",
+                    "specification": _snippet(unit.text),
+                    "needs_confirmation": True,
+                },
+                refs,
+                unit.confidence,
+            )
+        )
+    return _dedupe_items(specs, "name")[:20], sc_items
 
 
 def _requirement_items(
@@ -968,6 +1031,10 @@ _SPECIAL_CHARACTERISTIC_PATTERN = re.compile(
     r"(?:\bSC\b|\bCC\b|\bKPC\b|\bPTC\b|special\s*characteristic|critical|"
     r"key\s*characteristic|特殊特性|关键特性|重要特性|安全特性)",
     re.I,
+)
+_NUMERIC_SPEC_PATTERN = re.compile(
+    r"(?:≥|≤|>|<|不低于|不小于|不大于|不少于|至少)\s*(\d+(?:\.\d+)?)\s*(KN|kN|N|kg|kgf|MPa|HRC|HV|h|min|s|mm|μm|°C)\b",
+    re.IGNORECASE,
 )
 _PART_FAMILY_NAME_PATTERN = re.compile(
     r"(?:门铰链|车门铰链|尾门铰链|尾门较链|背门铰链|背门较链|较链总成|铰链总成|"

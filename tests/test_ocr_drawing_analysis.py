@@ -198,7 +198,7 @@ class OCRDrawingAnalysisTests(unittest.TestCase):
         bundle = build_drawing_analysis_bundle_from_ocr([_page_evidence()], ocr_result)
         identity = bundle["drawing_identity"]
 
-        self.assertIn("尾门较链", identity["part_name"])
+        self.assertIn("尾门铰链", identity["part_name"])
         self.assertEqual(
             identity["field_evidence_refs"]["part_name"],
             ["ocr_page_001_block_0001"],

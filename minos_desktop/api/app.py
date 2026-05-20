@@ -19,6 +19,7 @@ from .routes_knowledge import router as knowledge_router
 from .routes_projects import router as projects_router
 from .routes_runs import router as runs_router
 from .routes_settings import router as settings_router
+from .routes_sse import router as sse_router
 from .routes_tables import router as tables_router
 from .schemas import APIError, failure_from_exception
 
@@ -65,6 +66,9 @@ def create_app(
             tags=tags,
             dependencies=protected_dependencies,
         )
+
+    # SSE router — no auth required (read-only progress stream, local desktop only)
+    app.include_router(sse_router)
 
     @app.exception_handler(APIError)
     async def api_error_handler(request: Request, exc: APIError) -> JSONResponse:

@@ -9,12 +9,13 @@ from __future__ import annotations
 
 import json
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Callable
 
 from ._text_utils import text, flow_type_display
 from .adapters.llm_text import OpenAITextGenerator
-from .aiag_vda_pfmea import normalize_pfmea_row
+from .aiag_vda_pfmea import normalize_pfmea_row, validate_severity_floor
 from .drawing_to_pfd import normalize_process_flow_steps
 
 logger = logging.getLogger(__name__)
@@ -43,14 +44,15 @@ PFD_SYSTEM_PROMPT = """\
 - process_function: 工序功能描述，说明该步骤对产品做了什么
 - equipment: 所需设备、工装、夹具
 - product_characteristics: 该工序影响的产品特性（输出变量，如外径、硬度）
-- product_characteristic_class: 产品特性分类，取值为 SC(重要) / CC(关键) / 无
+- product_characteristic_class: 产品特性分类，取值为 SC(重要) / CC(关键) / 无。只有图纸上明确标注了特殊特性符号（如倒三角△、菱形◇、星号★或文字"SC""CC"）的特性才能标 SC 或 CC，其余一律填"无"。不要根据工序重要性自行推断。
 - process_characteristics: 该工序的过程特性（输入变量，如冲压力、温度）
-- process_characteristic_class: 过程特性分类，取值为 SC / CC / 无
+- process_characteristic_class: 过程特性分类，取值为 SC / CC / 无。规则同上：必须有图纸标注依据，不得自行推断。
 - special_characteristics: 该工序涉及的特殊特性清单 (SC/CC)，无则为空数组 []
 - needs_confirmation: AI 不确定时应设为 true
 
 工序数量控制在 5-20 个，覆盖从来料检验、加工、过程检验到最终检验的完整制造流程。
-根据图纸特征推断合理的工艺路线。不要凭空编造设备和工序。"""
+根据图纸特征推断合理的工艺路线。不要凭空编造设备和工序。
+SC/CC 标注原则：一个典型零件通常只有 2-5 个工序涉及特殊特性（图纸上有明确标注的），不是所有工序都有。如果图纸分析中没有提到特殊特性符号，则所有工序的 characteristic_class 都应填"无"。"""
 
 PFMEA_SYSTEM_PROMPT = """\
 你是一个 AIAG-VDA FMEA 第一版 (2019) 七步法专家。
@@ -66,7 +68,7 @@ PFMEA_SYSTEM_PROMPT = """\
 - structure_process_item: 结构分析-过程项
 - structure_process_step: 结构分析-过程步骤
 - structure_work_element: 结构分析-工作要素
-- work_element_4m: 工作要素 4M 类型，取值为 人 / 机 / 料 / 法
+- work_element_4m: 工作要素 4M 类型，取值为 人 / 机 / 料 / 法。对锻件/铸件/金属加工类零件，"料"相关失效原因（如来料缺陷、材料批次波动、硬度不均、内部裂纹）应占比≥20%，不要过度集中在"法"和"机"
 
 【功能分析 Step 3】
 - function_process_item: 功能分析-过程项功能
@@ -75,7 +77,7 @@ PFMEA_SYSTEM_PROMPT = """\
 
 【失效分析 Step 4】
 - failure_effect: 失效后果 (FE)，对最终用户或下一工序的影响
-- severity: 严重度 S (1-10)，基于 AIAG-VDA 严重度评估表（10=安全风险，7-9=主要功能丧失）
+- severity: 严重度 S (1-10)，基于 AIAG-VDA 严重度评估表（10=安全风险，7-9=主要功能丧失）。安全/法规强制规则：当失效后果涉及"人身安全/召回/法规/伤害/致命/起火/爆炸/有毒"时 S 必须≥9；涉及"整车功能丧失"或"完全失效"时 S 必须≥9
 - failure_mode: 失效模式 (FM)，过程步骤可能如何失效
 - failure_cause: 失效原因 (FC)，为什么失效会发生，关联 4M 要素
 - cause_process_parameter: 原因过程参数，导致该失效原因的关键过程变量/工装状态/材料状态
@@ -103,10 +105,19 @@ PFMEA_SYSTEM_PROMPT = """\
 - status: 状态，取值为 未开始 / 进行中 / 已完成 / 已放弃
 
 【确认标记】
-- needs_confirmation: AI 不确定时应设为 true
+- needs_confirmation: 仅在以下情况设为 true：(1) 缺少图纸数据无法确定具体数值 (2) 工艺参数需要现场验证。对于基于通用工程知识可合理推断的字段（如标准预防控制、通用探测方法、常规反应计划），不应标记为需确认
 
 每个工序应生成 1-5 个失效模式行，覆盖不同类型和 4M 来源的失效方式。
-重点关注图纸中的特殊特性 (SC/CC) 和关键尺寸对应的工序。"""
+重点关注图纸中的特殊特性 (SC/CC) 和关键尺寸对应的工序。
+
+【评分校准约束】
+- S/O/D 评分必须覆盖至少 4 个不同档位（如 S 不能只用 5-9，O 不能只用 3-5，D 不能只用 4-7）
+- AP 分布约束：H 不超过总行数 40%，L 不低于 10%。如果所有行都是 H/M，说明评分缺乏区分度，需重新校准
+- AP 判定硬约束：只有 S≥9，或 S≥8 且 O≥5，或 S≥7 且 O≥5 且 D≥5 时才可给 H
+- O 评分必须考虑预防控制的有效性：有成熟 SPC/防错的工序 O 应≤3；仅靠人工点检的 O 应≥5
+- D 评分必须考虑探测方法的能力：自动化在线检测 D≤3；抽检 D=5-7；仅靠目视 D≥8
+- 低风险工序（如包装、标识、搬运）的 S 应≤5，O 应≤3
+- 高风险工序（如热处理、焊接、铆接承载件）的 S 应≥7"""
 
 CP_SYSTEM_PROMPT = """\
 你是一个 IATF 16949 / AIAG CP-1:2024 控制计划设计专家。
@@ -129,7 +140,7 @@ CP_SYSTEM_PROMPT = """\
 
 【方法】
 - specification_tolerance: 产品/过程规格和公差（包含名义值和公差范围）
-- process_parameter: 过程参数（现场需要设定或稳定的变量，如冲压力、温度、扭矩、夹具定位状态）
+- process_parameter: 过程参数（现场需要设定或稳定的变量，如冲压力、温度、扭矩、夹具定位状态）。禁止写成"是否..."问句形式，必须是可测量/可设定的物理量或状态参数
 - parameter_specification: 参数规格/设定范围（目标值、上下限、配方号或作业指导书范围）
 - process_control_method: 过程控制方法（预防性控制，如参数锁定、设备点检、SPC、防错验证、权限控制）
 - setup_verification: 首件/换型确认（开机、换型、换批后如何确认过程已正确设定）
@@ -145,7 +156,7 @@ CP_SYSTEM_PROMPT = """\
 - reaction_plan: 反应计划（出现不合格时的具体纠正措施及责任人，如"隔离产品→通知质量工程师→调整参数→100%检验"）
 
 【确认标记】
-- needs_confirmation: AI 不确定时应设为 true
+- needs_confirmation: 仅在以下情况设为 true：(1) 缺少图纸数据无法确定具体规格数值 (2) 工艺参数需要现场验证。对于基于通用工程知识可合理推断的字段（如标准测量方法、通用抽样频率、常规反应计划），不应标记为需确认
 
 重点为 PFMEA 中 action_priority 为 H 和 M 的行生成对应的控制计划行。
 低风险 (L) 的行可以不生成控制计划行，除非涉及特殊特性 (SC/CC)。
@@ -427,7 +438,9 @@ def _build_drawing_context(drawing_analysis: dict) -> str:
         ("materials", "材料"),
         ("dimensions", "关键尺寸"),
         ("special_characteristics", "特殊特性"),
+        ("numeric_specifications", "数值型技术指标"),
         ("technical_requirements", "技术要求"),
+        ("surface_treatments", "表面处理"),
         ("manufacturing_clues", "制造线索"),
     ]:
         items = drawing_analysis.get(key) or []
@@ -439,9 +452,17 @@ def _build_drawing_context(drawing_analysis: dict) -> str:
                     f"{text(d.get('name'))}={text(d.get('value'))}{text(d.get('tolerance'))}"
                     for d in items
                 ]
+            elif key == "numeric_specifications":
+                texts = [f"{text(n.get('name'))}({text(n.get('value'))}{text(n.get('unit'))}): {text(n.get('source_text'))}" for n in items]
+            elif key == "technical_requirements":
+                texts = [text(i.get('text', i.get('description', i.get('name', '')))) for i in items]
+            elif key == "surface_treatments":
+                texts = [text(i.get('name', i.get('source_text', ''))) for i in items]
             else:
-                texts = [text(i.get('description', i.get('name', str(i)))) for i in items]
-            parts.append(f"{label}: {'; '.join(texts)}")
+                texts = [text(i.get('description', i.get('name', i.get('text', str(i))))) for i in items]
+            texts = [t for t in texts if t]
+            if texts:
+                parts.append(f"{label}: {'; '.join(texts)}")
 
     return "\n".join(parts)
 
@@ -602,6 +623,25 @@ def generate_pfd_from_drawing(
     }
 
 
+def _step_context_with_relevant_specs(
+    context_text: str,
+    step: dict[str, Any],
+    registry: dict[str, Any],
+) -> str:
+    """Append step-relevant specs to context, or note their absence."""
+    from minos_core.characteristic_registry import characteristics_for_step
+    relevant = characteristics_for_step(registry, step)
+    if relevant:
+        spec_lines = []
+        for item in relevant:
+            spec = item.get("specification", "")
+            if spec:
+                spec_lines.append(f"- {item['name']}: {spec}")
+        if spec_lines:
+            return context_text + "\n\n该工序直接相关的图纸规格:\n" + "\n".join(spec_lines)
+    return context_text + "\n\n注意：图纸中未找到该工序直接相关的数值规格，请基于通用工程判断填写，不要引用其他工序的数值。"
+
+
 # ---------------------------------------------------------------------------
 # Stage 2: 基于已确认 PFD 生成 PFMEA
 # ---------------------------------------------------------------------------
@@ -610,6 +650,7 @@ def generate_pfmea_from_confirmed_pfd(
     drawing_analysis: dict,
     confirmed_pfd: dict,
     model: str | None = None,
+    on_progress: Callable[[dict], None] | None = None,
 ) -> dict:
     """基于已确认的 PFD，LLM 推理生成 PFMEA。
 
@@ -621,11 +662,22 @@ def generate_pfmea_from_confirmed_pfd(
     Returns:
         pfmea bundle 字典（含 rows 列表和 metadata）
     """
-    pfd_steps = confirmed_pfd.get("steps") or []
+    pfd_steps = [
+        s for s in (confirmed_pfd.get("steps") or [])
+        if isinstance(s, dict) and not s.get("deleted") and not s.get("soft_deleted")
+    ]
     if not pfd_steps:
         raise ValueError("Confirmed PFD has no steps — cannot generate PFMEA")
 
     context_text = _build_drawing_context(drawing_analysis)
+    from minos_core.characteristic_registry import build_characteristic_registry
+    _registry = build_characteristic_registry(drawing_analysis)
+    part_name = text(
+        drawing_analysis.get("part_name"),
+        drawing_analysis.get("title"),
+        confirmed_pfd.get("metadata", {}).get("part_name"),
+        "制造过程",
+    )
     step_map = {
         str(step.get("process_step_id", "")).strip(): step
         for step in pfd_steps
@@ -633,42 +685,110 @@ def generate_pfmea_from_confirmed_pfd(
     }
     pfmea_rows = []
     failed_step_ids: list[str] = []
+    failed_step_messages: list[str] = []
     counters: dict[str, int] = {}
     llm = OpenAITextGenerator()
-    for step in pfd_steps:
-        if not isinstance(step, dict):
-            continue
+
+    # Prepare tasks for parallel execution
+    valid_steps = [
+        (i, step)
+        for i, step in enumerate(pfd_steps)
+        if isinstance(step, dict) and str(step.get("process_step_id", "")).strip()
+    ]
+
+    def _generate_for_step(index: int, step: dict) -> tuple[int, str, dict]:
         step_id = str(step.get("process_step_id", "")).strip()
-        if not step_id:
-            continue
         logger.info("CHAIN [Stage 2] Calling LLM to generate PFMEA for %s", step_id)
-        try:
-            pfmea_result = llm.generate_structured(
-                system_prompt=PFMEA_SYSTEM_PROMPT,
-                user_prompt=_build_pfmea_step_prompt(context_text, step),
-                response_format=PFMEA_OUTPUT_SCHEMA,
-                model=model,
-            )
-        except Exception as exc:
-            logger.error("CHAIN [Stage 2] PFMEA generation failed for %s: %s", step_id, exc)
-            raise ValueError(
-                f"Cannot generate PFMEA for step {step_id}: {exc}"
-            ) from exc
-        for raw_row in _ensure_list(pfmea_result, "rows"):
+        last_exc: Exception | None = None
+        for attempt in range(3):
             try:
-                row = _normalize_chain_pfmea_row(raw_row, step_map, counters, expected_step_id=step_id)
-            except ValueError as exc:
-                # Validation error (data integrity issue) → fail immediately
-                logger.error("CHAIN [Stage 2] PFMEA row validation failed for %s: %s", step_id, exc)
-                raise
+                result = llm.generate_structured(
+                    system_prompt=PFMEA_SYSTEM_PROMPT,
+                    user_prompt=_build_pfmea_step_prompt(
+                        _step_context_with_relevant_specs(context_text, step, _registry),
+                        step,
+                    ),
+                    response_format=PFMEA_OUTPUT_SCHEMA,
+                    model=model,
+                )
+                return index, step_id, result
             except Exception as exc:
-                # Other errors (e.g., type conversion) → log and skip row
-                logger.warning("CHAIN [Stage 2] PFMEA row normalization failed for %s: %s", step_id, exc)
+                last_exc = exc
+                logger.warning("CHAIN [Stage 2] PFMEA attempt %d/3 failed for %s: %s", attempt + 1, step_id, exc)
+        raise last_exc if last_exc else RuntimeError(f"PFMEA generation failed for {step_id}")
+
+    PARALLEL_BATCH_SIZE = 4
+    completed_count = 0
+    for batch_start in range(0, len(valid_steps), PARALLEL_BATCH_SIZE):
+        batch = valid_steps[batch_start:batch_start + PARALLEL_BATCH_SIZE]
+        # Collect results keyed by original index to preserve order
+        batch_results: dict[int, tuple[str, dict[str, Any] | None, str | None]] = {}
+        with ThreadPoolExecutor(max_workers=len(batch)) as executor:
+            futures = {
+                executor.submit(_generate_for_step, idx, step): (idx, step)
+                for idx, step in batch
+            }
+            for future in as_completed(futures):
+                idx, step = futures[future]
+                step_id = str(step.get("process_step_id", "")).strip()
+                try:
+                    _, _, pfmea_result = future.result()
+                except Exception as exc:
+                    logger.error("CHAIN [Stage 2] PFMEA generation failed for %s: %s", step_id, exc)
+                    batch_results[idx] = (step_id, None, str(exc))
+                else:
+                    batch_results[idx] = (step_id, pfmea_result, None)
+
+        # Process results in original order
+        for idx, step in batch:
+            step_id, pfmea_result, failure_message = batch_results.get(
+                idx,
+                (str(step.get("process_step_id", "")).strip(), None, "PFMEA generation failed"),
+            )
+            if failure_message:
+                failed_step_ids.append(step_id)
+                failed_step_messages.append(f"{step_id}: {failure_message}")
+                if on_progress:
+                    on_progress({
+                        "type": "step_failed",
+                        "stage": "pfmea",
+                        "step_index": completed_count,
+                        "total_steps": len(valid_steps),
+                        "step_id": step_id,
+                        "rows_so_far": len(pfmea_rows),
+                        "message": failure_message,
+                    })
+                completed_count += 1
                 continue
-            if row:
-                pfmea_rows.append(row)
+            step_rows = []
+            for raw_row in _ensure_list(pfmea_result, "rows"):
+                try:
+                    row = _normalize_chain_pfmea_row(raw_row, step_map, counters, expected_step_id=step_id, part_name=part_name)
+                except ValueError as exc:
+                    logger.error("CHAIN [Stage 2] PFMEA row validation failed for %s: %s", step_id, exc)
+                    raise
+                except Exception as exc:
+                    logger.warning("CHAIN [Stage 2] PFMEA row normalization failed for %s: %s", step_id, exc)
+                    continue
+                if row:
+                    step_rows.append(row)
+                    pfmea_rows.append(row)
+            completed_count += 1
+            if on_progress and step_rows:
+                on_progress({
+                    "type": "step_complete",
+                    "stage": "pfmea",
+                    "step_index": completed_count,
+                    "total_steps": len(valid_steps),
+                    "step_id": step_id,
+                    "rows_so_far": len(pfmea_rows),
+                    "new_rows": step_rows,
+                })
+            completed_count += 1
 
     if not pfmea_rows:
+        if failed_step_messages:
+            raise ValueError(f"PFMEA generation returned no rows: {'; '.join(failed_step_messages)}")
         raise ValueError("PFMEA generation returned no rows")
 
     logger.info("CHAIN [Stage 2] PFMEA generated: %d rows (failed steps: %s)", len(pfmea_rows), failed_step_ids)
@@ -688,6 +808,11 @@ def generate_pfmea_from_confirmed_pfd(
 
 def _build_pfmea_step_prompt(context_text: str, step: dict[str, Any]) -> str:
     step_text = json.dumps([step], ensure_ascii=False, indent=2)
+    sc_status = text(step.get("product_characteristic_class"), step.get("process_characteristic_class"))
+    if sc_status in ("SC", "CC"):
+        sc_note = f"该工序为特殊特性工序（{sc_status}），所有输出行的 special_characteristics 必须为\"{sc_status}\"。"
+    else:
+        sc_note = "该工序不涉及特殊特性，所有输出行的 special_characteristics 必须为\"无\"。"
     return f"""请基于以下已确认的单个过程流程图 (PFD) 工序和图纸分析结果，生成 PFMEA。
 
 图纸分析摘要:
@@ -698,10 +823,12 @@ def _build_pfmea_step_prompt(context_text: str, step: dict[str, Any]) -> str:
 
 请只为这个工序生成 1-5 个潜在的失效模式行。
 所有输出行的 process_step_id 必须等于该工序编号。
-重点关注图纸中的特殊特性 (SC/CC) 和关键尺寸。
+{sc_note}
+重要：失效后果和严重度评估应结合该工序**直接相关**的图纸技术指标。例如铆接工序可引用"铆接力≥14.3KN"、表面处理工序可引用"盐雾≥120h"、整体检验可引用"纵向力≥25000N"。**绝不要把不相关工序的数值硬塞进失效后果**（如把盐雾时间用在铆接失效、把铆接力用在喷涂失效）。如果图纸没有该工序对应的数值，请基于通用工程判断给出合理后果描述。
 预防控制必须控制失效原因或原因过程参数，探测控制必须单独说明探测对象和时机。
 根据 AIAG-VDA 2019 Action Priority 表评定 H/M/L；不要输出旧版 RPN。
-对不确定的评定请将 needs_confirmation 设为 true。"""
+对不确定的评定请将 needs_confirmation 设为 true。
+评分校准要求：同一零件的多个工序，S/O/D 不应高度集中在某几个值。请确保评分反映各工序实际风险差异。"""
 
 
 def _normalize_chain_pfmea_row(
@@ -710,6 +837,7 @@ def _normalize_chain_pfmea_row(
     counters: dict[str, int],
     *,
     expected_step_id: str | None = None,
+    part_name: str = "制造过程",
 ) -> dict[str, Any] | None:
     if not isinstance(raw_row, dict):
         return None
@@ -738,7 +866,7 @@ def _normalize_chain_pfmea_row(
             "process_step_name": operation,
             "process_function": process_function,
             "process_step": operation,
-            "process_item": text(row.get("process_item"), row.get("structure_process_item"), "制造过程"),
+            "process_item": part_name,
             "process_work_element": text(
                 row.get("process_work_element"),
                 row.get("structure_work_element"),
@@ -746,7 +874,7 @@ def _normalize_chain_pfmea_row(
                 step.get("tooling"),
                 row.get("work_element_4m"),
             ),
-            "structure_process_item": text(row.get("structure_process_item"), row.get("process_item"), "制造过程"),
+            "structure_process_item": part_name,
             "structure_process_step": operation,
             "structure_work_element": text(
                 row.get("structure_work_element"),
@@ -755,7 +883,7 @@ def _normalize_chain_pfmea_row(
                 step.get("tooling"),
                 row.get("work_element_4m"),
             ),
-            "function_process_item": text(row.get("function_process_item"), row.get("process_item"), "制造过程"),
+            "function_process_item": part_name,
             "function_process_step": process_function,
             "function_work_element": text(
                 row.get("function_work_element"),
@@ -769,8 +897,17 @@ def _normalize_chain_pfmea_row(
             "ai_inferred": True,
         }
     )
+    pfd_sc = text(
+        step.get("product_characteristic_class"),
+        step.get("process_characteristic_class"),
+    )
+    if pfd_sc in ("SC", "CC"):
+        row["special_characteristics"] = pfd_sc
+    else:
+        row["special_characteristics"] = "无"
     if not text(row.get("pfmea_id")):
         row["pfmea_id"] = f"PFMEA-{step_id}-{counters[step_id]:02d}"
+    row = validate_severity_floor(row)
     return normalize_pfmea_row(row, step)
 
 
@@ -783,6 +920,7 @@ def generate_cp_from_confirmed_pfmea(
     confirmed_pfd: dict,
     confirmed_pfmea: dict,
     model: str | None = None,
+    on_progress: Callable[[dict], None] | None = None,
 ) -> dict:
     """基于已确认的 PFMEA + PFD，LLM 推理生成控制计划。
 
@@ -795,7 +933,10 @@ def generate_cp_from_confirmed_pfmea(
     Returns:
         control_plan bundle 字典（含 rows 列表和 metadata）
     """
-    pfmea_rows = confirmed_pfmea.get("rows") or []
+    pfmea_rows = [
+        r for r in (confirmed_pfmea.get("rows") or [])
+        if isinstance(r, dict) and not r.get("deleted") and not r.get("soft_deleted")
+    ]
     if not pfmea_rows:
         raise ValueError("Confirmed PFMEA has no rows — cannot generate CP")
 
@@ -817,47 +958,89 @@ def generate_cp_from_confirmed_pfmea(
     failed_row_ids: list[str] = []
     counters: dict[str, int] = {}
     llm = OpenAITextGenerator()
-    for pfmea_row in target_rows:
-        if not isinstance(pfmea_row, dict):
-            continue
+
+    # Prepare tasks for parallel execution
+    valid_pfmea_rows = [
+        (i, pfmea_row)
+        for i, pfmea_row in enumerate(target_rows)
+        if isinstance(pfmea_row, dict) and str(pfmea_row.get("pfmea_id", "")).strip()
+    ]
+
+    # Validate all rows before parallel execution
+    for _, pfmea_row in valid_pfmea_rows:
         pfmea_id = str(pfmea_row.get("pfmea_id", "")).strip()
-        if not pfmea_id:
-            raise ValueError("Confirmed PFMEA row has no pfmea_id — cannot generate CP")
         process_step_id = str(pfmea_row.get("process_step_id", "")).strip()
         if process_step_id and process_step_id not in pfd_map:
             raise ValueError(f"PFMEA row {pfmea_id} references unknown confirmed PFD step: {process_step_id}")
-        logger.info("CHAIN [Stage 3] Calling LLM to generate CP for %s", pfmea_id)
-        try:
-            cp_result = llm.generate_structured(
-                system_prompt=CP_SYSTEM_PROMPT,
-                user_prompt=_build_cp_pfmea_row_prompt(context_text, pfd_map.get(process_step_id, {}), pfmea_row),
-                response_format=CP_OUTPUT_SCHEMA,
-                model=model,
-            )
-        except Exception as exc:
-            logger.error("CHAIN [Stage 3] CP generation failed for %s: %s", pfmea_id, exc)
-            raise ValueError(
-                f"Cannot generate Control Plan for PFMEA {pfmea_id}: {exc}"
-            ) from exc
-        for raw_row in _ensure_list(cp_result, "rows"):
+
+    def _generate_cp_for_row(index: int, row: dict) -> tuple[int, str, str, dict]:
+        pid = str(row.get("pfmea_id", "")).strip()
+        step_id = str(row.get("process_step_id", "")).strip()
+        logger.info("CHAIN [Stage 3] Calling LLM to generate CP for %s", pid)
+        last_exc: Exception | None = None
+        for attempt in range(3):
             try:
-                row = _normalize_chain_cp_row(
-                    raw_row,
-                    pfd_map,
-                    pfmea_map,
-                    counters,
-                    expected_pfmea_id=pfmea_id,
+                result = llm.generate_structured(
+                    system_prompt=CP_SYSTEM_PROMPT,
+                    user_prompt=_build_cp_pfmea_row_prompt(context_text, pfd_map.get(step_id, {}), row),
+                    response_format=CP_OUTPUT_SCHEMA,
+                    model=model,
                 )
-            except ValueError as exc:
-                # Validation error → fail immediately
-                logger.error("CHAIN [Stage 3] CP row validation failed for %s: %s", pfmea_id, exc)
-                raise
+                return index, pid, step_id, result
             except Exception as exc:
-                # Other errors → log and skip row
-                logger.warning("CHAIN [Stage 3] CP row normalization failed for %s: %s", pfmea_id, exc)
-                continue
-            if row:
-                cp_rows.append(row)
+                last_exc = exc
+                logger.warning("CHAIN [Stage 3] CP attempt %d/3 failed for %s: %s", attempt + 1, pid, exc)
+        raise last_exc if last_exc else RuntimeError(f"CP generation failed for {pid}")
+
+    PARALLEL_BATCH_SIZE = 4
+    completed_count = 0
+    for batch_start in range(0, len(valid_pfmea_rows), PARALLEL_BATCH_SIZE):
+        batch = valid_pfmea_rows[batch_start:batch_start + PARALLEL_BATCH_SIZE]
+        batch_results: dict[int, tuple[str, str, dict]] = {}
+        with ThreadPoolExecutor(max_workers=len(batch)) as executor:
+            futures = {
+                executor.submit(_generate_cp_for_row, idx, row): (idx, row)
+                for idx, row in batch
+            }
+            for future in as_completed(futures):
+                idx, pfmea_row = futures[future]
+                pfmea_id = str(pfmea_row.get("pfmea_id", "")).strip()
+                try:
+                    _, _, process_step_id, cp_result = future.result()
+                except Exception as exc:
+                    logger.error("CHAIN [Stage 3] CP generation failed for %s after retries: %s", pfmea_id, exc)
+                    raise ValueError(f"Cannot generate Control Plan for PFMEA {pfmea_id}: {exc}") from exc
+                batch_results[idx] = (pfmea_id, process_step_id, cp_result)
+
+        # Process results in original order
+        for idx, pfmea_row in batch:
+            pfmea_id, process_step_id, cp_result = batch_results[idx]
+            step_rows = []
+            for raw_row in _ensure_list(cp_result, "rows"):
+                try:
+                    row = _normalize_chain_cp_row(
+                        raw_row, pfd_map, pfmea_map, counters, expected_pfmea_id=pfmea_id,
+                    )
+                except ValueError as exc:
+                    logger.error("CHAIN [Stage 3] CP row validation failed for %s: %s", pfmea_id, exc)
+                    raise
+                except Exception as exc:
+                    logger.warning("CHAIN [Stage 3] CP row normalization failed for %s: %s", pfmea_id, exc)
+                    continue
+                if row:
+                    step_rows.append(row)
+                    cp_rows.append(row)
+            completed_count += 1
+            if on_progress and step_rows:
+                on_progress({
+                    "type": "step_complete",
+                    "stage": "cp",
+                    "step_index": completed_count - 1,
+                    "total_steps": len(valid_pfmea_rows),
+                    "step_id": pfmea_id,
+                    "rows_so_far": len(cp_rows),
+                    "new_rows": step_rows,
+                })
 
     if not cp_rows:
         raise ValueError("CP generation returned no rows")
@@ -897,8 +1080,10 @@ def _build_cp_pfmea_row_prompt(
 
 请只为这一条 PFMEA 行生成对应的控制计划行。
 输出行的 pfmea_id 必须等于该 PFMEA 行编号，process_step_id 必须等于该 PFMEA 行的工序编号。
+重要：如果该 PFMEA 行的 special_characteristics 为 SC 或 CC，则输出行的 special_characteristic_class 必须继承该值，不得输出"无"。
+重要：specification_tolerance 必须填写该工序实际控制的产品/过程规格和公差。**只有当图纸数值与该工序直接相关时才引用**：例如铆接工序引用铆接力、表面处理工序引用盐雾时间和膜厚、检验工序引用承载力等。绝不要把不相关工序的数值（如把盐雾时间用在铆接、把铆接力用在表面处理）硬塞进去。如果图纸没有该工序对应的数值，应基于 PFMEA 失效原因和预防控制写出合理的工艺规范（如"铆接高度按工艺卡 ±0.1mm"、"扭矩按工装设定"），而不是引用无关数值。
 控制计划必须先说明过程如何被控制，再说明结果如何被检验：
-- process_parameter 优先来自 PFMEA 的 cause_process_parameter，其次才是 PFMEA/PFD 过程特性；parameter_specification / process_control_method 必须来自 PFMEA 的失效原因和预防控制。
+- process_parameter 优先来自 PFMEA 的 cause_process_parameter，其次才是 PFMEA/PFD 过程特性。禁止写成"是否..."问句（如"是否涂覆均匀"是错误的，正确写法是"涂覆厚度"或"喷涂压力"）。parameter_specification / process_control_method 必须来自 PFMEA 的失效原因和预防控制。
 - setup_verification、poka_yoke_device、poka_yoke_verification、process_record 必须给出现场可执行的首件/换型确认、防错验证和记录要求。
 - measurement_method、sample_size、sample_frequency 只描述结果检验，不要替代过程控制。
 确保高/中 AP 项有明确反应计划，测量方法具体到量具或检查技术。

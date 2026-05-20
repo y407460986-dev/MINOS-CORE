@@ -463,6 +463,52 @@ def _normalize_step_id(value: str, index: int) -> str:
     return f"P{index * 10}"
 
 
+_INSPECTION_KEYWORDS = ("检验", "检测", "测试")
+_PACKAGING_KEYWORDS = ("包装", "入库", "出货")
+
+
+def _insert_ocr_into_backbone(
+    backbone: list[dict[str, Any]],
+    ocr_clues: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Insert OCR-inferred steps into the template backbone at logical positions.
+
+    Rules:
+    - Inspection keywords -> after the first inspection step in backbone
+    - Packaging/storage keywords -> at the end
+    - Processing steps -> after the last processing step but before tail
+      inspection/packaging steps
+    """
+    if not ocr_clues:
+        return backbone
+
+    # Find the boundary: last index that is NOT inspection/packaging (the "processing tail")
+    tail_start = len(backbone)
+    for i in range(len(backbone) - 1, -1, -1):
+        op = row_text(backbone[i], "operation", default="")
+        if any(kw in op for kw in _INSPECTION_KEYWORDS + _PACKAGING_KEYWORDS):
+            tail_start = i
+        else:
+            break
+
+    inspection_clues: list[dict[str, Any]] = []
+    packaging_clues: list[dict[str, Any]] = []
+    processing_clues: list[dict[str, Any]] = []
+
+    for clue in ocr_clues:
+        op = row_text(clue, "operation", default="")
+        if any(kw in op for kw in _INSPECTION_KEYWORDS):
+            inspection_clues.append(clue)
+        elif any(kw in op for kw in _PACKAGING_KEYWORDS):
+            packaging_clues.append(clue)
+        else:
+            processing_clues.append(clue)
+
+    # Build result: backbone[:tail_start] + processing_clues + inspection_clues + backbone[tail_start:] + packaging_clues
+    result = backbone[:tail_start] + processing_clues + inspection_clues + backbone[tail_start:] + packaging_clues
+    return result
+
+
 def _enrich_with_process_library(
     analysis_bundle: dict[str, Any],
     clues: list[dict[str, Any]],
@@ -478,26 +524,27 @@ def _enrich_with_process_library(
     enriched: list[dict[str, Any]] = []
     added: set[str] = set()
 
+    # Build template backbone first
     for operation in template:
-        if _should_insert_before_clues(operation, operations):
+        if operation in operations:
+            continue
+        if _should_insert_before_clues(operation, operations) or \
+           _should_append_library_step(operation, route_family, operations, analysis_bundle):
             enriched.append(_library_clue(operation, route_family, evidence_refs))
             added.add(operation)
 
+    # Prepare OCR clues for insertion
+    ocr_clues_to_insert: list[dict[str, Any]] = []
     for clue in clues:
         operation = _operation_name(clue)
         if not operation:
-            enriched.append(clue)
             continue
         if operation not in added:
-            enriched.append(_merge_library_defaults(clue, operation))
+            ocr_clues_to_insert.append(_merge_library_defaults(clue, operation))
             added.add(operation)
 
-    for operation in template:
-        if operation in added:
-            continue
-        if _should_append_library_step(operation, route_family, operations, analysis_bundle):
-            enriched.append(_library_clue(operation, route_family, evidence_refs))
-            added.add(operation)
+    # Insert OCR clues at appropriate positions within the backbone
+    enriched = _insert_ocr_into_backbone(enriched, ocr_clues_to_insert)
 
     return enriched
 
@@ -572,41 +619,40 @@ def _enrich_with_family_templates(
         if op_key and op_key not in all_steps_map:
             all_steps_map[op_key] = s
 
+    # Build template backbone first (knowledge-base steps form the skeleton)
     for op_key in template_ops:
-        if _should_insert_before_clues(op_key, operations):
-            orig_step = all_steps_map.get(op_key, {})
-            enriched.append(_family_clue_from_step(
-                op_key, orig_step, knowledge_refs, evidence_refs
-            ))
-            added.add(op_key)
+        # Skip if an OCR clue already covers this operation
+        canonical = _canonical_operation(op_key)
+        if canonical in operations:
+            continue
+        orig_step = all_steps_map.get(op_key, {})
+        enriched.append(_family_clue_from_step(
+            op_key, orig_step, knowledge_refs, evidence_refs
+        ))
+        added.add(op_key)
+        added.add(canonical)
 
+    # Prepare OCR clues for insertion into the backbone
+    ocr_clues_to_insert: list[dict[str, Any]] = []
     for clue in clues:
         operation = _operation_name(clue)
         if not operation:
-            enriched.append(clue)
             continue
-        if operation not in added:
-            merged = _merge_library_defaults(clue, operation)
-            if knowledge_refs:
-                existing_refs = string_list(merged.get("knowledge_source_refs", []))
-                for ref in knowledge_refs:
-                    if ref not in existing_refs:
-                        existing_refs.append(ref)
-                merged["knowledge_source_refs"] = existing_refs
-            merged.setdefault("source", "drawing_recognition")
-            enriched.append(merged)
-            added.add(operation)
+        if operation in added:
+            continue
+        merged = _merge_library_defaults(clue, operation)
+        if knowledge_refs:
+            existing_refs = string_list(merged.get("knowledge_source_refs", []))
+            for ref in knowledge_refs:
+                if ref not in existing_refs:
+                    existing_refs.append(ref)
+            merged["knowledge_source_refs"] = existing_refs
+        merged.setdefault("source", "drawing_recognition")
+        ocr_clues_to_insert.append(merged)
+        added.add(operation)
 
-    for op_key in template_ops:
-        if op_key in added:
-            continue
-        # For family templates, append all remaining steps (not just library-compatible ones)
-        if op_key not in ("incoming inspection", "material preparation"):
-            orig_step = all_steps_map.get(op_key, {})
-            enriched.append(_family_clue_from_step(
-                op_key, orig_step, knowledge_refs, evidence_refs
-            ))
-            added.add(op_key)
+    # Insert OCR clues at appropriate positions within the backbone
+    enriched = _insert_ocr_into_backbone(enriched, ocr_clues_to_insert)
 
     return enriched
 
@@ -677,39 +723,45 @@ def _match_process_inference_variant(
     ).lower()
     if not search_text:
         return []
+    def _ngrams(text: str, n: int = 4) -> set[str]:
+        clean = ""
+        for ch in text:
+            if ch.isalpha() or ch in "()+-/" or '一' <= ch <= '鿿':
+                clean += ch
+        return {clean[i:i+n] for i in range(len(clean) - n + 1)}
+
+    search_ngrams = _ngrams(search_text, 4)
+    best_score = 0
+    best_variant_id = None
+    best_variant_data = None
     for variant_id, variant_data in variants.items():
         if not isinstance(variant_data, dict):
             continue
         desc = str(variant_data.get("description", "")).lower()
         keywords = [str(k).lower() for k in string_list(variant_data.get("match_keywords", []))]
-        # Check if significant character overlap exists between desc and search_text
-        # Use 3-char ngrams to detect matching Chinese phrases despite punctuation differences
-        def _ngrams(text: str, n: int = 4) -> set[str]:
-            clean = ""
-            for ch in text:
-                if ch.isalpha() or ch in "()+-/" or '一' <= ch <= '鿿':
-                    clean += ch
-            return {clean[i:i+n] for i in range(len(clean) - n + 1)}
-
         desc_ngrams = _ngrams(desc, 4)
-        search_ngrams = _ngrams(search_text, 4)
         overlap = desc_ngrams & search_ngrams
-        direct_keywords = [str(k).lower() for k in keywords]
-        if len(overlap) >= 2 or any(kw and kw in search_text for kw in direct_keywords):
-            sequence = variant_data.get("process_sequence")
-            if isinstance(sequence, list):
-                return [
-                    {
-                        "operation": str(s.get("operation", "")).strip(),
-                        "process_function": str(s.get("key_check", s.get("operation", ""))).strip(),
-                        "confidence": 0.8,
-                        "knowledge_source_refs": [
-                            f"process_inference:{family_context.get('family_key', '')}:{variant_id}"
-                        ],
-                    }
-                    for s in sequence
-                    if isinstance(s, dict)
-                ]
+        kw_matches = [kw for kw in keywords if kw and kw in search_text]
+        score = len(overlap) + 5 * len(kw_matches)
+        if score > best_score:
+            best_score = score
+            best_variant_id = variant_id
+            best_variant_data = variant_data
+    if best_score >= 2 and best_variant_data is not None:
+        sequence = best_variant_data.get("process_sequence")
+        if isinstance(sequence, list):
+            return [
+                {
+                    "operation": str(s.get("operation", "")).strip(),
+                    "process_function": str(s.get("key_check", s.get("operation", ""))).strip(),
+                    "confidence": 0.8,
+                    "knowledge_source_refs": [
+                        f"process_inference:{family_context.get('family_key', '')}:{best_variant_id}"
+                    ],
+                }
+                for s in sequence
+                if isinstance(s, dict)
+            ]
     return []
 
 

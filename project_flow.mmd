@@ -712,4 +712,11 @@ flowchart TD
     FIX434 --> FIX435[retryable stream error helper<br/>text LLM and multimodal shared]
     FIX435 --> FIX436[verification<br/>adapter 25 OK<br/>chain PFMEA/CP 6 OK<br/>py_compile OK]
     FIX436 --> FIX437[runtime diagnosis<br/>old backend started before fix]
-    FIX437 --> G
+    FIX437 --> FIX440[PFMEA SSE resilience fix<br/>heartbeat reconnect checkpoint]
+    FIX440 --> FIX441[ProgressChannel heartbeat<br/>loop bound before background task]
+    FIX441 --> FIX442[PFMEA step_failed<br/>single step failure continues]
+    FIX442 --> FIX443[Tauri SSE client<br/>MAX_RETRIES reconnect<br/>heartbeat and step_failed handlers]
+    FIX443 --> FIX444[Workbench and import page<br/>show auto reconnect<br/>continue generating]
+    FIX444 --> FIX445[PFMEA partial checkpoint<br/>SQLite and result JSON<br/>chain_stage_status partial]
+    FIX445 --> FIX446[verification<br/>SSE resilience 29 OK<br/>Tauri build OK]
+    FIX446 --> G

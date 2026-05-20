@@ -997,3 +997,15 @@ Phase 6 真实项目试运行已完成代码落地：input_package 接入 genera
 - 已验证：`python -m pytest tests/test_openai_multimodal_adapter.py tests/test_llm_text_responses.py -q`：25 项通过。
 - 已验证：`python -m pytest tests/test_ai_drawing_three_table_workflow.py -q -k "chain_pfmea or chain_cp"`：6 项通过，30 项未选中。
 - 已验证：`python -m py_compile minos_core\adapters\llm_text.py minos_core\adapters\multimodal.py`：通过；`git diff --check` 无空白错误，仅 CRLF 提示。
+
+## V1.14.15 PFMEA 生成中断韧性修复
+
+- 已完成：读取计划 `C:\Users\fgtan\.claude\plans\minos-core-pfmea-plan-scalable-eclipse.md`，本轮按“后端不中断、SSE 可保活、前端可重连、PFMEA 部分结果可保存”收口。
+- 已完成：后端 `ProgressChannel` 支持 heartbeat；链式触发路由创建 channel 后立即绑定事件循环，避免后台任务先 emit 时丢事件。
+- 已完成：链式 PFMEA 单工序失败时发送 `step_failed`，记录 `failed_step_ids` 并继续处理剩余 PFD 工序；仅所有工序失败时阶段失败。
+- 已完成：Tauri `sse-client.ts` 增加 `StepFailedEvent`、`HeartbeatEvent`、连接状态回调和最多 5 次自动重连；应用层 `error` 事件仍直接交给错误处理。
+- 已完成：三表工作台和图纸导入页处理 `step_failed` 与重连状态，断线时显示“正在自动重连”，不再显示“连接中断，已获取最终状态”。
+- 已完成：`DesktopRunService.generate_pfmea_for_confirmed_pfd()` 和 `regenerate_pfmea_stage()` 在 `step_complete` 时把已生成 PFMEA 行 checkpoint 到 SQLite 与磁盘，metadata 标记 `chain_stage_status=partial`。
+- 已完成：补上 `routes_runs.py` 的 `asyncio` 导入，避免真实链式确认入口运行时缺导入。
+- 已验证：`python -m pytest tests/desktop/test_sse_chain_resilience.py tests/test_desktop_tauri_app_state.py -q`：29 项通过。
+- 已验证：Tauri 前端 `npm run build` 通过。

@@ -46,6 +46,23 @@ def calculate_rpn(severity: Any, occurrence: Any, detection: Any) -> int:
     return bounded_rating(severity) * bounded_rating(occurrence) * bounded_rating(detection)
 
 
+SAFETY_KEYWORDS = ("安全", "召回", "法规", "伤害", "致命", "起火", "爆炸", "有毒", "人身")
+
+
+def validate_severity_floor(row: dict[str, Any]) -> dict[str, Any]:
+    """Enforce S>=9 for safety/regulatory failure effects."""
+    effect = str(row.get("failure_effect", ""))
+    if any(kw in effect for kw in SAFETY_KEYWORDS):
+        s = bounded_rating(row.get("severity", row.get("S", 5)))
+        if s < 9:
+            row["severity"] = 9
+            row["S"] = 9
+            o = bounded_rating(row.get("occurrence", row.get("O", 3)))
+            d = bounded_rating(row.get("detection", row.get("D", 6)))
+            row["action_priority"] = calculate_ap(9, o, d)
+    return row
+
+
 def normalize_pfmea_row(row: dict[str, Any], process_step: dict[str, Any] | None = None) -> dict[str, Any]:
     """Return a PFMEA row with AIAG-VDA 2019 Form C fields populated."""
 

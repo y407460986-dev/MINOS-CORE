@@ -148,6 +148,31 @@ def test_workbench_can_regenerate_failed_pfmea_stage() -> None:
     assert 'stageStatus(run, "pfmea") === "failed"' in page_source
 
 
+def test_chain_sse_client_reconnects_and_workbench_handles_step_failed() -> None:
+    sse_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "api" / "sse-client.ts"
+    ).read_text(encoding="utf-8")
+    page_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "pages" / "ThreeTableWorkbench.tsx"
+    ).read_text(encoding="utf-8")
+
+    assert "export type StepFailedEvent" in sse_source
+    assert "export type HeartbeatEvent" in sse_source
+    assert 'es.addEventListener("step_failed"' in sse_source
+    assert 'es.addEventListener("heartbeat"' in sse_source
+    assert "MAX_RETRIES" in sse_source
+    assert "retryCount < MAX_RETRIES" in sse_source
+    assert "setTimeout(connect" in sse_source
+    assert "onConnectionStateChange" in sse_source
+    assert "handlers.onStepFailed?.(data)" in sse_source
+    assert "handlers.onHeartbeat?.(data)" in sse_source
+    assert 'handlers.onError("连接中断")' not in sse_source
+    assert "onStepFailed" in page_source
+    assert "继续生成中" in page_source
+    assert "正在自动重连" in page_source
+    assert "已获取最终状态" not in page_source
+
+
 def test_workbench_pfd_can_add_row_with_process_flow_patch() -> None:
     page_source = (
         ROOT / "apps" / "desktop-tauri" / "src" / "pages" / "ThreeTableWorkbench.tsx"

@@ -459,7 +459,8 @@ class ChainGenerationTests(unittest.TestCase):
         ]
 
         with patch("minos_core.pipeline_chain.OpenAITextGenerator") as generator:
-            generator.return_value.generate_structured.side_effect = payloads
+            # Parallel execution: both steps call LLM; return the same wrong payload for both
+            generator.return_value.generate_structured.return_value = payloads[0]
 
             with self.assertRaisesRegex(ValueError, "expected P10"):
                 generate_pfmea_from_confirmed_pfd({}, confirmed_pfd)

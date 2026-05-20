@@ -63,6 +63,7 @@
   "process_flow_variants": {
     "stamped_hinge_progressive": {
       "description": "冲压型铰链级进模工艺——适合大批量生产(年产>50万件)",
+      "match_keywords": ["级进模", "冷轧", "卷料", "SPCC", "SAPH", "料厚", "冲压"],
       "process_sequence": [
         { "seq": 10, "operation": "来料检验", "equipment": "检具/量具", "key_check": "材质(SPCC/SAPH)、料厚(1-4mm)、卷宽" },
         { "seq": 20, "operation": "开卷校平+送料", "equipment": "开卷校平机+伺服送料", "key_check": "板形、送料精度±0.01mm" },
@@ -77,6 +78,7 @@
     },
     "forged_hinge": {
       "description": "锻造型铰链工艺——适合高强度/高安全要求车型(德系主流)",
+      "match_keywords": ["锻造", "锻件", "丸钢", "热锻", "调质", "模锻", "钢质模"],
       "process_sequence": [
         { "seq": 10, "operation": "来料检验", "equipment": "光谱仪/硬度计", "key_check": "丸钢棒材质、直径、炉号" },
         { "seq": 20, "operation": "加热", "equipment": "中频感应炉", "key_check": "950-1350°C" },
@@ -92,6 +94,7 @@
     },
     "pressed_hinge_cold_heading": {
       "description": "冲压铰链冷镦轴孔工艺(小川专利US2013/0061437)——钢板冷镦成形圆柱膨出部后冲制轴孔,省去锻坯,大幅减少材料去除量",
+      "match_keywords": ["冷镦", "膨出", "cold heading", "冷镦轴孔"],
       "process_sequence": [
         { "seq": 10, "operation": "来料检验", "equipment": "检具/量具/光谱仪", "key_check": "材质(SAPH310/SPCC等)、料厚(1-4mm)、板宽,钢板毛坯" },
         { "seq": 20, "operation": "冷镦成形圆柱膨出部", "equipment": "压力机+冷镦模", "key_check": "钢板宽度方向一端冷镦,材料挤出形成圆柱状膨出部(cylindrical bulging portion),用于后续冲制轴孔" },

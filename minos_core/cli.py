@@ -42,7 +42,7 @@ def main(argv: list[str] | None = None) -> int:
     analyze_drawing_parser.add_argument(
         "--mode",
         choices=("ocr_only", "vision_only", "hybrid"),
-        default="hybrid",
+        default="ocr_only",
         help="Drawing analysis mode; hybrid tries OCR before multimodal AI",
     )
     analyze_drawing_parser.add_argument(
@@ -76,7 +76,7 @@ def main(argv: list[str] | None = None) -> int:
     generate_three_parser.add_argument(
         "--mode",
         choices=("ocr_only", "vision_only", "hybrid"),
-        default="hybrid",
+        default="ocr_only",
         help="Drawing analysis mode; hybrid tries OCR before multimodal AI",
     )
     generate_three_parser.add_argument(
@@ -237,6 +237,41 @@ def main(argv: list[str] | None = None) -> int:
         help="Optional profile: door_hinge, stamping, or limiter",
     )
 
+    # --- Chain generate commands ---
+    gen_pfd_parser = subparsers.add_parser("generate-pfd", help="Generate PFD from drawing analysis")
+    gen_pfd_parser.add_argument("--input", required=True, help="drawing_analysis JSON path")
+    gen_pfd_parser.add_argument("--output-dir", required=True, help="Output directory")
+    gen_pfd_parser.add_argument("--model", default=None, help="LLM model override")
+
+    gen_pfmea_parser = subparsers.add_parser("generate-pfmea", help="Generate PFMEA from confirmed PFD")
+    gen_pfmea_parser.add_argument("--confirmed-pfd", required=True, help="Confirmed PFD JSON path")
+    gen_pfmea_parser.add_argument("--drawing-analysis", required=True, help="drawing_analysis JSON path")
+    gen_pfmea_parser.add_argument("--output-dir", required=True, help="Output directory")
+    gen_pfmea_parser.add_argument("--model", default=None, help="LLM model override")
+
+    gen_cp_parser = subparsers.add_parser("generate-cp", help="Generate CP from confirmed PFMEA")
+    gen_cp_parser.add_argument("--confirmed-pfd", required=True, help="Confirmed PFD JSON path")
+    gen_cp_parser.add_argument("--confirmed-pfmea", required=True, help="Confirmed PFMEA JSON path")
+    gen_cp_parser.add_argument("--drawing-analysis", required=True, help="drawing_analysis JSON path")
+    gen_cp_parser.add_argument("--output-dir", required=True, help="Output directory")
+    gen_cp_parser.add_argument("--model", default=None, help="LLM model override")
+
+    # --- Chain confirm commands ---
+    confirm_pfd_parser = subparsers.add_parser("confirm-pfd", help="Apply review decisions to PFD draft")
+    confirm_pfd_parser.add_argument("--draft", required=True, help="pfd_draft.json path")
+    confirm_pfd_parser.add_argument("--review", required=True, help="Filled review JSON path")
+    confirm_pfd_parser.add_argument("--output", required=True, help="Output confirmed PFD JSON path")
+
+    confirm_pfmea_parser = subparsers.add_parser("confirm-pfmea", help="Apply review decisions to PFMEA draft")
+    confirm_pfmea_parser.add_argument("--draft", required=True, help="pfmea_draft.json path")
+    confirm_pfmea_parser.add_argument("--review", required=True, help="Filled review JSON path")
+    confirm_pfmea_parser.add_argument("--output", required=True, help="Output confirmed PFMEA JSON path")
+
+    confirm_cp_parser = subparsers.add_parser("confirm-cp", help="Apply review decisions to CP draft")
+    confirm_cp_parser.add_argument("--draft", required=True, help="cp_draft.json path")
+    confirm_cp_parser.add_argument("--review", required=True, help="Filled review JSON path")
+    confirm_cp_parser.add_argument("--output", required=True, help="Output confirmed CP JSON path")
+
     args = parser.parse_args(argv)
     if args.command in {"list", "list-samples"}:
         return _list_samples(getattr(args, "samples_dir", None))
@@ -288,6 +323,18 @@ def main(argv: list[str] | None = None) -> int:
         return _convert_legacy(
             args.input, args.output_dir, args.sample_id, args.display_name, args.profile
         )
+    if args.command == "generate-pfd":
+        return _generate_pfd(args.input, args.output_dir, args.model)
+    if args.command == "generate-pfmea":
+        return _generate_pfmea(args.confirmed_pfd, args.drawing_analysis, args.output_dir, args.model)
+    if args.command == "generate-cp":
+        return _generate_cp(args.confirmed_pfd, args.confirmed_pfmea, args.drawing_analysis, args.output_dir, args.model)
+    if args.command == "confirm-pfd":
+        return _confirm_draft(args.draft, args.review, args.output)
+    if args.command == "confirm-pfmea":
+        return _confirm_draft(args.draft, args.review, args.output)
+    if args.command == "confirm-cp":
+        return _confirm_draft(args.draft, args.review, args.output)
     parser.error(f"unknown command: {args.command}")
     return 2
 
@@ -605,6 +652,122 @@ def _convert_legacy(
     )
     for name, path in paths.items():
         print(f"{name}: {path}")
+    return 0
+
+
+def _generate_pfd(input_path: str, output_dir: str, model: str | None) -> int:
+    from . import pipeline_chain
+
+    drawing_analysis = json.loads(Path(input_path).read_text(encoding="utf-8"))
+    result = pipeline_chain.generate_pfd_from_drawing(drawing_analysis, model)
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    Path(output_dir, "pfd_draft.json").write_text(
+        json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    items = []
+    for step in result.get("steps", result.get("process_steps", result.get("items", []))):
+        items.append({
+            "process_step_id": step.get("process_step_id", ""),
+            "operation": step.get("operation", ""),
+            "process_function": step.get("process_function", ""),
+            "decision": "",
+            "comment": "",
+            "revised_value": {},
+        })
+    review_template = {"document_type": "pfd_review_template", "items": items}
+    Path(output_dir, "pfd_review_template.json").write_text(
+        json.dumps(review_template, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    return 0
+
+
+def _generate_pfmea(confirmed_pfd_path: str, drawing_analysis_path: str, output_dir: str, model: str | None) -> int:
+    from . import pipeline_chain
+
+    drawing_analysis = json.loads(Path(drawing_analysis_path).read_text(encoding="utf-8"))
+    confirmed_pfd = json.loads(Path(confirmed_pfd_path).read_text(encoding="utf-8"))
+    result = pipeline_chain.generate_pfmea_from_confirmed_pfd(drawing_analysis, confirmed_pfd, model)
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    Path(output_dir, "pfmea_draft.json").write_text(
+        json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    items = []
+    for row in result.get("failure_modes", result.get("items", [])):
+        items.append({
+            "pfmea_id": row.get("pfmea_id", ""),
+            "process_step_id": row.get("process_step_id", ""),
+            "failure_mode": row.get("failure_mode", ""),
+            "decision": "",
+            "comment": "",
+            "revised_value": {},
+        })
+    review_template = {"document_type": "pfmea_review_template", "items": items}
+    Path(output_dir, "pfmea_review_template.json").write_text(
+        json.dumps(review_template, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    return 0
+
+
+def _generate_cp(confirmed_pfd_path: str, confirmed_pfmea_path: str, drawing_analysis_path: str, output_dir: str, model: str | None) -> int:
+    from . import pipeline_chain
+
+    drawing_analysis = json.loads(Path(drawing_analysis_path).read_text(encoding="utf-8"))
+    confirmed_pfd = json.loads(Path(confirmed_pfd_path).read_text(encoding="utf-8"))
+    confirmed_pfmea = json.loads(Path(confirmed_pfmea_path).read_text(encoding="utf-8"))
+    result = pipeline_chain.generate_cp_from_confirmed_pfmea(drawing_analysis, confirmed_pfd, confirmed_pfmea, model)
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    Path(output_dir, "cp_draft.json").write_text(
+        json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    items = []
+    for row in result.get("control_items", result.get("items", [])):
+        items.append({
+            "cp_id": row.get("cp_id", ""),
+            "process_step_id": row.get("process_step_id", ""),
+            "control_characteristic": row.get("control_characteristic", ""),
+            "decision": "",
+            "comment": "",
+            "revised_value": {},
+        })
+    review_template = {"document_type": "cp_review_template", "items": items}
+    Path(output_dir, "cp_review_template.json").write_text(
+        json.dumps(review_template, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    return 0
+
+
+def _confirm_draft(draft_path: str, review_path: str, output_path: str) -> int:
+    draft = json.loads(Path(draft_path).read_text(encoding="utf-8"))
+    review = json.loads(Path(review_path).read_text(encoding="utf-8"))
+
+    decisions = {item.get("process_step_id") or item.get("pfmea_id") or item.get("control_plan_id") or item.get("cp_id"): item for item in review.get("items", [])}
+
+    list_key = None
+    for key in ("steps", "rows", "process_steps", "failure_modes", "control_items", "items"):
+        if key in draft and isinstance(draft[key], list):
+            list_key = key
+            break
+
+    if list_key:
+        confirmed_items = []
+        for item in draft[list_key]:
+            item_id = item.get("process_step_id") or item.get("pfmea_id") or item.get("control_plan_id") or item.get("cp_id")
+            review_item = decisions.get(item_id, {})
+            decision = review_item.get("decision", "accept")
+            if decision == "reject":
+                continue
+            if decision == "revise":
+                item = {**item, **review_item.get("revised_value", {})}
+            confirmed_items.append(item)
+        draft[list_key] = confirmed_items
+
+    draft["chain_stage_status"] = "confirmed"
+    if isinstance(draft.get("metadata"), dict):
+        draft["metadata"]["chain_stage_status"] = "confirmed"
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    Path(output_path).write_text(
+        json.dumps(draft, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     return 0
 
 

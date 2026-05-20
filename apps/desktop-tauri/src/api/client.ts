@@ -224,6 +224,11 @@ export function shutdownSidecar(): Promise<void> {
   return invoke("shutdown_sidecar");
 }
 
+/** Expose the runtime API base URL for SSE connections. */
+export function getApiBaseUrl(): string {
+  return runtimeApiBaseUrl;
+}
+
 // ---- 链式确认流程 API ----
 
 export function startChainRun(projectId: number): Promise<DesktopRun> {

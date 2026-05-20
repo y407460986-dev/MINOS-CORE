@@ -1334,3 +1334,25 @@ PFMEA 不做成第二张控制计划，但必须把风险控制逻辑写清楚�
 /// 6. 修改 CP 继承路径：规则 CP、链式 CP、桌面继承显示和联动新增 CP 建议均优先使用 PFMEA `cause_process_parameter`。
 /// 7. 子代理做只读审核，主代理修复审核指出的 CP 继承显示和联动建议漏口。
 /// 8. 运行后端聚焦回归、质量门/联动回归、py_compile、Tauri `npm run build` 和 `git diff --check`。
+
+---
+
+## V1.14.15 PFMEA 生成中断韧性修复
+
+### 目标
+修复确认 PFD 后 PFMEA 生成期间 SSE 断线、空闲无心跳、单工序失败整批中止和部分结果丢失的问题。后端生成任务要继续跑，前端要自动重连并清楚显示“继续生成中”，已经生成的 PFMEA 行要及时落库和写盘。
+
+### OpenSpec 四步闭环
+1. Define：目标是让链式 PFMEA 在长耗时和局部失败下可恢复，不新增新的生成模式。
+2. Specify：SSE 必须有心跳和重连；单步失败只能标记该工序失败；部分 PFMEA 行必须以 `partial` checkpoint 保存。
+3. Implement：补齐 ProgressChannel loop 绑定、heartbeat、前端重连、新事件处理和服务层 PFMEA checkpoint。
+4. Verify：运行 SSE/桌面状态回归、前端构建和 Python 编译检查。
+
+### 开发步骤
+/// 1. 读取 `minos-core-pfmea-plan-scalable-eclipse.md`，确认本轮只处理 PFMEA 生成中断与 SSE 韧性。
+/// 2. 修复后端 SSE channel：创建后立即绑定运行 loop，空闲时发送 heartbeat，fallback emit 失败写日志。
+/// 3. 修复链式 PFMEA：单个 PFD 工序生成失败时发送 `step_failed` 并继续，只有全部失败才让阶段失败。
+/// 4. 修复前端 SSE client：传输层断线自动重连，应用层 error 不重连；支持 `heartbeat`、`step_failed` 和连接状态回调。
+/// 5. 修复工作台和导入页状态：断线显示“正在自动重连”，单步失败显示“继续生成中”，不再把断线误报为已拿到最终状态。
+/// 6. 修复服务层 checkpoint：PFMEA 每个 `step_complete` 的 `new_rows` 立即写入 run 和 `three_table_generation_result.json`，标记 `chain_stage_status=partial`。
+/// 7. 验证新增回归测试、Tauri build、`py_compile` 和 `git diff --check`。

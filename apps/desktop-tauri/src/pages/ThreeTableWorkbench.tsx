@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, CheckCircle2, Loader2, SlidersHorizontal } from "lucide-react";
-import { applyEditPatch, confirmPfdStage, getRun, regeneratePfmeaStage } from "../api/client";
+import { applyEditPatch, confirmPfdStage, confirmPfmeaStage, confirmCpStage, getRun, regeneratePfmeaStage, regenerateCpStage } from "../api/client";
+import { subscribeToChainStream } from "../api/sse-client";
 import type { DesktopRun, TableKind, WorkbenchRow } from "../api/types";
 import { PreviewRail } from "../components/PreviewRail";
 import { PfdFlowDiagram } from "../components/PfdFlowDiagram";
@@ -35,16 +36,22 @@ export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onR
   const softDeletedRows = useMemo(() => softDeletedRowsFromResult(run?.current_result), [run]);
   const restorableSoftDeletedRows = lastSoftDeletedRows.length > 0 ? lastSoftDeletedRows : softDeletedRows;
   const visiblePfdRows = useMemo(() => sourceRows.filter((row) => row.table === "pfd"), [sourceRows]);
+  const visiblePfmeaRows = useMemo(() => sourceRows.filter((row) => row.table === "pfmea"), [sourceRows]);
+  const visibleCpRows = useMemo(() => sourceRows.filter((row) => row.table === "cp"), [sourceRows]);
   const processFlowSteps = useMemo(() => processFlowStepsFromRows(visiblePfdRows), [visiblePfdRows]);
   const rows = useMemo(() => filterRows(sourceRows, filters), [filters, sourceRows]);
   const highRisk = sourceRows.filter((row) => row.risk === "high").length;
   const pfdPendingCount = visiblePfdRows.filter((row) => row.status !== "approved").length;
   const pfdConfirmedCount = visiblePfdRows.length - pfdPendingCount;
+  const pfmeaPendingCount = visiblePfmeaRows.filter((row) => row.status !== "approved").length;
+  const cpPendingCount = visibleCpRows.filter((row) => row.status !== "approved").length;
   const pfdConfirmSummary = visiblePfdRows.length > 0
     ? `过程流程图确认进度：已确认 ${pfdConfirmedCount} 行，待确认 ${pfdPendingCount} 行`
     : "过程流程图暂无可确认行";
   const hasRun = Boolean(run);
   const pfmeaFailed = stageStatus(run, "pfmea") === "failed";
+  const pfmeaNotStarted = stageStatus(run, "pfmea") === "" || stageStatus(run, "pfmea") === "not_started";
+  const pfdReadyToConfirm = pfdPendingCount === 0 && visiblePfdRows.length > 0 && pfmeaNotStarted;
   function patchFilters(patch: Partial<WorkbenchFilters>) {
     setFilters((current) => ({ ...current, ...patch }));
   }
@@ -181,6 +188,56 @@ export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onR
     if (!stageData || typeof stageData !== "object") return "";
     const status = (stageData as Record<string, unknown>).status;
     return typeof status === "string" ? status : "";
+  }
+
+  const sseCleanupRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    return () => { sseCleanupRef.current?.(); };
+  }, []);
+
+  function startStreamingProgress(runId: number, stage: "pfmea" | "cp", runningMessage: string) {
+    sseCleanupRef.current?.();
+    setSaveState(runningMessage);
+
+    const cleanup = subscribeToChainStream(runId, stage, {
+      onProgress: (event) => {
+        setSaveState(`${runningMessage}（${event.step_index + 1}/${event.total_steps} 步，已生成 ${event.rows_so_far} 行）`);
+      },
+      onStepFailed: (event) => {
+        setSaveState(`${runningMessage}（${event.step_id} 生成失败，继续生成中；已生成 ${event.rows_so_far} 行）`);
+      },
+      onConnectionStateChange: (state, retryCount) => {
+        if (state === "reconnecting") {
+          setSaveState(`连接中断，正在自动重连${retryCount ? `（第 ${retryCount} 次）` : ""}...`);
+        }
+      },
+      onDone: async (event) => {
+        sseCleanupRef.current = null;
+        const latest = await getRun(runId);
+        onRunUpdated?.(latest);
+        setSaveState(event.status === "failed"
+          ? `生成失败：${event.failure_message || "未知错误"}`
+          : `已完成，共生成 ${event.total_rows} 行。`
+        );
+      },
+      onError: async () => {
+        sseCleanupRef.current = null;
+        try {
+          const latest = await getRun(runId);
+          onRunUpdated?.(latest);
+          const status = stageStatus(latest, stage);
+          setSaveState(status === "failed" ? "下游生成失败，请查看阶段卡片错误后重试。" : "阶段状态已刷新。");
+          if (status === "running") {
+            pollRunUntil(runId, stage, "连接中断，已切换为阶段状态轮询...");
+          }
+          return;
+        } catch { /* ignore */ }
+        setSaveState("连接中断，自动重连失败。");
+      },
+    });
+
+    sseCleanupRef.current = cleanup;
   }
 
   function pollRunUntil(runId: number, stage: "pfmea" | "cp", runningMessage: string) {
@@ -333,7 +390,7 @@ export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onR
         confirmed_by: "desktop"
       });
       onRunUpdated?.(updated);
-      pollRunUntil(updated.id, "pfmea", "过程流程图已确认，正在后台生成失效模式分析；你可以继续查看和整理当前表。");
+      startStreamingProgress(updated.id, "pfmea", "过程流程图已确认，正在后台生成失效模式分析；你可以继续查看和整理当前表。");
     } catch (caught) {
       setSaveState(caught instanceof Error ? caught.message : String(caught));
     } finally {
@@ -348,7 +405,52 @@ export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onR
     try {
       const updated = await regeneratePfmeaStage(run.id);
       onRunUpdated?.(updated);
-      pollRunUntil(updated.id, "pfmea", "失效模式分析正在重新生成；完成后会自动刷新。");
+      startStreamingProgress(updated.id, "pfmea", "失效模式分析正在重新生成");
+    } catch (caught) {
+      setSaveState(caught instanceof Error ? caught.message : String(caught));
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function confirmAllPfmeaRows() {
+    if (!run || visiblePfmeaRows.length === 0) return;
+    setSaveState("正在确认全部失效模式分析，控制计划将在后台生成...");
+    setIsSaving(true);
+    try {
+      const updated = await confirmPfmeaStage(run.id, {});
+      onRunUpdated?.(updated);
+      startStreamingProgress(updated.id, "cp", "失效模式分析已确认，正在后台生成控制计划");
+    } catch (caught) {
+      setSaveState(caught instanceof Error ? caught.message : String(caught));
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function regenerateCp() {
+    if (!run) return;
+    setSaveState("正在根据已确认的失效模式分析重新生成控制计划...");
+    setIsSaving(true);
+    try {
+      const updated = await regenerateCpStage(run.id);
+      onRunUpdated?.(updated);
+      startStreamingProgress(updated.id, "cp", "控制计划正在重新生成");
+    } catch (caught) {
+      setSaveState(caught instanceof Error ? caught.message : String(caught));
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function confirmAllCpRows() {
+    if (!run || visibleCpRows.length === 0) return;
+    setSaveState("正在确认全部控制计划...");
+    setIsSaving(true);
+    try {
+      const updated = await confirmCpStage(run.id, {});
+      onRunUpdated?.(updated);
+      setSaveState("控制计划已确认，三表全部完成。");
     } catch (caught) {
       setSaveState(caught instanceof Error ? caught.message : String(caught));
     } finally {
@@ -475,6 +577,7 @@ export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onR
 
       <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_280px]" aria-label="三表编辑画布">
         <WorkbenchTable
+          key={filters.table}
           rows={rows}
           table={filters.table}
           selectedRow={selectedRow}
@@ -490,18 +593,45 @@ export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onR
           <PreviewRail row={selectedRow} />
           <section className="grid gap-2 rounded-lg border bg-white p-3">
             <span className="text-muted-foreground text-xs">阶段操作</span>
-            <div className="rounded-md border bg-muted/30 px-3 py-2 text-[12px] text-muted-foreground">
-              {pfdConfirmSummary}
-            </div>
-            <Button disabled={!hasRun || isSaving || visiblePfdRows.length === 0 || pfdPendingCount === 0} onClick={confirmAllPfdRows}>
-              {isSaving ? "确认中" : "确认全部过程流程图"}
-            </Button>
-            <Button variant="outline" disabled={!hasRun || isSaving || !pfmeaFailed} onClick={regeneratePfmea}>
-              重新生成失效模式分析
-            </Button>
-            <p className="m-0 text-[12px] leading-[1.45] text-muted-foreground">
-              全部确认后，失效模式分析会在后台生成；表格和流程图会用“已确认 / 待确认”标出每一行状态。
-            </p>
+            {saveState && (
+              <div className="rounded-md border bg-muted/30 px-3 py-2 text-[12px] text-muted-foreground">
+                {saveState}
+              </div>
+            )}
+            {filters.table === "pfd" && (
+              <>
+                <div className="text-[12px] text-muted-foreground">{pfdConfirmSummary}</div>
+                <Button disabled={!hasRun || isSaving || visiblePfdRows.length === 0 || (pfdPendingCount === 0 && !pfdReadyToConfirm)} onClick={confirmAllPfdRows}>
+                  {isSaving ? "确认中" : pfdReadyToConfirm ? "确认并生成失效模式分析" : "确认全部过程流程图"}
+                </Button>
+                <Button variant="outline" disabled={!hasRun || isSaving || stageStatus(run, "pfmea") === "running" || pfmeaNotStarted} onClick={regeneratePfmea}>
+                  重新生成失效模式分析
+                </Button>
+              </>
+            )}
+            {filters.table === "pfmea" && (
+              <>
+                <div className="text-[12px] text-muted-foreground">
+                  {visiblePfmeaRows.length > 0 ? `失效模式分析：${visiblePfmeaRows.length} 行，待确认 ${pfmeaPendingCount} 行` : "失效模式分析暂无数据"}
+                </div>
+                <Button disabled={!hasRun || isSaving || visiblePfmeaRows.length === 0 || (pfmeaPendingCount === 0 && stageStatus(run, "cp") !== "" && stageStatus(run, "cp") !== "not_started")} onClick={confirmAllPfmeaRows}>
+                  {isSaving ? "确认中" : "确认并生成控制计划"}
+                </Button>
+                <Button variant="outline" disabled={!hasRun || isSaving || stageStatus(run, "cp") === "running" || stageStatus(run, "cp") === "" || stageStatus(run, "cp") === "not_started"} onClick={regenerateCp}>
+                  重新生成控制计划
+                </Button>
+              </>
+            )}
+            {filters.table === "cp" && (
+              <>
+                <div className="text-[12px] text-muted-foreground">
+                  {visibleCpRows.length > 0 ? `控制计划：${visibleCpRows.length} 行，待确认 ${cpPendingCount} 行` : "控制计划暂无数据"}
+                </div>
+                <Button disabled={!hasRun || isSaving || visibleCpRows.length === 0} onClick={confirmAllCpRows}>
+                  {isSaving ? "确认中" : "确认全部控制计划"}
+                </Button>
+              </>
+            )}
           </section>
         </aside>
       </div>

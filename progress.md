@@ -2,6 +2,16 @@
 
 ## 当前任务：MINOS-CORE 调查审核与问题修复
 
+## 打包后 OCR 动态模块修复当前状态
+
+- 已定位：桌面 sidecar 能启动但导入图纸时报“`OCR 识别未完成`”，根因是 `pipeline.py` 通过 `importlib.import_module(".drawing_ocr_analysis", __package__)` 动态加载 OCR 分析模块，旧 PyInstaller spec 的手写 hiddenimports 没有收进 `minos_core.drawing_ocr_analysis` 和 `minos_core.adapters.ocr`。
+- 已修复：`minos-desktop-api.spec` 改为对 `minos_core` 和 `minos_desktop` 使用 `collect_submodules(...)`，保留 FastAPI/Uvicorn/SSE 与 OCR 三方依赖 `collect_all(...)`，不改业务 pipeline。
+- 已新增：`tests/test_runtime_paths.py` 回归测试锁定 spec 必须收集两个业务包子模块，并移除旧的手写 `minos_core.pipeline` / `minos_desktop.api.app` hidden import 名单。
+- 已验证：`python -m unittest tests.test_runtime_paths tests.desktop.test_services -v`：23 项通过。
+- 已验证：`powershell -ExecutionPolicy Bypass -File .\scripts\build_release.ps1` 通过，PyInstaller 日志包含 `Analyzing hidden import 'minos_core.drawing_ocr_analysis'`，NSIS 安装包已重建。
+- 已验证：`build\minos-desktop-api\PYZ-00.toc` 与 `Analysis-00.toc` 均包含 `minos_core.drawing_ocr_analysis` 和 `minos_core.adapters.ocr`。
+- 已验证：one-folder sidecar 真实启动后 `/api/health` 返回 `{"ok":true,"status":"ok","service":"minos-desktop-api","version":"1.14.0"}`。
+
 ## PFMEA 标准链路与旧占位清理当前状态
 
 - 已定位：用户打开的旧运行里 `raw_result.pfmea.rows` 为空，`current_result.pfmea.rows` 是历史联动同步生成的 `PFMEA-SYNC-*` 占位；真正 PFMEA 文本模型生成失败，原始错误为 `LLM Responses HTTP 504 Gateway Time-out`。

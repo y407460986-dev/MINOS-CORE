@@ -1381,3 +1381,5 @@ PFMEA 不做成第二张控制计划，但必须把风险控制逻辑写清楚�
 /// 8. 验证 Python 回归、`py_compile`、Rust `cargo check`、Tauri `npm run build`、PyInstaller sidecar 构建、NSIS 打包和 `git diff --check`。
 /// 9. 修复 PyInstaller 入口：禁止直接把 `minos_desktop/api/cli.py` 作为脚本入口，改用外部启动器调用包模块 `minos_desktop.api.cli.main()`，避免冻结环境相对导入失败。
 /// 10. 修复 PyInstaller 分析路径和 windowed 日志：spec 显式加入仓库根 `pathex`，启动器在无 stdout/stderr 时写入本地 bootstrap 日志。
+/// 11. 修复打包后 OCR 动态导入缺失：`minos-desktop-api.spec` 用 `collect_submodules("minos_core")` 和 `collect_submodules("minos_desktop")` 收齐业务包子模块，覆盖 `drawing_ocr_analysis`、`adapters.ocr` 等 `importlib`/延迟导入链路。
+/// 12. 验证运行时路径回归、桌面服务回归、PyInstaller TOC、one-folder sidecar `/api/health` 和 NSIS 安装包重建。

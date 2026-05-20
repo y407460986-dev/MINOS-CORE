@@ -2,6 +2,13 @@
 
 ## 当前任务发现：MINOS-CORE 调查审核与问题修复
 
+## 打包后 OCR 动态模块修复发现
+
+- 这次“`OCR 识别未完成`”不是 `analyze_drawing_with_ocr(...)` 函数不存在，而是冻结后的 sidecar 没有包含 `minos_core.drawing_ocr_analysis` 模块。
+- PyInstaller 静态分析看不到 `importlib.import_module(".drawing_ocr_analysis", __package__)`，也不一定能覆盖 OCR 适配器里的函数体延迟导入；继续手写少量 hiddenimports 会反复漏掉后续动态模块。
+- 对自家业务包使用 `collect_submodules("minos_core")` / `collect_submodules("minos_desktop")` 是当前最小稳定修复；它不改变源码模式下 OCR optional extra 的延迟加载语义。
+- one-folder 产物里纯 Python 模块主要进入 `PYZ-00.pyz`，不能只按 `_internal` 下是否存在 `.py` / `.pyc` 文件判断模块是否打包；应以 `PYZ-00.toc` / `Analysis-00.toc` 和运行时 health smoke 作为证据。
+
 ## 架构深挖问题修复发现
 
 - `generate_three_tables_from_drawing` 的浅接口问题不在 PFD/PFMEA/CP 推理本身，而在它同时承担链路推进、质量门收集、人工复核摘要、linkage/risk/review 派生视图、manifest 和导出结果封装。更深的 seam 应该让主入口只推进三表链路，把 envelope 和 manifest 装配收敛到专门模块。

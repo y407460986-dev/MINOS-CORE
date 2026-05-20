@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-from PyInstaller.utils.hooks import collect_all
+from PyInstaller.utils.hooks import collect_all, collect_submodules
 from pathlib import Path
 
 block_cipher = None
@@ -11,39 +11,14 @@ collected_binaries = []
 collected_hiddenimports = [
     "fastapi",
     "sse_starlette",
-    "minos_core",
-    "minos_core.config",
-    "minos_core.knowledge_base",
-    "minos_core.knowledge_recommendation",
-    "minos_core.part_family_knowledge",
     "uvicorn.lifespan.on",
     "uvicorn.logging",
     "uvicorn.loops.auto",
     "uvicorn.protocols.http.auto",
     "uvicorn.protocols.websockets.auto",
-    "minos_core.pipeline",
-    "minos_desktop",
-    "minos_desktop.app_state",
-    "minos_desktop.chain_state",
-    "minos_desktop.services",
-    "minos_desktop.table_editor",
-    "minos_desktop.api",
-    "minos_desktop.api.app",
-    "minos_desktop.api.auth",
-    "minos_desktop.api.cli",
-    "minos_desktop.api.jobs",
-    "minos_desktop.api.routes_closure",
-    "minos_desktop.api.routes_exports",
-    "minos_desktop.api.routes_health",
-    "minos_desktop.api.routes_knowledge",
-    "minos_desktop.api.routes_projects",
-    "minos_desktop.api.routes_runs",
-    "minos_desktop.api.routes_settings",
-    "minos_desktop.api.routes_sse",
-    "minos_desktop.api.routes_tables",
-    "minos_desktop.api.schemas",
-    "minos_desktop.api.sse",
 ]
+collected_hiddenimports += collect_submodules("minos_core")
+collected_hiddenimports += collect_submodules("minos_desktop")
 
 for package in ("onnxruntime", "rapidocr_onnxruntime", "fitz", "PIL"):
     datas, binaries, hiddenimports = collect_all(package)

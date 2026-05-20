@@ -15,6 +15,15 @@ class RuntimePathsTest(unittest.TestCase):
         self.assertNotIn('"minos_desktop/api/cli.py"', spec_text)
         self.assertIn('pathex=[str(repo_root)]', spec_text)
 
+    def test_pyinstaller_spec_collects_dynamic_business_submodules(self):
+        spec_text = Path("minos-desktop-api.spec").read_text(encoding="utf-8")
+
+        self.assertIn("collect_submodules", spec_text)
+        self.assertIn('collect_submodules("minos_core")', spec_text)
+        self.assertIn('collect_submodules("minos_desktop")', spec_text)
+        self.assertNotIn('"minos_core.pipeline"', spec_text)
+        self.assertNotIn('"minos_desktop.api.app"', spec_text)
+
     def test_desktop_api_entrypoint_restores_missing_standard_streams(self):
         import scripts.entrypoint_desktop_api as entrypoint
 

@@ -1,0 +1,69 @@
+# -*- mode: python ; coding: utf-8 -*-
+
+from PyInstaller.utils.hooks import collect_all
+
+block_cipher = None
+
+collected_datas = [("configs", "configs")]
+collected_binaries = []
+collected_hiddenimports = [
+    "fastapi",
+    "sse_starlette",
+    "uvicorn.lifespan.on",
+    "uvicorn.logging",
+    "uvicorn.loops.auto",
+    "uvicorn.protocols.http.auto",
+    "uvicorn.protocols.websockets.auto",
+    "minos_core.pipeline",
+    "minos_desktop.api.app",
+]
+
+for package in ("onnxruntime", "rapidocr_onnxruntime", "fitz", "PIL"):
+    datas, binaries, hiddenimports = collect_all(package)
+    collected_datas += datas
+    collected_binaries += binaries
+    collected_hiddenimports += hiddenimports
+
+a = Analysis(
+    ["minos_desktop/api/cli.py"],
+    pathex=[],
+    binaries=collected_binaries,
+    datas=collected_datas,
+    hiddenimports=collected_hiddenimports,
+    hookspath=[],
+    hooksconfig={},
+    runtime_hooks=[],
+    excludes=["tkinter", "matplotlib", "notebook"],
+    win_no_prefer_redirects=False,
+    win_private_assemblies=False,
+    cipher=block_cipher,
+    noarchive=False,
+)
+pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+exe = EXE(
+    pyz,
+    a.scripts,
+    [],
+    exclude_binaries=True,
+    name="minos-desktop-api-x86_64-pc-windows-msvc",
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=True,
+    console=False,
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+)
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    name="minos-desktop-api-x86_64-pc-windows-msvc",
+)

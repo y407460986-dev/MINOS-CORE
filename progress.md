@@ -1009,3 +1009,21 @@ Phase 6 真实项目试运行已完成代码落地：input_package 接入 genera
 - 已完成：补上 `routes_runs.py` 的 `asyncio` 导入，避免真实链式确认入口运行时缺导入。
 - 已验证：`python -m pytest tests/desktop/test_sse_chain_resilience.py tests/test_desktop_tauri_app_state.py -q`：29 项通过。
 - 已验证：Tauri 前端 `npm run build` 通过。
+
+## V1.14.16 独立 Windows 安装包封装
+
+- 已完成：读取计划 `C:\Users\fgtan\.claude\plans\minos-core-exe-declarative-papert.md`，本轮按“PyInstaller 后端 sidecar + Tauri NSIS 自包含安装包”收口。
+- 已完成：新增 `minos_core/_paths.py`，提供 `resource_root()`、`configs_dir()`、`user_data_dir()`；冻结环境优先使用 `_MEIPASS`，否则使用 exe 所在目录。
+- 已完成：`minos_core/config.py`、`knowledge_base.py`、`knowledge_recommendation.py`、`part_family_knowledge.py` 改为通过 lazy `configs_dir()` 解析资源，支持 `MINOS_CONFIGS_DIR` 测试和打包覆盖。
+- 已完成：`minos_desktop/services.py` 默认 DB/output 改为用户本地数据目录；测试同步验证默认输出不再指向仓库 `out/desktop`。
+- 已完成：新增 `minos-desktop-api.spec`，采用 PyInstaller one-folder，收集 configs、uvicorn/FastAPI hidden imports 和 OCR 相关依赖资源。
+- 已完成：新增 `scripts/build_sidecar.ps1`、`scripts/build_release.ps1`、`apps/desktop-tauri/src-tauri/binaries/.gitkeep`，并在 `.gitignore` 忽略 sidecar exe 与 one-folder 产物。
+- 已完成：Tauri 配置新增 icon、`externalBin` 和 `_internal` 资源映射；新增 `capabilities/default.json` 的 shell sidecar 执行权限。
+- 已完成：Rust 端新增 `tauri-plugin-shell`，用 `app.shell().sidecar("minos-desktop-api")` 启动后端，传入随机 token、端口、DB 路径和 output 路径；日志写到 app local data `logs/api.log`。
+- 已完成：生成 Tauri 全套图标尺寸；`build.rs` 在 debug/check 场景生成占位 sidecar，正式 release 仍依赖 `build_sidecar.ps1` 生成真实产物。
+- 已验证：新增资源路径测试先失败后通过，覆盖 env configs、冻结 exe 资源根、零件族 index 和 desktop 用户数据目录默认值。
+- 已验证：`python -m unittest tests.test_runtime_paths tests.desktop.test_services -v`：20 项通过。
+- 已验证：`python -m py_compile minos_core\_paths.py minos_core\config.py minos_core\knowledge_base.py minos_core\knowledge_recommendation.py minos_core\part_family_knowledge.py minos_desktop\services.py tests\test_runtime_paths.py tests\desktop\test_services.py`：通过。
+- 已验证：Tauri Rust `cargo check` 通过。
+- 已验证：`powershell -ExecutionPolicy Bypass -File .\scripts\build_sidecar.ps1` 通过，真实 PyInstaller one-folder sidecar 已生成并复制到 Tauri binaries。
+- 已验证：`npm run release:nsis` 通过，生成 `apps\desktop-tauri\src-tauri\target\release\bundle\nsis\MINOS-CORE_1.14.0_x64-setup.exe`，大小约 95 MB。

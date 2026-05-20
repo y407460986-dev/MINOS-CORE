@@ -1356,3 +1356,26 @@ PFMEA 不做成第二张控制计划，但必须把风险控制逻辑写清楚�
 /// 5. 修复工作台和导入页状态：断线显示“正在自动重连”，单步失败显示“继续生成中”，不再把断线误报为已拿到最终状态。
 /// 6. 修复服务层 checkpoint：PFMEA 每个 `step_complete` 的 `new_rows` 立即写入 run 和 `three_table_generation_result.json`，标记 `chain_stage_status=partial`。
 /// 7. 验证新增回归测试、Tauri build、`py_compile` 和 `git diff --check`。
+
+---
+
+## V1.14.16 独立 Windows 安装包封装
+
+### 目标
+把 MINOS-CORE 桌面端从“依赖用户机器 Python”改成“安装包自带 Python 后端 sidecar”。Tauri NSIS 安装包内置 PyInstaller one-folder 后端、OCR 依赖和 configs 资源，运行时数据写到用户本地数据目录。
+
+### OpenSpec 四步闭环
+1. Define：当前桌面壳通过 `python -m uvicorn` 启动后端，安装后没有仓库源码和 Python 环境就无法运行。
+2. Specify：Python 端需要可识别冻结资源根与用户数据目录；Tauri 端需要通过 sidecar 启动 exe，并把 `_internal` 放到 sidecar 可加载的位置。
+3. Implement：新增路径 helper、PyInstaller spec、构建脚本、Tauri `externalBin`/权限/Rust sidecar 启动和图标资源。
+4. Verify：跑资源路径与桌面服务回归、Python 编译、Rust `cargo check`、Tauri 前端构建和 diff 检查。
+
+### 开发步骤
+/// 1. 读取 `minos-core-exe-declarative-papert.md`，确认本轮只处理自包含 Windows 安装包封装。
+/// 2. 新增 `minos_core/_paths.py`，集中处理 `resource_root()`、`configs_dir()`、`user_data_dir()`。
+/// 3. 改造 configs 读取路径：samples、知识库、知识推荐和零件族知识均走 lazy `configs_dir()`。
+/// 4. 改造桌面默认 DB/output：默认写入用户本地数据目录，避免安装目录或仓库 `out/desktop`。
+/// 5. 新增 PyInstaller spec、sidecar/release 构建脚本和 binaries gitkeep，并忽略 sidecar 构建产物。
+/// 6. 改造 Tauri：配置 `externalBin` 和 `_internal` 资源映射，新增 shell 权限和插件依赖，Rust 端用 shell sidecar 启动后端。
+/// 7. 生成 Tauri 图标尺寸，补资源路径与桌面默认路径测试。
+/// 8. 验证 Python 回归、`py_compile`、Rust `cargo check`、Tauri `npm run build`、PyInstaller sidecar 构建、NSIS 打包和 `git diff --check`。

@@ -722,3 +722,17 @@
 - checkpoint 不能把阶段误标成 `generated`。部分结果应保留阶段 `running`，并在 `pfmea.metadata.chain_stage_status=partial` 中说明当前只是中间态；最终成功后再写 `generated`。
 
 - 前端“连接中断，已获取最终状态”会误导用户。断线时前端通常并不知道后台是否完成，正确提示应是“正在自动重连”；重连失败后再通过 `getRun` 或轮询刷新真实阶段状态。
+
+## V1.14.16 独立 Windows 安装包封装发现
+
+- 桌面端最大阻塞不是 NSIS 本身，而是运行时仍调用 `python -m uvicorn`。安装后用户机器没有 Python、项目源码和开发依赖时，旧方案必然无法启动后端。
+
+- Python 资源路径不能继续依赖 `Path(__file__).parent.parent / "configs"`。PyInstaller 冻结后资源根和源码根不是一回事，必须通过统一 helper 支持 `_MEIPASS`、exe 同级目录和 `MINOS_CONFIGS_DIR` 覆盖。
+
+- 默认写入 `out/desktop` 对安装包不合适。安装目录可能不可写，仓库目录在用户机器也不存在；DB、输出文件和日志应落到用户本地数据目录。
+
+- Tauri `externalBin` 只复制 sidecar exe。PyInstaller one-folder 的 `_internal` 需要额外作为 resources 打进包，并映射到 exe 同级可访问的位置，否则后端启动后会缺 DLL、模型或 Python 包资源。
+
+- `cargo check` 也会执行 Tauri build script 并校验 `externalBin` 是否存在。为了让开发时静态检查可跑，debug/check 场景需要占位 sidecar；正式 release 不能依赖占位，必须由 `scripts/build_sidecar.ps1` 先生成真实 PyInstaller 产物。
+
+- 旧测试里 mock `generate_pfmea_from_confirmed_pfd` 没有接受新增的 `on_progress` 参数，会把服务层正常调用误判为 PFMEA 生成失败。测试桩要跟真实函数签名同步，避免遮蔽本轮路径改造验证。

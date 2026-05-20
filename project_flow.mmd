@@ -719,4 +719,11 @@ flowchart TD
     FIX443 --> FIX444[Workbench and import page<br/>show auto reconnect<br/>continue generating]
     FIX444 --> FIX445[PFMEA partial checkpoint<br/>SQLite and result JSON<br/>chain_stage_status partial]
     FIX445 --> FIX446[verification<br/>SSE resilience 29 OK<br/>Tauri build OK]
-    FIX446 --> G
+    FIX446 --> FIX450[standalone Windows installer<br/>PyInstaller sidecar]
+    FIX450 --> FIX451[runtime paths<br/>configs and user data dirs]
+    FIX451 --> FIX452[PyInstaller one-folder spec<br/>configs OCR dependencies]
+    FIX452 --> FIX453[Tauri externalBin resources<br/>shell permission plugin]
+    FIX453 --> FIX454[Rust sidecar launcher<br/>token db output logs]
+    FIX454 --> FIX455[release scripts and icons<br/>debug sidecar placeholders]
+    FIX455 --> FIX456[verification<br/>runtime paths desktop services<br/>sidecar and NSIS build OK]
+    FIX456 --> G

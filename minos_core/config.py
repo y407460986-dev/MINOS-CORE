@@ -7,8 +7,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from minos_core._paths import configs_dir
 
-SAMPLES_DIR = Path(__file__).resolve().parent.parent / "configs" / "samples"
+
+def _samples_dir() -> Path:
+    return configs_dir() / "samples"
+
+
+SAMPLES_DIR = _samples_dir()
 
 
 @dataclass(frozen=True)
@@ -38,7 +44,7 @@ class SampleMetadata:
 
 
 def list_samples(samples_dir: str | Path | None = None) -> list[SampleMetadata]:
-    root = Path(samples_dir) if samples_dir is not None else SAMPLES_DIR
+    root = Path(samples_dir) if samples_dir is not None else _samples_dir()
     if not root.exists():
         return []
     samples = [load_sample_metadata(path) for path in sorted(root.glob("*.json"))]

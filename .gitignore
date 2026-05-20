@@ -8,6 +8,7 @@ __pycache__/
 .env.*
 !.env.example
 .venv/
+.venv-build/
 venv/
 env/
 ENV/
@@ -28,6 +29,9 @@ apps/**/dist/
 apps/**/.run/
 apps/**/src-tauri/target/
 apps/**/src-tauri/gen/
+apps/**/src-tauri/binaries/*.exe
+apps/**/src-tauri/binaries/*/
+apps/**/src-tauri/binaries/*/_internal/
 .superpowers/
 .tmp-ui-split-backup/
 

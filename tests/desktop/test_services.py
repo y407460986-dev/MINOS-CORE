@@ -24,6 +24,7 @@ from minos_desktop.table_editor import (
     build_edit_patch,
     three_table_to_table_model,
 )
+from minos_core._paths import user_data_dir
 
 
 class TestDesktopServices(unittest.TestCase):
@@ -34,7 +35,10 @@ class TestDesktopServices(unittest.TestCase):
             project_store = DesktopProjectStore(db_path)
             run_service = DesktopRunService(db_path)
 
-            self.assertEqual(settings.get_default_output_dir(), "out\\desktop")
+            self.assertEqual(
+                settings.get_default_output_dir(),
+                str(user_data_dir() / "out"),
+            )
             settings.set_default_output_dir(os.path.join(tmpdir, "out"))
             self.assertEqual(settings.get_default_output_dir(), os.path.join(tmpdir, "out"))
 
@@ -137,7 +141,7 @@ class TestDesktopServices(unittest.TestCase):
                 "已确认",
             )
 
-            def fake_generate_pfmea(_drawing_analysis, confirmed_pfd):
+            def fake_generate_pfmea(_drawing_analysis, confirmed_pfd, on_progress=None):
                 return {
                     "rows": [
                         {

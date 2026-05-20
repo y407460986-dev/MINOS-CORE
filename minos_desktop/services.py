@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
+from minos_core._paths import user_data_dir
 from minos_core.ai_config import load_openai_responses_config
 from minos_core.knowledge_recommendation import DEFAULT_KNOWLEDGE_RULES
 from minos_core.pipeline import analyze_drawing_for_three_table_chain
@@ -45,8 +46,8 @@ from .table_editor import (
     recommendation_action_patch_item,
 )
 
-DEFAULT_DESKTOP_DB_PATH = Path("out/desktop/minos_desktop.sqlite3")
-DEFAULT_DESKTOP_OUTPUT_DIR = Path("out/desktop")
+DEFAULT_DESKTOP_DB_PATH = user_data_dir() / "minos_desktop.sqlite3"
+DEFAULT_DESKTOP_OUTPUT_DIR = user_data_dir() / "out"
 
 
 class DesktopSQLiteStore:

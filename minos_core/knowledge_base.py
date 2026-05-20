@@ -14,13 +14,26 @@ import warnings
 from pathlib import Path
 from typing import Any
 
+from minos_core._paths import configs_dir
 from minos_core.knowledge_recommendation import DEFAULT_KNOWLEDGE_RULES
 
 # ---------------------------------------------------------------------------
 # 默认知识库路径
 # ---------------------------------------------------------------------------
 
-_DEFAULT_KB_PATH = Path(__file__).resolve().parent.parent / "configs" / "knowledge" / "fmea_rules.zh-CN.json"
+
+def _default_kb_path() -> Path:
+    return configs_dir() / "knowledge" / "fmea_rules.zh-CN.json"
+
+
+_DEFAULT_KB_PATH = _default_kb_path()
+_INITIAL_DEFAULT_KB_PATH = _DEFAULT_KB_PATH
+
+
+def _effective_default_kb_path() -> Path:
+    if _DEFAULT_KB_PATH != _INITIAL_DEFAULT_KB_PATH:
+        return Path(_DEFAULT_KB_PATH)
+    return _default_kb_path()
 
 # ---------------------------------------------------------------------------
 # category 枚举
@@ -57,11 +70,12 @@ def load_knowledge_base(path: str | Path | None = None) -> list[dict[str, Any]]:
     list[dict[str, Any]]
         标准化后的知识条目列表（按 knowledge_id + version 去重，保留 confidence 较高的）。
     """
+    default_path = _effective_default_kb_path()
     if path is None:
-        path = _DEFAULT_KB_PATH
+        path = default_path
     path = Path(path)
 
-    if path == _DEFAULT_KB_PATH and not path.exists():
+    if path == default_path and not path.exists():
         warnings.warn(
             f"默认知识库 {path} 不存在，使用内置种子规则"
         )

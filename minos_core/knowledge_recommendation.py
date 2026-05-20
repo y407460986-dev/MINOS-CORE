@@ -8,9 +8,16 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
+from minos_core._paths import configs_dir
+
 logger = logging.getLogger(__name__)
 
-_DEFAULT_RULES_PATH = Path(__file__).resolve().parent.parent / "configs" / "knowledge" / "fmea_rules.zh-CN.json"
+
+def _default_rules_path() -> Path:
+    return configs_dir() / "knowledge" / "fmea_rules.zh-CN.json"
+
+
+_DEFAULT_RULES_PATH = _default_rules_path()
 
 DEFAULT_KNOWLEDGE_RULES = [
     {

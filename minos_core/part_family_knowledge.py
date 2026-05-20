@@ -12,33 +12,51 @@ import re
 from pathlib import Path
 from typing import Any
 
+from minos_core._paths import configs_dir
+
 
 SCHEMA_VERSION = "minos-core.part_family_knowledge.v1"
 INDEX_SCHEMA_VERSION = "minos-core.part_family_index.v1"
 
-CONFIG_DIR = (
-    Path(__file__).resolve().parent.parent
-    / "configs"
-    / "knowledge"
-    / "part_families"
-)
-KNOWLEDGE_ROOT = CONFIG_DIR.parent
-PROCESS_INFERENCE_DIR = KNOWLEDGE_ROOT / "process_inference"
-INDEX_PATH = CONFIG_DIR / "index.json"
+def _config_dir() -> Path:
+    return configs_dir() / "knowledge" / "part_families"
+
+
+def _knowledge_root() -> Path:
+    return _config_dir().parent
+
+
+def _process_inference_dir() -> Path:
+    return _knowledge_root() / "process_inference"
+
+
+def _index_path() -> Path:
+    return _config_dir() / "index.json"
+
+
+CONFIG_DIR = _config_dir()
+KNOWLEDGE_ROOT = _knowledge_root()
+PROCESS_INFERENCE_DIR = _process_inference_dir()
+INDEX_PATH = _index_path()
 
 def _default_seed_dir() -> Path:
     env = os.environ.get("MINOS_KNOWLEDGE_SEED_DIR")
     if env:
         return Path(env)
-    return Path(__file__).resolve().parents[2] / "configs" / "knowledge_seed"
+    return configs_dir() / "knowledge_seed"
+
+
+def _default_seed_directories() -> dict[str, Path]:
+    seed = _default_seed_dir()
+    return {
+        "stamping": seed / "冲压件",
+        "limiter": seed / "限位器",
+        "door_hinge": seed / "门铰链",
+    }
 
 
 _DEFAULT_SEED = _default_seed_dir()
-DEFAULT_SEED_DIRECTORIES: dict[str, Path] = {
-    "stamping": _DEFAULT_SEED / "冲压件",
-    "limiter": _DEFAULT_SEED / "限位器",
-    "door_hinge": _DEFAULT_SEED / "门铰链",
-}
+DEFAULT_SEED_DIRECTORIES: dict[str, Path] = _default_seed_directories()
 
 DEFAULT_FAMILY_NAMES: dict[str, str] = {
     "stamping": "冲压件",
@@ -416,7 +434,7 @@ def load_part_family_knowledge(
     if family_key_or_path is None:
         index = load_part_family_index()
         return {
-            entry["family_key"]: _load_index_entry(entry, INDEX_PATH.parent)
+            entry["family_key"]: _load_index_entry(entry, _index_path().parent)
             for entry in index.get("families", [])
             if isinstance(entry, dict) and entry.get("family_key")
         }
@@ -459,9 +477,9 @@ def load_part_family_knowledge(
         if not isinstance(entry, dict):
             continue
         if _normalize_family_key(str(entry.get("family_key", ""))) == key:
-            return _load_index_entry(entry, INDEX_PATH.parent)
+            return _load_index_entry(entry, _index_path().parent)
 
-    seed_dir = DEFAULT_SEED_DIRECTORIES.get(key)
+    seed_dir = _default_seed_directories().get(key)
     if seed_dir and seed_dir.exists():
         return convert_seed_workbook_to_family_knowledge(
             seed_dir,
@@ -474,7 +492,7 @@ def load_part_family_knowledge(
 
 def load_part_family_index(path: str | Path | None = None) -> dict[str, Any]:
     """Load the part-family index or build one from default configuration."""
-    index_path = Path(path) if path is not None else INDEX_PATH
+    index_path = Path(path) if path is not None else _index_path()
     if index_path.is_dir():
         index_path = index_path / "index.json"
 
@@ -513,7 +531,7 @@ def _load_index_entry(entry: dict[str, Any], base_dir: Path) -> dict[str, Any]:
 
     key = _normalize_family_key(str(entry.get("family_key", "")))
     seed_dir_text = str(entry.get("default_seed_dir", "")).strip()
-    seed_dir = Path(seed_dir_text) if seed_dir_text else DEFAULT_SEED_DIRECTORIES.get(key)
+    seed_dir = Path(seed_dir_text) if seed_dir_text else _default_seed_directories().get(key)
     if seed_dir and seed_dir.exists():
         return convert_seed_workbook_to_family_knowledge(
             seed_dir,
@@ -633,13 +651,14 @@ def _load_process_inference_payload(
     family_key: str,
     family_payload_path: Path,
 ) -> dict[str, Any]:
-    if not family_payload_path.resolve().is_relative_to(CONFIG_DIR.resolve()):
+    config_dir = _config_dir()
+    if not family_payload_path.resolve().is_relative_to(config_dir.resolve()):
         return {}
     candidates: list[Path] = []
     if family_payload_path.suffix.lower() == ".json":
         root = family_payload_path.parent.parent / "process_inference"
         candidates.append(root / f"{family_key}.json")
-    candidates.append(PROCESS_INFERENCE_DIR / f"{family_key}.json")
+    candidates.append(_process_inference_dir() / f"{family_key}.json")
     for candidate in candidates:
         if not candidate.exists():
             continue
@@ -1224,10 +1243,10 @@ def _build_default_index() -> dict[str, Any]:
             "family_key": key,
             "family_name": DEFAULT_FAMILY_NAMES[key],
         }
-        knowledge_path = CONFIG_DIR / f"{key}.json"
+        knowledge_path = _config_dir() / f"{key}.json"
         if knowledge_path.exists():
             entry["knowledge_path"] = knowledge_path.name
-        seed_dir = DEFAULT_SEED_DIRECTORIES[key]
+        seed_dir = _default_seed_directories()[key]
         entry["default_seed_dir"] = str(seed_dir)
         try:
             seed_workbook = _resolve_workbook_path(seed_dir)

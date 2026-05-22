@@ -10,10 +10,11 @@ from minos_desktop.api import jobs
 from minos_desktop.api.app import create_app
 from minos_desktop.app_state import (
     ChainStageStates,
+    DesktopProjectState,
     DesktopRunState,
     StageConfirmState,
 )
-from minos_desktop.services import DesktopRunService
+from minos_desktop.services import DesktopProjectStore, DesktopRunService, DesktopSettingsStore
 
 pytestmark = pytest.mark.asyncio
 
@@ -29,6 +30,8 @@ def _fake_result() -> dict:
                     "operation": "来料检验",
                     "review_status": "AI建议确认",
                     "needs_confirmation": True,
+                    "confidence": 0.91,
+                    "evidence_refs": ["EV-P10"],
                 }
             ]
         },
@@ -124,6 +127,112 @@ async def test_token_auth_requires_bearer_token_when_configured(tmp_path, monkey
     assert accepted.status_code == 200
 
 
+async def test_patch_ai_config_persists_overrides_without_returning_secret(tmp_path, monkeypatch):
+    monkeypatch.delenv("MINOS_OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("ARK_API_KEY", raising=False)
+    monkeypatch.setenv("MINOS_DISABLE_CODEX_CONFIG", "1")
+    db_path = tmp_path / "desktop.sqlite3"
+    app = create_app(db_path=db_path, output_dir=tmp_path / "out")
+    transport = ASGITransport(app=app)
+
+    async with AsyncClient(transport=transport, base_url="http://test") as test_client:
+        response = await test_client.patch(
+            "/api/settings/ai-config",
+            json={
+                "base_url": "https://user-proxy.example/v1",
+                "api_key": "api-secret-from-ui",
+                "model": "gpt-user",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    ai = body["ai_config"]
+    assert ai["base_url"] == "https://user-proxy.example/v1"
+    assert ai["model"] == "gpt-user"
+    assert ai["api_key_configured"] is True
+    assert ai["api_key_source"] == "user_settings"
+    assert ai["base_url_override"] == "https://user-proxy.example/v1"
+    assert ai["model_override"] == "gpt-user"
+    assert ai["api_key_override_set"] is True
+    assert "api-secret-from-ui" not in str(body)
+    assert DesktopSettingsStore(db_path).get_ai_overrides()["api_key"] == "api-secret-from-ui"
+
+
+async def test_patch_ai_config_validation_error_does_not_echo_secret(tmp_path):
+    app = create_app(db_path=tmp_path / "desktop.sqlite3", output_dir=tmp_path / "out")
+    transport = ASGITransport(app=app)
+
+    async with AsyncClient(transport=transport, base_url="http://test") as test_client:
+        response = await test_client.patch(
+            "/api/settings/ai-config",
+            json={"api_key": {"plain": "api-secret-from-ui"}},
+        )
+
+    assert response.status_code == 422
+    assert "api-secret-from-ui" not in response.text
+
+
+async def test_data_management_api_reports_backup_and_clear(tmp_path):
+    db_path = tmp_path / "desktop.sqlite3"
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+    (output_dir / "artifact.txt").write_text("export", encoding="utf-8")
+    app = create_app(db_path=db_path, output_dir=output_dir)
+    settings = DesktopSettingsStore(db_path)
+    settings.set_default_output_dir(output_dir)
+    project = DesktopProjectStore(db_path).create_project(
+        DesktopProjectState(
+            project_name="数据 API 项目",
+            drawing_path="drawing.pdf",
+            output_dir=str(output_dir),
+        )
+    )
+    DesktopRunService(db_path).save_result(
+        project.id,
+        {"status": "needs_review", "manual_review": {"required": False, "items": []}},
+        str(output_dir),
+    )
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as test_client:
+        status = await test_client.get("/api/settings/data-management")
+        backup = await test_client.post("/api/settings/data-management/backup")
+        rejected = await test_client.post(
+            "/api/settings/data-management/clear",
+            json={
+                "scope": "workspace",
+                "delete_outputs": True,
+                "confirm_text": "错误确认",
+            },
+        )
+        cleared = await test_client.post(
+            "/api/settings/data-management/clear",
+            json={
+                "scope": "workspace",
+                "delete_outputs": True,
+                "confirm_text": "清空项目",
+            },
+        )
+
+    assert status.status_code == 200
+    body = status.json()
+    assert body["data_dir"] == str(tmp_path)
+    assert body["db_path"] == str(db_path)
+    assert body["output_dir"] == str(output_dir)
+    assert body["project_count"] == 1
+    assert body["run_count"] == 1
+    assert body["output_size_bytes"] >= 6
+    assert backup.status_code == 200
+    assert Path(backup.json()["backup_path"]).exists()
+    assert rejected.status_code == 422
+    assert cleared.status_code == 200
+    assert cleared.json()["project_count"] == 0
+    assert cleared.json()["run_count"] == 0
+    assert not (output_dir / "artifact.txt").exists()
+
+
 async def test_project_run_recent_restore_edit_and_export_flow(client):
     project_response = await client.post(
         "/api/projects",
@@ -194,7 +303,7 @@ async def test_project_run_recent_restore_edit_and_export_flow(client):
 async def test_chain_pfd_confirm_applies_edit_patch_before_generating_pfmea(
     client, monkeypatch
 ):
-    def fake_generate_pfmea(_drawing_analysis, confirmed_pfd):
+    def fake_generate_pfmea(_drawing_analysis, confirmed_pfd, model=None, on_progress=None):
         operation = confirmed_pfd["steps"][0]["operation"]
         return {
             "rows": [
@@ -282,10 +391,15 @@ async def test_closure_routes_update_run_metadata(client):
     run_for_batch = (
         await client.post(f"/api/projects/{project_for_batch['id']}/runs")
     ).json()
+    cp_confirmed = await client.post(
+        f"/api/runs/{run_for_batch['id']}/chain/cp-confirm",
+        json={"confirmed_by": "qe"},
+    )
     batch = await client.post(
         f"/api/runs/{run_for_batch['id']}/automation-review/batch-confirm"
     )
 
+    assert cp_confirmed.status_code == 200
     assert batch.status_code == 200
     assert batch.json()["current_result"]["process_flow"]["steps"][0]["review_status"] == "已批量确认"
 

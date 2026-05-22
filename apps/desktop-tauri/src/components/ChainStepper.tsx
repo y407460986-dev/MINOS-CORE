@@ -1,21 +1,18 @@
 import { useState } from "react";
 import {
-  CheckCircle2,
-  Lock,
-  Loader2,
   AlertTriangle,
-  RefreshCw,
+  CheckCircle2,
   ChevronRight,
+  CircleDot,
+  Loader2,
+  Lock,
+  RefreshCw,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import type { ChainState, ChainStageKey, StageStatus, DesktopRun } from "@/api/types";
-
-// ---------------------------------------------------------------------------
-// 步骤定义
-// ---------------------------------------------------------------------------
+import type { ChainState, ChainStageKey, DesktopRun, StageStatus } from "@/api/types";
 
 type StepDef = {
   key: ChainStageKey;
@@ -29,38 +26,48 @@ const STEPS: StepDef[] = [
   { key: "cp", label: "控制计划", description: "基于已确认的失效模式分析生成控制措施" },
 ];
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
 type ChainStepperProps = {
-  chainState: ChainState;
+  chainState: ChainState | null;
   run: DesktopRun | null;
-  isGenerating: boolean;
-  onConfirm: (stage: ChainStageKey) => Promise<void>;
-  onRegenerate: (stage: ChainStageKey) => Promise<void>;
-  onViewTable: () => void;
+  isGenerating?: boolean;
+  onConfirm?: (stage: ChainStageKey) => Promise<void>;
+  onRegenerate?: (stage: ChainStageKey) => Promise<void>;
+  onViewTable?: () => void;
+  compact?: boolean;
+  readOnly?: boolean;
+  title?: string;
+  className?: string;
 };
-
-// ---------------------------------------------------------------------------
-// 组件
-// ---------------------------------------------------------------------------
 
 export function ChainStepper({
   chainState,
   run,
-  isGenerating,
+  isGenerating = false,
   onConfirm,
   onRegenerate,
   onViewTable,
+  compact = false,
+  readOnly = false,
+  title = "链式阶段",
+  className,
 }: ChainStepperProps) {
   const [confirming, setConfirming] = useState<ChainStageKey | null>(null);
   const [regenerating, setRegenerating] = useState<ChainStageKey | null>(null);
   const [message, setMessage] = useState("");
 
+  if (!chainState) {
+    return (
+      <div className={cn("rounded-lg border bg-[hsl(var(--surface))] px-4 py-3 text-[13px] text-muted-foreground", className)}>
+        阶段状态等待同步。启动任务后会显示过程流程图、失效模式分析和控制计划的生成进度。
+      </div>
+    );
+  }
+
   const currentStage = chainState.current_stage as ChainStageKey | "complete";
+  const canOperate = !readOnly && Boolean(onConfirm && onRegenerate);
 
   async function handleConfirm(stage: ChainStageKey) {
+    if (!onConfirm) return;
     setConfirming(stage);
     setMessage("");
     try {
@@ -74,6 +81,7 @@ export function ChainStepper({
   }
 
   async function handleRegenerate(stage: ChainStageKey) {
+    if (!onRegenerate) return;
     setRegenerating(stage);
     setMessage("");
     try {
@@ -88,10 +96,10 @@ export function ChainStepper({
 
   if (chainState.pipeline_mode === "batch") {
     return (
-      <Card>
+      <Card className={className}>
         <CardContent className="p-6 text-center text-muted-foreground">
           此运行使用旧版"一次性生成"模式，不支持链式确认流程。
-          {run && (
+          {run && onViewTable && (
             <Button variant="outline" size="sm" className="ml-4" onClick={onViewTable}>
               查看三表工作台
             </Button>
@@ -101,9 +109,88 @@ export function ChainStepper({
     );
   }
 
+  if (compact) {
+    return (
+      <section className={cn("rounded-lg border bg-[hsl(var(--surface))] px-3 py-2.5", className)} aria-label="链式阶段状态">
+        <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <div className="text-[11px] font-bold uppercase text-primary">{title}</div>
+            <div className="mt-0.5 text-xs text-muted-foreground">
+              {currentStage === "complete" ? "三个阶段均已完成确认。" : `当前阶段：${stageLabel(currentStage)}`}
+            </div>
+          </div>
+          {run && onViewTable && (
+            <Button variant="outline" size="sm" onClick={onViewTable}>
+              打开三表工作台
+            </Button>
+          )}
+        </div>
+
+        <div className="grid gap-2.5 lg:grid-cols-3">
+          {STEPS.map((step, index) => {
+            const info = chainState[step.key];
+            const isActive = currentStage === step.key;
+            const isRunning = info.status === "running" || (isActive && isGenerating);
+            const isDone = info.status === "confirmed";
+            const isReady = info.status === "generated";
+            const isFailed = info.status === "failed";
+            const isBlocked = info.status === "blocked";
+
+            return (
+              <div key={step.key} className="flex min-w-0 items-center gap-2">
+                <div
+                  className={cn(
+                    "min-w-0 flex-1 rounded-md border px-2.5 py-2 transition-all",
+                    isActive && "border-primary bg-primary/5 shadow-sm",
+                    isDone && "border-[#34C759] bg-[#f4fbf6]",
+                    isReady && "border-primary/50 bg-primary/5",
+                    isFailed && "border-destructive bg-destructive/5",
+                    isBlocked && "border-[#f2d48a] bg-[#fff8e6]",
+                    isRunning && "animate-pulse"
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
+                      {stageIcon(info.status, isActive, isGenerating)}
+                      <strong className="truncate text-[13px]">{step.label}</strong>
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "h-5 shrink-0 px-2 text-[10px]",
+                        (isReady || isActive) && "border-primary text-primary",
+                        isDone && "border-[#34C759] text-[#1f8f3a]",
+                        isFailed && "border-destructive text-destructive",
+                        isBlocked && "border-[#d29b14] text-[#7a5600]"
+                      )}
+                    >
+                      {stageStatusLabel(info.status)}
+                    </Badge>
+                  </div>
+                  <div className="mt-1 truncate text-xs text-muted-foreground">
+                    {compactStageDetail(info, isActive)}
+                  </div>
+                </div>
+                {index < STEPS.length - 1 && (
+                  <div
+                    className={cn(
+                      "hidden h-px w-5 shrink-0 lg:block",
+                      chainState[STEPS[index + 1].key].status !== "not_started"
+                        ? "bg-primary/50"
+                        : "bg-border"
+                    )}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+    );
+  }
+
   return (
-    <div className="grid gap-4">
-      {/* 步骤指示器 */}
+    <div className={cn("grid gap-4", className)}>
       <div className="flex items-center gap-2">
         {STEPS.map((step, i) => {
           const info = chainState[step.key];
@@ -125,7 +212,6 @@ export function ChainStepper({
               >
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
-                    {/* 状态图标 */}
                     {isDone && <CheckCircle2 size={22} className="text-[#34C759] shrink-0" />}
                     {isActive && !isGenerating && (
                       <div className="w-[22px] h-[22px] rounded-full bg-primary flex items-center justify-center shrink-0">
@@ -175,8 +261,7 @@ export function ChainStepper({
                     </div>
                   </div>
 
-                  {/* 操作按钮（仅在活跃步骤显示） */}
-                  {isActive && !isGenerating && (
+                  {isActive && !isGenerating && canOperate && (
                     <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border">
                       <Button
                         size="sm"
@@ -205,7 +290,6 @@ export function ChainStepper({
                 </CardContent>
               </Card>
 
-              {/* 箭头分隔 */}
               {i < STEPS.length - 1 && (
                 <ChevronRight
                   size={20}
@@ -222,7 +306,6 @@ export function ChainStepper({
         })}
       </div>
 
-      {/* 消息提示 */}
       {message && (
         <div
           className={cn(
@@ -236,7 +319,6 @@ export function ChainStepper({
         </div>
       )}
 
-      {/* 全部完成 */}
       {currentStage === "complete" && (
         <Card className="border-[#34C759]">
           <CardContent className="p-4 flex items-center gap-3">
@@ -247,9 +329,11 @@ export function ChainStepper({
                 过程流程图、失效模式分析、控制计划三个阶段均已确认。现在可以进入三表工作台查看和导出。
               </p>
             </div>
-            <Button size="sm" className="ml-auto" onClick={onViewTable}>
-              进入三表工作台
-            </Button>
+            {onViewTable && (
+              <Button size="sm" className="ml-auto" onClick={onViewTable}>
+                进入三表工作台
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}
@@ -257,9 +341,27 @@ export function ChainStepper({
   );
 }
 
-// ---------------------------------------------------------------------------
-// 工具
-// ---------------------------------------------------------------------------
+function stageIcon(status: StageStatus, isActive: boolean, isGenerating: boolean) {
+  if (status === "confirmed") return <CheckCircle2 size={17} className="shrink-0 text-[#34C759]" />;
+  if (status === "failed") return <AlertTriangle size={17} className="shrink-0 text-destructive" />;
+  if (status === "blocked") return <AlertTriangle size={17} className="shrink-0 text-[#d29b14]" />;
+  if (status === "running" || (isActive && isGenerating)) {
+    return <Loader2 size={17} className="shrink-0 animate-spin text-primary" />;
+  }
+  if (status === "generated" || isActive) return <CircleDot size={17} className="shrink-0 text-primary" />;
+  return <Lock size={15} className="shrink-0 text-muted-foreground" />;
+}
+
+function compactStageDetail(info: ChainState[ChainStageKey], isActive: boolean): string {
+  if (info.status === "failed") return "生成失败，可进入工作台查看并重试。";
+  if (info.status === "blocked") return "等待补齐上游确认。";
+  if (info.status === "running") return `后台生成中，当前 ${info.row_count} 行。`;
+  if (info.status === "generated") return `${info.row_count} 行已生成，${info.pending_count} 项待确认。`;
+  if (info.status === "confirmed") {
+    return info.confirmed_by ? `${info.row_count} 行，已由 ${info.confirmed_by} 确认。` : `${info.row_count} 行已确认。`;
+  }
+  return isActive ? "准备生成。" : "等待上游阶段。";
+}
 
 function stageStatusLabel(status: StageStatus): string {
   const map: Record<StageStatus, string> = {
@@ -273,8 +375,7 @@ function stageStatusLabel(status: StageStatus): string {
   return map[status] || status;
 }
 
-function stageLabel(key: ChainStageKey): string {
-  return (
-    STEPS.find((s) => s.key === key)?.label ?? key.toUpperCase()
-  );
+function stageLabel(key: ChainStageKey | "complete"): string {
+  if (key === "complete") return "已完成";
+  return STEPS.find((step) => step.key === key)?.label ?? key.toUpperCase();
 }

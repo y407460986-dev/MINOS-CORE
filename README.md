@@ -105,8 +105,8 @@ MINOS-CORE 当前不承诺、也不内置以下能力：
 - AI 输出必须引用已有 evidence，并标记 `ai_inferred` 和 `needs_confirmation`。
 - AI 线索不能单独满足下游质量门，必须经过规则证据、质量门和人工复核。
 - 图纸识别已接入 OpenAI Responses 兼容 adapter：`OpenAIResponsesMultimodalDrawingAnalyzer`。
-- 配置读取顺序为：显式 `MINOS_OPENAI_*`、`OPENAI_*` 优先；当 Codex provider 标记 `requires_openai_auth = true` 时，MINOS 会优先复用 Codex `auth.json` 的 OpenAI key，再考虑 `ARK_API_KEY`。
-- 当前按项目要求将 MINOS 运行模型固定为 `gpt-5.5`；继续复用 Codex 中转配置和标准 HTTP Responses 请求链路。API key 只在运行时读取，不写入仓库、不打印到诊断输出。
+- 配置读取顺序为：显式 `MINOS_OPENAI_*`、`OPENAI_*` 优先，其次是桌面设置页保存的 AI 服务配置；当 Codex provider 标记 `requires_openai_auth = true` 时，MINOS 会优先复用 Codex `auth.json` 的 OpenAI key，再考虑 `ARK_API_KEY`。
+- 当前按项目要求将 MINOS 运行模型固定为 `gpt-5.5`，默认 Responses 地址为 `https://cx.allincoding.cc/responses`。Codex 配置只复用 auth、wire API、store、reasoning 和 user-agent，不再把 Codex `base_url` 作为 MINOS 默认地址；显式环境变量仍可覆盖。API key 只在运行时读取，不写入仓库、不打印到诊断输出。
 - `python -m minos_core.cli ai-config` 只显示模型、中转地址、key 是否已配置和来源，不显示 key 值。
 - 可用 `python -m minos_core.cli analyze-drawing --input path\to\drawing.png --output out\drawing_analysis.json` 调用真实多模态 AI 生成 `drawing_analysis_bundle`。
 - 可用 `python -m minos_core.cli generate-three-tables --input path\to\drawing.png --output-dir out\case001` 从图纸一键生成 PFD/PFMEA/CP 草案和 Excel。
@@ -137,12 +137,13 @@ npm run build
 桌面端默认使用 SQLite 数据库：
 
 ```text
-out/desktop/minos_desktop.sqlite3
+%LOCALAPPDATA%\MINOS-CORE\minos_desktop.sqlite3
 ```
 
 服务层包含：
 
-- `DesktopSettingsStore`：管理 AI 配置状态和默认输出目录；设置页不显示、不保存明文 API key。
+- `DesktopSettingsStore`：管理 AI 配置状态和默认输出目录；设置页可保存 AI 服务地址、API key 和模型名，但不回显明文 API key。
+- `DesktopDataManagementService`：管理本地数据目录、备份 zip、项目/run 清空和恢复初始状态。
 - `DesktopProjectStore`：创建和更新桌面项目。
 - `DesktopRunService`：后台运行图纸识别、链式 PFD/PFMEA/CP 推理、编辑保存和导出服务，保存 run 记录和导出记录。
 - `DesktopRunState`、`DesktopRunRecord`、`DesktopExportRecord`：记录运行状态、运行结果和导出产物。
@@ -152,7 +153,7 @@ Tauri UI 通过服务层刷新 AI/PFD/PFMEA/CP/复核/导出页面。链式生�
 桌面端测试：
 
 ```powershell
-python -m pytest tests/test_llm_text_responses.py tests/test_desktop_shell.py tests/test_desktop_undo.py -q
+python -m pytest tests/test_llm_text_responses.py tests/desktop/test_services.py tests/test_desktop_tauri_app_state.py -q
 ```
 
 ## 下一阶段：真实桌面试跑与交付验收

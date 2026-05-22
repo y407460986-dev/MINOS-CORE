@@ -34,6 +34,12 @@ class DesktopAIConfigState:
     api_key_env_name: str = ""
     wire_api: str = "responses"
     responses_path: str = "responses"
+    base_url_override: str = ""
+    api_key_override_set: bool = False
+    model_override: str = ""
+    base_url_locked_by_env: bool = False
+    api_key_locked_by_env: bool = False
+    model_locked_by_env: bool = False
 
 
 @dataclass(frozen=True)

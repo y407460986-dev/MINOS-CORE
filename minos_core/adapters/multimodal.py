@@ -217,12 +217,12 @@ class OpenAIResponsesMultimodalDrawingAnalyzer:
                     raw = response.read().decode("utf-8")
                 break
             except urllib.error.HTTPError as exc:
-                detail = exc.read().decode("utf-8", errors="replace")
+                exc.read()
                 if attempt < attempts and _should_retry_http_status(exc.code):
                     time.sleep(self.retry_delay * attempt)
                     continue
                 raise OpenAIMultimodalError(
-                    f"OpenAI Responses API failed after {attempt} attempt(s): {exc.code}: {detail}"
+                    f"OpenAI Responses API failed after {attempt} attempt(s): HTTP {exc.code}"
                 ) from exc
             except urllib.error.URLError as exc:
                 if attempt < attempts:

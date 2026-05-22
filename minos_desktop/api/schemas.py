@@ -39,6 +39,18 @@ class DefaultOutputDirRequest(BaseModel):
     output_dir: str = Field(..., min_length=1)
 
 
+class AIConfigUpdateRequest(BaseModel):
+    base_url: str | None = None
+    api_key: str | None = None
+    model: str | None = None
+
+
+class DataManagementClearRequest(BaseModel):
+    scope: str = Field(..., pattern="^(workspace|factory_reset)$")
+    delete_outputs: bool = False
+    confirm_text: str = Field(..., min_length=1)
+
+
 class EditPatchRequest(BaseModel):
     patch: dict[str, Any] = Field(default_factory=dict)
 
@@ -199,6 +211,12 @@ def settings_to_dict(default_output_dir: str, ai_config: Any) -> dict[str, Any]:
             "api_key_env_name": ai_config.api_key_env_name,
             "wire_api": ai_config.wire_api,
             "responses_path": ai_config.responses_path,
+            "base_url_override": ai_config.base_url_override,
+            "api_key_override_set": ai_config.api_key_override_set,
+            "model_override": ai_config.model_override,
+            "base_url_locked_by_env": ai_config.base_url_locked_by_env,
+            "api_key_locked_by_env": ai_config.api_key_locked_by_env,
+            "model_locked_by_env": ai_config.model_locked_by_env,
         },
     }
 

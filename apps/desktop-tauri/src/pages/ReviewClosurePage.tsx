@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Check, RefreshCw, X } from "lucide-react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { AlertTriangle, Check, CheckCircle2, Inbox, ListChecks, RefreshCw, X, type LucideIcon } from "lucide-react";
 import {
   acceptRecommendation,
   getClosureTasks,
@@ -9,13 +9,15 @@ import {
 } from "../api/client";
 import type { ClosureTask, ClosureTasksResponse, DesktopRun } from "../api/types";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { EmptyState, Notice, StatusPill, Surface } from "@/components/ui/experience";
 import { cn } from "@/lib/utils";
 
 type ReviewClosurePageProps = {
   run: DesktopRun | null;
   onRunUpdated: (run: DesktopRun) => void;
 };
+
+type TaskFilter = "all" | "blocker" | "review" | "pending";
 
 function objectList(value: unknown): Record<string, unknown>[] {
   return Array.isArray(value) ? value.filter((item): item is Record<string, unknown> => typeof item === "object" && item !== null) : [];
@@ -62,6 +64,20 @@ function taskSeverityKind(task: ClosureTask): "blocker" | "review" | "pending" {
   if (value.includes("blocker") || task.state.includes("阻断")) return "blocker";
   if (value.includes("review") || task.state.includes("复核")) return "review";
   return "pending";
+}
+
+function taskSeverityStatusTone(task: ClosureTask): "danger" | "warning" | "info" {
+  const severity = taskSeverityKind(task);
+  if (severity === "blocker") return "danger";
+  if (severity === "review") return "warning";
+  return "info";
+}
+
+function taskSeverityIcon(task: ClosureTask): LucideIcon {
+  const severity = taskSeverityKind(task);
+  if (severity === "blocker") return AlertTriangle;
+  if (severity === "review") return ListChecks;
+  return CheckCircle2;
 }
 
 function taskTitle(task: ClosureTask): string {
@@ -152,11 +168,33 @@ function errorMessage(caught: unknown): string {
 
 export default function ReviewClosurePage({ run, onRunUpdated }: ReviewClosurePageProps) {
   const [apiTasks, setApiTasks] = useState<ClosureTask[] | null>(null);
+  const [filter, setFilter] = useState<TaskFilter>("all");
+  const [selectedTaskId, setSelectedTaskId] = useState("");
   const [loadState, setLoadState] = useState("等待运行结果");
   const [loadError, setLoadError] = useState("");
   const [actionError, setActionError] = useState("");
   const fallbackTasks = useMemo(() => closureTasks(run), [run]);
   const tasks = apiTasks ?? fallbackTasks;
+  const summary = useMemo(() => {
+    const blocker = tasks.filter((task) => taskSeverityKind(task) === "blocker").length;
+    const review = tasks.filter((task) => taskSeverityKind(task) === "review").length;
+    const pending = tasks.length - blocker - review;
+    const actionable = tasks.filter((task) =>
+      task.type === "knowledge_recommendation" ||
+      task.type === "change_impact" ||
+      task.type === "action_item"
+    ).length;
+    return { blocker, review, pending, actionable, total: tasks.length };
+  }, [tasks]);
+  const filteredTasks = useMemo(() => (
+    filter === "all" ? tasks : tasks.filter((task) => taskSeverityKind(task) === filter)
+  ), [filter, tasks]);
+  const selectedTask = filteredTasks.find((task) => task.id === selectedTaskId) ?? filteredTasks[0] ?? null;
+
+  useEffect(() => {
+    if (selectedTask && selectedTask.id !== selectedTaskId) setSelectedTaskId(selectedTask.id);
+    if (!selectedTask && selectedTaskId) setSelectedTaskId("");
+  }, [selectedTask, selectedTaskId]);
 
   async function loadClosureTasks() {
     if (!run) { setApiTasks(null); setLoadState("暂无运行结果"); setLoadError(""); return; }
@@ -183,77 +221,185 @@ export default function ReviewClosurePage({ run, onRunUpdated }: ReviewClosurePa
       }
       if (task.type === "change_impact") onRunUpdated(await resolveChangeImpact(run.id, task.targetId));
       if (task.type === "action_item") onRunUpdated(await resolveAction(run.id, task.targetId));
+      setApiTasks((current) => current ? current.filter((item) => `${item.type}:${item.id}` !== `${task.type}:${task.id}`) : current);
     } catch (caught) { setActionError(errorMessage(caught)); }
   }
 
   return (
-    <section className="grid gap-4">
-      <div>
-        <span className="text-primary text-xs font-bold">Review Closure</span>
-        <h2 className="mt-1 mb-0 text-[22px]">控制计划确认后三表总审核</h2>
-        <p className="m-0 mt-1 text-[13px] text-muted-foreground">
-          AI 只提供审核建议和线索，人工判断优先于 AI 建议。
-        </p>
-      </div>
-
-      <div className="flex items-center gap-2.5 min-h-12">
+    <section className="grid gap-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <span className="text-primary text-xs font-bold">Review Closure</span>
+          <h2 className="mt-1 mb-0 text-[22px]">评审任务收件箱</h2>
+          <p className="m-0 mt-1 text-[13px] text-muted-foreground">
+            把正式导出前必须处理的复核、推荐和行动项集中到一个队列；AI 只提供线索，人工判断优先。
+          </p>
+        </div>
         <Button variant="outline" disabled={!run} onClick={() => void loadClosureTasks()}>
           <RefreshCw size={15} className="mr-[7px]" />
-          刷新统一任务
+          刷新任务
         </Button>
-        <span className="text-[#56565b] text-[13px]">
-          {run ? `当前运行 #${run.id}` : "暂无运行结果"}
-        </span>
-        <span className="text-[#56565b] text-[13px]">{loadState}</span>
       </div>
 
-      {loadError && <pre className="m-0 p-3 border border-[#f0b4ae] rounded-lg bg-[#fff6f5] text-[#9f1c12] whitespace-pre-wrap">{loadError}</pre>}
-      {actionError && <pre className="m-0 p-3 border border-[#f0b4ae] rounded-lg bg-[#fff6f5] text-[#9f1c12] whitespace-pre-wrap">{actionError}</pre>}
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2.5">
+        <InboxStat label="待处理总数" value={summary.total} icon={<Inbox size={16} />} />
+        <InboxStat label="阻断导出" value={summary.blocker} tone="danger" icon={<AlertTriangle size={16} />} />
+        <InboxStat label="需要复核" value={summary.review} tone="warning" icon={<ListChecks size={16} />} />
+        <InboxStat label="可直接处理" value={summary.actionable} tone="success" icon={<CheckCircle2 size={16} />} />
+      </div>
 
-      <div className="rounded-lg border bg-white overflow-hidden">
-        {tasks.map((task) => {
-          const severity = taskSeverityKind(task);
-          return (
-            <article key={`${task.type}:${task.id}`}
-              className="grid grid-cols-[150px_minmax(0,1fr)_auto] gap-4 items-start px-4 py-[14px] border-0 border-b border-solid border-[#ececf0] last:border-b-0"
-            >
-              <div className="grid gap-[7px] min-w-0">
-                <strong className="text-[#1d1d1f] text-[13px] leading-[1.35]">
-                  {taskCategoryLabel(task)}
-                </strong>
-                <Badge variant="secondary" className={cn(
-                  "w-fit text-xs font-semibold",
-                  severity === "blocker" && "bg-[#fff0ee] text-destructive hover:bg-[#fff0ee]",
-                  severity === "review" && "bg-[#fff7e6] text-[#9a5b00] hover:bg-[#fff7e6]",
-                )}>
-                  {taskSeverityLabel(task)}
-                </Badge>
+      <div className="flex flex-wrap items-center gap-2">
+        <StatusPill tone={run ? "info" : "neutral"}>{run ? `当前运行 #${run.id}` : "暂无运行结果"}</StatusPill>
+        <StatusPill tone="neutral">{loadState}</StatusPill>
+      </div>
+
+      {loadError && <Notice tone="danger" title="闭环任务未载入">{loadError}</Notice>}
+      {actionError && <Notice tone="danger" title="任务操作失败">{actionError}</Notice>}
+
+      <div className="grid grid-cols-[minmax(280px,0.95fr)_minmax(320px,1.05fr)] gap-4 max-[920px]:grid-cols-1">
+        <Surface inset="none" className="overflow-hidden">
+          <div className="border-0 border-b border-solid border-[#ececf0] p-3">
+            <div className="grid grid-cols-4 gap-1 rounded-md bg-muted/50 p-1">
+              {[
+                ["all", "全部", summary.total],
+                ["blocker", "阻断", summary.blocker],
+                ["review", "复核", summary.review],
+                ["pending", "待办", summary.pending],
+              ].map(([value, label, count]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setFilter(value as TaskFilter)}
+                  className={cn(
+                    "rounded px-2 py-1.5 text-xs font-semibold transition-colors",
+                    filter === value ? "bg-white text-[#1d1d1f] shadow-sm" : "text-[#56565b] hover:bg-white/70"
+                  )}
+                >
+                  {label} {count}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="max-h-[560px] overflow-y-auto">
+            {filteredTasks.map((task) => {
+              const selected = selectedTask?.id === task.id;
+              return (
+                <button
+                  key={`${task.type}:${task.id}`}
+                  type="button"
+                  onClick={() => setSelectedTaskId(task.id)}
+                  className={cn(
+                    "grid w-full gap-2 border-0 border-b border-solid border-[#ececf0] bg-white px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-muted/40",
+                    selected && "bg-[#f7fbff]"
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <strong className="min-w-0 truncate text-[13px] text-[#1d1d1f]">{taskCategoryLabel(task)}</strong>
+                    <StatusPill tone={taskSeverityStatusTone(task)} icon={taskSeverityIcon(task)} className="h-6 shrink-0">
+                      {taskSeverityLabel(task)}
+                    </StatusPill>
+                  </div>
+                  <span className="line-clamp-2 text-[13px] leading-[1.45] text-[#2b2b2f]">{taskTitle(task)}</span>
+                  <span className="truncate text-xs text-muted-foreground">{taskTargetSummary(task)}</span>
+                </button>
+              );
+            })}
+            {filteredTasks.length === 0 && (
+              <EmptyState
+                icon={CheckCircle2}
+                title={tasks.length === 0 ? "暂无待处理闭环任务。" : "当前筛选下没有任务。"}
+                className="min-h-[220px] rounded-none border-0 bg-transparent"
+              />
+            )}
+          </div>
+        </Surface>
+
+        <Surface inset="none" className="p-5">
+          {selectedTask ? (
+            <div className="grid gap-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusPill tone={taskSeverityStatusTone(selectedTask)} icon={taskSeverityIcon(selectedTask)}>
+                  {taskSeverityLabel(selectedTask)}
+                </StatusPill>
+                <span className="text-xs font-semibold text-primary">{taskCategoryLabel(selectedTask)}</span>
               </div>
-              <div className="min-w-0">
-                <h3 className="m-0 mb-1 text-[15px] leading-[1.45] whitespace-normal">{taskTitle(task)}</h3>
-                <p className="m-0 text-[13px] leading-[1.4] text-muted-foreground whitespace-normal">{taskTargetSummary(task)}</p>
-                <small className="block mt-[5px] text-[#86868b] text-xs leading-[1.35] break-words">系统编号：{task.id}</small>
+              <div>
+                <h3 className="m-0 text-[19px] leading-[1.35]">{taskTitle(selectedTask)}</h3>
+                <p className="m-0 mt-2 text-[13px] leading-[1.55] text-muted-foreground">{taskTargetSummary(selectedTask)}</p>
               </div>
-              <div className="flex gap-2 items-center">
-                {task.type === "knowledge_recommendation" && (
+              <div className="grid gap-2 rounded-lg bg-muted/35 p-3 text-[13px]">
+                <DetailRow label="任务状态" value={selectedTask.state} />
+                <DetailRow label="目标对象" value={selectedTask.targetId || "当前运行结果"} />
+                <DetailRow label="系统编号" value={selectedTask.id} />
+              </div>
+              <div className="flex flex-wrap gap-2 pt-1">
+                {selectedTask.type === "knowledge_recommendation" && (
                   <>
-                    <Button variant="outline" size="icon" className="w-[30px] h-[30px]" title="采纳推荐" onClick={() => void act(task, "accept")}>
-                      <Check size={15} />
+                    <Button onClick={() => void act(selectedTask, "accept")}>
+                      <Check size={15} className="mr-[7px]" />
+                      采纳推荐
                     </Button>
-                    <Button variant="outline" size="icon" className="w-[30px] h-[30px]" title="忽略推荐" onClick={() => void act(task, "ignore")}>
-                      <X size={15} />
+                    <Button variant="outline" onClick={() => void act(selectedTask, "ignore")}>
+                      <X size={15} className="mr-[7px]" />
+                      忽略推荐
                     </Button>
                   </>
                 )}
-                {(task.type === "change_impact" || task.type === "action_item") && (
-                  <Button variant="outline" size="sm" onClick={() => void act(task, "resolve")}>关闭</Button>
+                {(selectedTask.type === "change_impact" || selectedTask.type === "action_item") && (
+                  <Button onClick={() => void act(selectedTask, "resolve")}>
+                    <Check size={15} className="mr-[7px]" />
+                    关闭任务
+                  </Button>
+                )}
+                {!["knowledge_recommendation", "change_impact", "action_item"].includes(selectedTask.type) && (
+                  <Notice tone="neutral" icon={false} className="py-2 text-[13px]">
+                    该任务需要回到三表工作台确认具体内容。
+                  </Notice>
                 )}
               </div>
-            </article>
-          );
-        })}
-        {tasks.length === 0 && <div className="p-6 text-muted-foreground">暂无待处理闭环任务。</div>}
+            </div>
+          ) : (
+            <EmptyState icon={CheckCircle2} title="收件箱已清空。" className="h-full min-h-[260px] border-0 bg-transparent" />
+          )}
+        </Surface>
       </div>
     </section>
+  );
+}
+
+function InboxStat({
+  label,
+  value,
+  icon,
+  tone = "default"
+}: {
+  label: string;
+  value: number;
+  icon: ReactNode;
+  tone?: "default" | "danger" | "warning" | "success";
+}) {
+  return (
+    <Surface inset="sm">
+      <div className={cn(
+        "mb-2 flex items-center gap-2 text-xs font-semibold text-muted-foreground",
+        tone === "danger" && "text-destructive",
+        tone === "warning" && "text-[#9a5b00]",
+        tone === "success" && "text-[#1f8f3a]"
+      )}>
+        {icon}
+        {label}
+      </div>
+      <strong className="text-2xl leading-none">{value}</strong>
+    </Surface>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="grid grid-cols-[72px_1fr] gap-3">
+      <span className="text-muted-foreground">{label}</span>
+      <strong className="break-words font-semibold text-[#2b2b2f]">{value}</strong>
+    </div>
   );
 }

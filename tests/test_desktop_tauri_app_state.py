@@ -23,7 +23,7 @@ def test_drawing_import_page_uses_chain_start_feedback() -> None:
     assert 'setStatus("PFD 已生成，请确认过程流程图。");' not in page_source
 
 
-def test_drawing_import_page_polls_after_stage_confirm_and_shows_failure() -> None:
+def test_drawing_import_page_refreshes_stage_context_and_shows_failure() -> None:
     page_source = (
         ROOT / "apps" / "desktop-tauri" / "src" / "pages" / "DrawingImportPage.tsx"
     ).read_text(encoding="utf-8")
@@ -32,9 +32,10 @@ def test_drawing_import_page_polls_after_stage_confirm_and_shows_failure() -> No
     ).read_text(encoding="utf-8")
 
     assert "getRun" in page_source
-    assert "pollRunUntilStageSettled" in page_source
-    assert "window.setInterval" in page_source
-    assert "失效模式分析生成失败" in page_source
+    assert "refreshVisibleRun" in page_source
+    assert "getRun(visibleRun.id)" in page_source
+    assert "任务上下文已刷新" in page_source
+    assert "生成未完成" in page_source
     assert "failure_message" in page_source
     assert "chain_stages?: ChainState" in type_source
 
@@ -144,8 +145,9 @@ def test_workbench_can_regenerate_failed_pfmea_stage() -> None:
 
     assert "regeneratePfmeaStage" in page_source
     assert "regeneratePfmea" in page_source
-    assert "重新生成失效模式分析" in page_source
-    assert 'stageStatus(run, "pfmea") === "failed"' in page_source
+    assert "重新生成失效模式分析" in page_source or "重新生成 PFMEA" in page_source
+    assert 'const pfmeaStatus = stageStatus(run, "pfmea")' in page_source
+    assert 'pfmeaStatus === "running"' in page_source
 
 
 def test_chain_sse_client_reconnects_and_workbench_handles_step_failed() -> None:
@@ -257,6 +259,180 @@ def test_workbench_pfd_rows_can_be_drag_reordered_by_sequence_patch() -> None:
     assert "processFlowStepsFromResult" not in store_source
 
 
+def test_quiet_focused_ui_motion_tokens_are_centralized() -> None:
+    globals_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "styles" / "globals.css"
+    ).read_text(encoding="utf-8")
+
+    assert "--motion-fast" in globals_source
+    assert "--motion-base" in globals_source
+    assert "--motion-slow" in globals_source
+    assert "--motion-ease" in globals_source
+    assert "--motion-reduced: 1ms" in globals_source
+    assert "@media (prefers-reduced-motion: reduce)" in globals_source
+    assert "--motion-fast: var(--motion-reduced)" in globals_source
+    assert "transition-duration: var(--motion-reduced)" in globals_source
+    assert "animation-duration: var(--motion-reduced)" in globals_source
+
+
+def test_secondary_pages_use_shared_experience_primitives() -> None:
+    review_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "pages" / "ReviewClosurePage.tsx"
+    ).read_text(encoding="utf-8")
+    export_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "pages" / "ExportPage.tsx"
+    ).read_text(encoding="utf-8")
+    settings_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "pages" / "SettingsPage.tsx"
+    ).read_text(encoding="utf-8")
+    experience_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "components" / "ui" / "experience.tsx"
+    ).read_text(encoding="utf-8")
+
+    for primitive in ("Surface", "Notice", "StatusPill", "EmptyState"):
+        assert f"function {primitive}" in experience_source
+
+    for source in (review_source, export_source, settings_source):
+        assert 'from "@/components/ui/experience"' in source
+        assert "Surface" in source
+        assert "Notice" in source
+        assert "StatusPill" in source
+
+    assert "EmptyState" in review_source
+    assert "EmptyState" in export_source
+    assert "批量确认低风险 AI 项" not in review_source
+    assert "草案包" in export_source and "正式提交包" in export_source
+    assert "危险操作" in settings_source
+
+
+def test_quiet_focused_ui_experience_contract_stays_intact() -> None:
+    app_source = (ROOT / "apps" / "desktop-tauri" / "src" / "App.tsx").read_text(encoding="utf-8")
+    shell_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "components" / "AppShell.tsx"
+    ).read_text(encoding="utf-8")
+    sidebar_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "components" / "Sidebar.tsx"
+    ).read_text(encoding="utf-8")
+    page_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "pages" / "ThreeTableWorkbench.tsx"
+    ).read_text(encoding="utf-8")
+    table_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "components" / "WorkbenchTable.tsx"
+    ).read_text(encoding="utf-8")
+
+    assert 'aria-label="三表状态栏"' in page_source
+    assert 'aria-label="三表上下文栏"' in page_source
+    assert "SegmentedControl" in page_source
+    assert "PreviewRail" in page_source
+    assert 'aria-label="三表编辑画布"' in page_source
+    assert 'aria-label="三表编辑画布"' in table_source
+    assert 'aria-label="浮动上下文工具条"' in table_source
+    assert "onSaveDrafts" in table_source
+    assert "onSoftDeleteRows" in table_source
+    assert "onMarkRowsForReview" in table_source
+    assert "activeRowId" in table_source
+    assert "tableState.activeRowId === row.original.rowId" in table_source
+    assert "selectedRowIds[row.original.rowId]" in table_source
+    assert "已选 ${selectedRows.length} 行" in table_source
+    assert "InspectorPanel" not in app_source
+    assert "inspector=" not in app_source
+    assert "inspector:" not in shell_source
+    assert "grid-cols-[236px_minmax(620px,1fr)_300px]" not in shell_source
+    assert "bg-[hsl(var(--shell))]" in shell_source
+    assert "bg-[hsl(var(--sidebar))]" in sidebar_source
+    assert '<div hidden={page !== "import"}>' in app_source
+    assert "{page === \"import\" && (" not in app_source
+    assert "key={page}" not in app_source
+
+
+def test_settings_page_exposes_local_data_management_actions() -> None:
+    page_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "pages" / "SettingsPage.tsx"
+    ).read_text(encoding="utf-8")
+    client_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "api" / "client.ts"
+    ).read_text(encoding="utf-8")
+    types_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "api" / "types.ts"
+    ).read_text(encoding="utf-8")
+    tauri_source = (
+        ROOT / "apps" / "desktop-tauri" / "src-tauri" / "src" / "lib.rs"
+    ).read_text(encoding="utf-8")
+
+    assert "数据管理" in page_source
+    assert "本地数据位于 Windows 用户数据目录" in page_source
+    assert "打开数据目录" in page_source
+    assert "打开输出目录" in page_source
+    assert "备份数据" in page_source
+    assert "清空项目与运行记录" in page_source
+    assert "恢复初始状态" in page_source
+    assert "getDataManagementStatus" in client_source
+    assert "backupDataManagement" in client_source
+    assert "clearDataManagement" in client_source
+    assert "openPath" in client_source
+    assert "DesktopDataManagementStatus" in types_source
+    assert "DesktopDataClearScope" in types_source
+    assert "fn open_path" in tauri_source
+    assert "open_path," in tauri_source
+
+
+def test_settings_page_exposes_ai_service_config_controls() -> None:
+    page_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "pages" / "SettingsPage.tsx"
+    ).read_text(encoding="utf-8")
+    client_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "api" / "client.ts"
+    ).read_text(encoding="utf-8")
+    types_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "api" / "types.ts"
+    ).read_text(encoding="utf-8")
+
+    assert 'title="AI"' in page_source
+    assert "覆盖桌面端 AI 服务地址、API Key 和模型名" in page_source
+    assert "保存 AI 配置" in page_source
+    assert "清除自定义" in page_source
+    assert "已被环境变量接管" in page_source
+    assert "已自定义" in page_source
+    assert "https://cx.allincoding.cc" in page_source
+    assert "已配置请留空保持不变" in page_source
+    assert "未配置则填入" in page_source
+    assert "gpt-5.5" in page_source
+    assert "type=\"password\"" in page_source
+    assert "updateAiConfig" in client_source
+    assert '"/api/settings/ai-config"' in client_source
+    assert "base_url_override" in types_source
+    assert "api_key_override_set" in types_source
+    assert "model_override" in types_source
+    assert "base_url_locked_by_env" in types_source
+    assert "api_key_locked_by_env" in types_source
+    assert "model_locked_by_env" in types_source
+    assert "AIConfigUpdatePayload" in types_source
+
+
+def test_tauri_build_script_does_not_pollute_real_sidecar_internal_dir() -> None:
+    build_script = (
+        ROOT / "apps" / "desktop-tauri" / "src-tauri" / "build.rs"
+    ).read_text(encoding="utf-8")
+
+    assert "if !internal.exists()" in build_script
+    assert "if is_empty_dir(&internal)" in build_script
+    assert "fn is_empty_dir" in build_script
+
+
+def test_release_npm_script_rebuilds_sidecar_before_nsis() -> None:
+    package_source = (ROOT / "apps" / "desktop-tauri" / "package.json").read_text(
+        encoding="utf-8"
+    )
+    release_script = (ROOT / "scripts" / "build_release.ps1").read_text(encoding="utf-8")
+
+    assert '"tauri:nsis": "tauri build --ci --no-sign --bundles nsis"' in package_source
+    assert '"release:nsis": "powershell -ExecutionPolicy Bypass -File ..\\\\..\\\\scripts\\\\build_sidecar.ps1 && npm run tauri:nsis"' in package_source
+    assert "npm run tauri:nsis" in release_script
+    assert '$repo = Split-Path -Parent $PSScriptRoot' in release_script
+    assert 'dist\\build\\out' in release_script
+    assert 'Copy-Item -Force (Join-Path $nsisDir "*.exe") $releaseOut' in release_script
+
+
 def test_workbench_pfd_columns_follow_normal_apqp_process_flow_content() -> None:
     table_source = (
         ROOT / "apps" / "desktop-tauri" / "src" / "components" / "WorkbenchTable.tsx"
@@ -332,8 +508,8 @@ def test_review_closure_happens_after_control_plan_with_human_priority() -> None
     service_source = (ROOT / "minos_desktop" / "services.py").read_text(encoding="utf-8")
     review_source = (ROOT / "minos_core" / "automation_review.py").read_text(encoding="utf-8")
 
-    assert "控制计划确认后三表总审核" in page_source
-    assert "人工判断优先于 AI 建议" in page_source
+    assert "评审任务收件箱" in page_source
+    assert "AI 只提供线索，人工判断优先" in page_source
     assert "批量确认低风险 AI 项" not in page_source
     assert "build_automation_review(current)" in service_source
     assert 'current["automation_review"]' in service_source
@@ -350,16 +526,20 @@ def test_workbench_clean_editing_surface_contract() -> None:
         ROOT / "apps" / "desktop-tauri" / "src" / "components" / "WorkbenchTable.tsx"
     ).read_text(encoding="utf-8")
 
-    assert "compactChainStages" in page_source
+    assert "<ChainStepper" in page_source
+    assert 'compact' in page_source
+    assert 'title="阶段"' in page_source
     assert "三表编辑画布" in page_source
     assert "底部批量操作条" not in page_source
     assert "浮动上下文工具条" in table_source
     assert "editingCell" in table_source
     assert "draftChanges" in table_source
     assert "selectedRowIds" in table_source
+    assert "activeRowId" in table_source
     assert "onSaveDrafts" in table_source
     assert "onSoftDeleteRows" in table_source
     assert "onMarkRowsForReview" in table_source
+    assert "onJumpToRow" in page_source
     assert "position:absolute" in table_source or "absolute" in table_source
 
 
@@ -391,8 +571,10 @@ def test_workbench_removes_right_inspector_panel_and_keeps_preview_summary() -> 
     assert "inspector:" not in shell_source
     assert "{inspector}" not in shell_source
     assert "grid-cols-[236px_minmax(620px,1fr)_300px]" not in shell_source
-    assert "grid-cols-[236px_minmax(620px,1fr)]" in shell_source
-    assert "选中行摘要" in preview_source
+    assert "grid-cols-[220px_minmax(0,1fr)]" in shell_source
+    assert "当前行上下文" in preview_source
+    assert "跳转链路" in preview_source
+    assert "tableLabel" in preview_source
     assert "<PreviewRail" in page_source
     assert "确认全部过程流程图" in page_source
     assert "pfdConfirmSummary" in page_source

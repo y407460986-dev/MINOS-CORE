@@ -6,7 +6,7 @@ import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 try:
     import tomllib
@@ -15,6 +15,7 @@ except ModuleNotFoundError:  # pragma: no cover - Python < 3.11 fallback
 
 
 DEFAULT_OPENAI_RESPONSES_BASE_URL = "https://cx.allincoding.cc"
+_DB_OVERRIDES_PROVIDER: Callable[[], dict[str, Any] | None] | None = None
 
 
 @dataclass(frozen=True)
@@ -65,20 +66,24 @@ def load_openai_responses_config(
     *,
     codex_home: str | Path | None = None,
     allow_codex_config: bool | None = None,
+    db_overrides: dict[str, Any] | None = None,
 ) -> AIProviderConfig:
     """Load OpenAI-compatible Responses API config without exposing secrets."""
 
+    db_overrides = _normalize_db_overrides(db_overrides)
     allow_codex = _allow_codex_config(allow_codex_config)
     codex_config = _load_codex_config(codex_home) if allow_codex else {}
     key = resolve_openai_api_key(
         codex_home=codex_home,
         allow_codex_config=allow_codex,
         prefer_codex_auth=_codex_requires_openai_auth(codex_config),
+        db_overrides=db_overrides,
     )
     model = (
         os.getenv("MINOS_OPENAI_MODEL")
         or os.getenv("OPENAI_MODEL")
         or os.getenv("ARK_MODEL")
+        or db_overrides.get("model")
         or "gpt-5.5"
     )
     env_base_url_name = _first_set_env_name(
@@ -87,7 +92,7 @@ def load_openai_responses_config(
     codex_base_url = _codex_base_url(codex_config)
     # Fix empty string check logic
     env_base_url = os.getenv(env_base_url_name, "") if env_base_url_name else ""
-    base_url = env_base_url or DEFAULT_OPENAI_RESPONSES_BASE_URL
+    base_url = env_base_url or db_overrides.get("base_url") or DEFAULT_OPENAI_RESPONSES_BASE_URL
     codex_config_path = _codex_file(codex_home, "config.toml") if allow_codex else None
     return AIProviderConfig(
         provider="openai_responses",
@@ -113,6 +118,7 @@ def load_openai_api_key(
     *,
     codex_home: str | Path | None = None,
     allow_codex_config: bool | None = None,
+    db_overrides: dict[str, Any] | None = None,
 ) -> str:
     """Return the configured API key for runtime use; callers must never log it."""
 
@@ -122,6 +128,7 @@ def load_openai_api_key(
         prefer_codex_auth=_codex_requires_openai_auth(
             _load_codex_config(codex_home) if _allow_codex_config(allow_codex_config) else {}
         ),
+        db_overrides=db_overrides,
     ).value
 
 
@@ -130,7 +137,9 @@ def resolve_openai_api_key(
     codex_home: str | Path | None = None,
     allow_codex_config: bool = True,
     prefer_codex_auth: bool = False,
+    db_overrides: dict[str, Any] | None = None,
 ) -> _ResolvedAPIKey:
+    db_overrides = _normalize_db_overrides(db_overrides)
     key_name = _first_set_env_name(("MINOS_OPENAI_API_KEY", "OPENAI_API_KEY"))
     if key_name:
         return _ResolvedAPIKey(
@@ -138,6 +147,10 @@ def resolve_openai_api_key(
             source="environment",
             env_name=key_name,
         )
+
+    db_key = db_overrides.get("api_key", "")
+    if db_key:
+        return _ResolvedAPIKey(value=db_key, source="user_settings")
 
     if allow_codex_config and prefer_codex_auth:
         key = _codex_auth_key(codex_home)
@@ -159,6 +172,34 @@ def resolve_openai_api_key(
     if key.value:
         return key
     return _ResolvedAPIKey(value="", source="")
+
+
+def register_db_overrides_provider(
+    provider: Callable[[], dict[str, Any] | None] | None,
+) -> None:
+    global _DB_OVERRIDES_PROVIDER
+    _DB_OVERRIDES_PROVIDER = provider
+
+
+def _normalize_db_overrides(overrides: dict[str, Any] | None) -> dict[str, str]:
+    raw = overrides if overrides is not None else _read_db_overrides()
+    if not isinstance(raw, dict):
+        return {}
+    normalized: dict[str, str] = {}
+    for key in ("base_url", "api_key", "model"):
+        value = raw.get(key)
+        if isinstance(value, str):
+            normalized[key] = value.strip()
+    return normalized
+
+
+def _read_db_overrides() -> dict[str, Any]:
+    if _DB_OVERRIDES_PROVIDER is None:
+        return {}
+    try:
+        return _DB_OVERRIDES_PROVIDER() or {}
+    except Exception:
+        return {}
 
 
 def _codex_auth_key(codex_home: str | Path | None = None) -> _ResolvedAPIKey:

@@ -8,11 +8,13 @@ type AppShellProps = {
 
 export function AppShell({ sidebar, toolbar, children }: AppShellProps) {
   return (
-    <div className="grid grid-cols-[236px_minmax(620px,1fr)] min-h-screen text-foreground">
+    <div className="grid min-h-screen grid-cols-[220px_minmax(0,1fr)] bg-[hsl(var(--shell))] text-foreground">
       {sidebar}
-      <section className="grid grid-rows-[auto_1fr] min-w-0">
+      <section className="grid min-w-0 grid-rows-[auto_minmax(0,1fr)] bg-background/45">
         {toolbar}
-        <main className="p-6 overflow-auto">{children}</main>
+        <main className="min-h-0 overflow-auto px-5 py-4">
+          <div className="mx-auto w-full max-w-[1440px]">{children}</div>
+        </main>
       </section>
     </div>
   );

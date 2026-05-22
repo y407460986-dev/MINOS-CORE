@@ -85,6 +85,13 @@ fn open_output_dir(app: tauri::AppHandle, path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn open_path(app: tauri::AppHandle, path: String) -> Result<(), String> {
+    app.opener()
+        .open_path(path, None::<&str>)
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
 fn reveal_file(app: tauri::AppHandle, path: String) -> Result<(), String> {
     app.opener()
         .reveal_item_in_dir(path)
@@ -248,6 +255,7 @@ pub fn run() {
             select_drawing_file,
             select_output_dir,
             open_output_dir,
+            open_path,
             reveal_file,
             shutdown_sidecar
         ])

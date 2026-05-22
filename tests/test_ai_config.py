@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from minos_core import ai_config
 from minos_core.ai_config import load_openai_api_key, load_openai_responses_config
 from minos_core.cli import main
 
@@ -80,6 +81,83 @@ class AIConfigTests(unittest.TestCase):
         self.assertEqual(config.user_agent, "codex-cli")
         self.assertEqual(key, "codex-secret")
         self.assertNotIn("codex-secret", str(config.model_dump()))
+
+    def test_db_overrides_supply_model_base_url_and_api_key(self):
+        with patch.dict(os.environ, {"MINOS_DISABLE_CODEX_CONFIG": "1"}, clear=True):
+            config = load_openai_responses_config(
+                db_overrides={
+                    "model": "gpt-user",
+                    "base_url": "https://user-proxy.example/v1/",
+                    "api_key": "user-secret",
+                },
+            )
+            key = load_openai_api_key(
+                allow_codex_config=False,
+                db_overrides={"api_key": "user-secret"},
+            )
+
+        self.assertEqual(config.model, "gpt-user")
+        self.assertEqual(config.base_url, "https://user-proxy.example/v1")
+        self.assertTrue(config.api_key_configured)
+        self.assertEqual(config.api_key_source, "user_settings")
+        self.assertEqual(config.api_key_env_name, "")
+        self.assertEqual(key, "user-secret")
+        self.assertNotIn("user-secret", str(config.model_dump()))
+
+    def test_environment_values_override_db_overrides(self):
+        with patch.dict(
+            os.environ,
+            {
+                "MINOS_OPENAI_MODEL": "gpt-env",
+                "MINOS_OPENAI_BASE_URL": "https://env-proxy.example",
+                "MINOS_OPENAI_API_KEY": "env-secret",
+            },
+            clear=True,
+        ):
+            config = load_openai_responses_config(
+                allow_codex_config=False,
+                db_overrides={
+                    "model": "gpt-user",
+                    "base_url": "https://user-proxy.example",
+                    "api_key": "user-secret",
+                },
+            )
+            key = load_openai_api_key(
+                allow_codex_config=False,
+                db_overrides={"api_key": "user-secret"},
+            )
+
+        self.assertEqual(config.model, "gpt-env")
+        self.assertEqual(config.base_url, "https://env-proxy.example")
+        self.assertEqual(config.api_key_source, "environment")
+        self.assertEqual(config.api_key_env_name, "MINOS_OPENAI_API_KEY")
+        self.assertEqual(key, "env-secret")
+        self.assertNotIn("user-secret", str(config.model_dump()))
+
+    def test_no_db_provider_keeps_existing_default_behavior(self):
+        ai_config.register_db_overrides_provider(None)
+
+        with patch.dict(os.environ, {"MINOS_DISABLE_CODEX_CONFIG": "1"}, clear=True):
+            config = load_openai_responses_config()
+
+        self.assertEqual(config.model, "gpt-5.5")
+        self.assertEqual(config.base_url, "https://cx.allincoding.cc")
+        self.assertFalse(config.api_key_configured)
+
+    def test_db_provider_failure_falls_back_to_defaults(self):
+        def failing_provider():
+            raise RuntimeError("db unavailable")
+
+        ai_config.register_db_overrides_provider(failing_provider)
+        try:
+            with patch.dict(os.environ, {"MINOS_DISABLE_CODEX_CONFIG": "1"}, clear=True):
+                config = load_openai_responses_config()
+        finally:
+            ai_config.register_db_overrides_provider(None)
+
+        self.assertEqual(config.model, "gpt-5.5")
+        self.assertEqual(config.base_url, "https://cx.allincoding.cc")
+        self.assertFalse(config.api_key_configured)
 
     def test_env_model_overrides_default_when_using_codex_auth(self):
         with tempfile.TemporaryDirectory() as tmpdir:

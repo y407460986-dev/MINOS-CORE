@@ -143,12 +143,12 @@ class OpenAITextGenerator:
                     continue
                 raise RuntimeError(f"LLM Responses stream failed: {exc}") from exc
             except urllib.error.HTTPError as exc:
-                err_body = exc.read().decode("utf-8", errors="replace")
+                exc.read()
                 if attempt < max_attempts and exc.code in {429, 500, 502, 503, 504}:
                     time.sleep(2 ** attempt)
                     continue
-                logger.error("LLM Responses HTTP %d: %s", exc.code, err_body[:500])
-                raise RuntimeError(f"LLM Responses HTTP {exc.code}: {err_body[:300]}") from exc
+                logger.error("LLM Responses HTTP %d", exc.code)
+                raise RuntimeError(f"LLM Responses HTTP {exc.code}") from exc
             except urllib.error.URLError as exc:
                 if attempt < max_attempts:
                     time.sleep(2 ** attempt)

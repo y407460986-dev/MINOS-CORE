@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import copy
 import json
+import shutil
 import sqlite3
+import zipfile
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
+from urllib.parse import urlparse
 
 from minos_core._paths import user_data_dir
 from minos_core.ai_config import load_openai_responses_config
@@ -133,25 +136,55 @@ class DesktopSettingsStore:
         self._set("default_output_dir", value)
         return value
 
+    def get_ai_overrides(self) -> dict[str, str]:
+        return {
+            "base_url": self._get("ai_base_url"),
+            "api_key": self._get("ai_api_key"),
+            "model": self._get("ai_model"),
+        }
+
+    def set_ai_overrides(
+        self,
+        *,
+        base_url: str | None = None,
+        api_key: str | None = None,
+        model: str | None = None,
+    ) -> dict[str, str]:
+        if base_url is not None:
+            self._set("ai_base_url", _normalize_ai_base_url(base_url))
+        if api_key is not None:
+            self._set("ai_api_key", api_key.strip())
+        if model is not None:
+            self._set("ai_model", model.strip())
+        return self.get_ai_overrides()
+
     def get_ai_config_state(self) -> DesktopAIConfigState:
-        config = load_openai_responses_config()
+        ai_overrides = self.get_ai_overrides()
+        config = load_openai_responses_config(db_overrides=ai_overrides)
         model_env = _first_env_name(("MINOS_OPENAI_MODEL", "OPENAI_MODEL", "ARK_MODEL"))
         base_url_env = _first_env_name(
             ("MINOS_OPENAI_BASE_URL", "OPENAI_BASE_URL", "ARK_BASE_URL")
         )
+        api_key_env = _first_env_name(("MINOS_OPENAI_API_KEY", "OPENAI_API_KEY"))
         return DesktopAIConfigState(
             provider=config.provider,
             model=config.model,
             model_configured=bool(config.model),
-            model_source=model_env or "default",
+            model_source=model_env or ("user_settings" if ai_overrides["model"] else "default"),
             base_url=config.base_url,
             base_url_configured=bool(config.base_url),
-            base_url_source=base_url_env or "default",
+            base_url_source=base_url_env or ("user_settings" if ai_overrides["base_url"] else "default"),
             api_key_configured=config.api_key_configured,
             api_key_source=config.api_key_source,
             api_key_env_name=config.api_key_env_name,
             wire_api=config.wire_api,
             responses_path=config.responses_path,
+            base_url_override=ai_overrides["base_url"],
+            api_key_override_set=bool(ai_overrides["api_key"]),
+            model_override=ai_overrides["model"],
+            base_url_locked_by_env=bool(base_url_env),
+            api_key_locked_by_env=bool(api_key_env),
+            model_locked_by_env=bool(model_env),
         )
 
     def _get(self, key: str) -> str:
@@ -175,6 +208,121 @@ class DesktopSettingsStore:
                 """,
                 (key, value, now),
             )
+
+
+class DesktopDataManagementService:
+    def __init__(
+        self,
+        db_path: str | Path = DEFAULT_DESKTOP_DB_PATH,
+        output_dir: str | Path = DEFAULT_DESKTOP_OUTPUT_DIR,
+        *,
+        log_dir: str | Path | None = None,
+    ) -> None:
+        self._store = DesktopSQLiteStore(db_path)
+        self.db_path = self._store.db_path
+        self.data_dir = self.db_path.parent
+        self.output_dir = Path(output_dir)
+        self.log_dir = Path(log_dir) if log_dir is not None else self.data_dir / "logs"
+        self.backup_dir = self.data_dir / "backups"
+
+    def get_status(self) -> dict[str, Any]:
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        return {
+            "data_dir": str(self.data_dir),
+            "db_path": str(self.db_path),
+            "output_dir": str(self.output_dir),
+            "log_dir": str(self.log_dir),
+            "backup_dir": str(self.backup_dir),
+            "project_count": self._table_count("projects"),
+            "run_count": self._table_count("runs"),
+            "knowledge_rule_count": self._table_count("knowledge_rules"),
+            "output_size_bytes": _directory_size(self.output_dir),
+            "db_size_bytes": self.db_path.stat().st_size if self.db_path.exists() else 0,
+            **self._last_backup_fields(),
+        }
+
+    def create_backup(self) -> dict[str, Any]:
+        self.backup_dir.mkdir(parents=True, exist_ok=True)
+        created_at = _utc_now()
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+        backup_path = self.backup_dir / f"MINOS-CORE-backup-{stamp}.zip"
+        temp_db_path = self.backup_dir / f".{backup_path.stem}.sqlite3.tmp"
+        source = sqlite3.connect(self.db_path)
+        target = sqlite3.connect(temp_db_path)
+        try:
+            source.backup(target)
+        finally:
+            target.close()
+            source.close()
+        manifest = {
+            "app": "MINOS-CORE",
+            "created_at": created_at,
+            "data_dir": str(self.data_dir),
+            "db_path": str(self.db_path),
+            "output_dir": str(self.output_dir),
+            "log_dir": str(self.log_dir),
+            "project_count": self._table_count("projects"),
+            "run_count": self._table_count("runs"),
+            "knowledge_rule_count": self._table_count("knowledge_rules"),
+        }
+        try:
+            with zipfile.ZipFile(backup_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+                archive.write(temp_db_path, "minos_desktop.sqlite3")
+                archive.writestr("backup_manifest.json", _to_json(manifest))
+                _zip_directory(archive, self.output_dir, "out")
+                _zip_directory(archive, self.log_dir, "logs")
+        finally:
+            temp_db_path.unlink(missing_ok=True)
+        return {
+            "backup_path": str(backup_path),
+            "created_at": created_at,
+            "size_bytes": backup_path.stat().st_size,
+        }
+
+    def clear_data(
+        self,
+        *,
+        scope: str,
+        delete_outputs: bool,
+        confirm_text: str,
+    ) -> dict[str, Any]:
+        if scope not in {"workspace", "factory_reset"}:
+            raise ValueError("unsupported data clear scope")
+        expected = "清空项目" if scope == "workspace" else "恢复初始状态"
+        if confirm_text != expected:
+            raise ValueError(f"确认文字不匹配，请输入“{expected}”。")
+
+        with self._store.connect() as connection:
+            connection.execute("DELETE FROM runs")
+            connection.execute("DELETE FROM projects")
+            if scope == "factory_reset":
+                connection.execute("DELETE FROM settings")
+                connection.execute("DELETE FROM knowledge_rules")
+                _seed_knowledge_rules(connection)
+
+        if delete_outputs:
+            _clear_directory_contents(self.output_dir, keep_names={"backups"})
+
+        return self.get_status()
+
+    def _table_count(self, table_name: str) -> int:
+        with self._store.connect() as connection:
+            row = connection.execute(f"SELECT COUNT(*) AS count FROM {table_name}").fetchone()
+        return int(row["count"]) if row else 0
+
+    def _last_backup_fields(self) -> dict[str, str]:
+        if not self.backup_dir.exists():
+            return {"last_backup_path": "", "last_backup_created_at": ""}
+        backups = sorted(
+            self.backup_dir.glob("MINOS-CORE-backup-*.zip"),
+            key=lambda path: path.stat().st_mtime,
+            reverse=True,
+        )
+        if not backups:
+            return {"last_backup_path": "", "last_backup_created_at": ""}
+        latest = backups[0]
+        created_at = datetime.fromtimestamp(latest.stat().st_mtime, timezone.utc).isoformat(timespec="seconds")
+        return {"last_backup_path": str(latest), "last_backup_created_at": created_at}
 
 
 class DesktopProjectStore:
@@ -1675,6 +1823,43 @@ def _knowledge_rule_from_row(row: sqlite3.Row) -> dict[str, Any]:
     }
 
 
+def _directory_size(path: Path) -> int:
+    if not path.exists():
+        return 0
+    total = 0
+    for item in path.rglob("*"):
+        if item.is_file():
+            try:
+                total += item.stat().st_size
+            except OSError:
+                continue
+    return total
+
+
+def _zip_directory(archive: zipfile.ZipFile, directory: Path, prefix: str) -> None:
+    if not directory.exists():
+        return
+    for item in directory.rglob("*"):
+        if not item.is_file():
+            continue
+        try:
+            archive.write(item, str(Path(prefix) / item.relative_to(directory)))
+        except OSError:
+            continue
+
+
+def _clear_directory_contents(path: Path, *, keep_names: set[str]) -> None:
+    if not path.exists():
+        return
+    for item in path.iterdir():
+        if item.name in keep_names:
+            continue
+        if item.is_dir():
+            shutil.rmtree(item)
+        else:
+            item.unlink()
+
+
 def _guess_failure_reason(message: str) -> str:
     lowered = message.lower()
     if "504" in lowered or "gateway time-out" in lowered or "gateway timeout" in lowered:
@@ -1723,6 +1908,18 @@ def _first_env_name(names: tuple[str, ...]) -> str:
         if os.getenv(name):
             return name
     return ""
+
+
+def _normalize_ai_base_url(value: str) -> str:
+    normalized = value.strip()
+    if not normalized:
+        return ""
+    parsed = urlparse(normalized)
+    if parsed.scheme == "https":
+        return normalized
+    if parsed.scheme == "http" and parsed.hostname in {"127.0.0.1", "localhost", "::1"}:
+        return normalized
+    raise ValueError("AI 服务地址必须使用 HTTPS；本机 127.0.0.1/localhost 代理可使用 HTTP。")
 
 
 def _utc_now() -> str:

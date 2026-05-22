@@ -82,7 +82,7 @@ flowchart TD
     PL34 --> PL39[xlsx openability check<br/>OpenXML structure first]
     PL34 --> PL40[unittest and pytest record]
     PL34 --> PL41[real drawing sample run<br/>stamping hinge limiter]
-    PL41 --> PL42[gpt-5.4 default model<br/>Codex auth and proxy reuse]
+    PL41 --> PL42[gpt-5.5 default model<br/>cx default URL plus Codex auth reuse]
     PL41 --> PL43[accept-three-tables verification]
     PL41 --> PL44[PySide6 desktop smoke ready]
     PL41 --> PL45[PySide6 import failure guarded in preflight]
@@ -140,7 +140,7 @@ flowchart TD
     AD --> AD5[XLSX exporter]
     AD --> AD8[pyproject package metadata]
     AD --> AD9[gitignore local outputs]
-    AD --> AD10[desktop SQLite<br/>out/desktop/minos_desktop.sqlite3]
+    AD --> AD10[desktop SQLite<br/>LOCALAPPDATA MINOS-CORE<br/>minos_desktop.sqlite3]
     AD --> AD11[DesktopSettingsStore<br/>no plaintext key persistence]
     AD --> AD12[DesktopProjectStore]
     AD --> AD13[DesktopRunService]
@@ -188,11 +188,11 @@ flowchart TD
     QG35 --> QG36[final Excel audit<br/>quality gate manual confirmation edit patch soft delete]
     QG --> QG22[desktop failure report<br/>raw error cause options]
     QG22 --> QG23[options include abandon task]
-    QG --> QG24[desktop smoke JSON report<br/>status checks warnings recommendations]
-    QG24 --> QG23
-    QG --> QG24[demo data safety gate]
-    QG24 --> QG25[no real customer drawings]
-    QG24 --> QG26[synthetic sanitized authorized input only]
+    QG --> QG24_SMOKE[desktop smoke JSON report<br/>status checks warnings recommendations]
+    QG24_SMOKE --> QG23
+    QG --> QG24_DEMO[demo data safety gate]
+    QG24_DEMO --> QG25[no real customer drawings]
+    QG24_DEMO --> QG26[synthetic sanitized authorized input only]
 
     AD --> PL
     PL --> DC
@@ -226,8 +226,8 @@ flowchart TD
     T --> T24[Trusted delivery JSON contracts]
     T --> T25[Phase 6 pilot workflow<br/>input_package generate_draft<br/>review-template apply-review export]
     T --> T26[Desktop shell and Qt helper tests<br/>services SQLite lazy PySide6]
-    T --> T27[Desktop preflight tests<br/>no Qt required no plaintext key]
-    T --> T27[Real desktop acceptance gates<br/>preflight safe demo CLI smoke<br/>manual desktop xlsx openability]
+    T --> T27_PREFLIGHT[Desktop preflight tests<br/>no Qt required no plaintext key]
+    T --> T27_ACCEPTANCE[Real desktop acceptance gates<br/>preflight safe demo CLI smoke<br/>manual desktop xlsx openability]
     T --> T28[Manual review compression tests<br/>dedupe and PFD unmapped characteristic review]
     T --> T29[AI risk reasoning tests<br/>PFMEA multi-risk CP control draft]
     T --> T30[Chinese desktop UI helper tests<br/>Chinese labels and summaries]
@@ -264,8 +264,8 @@ flowchart TD
     T24 --> G
     T25 --> G
     T26 --> G
-    T27 --> G
-    T27 --> G
+    T27_PREFLIGHT --> G
+    T27_ACCEPTANCE --> G
     T28 --> G
     T29 --> G
     T30 --> G
@@ -578,7 +578,7 @@ flowchart TD
     PL230 --> PL239[legacy desktop run endpoint<br/>aliases chain run]
     PL239 --> PL240[Tauri client exposes<br/>chain start only]
     PL240 --> PL241[chain stage persistence<br/>DB and disk keep state]
-    PL230 --> PL242[text LLM high reasoning default<br/>avoid PFD timeout]
+    PL230 --> PL242[text LLM medium reasoning default<br/>avoid PFD timeout]
     PL242 --> PL243[timeout message and env override<br/>MINOS_TEXT_LLM_TIMEOUT_SECONDS]
     PL240 --> PL244[Tauri chain feedback<br/>failed run not shown as generated]
     PL232 --> PL245[Tauri PFD inline edit confirm<br/>direct confirm or edit_patch confirm]
@@ -746,4 +746,36 @@ flowchart TD
     FIX481 --> FIX482[Codex auth reused<br/>Codex base_url ignored for MINOS default]
     FIX482 --> FIX483[Responses path<br/>responses]
     FIX483 --> FIX484[desktop settings source<br/>default]
-    FIX484 --> G
+    FIX484 --> FIX490[local data management page<br/>visible paths backup clear]
+    FIX490 --> FIX491[data management service<br/>counts sizes backup zip]
+    FIX491 --> FIX492[workspace clear<br/>keeps settings knowledge backups]
+    FIX491 --> FIX493[factory reset<br/>clears settings and reseeds knowledge]
+    FIX492 --> FIX494[settings UI actions<br/>open dirs backup reveal clear]
+    FIX493 --> FIX494
+    FIX494 --> FIX495[verification<br/>service API static tests<br/>Tauri build OK]
+    FIX495 --> FIX500[settings AI service config<br/>URL API key model editable]
+    FIX500 --> FIX501[ai_config DB overrides<br/>env first DB fallback]
+    FIX501 --> FIX502[PATCH settings ai-config<br/>no plaintext key response]
+    FIX502 --> FIX503[Tauri settings card<br/>save clear env lock badges]
+    FIX503 --> FIX504[main-agent audit<br/>ARK key lock mismatch fixed]
+    FIX504 --> FIX505[AI URL safety<br/>remote HTTPS local HTTP allowed]
+    FIX505 --> FIX506[HTTP error redaction<br/>no upstream body in UI or logs]
+    FIX506 --> FIX507[verification<br/>81 backend adapter tests<br/>3 API tests 27 UI static<br/>npm build cargo check]
+    FIX507 --> FIX510[current generated output audit<br/>API docs packaging backup]
+    FIX510 --> FIX511[API sidecar tests updated<br/>PFMEA progress callback<br/>CP-confirm batch rule]
+    FIX511 --> FIX512[SQLite online backup<br/>captures WAL changes]
+    FIX512 --> FIX513[Tauri build script<br/>no placeholder pollution]
+    FIX513 --> FIX514[release script<br/>rebuild sidecar before NSIS]
+    FIX514 --> G
+    FIX514 --> FIX515[release script copy step<br/>define repo root before dist output]
+    FIX515 --> UI520[V1.14.22 quiet focused UI motion refactor<br/>docs tests audit scope]
+    UI520 --> UI521[OpenSpec proposal design tasks<br/>created under change directory]
+    UI521 --> UI522[task plan progress findings<br/>Chinese UTF-8 records]
+    UI522 --> UI523[Mermaid flow update<br/>unique node IDs]
+    UI523 --> UI524[static test contract<br/>motion token and experience components]
+    UI524 --> UI525[three-table editing canvas<br/>main work surface]
+    UI525 --> UI526[floating context toolbar<br/>row and draft actions]
+    UI526 --> UI527[no InspectorPanel<br/>PreviewRail remains]
+    UI527 --> UI528[drawing import page stays mounted<br/>navigation preserves run state]
+    UI528 --> UI529[delivery audit<br/>UTF-8 Mermaid pytest status]
+    UI529 --> G

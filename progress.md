@@ -16,6 +16,72 @@
 - 已验证：`project_flow.mmd` 节点 ID 不重复，MinerU 默认分支和 legacy 分支连接到 `OCR evidence merge`。
 - 已验证：`git diff --check` 已按本轮负责文件范围检查通过。
 
+## V1.14.22 安静聚焦 UI motion 重构文档与测试当前状态
+
+- 已完成：确认本轮写入范围只包含 `task_plan.md`、`progress.md`、`findings.md`、`project_flow.mmd`、`openspec/changes/v1.14.22-quiet-focused-ui-motion-refactor/` 和 `tests/test_desktop_tauri_app_state.py`，未改前端页面或后端。
+- 已完成：新增 OpenSpec 目录 `openspec/changes/v1.14.22-quiet-focused-ui-motion-refactor/`，包含 `proposal.md`、`design.md`、`tasks.md`。
+- 已完成：`tasks.md` 只勾选文档建立和可验证文档检查项，前端实现和静态测试跑通项保留未勾选。
+- 已更新：`task_plan.md` 记录 V1.14.22 目标、流程图、`///` 开发步骤和 OpenSpec 四步闭环。
+- 已更新：`findings.md` 记录 motion token、体验组件、三表编辑画布、浮动工具条、右侧检查器和导入页保活的边界。
+- 已更新：`project_flow.mmd` 追加 V1.14.22 流程节点，节点 ID 使用 `UI520` 到 `UI529`，避免与现有节点重复。
+- 已完成：`tests/test_desktop_tauri_app_state.py` 新增静态契约，锁定 motion token、体验组件、三表编辑画布、浮动工具条、无 `InspectorPanel` 和导入页保活。
+- 已验证：`python -m pytest tests/test_desktop_tauri_app_state.py -q`：31 项通过。
+- 已验证：OpenSpec 和文档 UTF-8 可读取。
+- 已验证：`project_flow.mmd` 节点 ID 不重复，当前检查到 56 个唯一节点定义。
+- 已验证：`git diff --check` 在本轮写入范围内无空白错误，仅提示 Git 未来可能把 LF 转为 CRLF。
+
+> 说明：下方历史章节保留了当时的验证命令原文，其中部分旧测试文件（如 `tests/test_desktop_shell.py`、`tests/test_qt_app_helpers.py`）已经迁移或删除；当前可运行的验证命令以 V1.14.21 及之后章节为准。
+
+## V1.14.21 当前生成物审查与修复当前状态
+
+- 已完成：并行只读审查 Python/API、Tauri 打包和文档/OpenSpec 三条线，并结合本地验证确认当前最需要修的是 API 回归、SQLite 备份、sidecar 目录污染、发布目录和过期文档。
+- 已修复：`tests/test_desktop_api_sidecar.py` 的 PFMEA 测试桩接受当前真实 `on_progress` 参数；批量确认测试改为先确认 CP，再进入自动总审核批量确认。
+- 已修复：本地数据备份从直接复制 SQLite 主库改为 `sqlite3.Connection.backup()`，新增 WAL 回归测试覆盖已提交但未 checkpoint 的数据。
+- 已修复：Tauri `build.rs` 只在 `_internal` 缺失或为空时写 `.placeholder`；已删除当前真实 sidecar `_internal` 下被 `cargo check` 写入的占位文件。
+- 已修复：`npm run release:nsis` 会先运行 `scripts/build_sidecar.ps1` 再打 NSIS；`scripts/build_release.ps1` 调用内部 `tauri:nsis`，成功后把安装包复制到 `dist\build\out`。
+- 已修复：`scripts/build_release.ps1` 补上 `$repo = Split-Path -Parent $PSScriptRoot`，最终复制安装包时不再因为 `$repo` 为空而失败。
+- 已更新：README 默认 AI URL、Codex base_url 语义、默认 SQLite 数据目录、服务层说明和桌面测试命令。
+- 已更新：OpenSpec V1.13 的右侧检查器和遗留 PySide/1280 验收记录，补齐 V1.14.19、V1.14.20、V1.14.21 的 OpenSpec 目录。
+- 已更新：`project_flow.mmd` 修复重复节点 ID、过期 `gpt-5.4`/high reasoning 节点，并追加当前生成物审查修复流程。
+- 已验证：`python -m pytest tests/test_desktop_api_sidecar.py tests/desktop/test_services.py tests/test_desktop_tauri_app_state.py -q`：66 项通过。
+- 已验证：`python -m pytest tests/test_ai_config.py tests/desktop/test_shell.py tests/test_llm_text_responses.py tests/test_openai_multimodal_adapter.py -q`：55 项通过。
+- 已验证：Tauri 前端 `npm run build` 通过；Rust `cargo check --locked` 通过。
+- 已验证：`git diff --check` 无空白错误，仅 CRLF 换行提示；`python -m compileall -q minos_core minos_desktop` 通过。
+- 已验证：`project_flow.mmd` 无重复 Mermaid 节点 ID；`cargo check` 后真实 sidecar `_internal\.placeholder` 不存在。
+
+## V1.14.19 本地数据管理页当前状态
+
+- 已定位：安装目录和数据目录是两回事。当前 Windows 安装版默认把 `minos_desktop.sqlite3`、`out`、`logs` 写入用户本地数据目录 `%LOCALAPPDATA%\MINOS-CORE`，所以重装不会自动删除旧数据。
+- 已新增：`DesktopDataManagementService`，可统计数据目录、数据库路径、输出目录、日志目录、备份目录、项目数量、运行记录数量、知识规则数量、输出占用和数据库大小。
+- 已新增：数据备份功能，会在数据目录 `backups` 下生成 `MINOS-CORE-backup-YYYYMMDD-HHMMSS.zip`，包含 SQLite 数据库、`out/`、`logs/` 和 `backup_manifest.json`；当前已改为 SQLite online backup，覆盖 WAL 中已提交数据。
+- 已新增：数据清空功能，支持 `workspace` 清空项目/运行记录并保留设置和知识规则；支持 `factory_reset` 清空项目、运行、设置和知识规则后重新初始化默认知识规则。
+- 已加固：清空使用 SQL 删除表数据，不在运行中的进程里直接删除 SQLite 文件；删除输出目录内容时不会删除 `backups`。
+- 已新增：`GET /api/settings/data-management`、`POST /api/settings/data-management/backup`、`POST /api/settings/data-management/clear`。
+- 已新增：Tauri `open_path` 命令，前端可打开数据目录/输出目录，备份文件仍用现有 `reveal_file` 定位。
+- 已新增：设置页“数据管理”区域，显示路径、数量、大小、最后备份；提供“打开数据目录”“打开输出目录”“备份数据”“定位备份文件”“清空项目与运行记录”“恢复初始状态”。
+- 已验证：`python -m pytest tests/desktop/test_services.py -q`：21 项通过。
+- 已验证：`python -m pytest tests/test_desktop_api_sidecar.py::test_data_management_api_reports_backup_and_clear -q`：1 项通过。
+- 已验证：`python -m pytest tests/test_desktop_tauri_app_state.py::test_settings_page_exposes_local_data_management_actions -q`：1 项通过。
+- 已验证：Tauri 前端 `npm run build` 通过。
+- 已修复：完整 `tests/test_desktop_api_sidecar.py` 中链式 PFMEA 测试桩和批量确认旧断言已同步当前流程，后续以 V1.14.21 验证结果为准。
+
+## V1.14.20 设置页可视化 AI 服务配置当前状态
+
+- 已读取：`C:\Users\fgtan\.claude\plans\minos-core-exe-declarative-papert.md`，本轮计划已变为“设置页可编辑 AI URL / API Key / 模型名”。
+- 已按用户要求分工：后端子代理完成 `ai_config`、settings store、API 和 Python 测试；前端子代理完成设置页 UI、client/types 和静态测试；主代理做最终审核与安全加固。
+- 已完成：`load_openai_responses_config()` / `load_openai_api_key()` 支持 DB overrides，桌面 sidecar 启动时注册 SQLite overrides provider。
+- 已完成：AI 配置优先级为显式环境变量 > 设置页/SQLite overrides > Codex auth / ARK fallback / 默认值；Codex 文件解析链路保留。
+- 已完成：`DesktopSettingsStore` 支持 `get_ai_overrides()` / `set_ai_overrides()`；settings 返回 `base_url_override`、`api_key_override_set`、`model_override` 和三类环境变量锁定状态。
+- 已完成：新增 `PATCH /api/settings/ai-config`，API Key 保存后只返回“已配置/未配置”，不返回明文。
+- 已完成：设置页新增“AI 服务配置”卡片，支持服务地址、API Key、模型名保存；环境变量接管时禁用对应字段；支持“清除自定义”。
+- 已加固：`ARK_API_KEY` 不再锁定设置页 API Key 输入框，因为真实运行优先级中 UI/DB key 高于 ARK fallback；`MINOS_OPENAI_API_KEY` / `OPENAI_API_KEY` 仍会锁定。
+- 已加固：设置页保存的远端 AI URL 必须使用 HTTPS；本机 `127.0.0.1`、`localhost`、`::1` 代理允许 HTTP，避免把 Bearer Key 明文发到远端普通 HTTP。
+- 已加固：文本和多模态 Responses HTTP 错误不再把上游响应体带到异常或日志中，避免代理错误页回显密钥后泄漏到前端或备份日志。
+- 已验证：`python -m pytest tests/test_ai_config.py tests/desktop/test_services.py tests/desktop/test_shell.py tests/test_llm_text_responses.py tests/test_openai_multimodal_adapter.py -q`：81 项通过。
+- 已验证：`python -m pytest tests/test_desktop_api_sidecar.py::test_patch_ai_config_persists_overrides_without_returning_secret tests/test_desktop_api_sidecar.py::test_patch_ai_config_validation_error_does_not_echo_secret tests/test_desktop_api_sidecar.py::test_data_management_api_reports_backup_and_clear -q`：3 项通过。
+- 已验证：`python -m pytest tests/test_desktop_tauri_app_state.py -q`：27 项通过。
+- 已验证：Tauri 前端 `npm run build` 通过；Rust `cargo check` 通过；`git diff --check` 无空白错误，仅 CRLF 换行提示。
+
 ## 当前任务：MINOS-CORE 调查审核与问题修复
 
 ## 删除右侧检查器面板当前状态
@@ -144,7 +210,7 @@
 - 已完成：新增 `generate-three-tables` CLI，默认导出 draft 三表包；final export 在未复核 AI 草案时被质量门阻断。
 - 已完成：新增 `minos_desktop` Windows 桌面业务闭环 MVP，PySide6 作为可选依赖，包含项目、图纸导入、AI 识别结果、PFD、PFMEA、CP、人工复核、导出、设置页面。
 - 已完成：新增 `minos_desktop/services.py`，通过服务层管理桌面项目、设置、运行状态和 core pipeline 调用。
-- 已完成：桌面端默认使用 SQLite `out/desktop/minos_desktop.sqlite3`，保存项目、run 记录和导出记录。
+- 已完成：桌面端默认使用 SQLite `%LOCALAPPDATA%\MINOS-CORE\minos_desktop.sqlite3`，保存项目、run 记录和导出记录。
 - 已完成：新增 `DesktopSettingsStore`、`DesktopProjectStore`、`DesktopRunService`，以及 `DesktopRunState`、`DesktopRunRecord`、`DesktopExportRecord`。
 - 已完成：Qt UI 已通过服务层创建/更新项目，后台运行 `generate_three_tables_from_drawing(...)`，并刷新 AI/PFD/PFMEA/CP/复核/导出页。
 - 已完成：设置页显示 AI 配置状态和默认输出目录，不显示、不保存明文 API key。
@@ -167,7 +233,7 @@
 
 ## 桌面业务闭环 MVP 已完成
 - `minos_desktop/services.py` 已承接桌面项目、设置、运行记录、导出记录和后台 run 服务。
-- 默认数据库为 `out/desktop/minos_desktop.sqlite3`。
+- 默认数据库为 `%LOCALAPPDATA%\MINOS-CORE\minos_desktop.sqlite3`。
 - Qt UI 已从直接界面骨架升级为通过服务层驱动 core pipeline，并把结果同步到 AI 识别、PFD、PFMEA、CP、人工复核和导出页面。
 - AI 配置只展示状态和来源，不显示或持久化明文 key。
 - PySide6 仍为可选依赖和懒加载，不影响无桌面依赖环境。

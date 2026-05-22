@@ -4,7 +4,7 @@ import {
   useReactTable,
   type ColumnDef,
 } from "@tanstack/react-table";
-import { useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent, type ReactNode } from "react";
 import type { TableKind, WorkbenchRow } from "../api/types";
 import { riskLabel, rowStatusLabel } from "../state/workbench-display";
 import {
@@ -18,7 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { ArrowDown, ArrowUp, GripVertical } from "lucide-react";
+import { ArrowDown, ArrowUp, ClipboardCheck, GripVertical, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
 
 type DraftCell = {
   rowId: string;
@@ -47,6 +47,15 @@ type WorkbenchColumnDef = ColumnDef<WorkbenchRow> & {
   editableField?: string;
 };
 
+type TableWorkspaceState = {
+  activeRowId: string | null;
+  editingCell: DraftCell | null;
+  draftChanges: Record<string, string>;
+  selectedRowIds: Record<string, boolean>;
+  isAddingPfdRow: boolean;
+  pfdDraft: PfdNewRowDraft;
+};
+
 const emptyPfdDraft: PfdNewRowDraft = {
   process_step_id: "",
   operation: "",
@@ -58,6 +67,25 @@ const emptyPfdDraft: PfdNewRowDraft = {
   special_characteristic: "",
   responsibility: ""
 };
+
+function createTableWorkspaceState(): TableWorkspaceState {
+  return {
+    activeRowId: null,
+    editingCell: null,
+    draftChanges: {},
+    selectedRowIds: {},
+    isAddingPfdRow: false,
+    pfdDraft: { ...emptyPfdDraft }
+  };
+}
+
+function createInitialTableWorkspaceState(): Record<TableKind, TableWorkspaceState> {
+  return {
+    pfd: createTableWorkspaceState(),
+    pfmea: createTableWorkspaceState(),
+    cp: createTableWorkspaceState()
+  };
+}
 
 function text(value: unknown, fallback = ""): string {
   if (Array.isArray(value)) return value.map((item) => text(item)).filter(Boolean).join(", ");
@@ -192,11 +220,7 @@ export function WorkbenchTable({
   onMarkRowsForReview,
   busy = false
 }: WorkbenchTableProps) {
-  const [editingCell, setEditingCell] = useState<DraftCell | null>(null);
-  const [draftChanges, setDraftChanges] = useState<Record<string, string>>({});
-  const [selectedRowIds, setSelectedRowIds] = useState<Record<string, boolean>>({});
-  const [isAddingPfdRow, setIsAddingPfdRow] = useState(false);
-  const [pfdDraft, setPfdDraft] = useState<PfdNewRowDraft>(emptyPfdDraft);
+  const [tableStateByKind, setTableStateByKind] = useState<Record<TableKind, TableWorkspaceState>>(createInitialTableWorkspaceState);
   const [draggedRowId, setDraggedRowId] = useState<string | null>(null);
   const draggedRowIdRef = useRef<string | null>(null);
   const pointerDragRowIdRef = useRef<string | null>(null);
@@ -207,7 +231,10 @@ export function WorkbenchTable({
     getRowId: (row) => row.rowId,
     getCoreRowModel: getCoreRowModel(),
   });
+  const tableState = tableStateByKind[tableKind];
+  const { editingCell, draftChanges, selectedRowIds, isAddingPfdRow, pfdDraft } = tableState;
   const visibleRows = table.getRowModel().rows.map((row) => row.original);
+  const activeRow = visibleRows.find((row) => row.rowId === tableState.activeRowId) ?? null;
   const selectedRows = useMemo(
     () => visibleRows.filter((row) => selectedRowIds[row.rowId]),
     [selectedRowIds, visibleRows]
@@ -222,6 +249,28 @@ export function WorkbenchTable({
       .filter(Boolean) as DraftChange[];
   }, [draftChanges, rows]);
   const hasContextActions = selectedRows.length > 0 || draftEntries.length > 0;
+
+  const updateCurrentTableState = useCallback((update: (current: TableWorkspaceState) => TableWorkspaceState) => {
+    setTableStateByKind((current) => ({
+      ...current,
+      [tableKind]: update(current[tableKind])
+    }));
+  }, [tableKind]);
+
+  useEffect(() => {
+    const rememberedRow = activeRow;
+    if (rememberedRow && (selectedRow?.table !== tableKind || selectedRow?.rowId !== rememberedRow.rowId)) {
+      onSelectRow(rememberedRow);
+    }
+  }, [activeRow, onSelectRow, selectedRow?.rowId, selectedRow?.table, tableKind]);
+
+  useEffect(() => {
+    if (!selectedRow || selectedRow.table !== tableKind || selectedRow.rowId === tableState.activeRowId) return;
+    updateCurrentTableState((current) => ({
+      ...current,
+      activeRowId: selectedRow.rowId
+    }));
+  }, [selectedRow, tableKind, tableState.activeRowId, updateCurrentTableState]);
 
   useEffect(() => {
     async function finishWindowPointerDrag(event: globalThis.PointerEvent) {
@@ -248,47 +297,90 @@ export function WorkbenchTable({
     return String(fallback);
   }
 
+  function isDraftCell(row: WorkbenchRow, field?: string): boolean {
+    return Boolean(field && Object.prototype.hasOwnProperty.call(draftChanges, draftKey(row, field)));
+  }
+
   function commitDraft(row: WorkbenchRow, field: string, value: string) {
-    setDraftChanges((current) => ({ ...current, [draftKey(row, field)]: value }));
+    updateCurrentTableState((current) => ({
+      ...current,
+      draftChanges: { ...current.draftChanges, [draftKey(row, field)]: value }
+    }));
   }
 
   async function saveDrafts() {
     if (!onSaveDrafts || draftEntries.length === 0) return;
     await onSaveDrafts(draftEntries);
-    setDraftChanges({});
-    setEditingCell(null);
+    updateCurrentTableState((current) => ({
+      ...current,
+      draftChanges: {},
+      editingCell: null
+    }));
   }
 
   async function addPfdDraft() {
     if (!onAddPfdRow) return;
     const saved = await onAddPfdRow(pfdDraft);
     if (saved === false) return;
-    setPfdDraft(emptyPfdDraft);
-    setIsAddingPfdRow(false);
+    updateCurrentTableState((current) => ({
+      ...current,
+      pfdDraft: { ...emptyPfdDraft },
+      isAddingPfdRow: false
+    }));
   }
 
   async function softDeleteRows() {
     if (!onSoftDeleteRows || selectedRows.length === 0) return;
     await onSoftDeleteRows(selectedRows);
-    setSelectedRowIds({});
+    updateCurrentTableState((current) => ({
+      ...current,
+      selectedRowIds: {}
+    }));
   }
 
   async function markRowsForReview() {
     if (!onMarkRowsForReview || selectedRows.length === 0) return;
     await onMarkRowsForReview(selectedRows);
-    setSelectedRowIds({});
+    updateCurrentTableState((current) => ({
+      ...current,
+      selectedRowIds: {}
+    }));
   }
 
   function toggleRow(row: WorkbenchRow, checked: boolean) {
-    setSelectedRowIds((current) => ({ ...current, [row.rowId]: checked }));
+    updateCurrentTableState((current) => ({
+      ...current,
+      selectedRowIds: { ...current.selectedRowIds, [row.rowId]: checked }
+    }));
+  }
+
+  function activateRow(row: WorkbenchRow) {
+    updateCurrentTableState((current) => ({
+      ...current,
+      activeRowId: row.rowId
+    }));
+    onSelectRow(row);
   }
 
   function toggleAll(checked: boolean) {
-    setSelectedRowIds(checked ? Object.fromEntries(visibleRows.map((row) => [row.rowId, true])) : {});
+    updateCurrentTableState((current) => ({
+      ...current,
+      selectedRowIds: checked ? Object.fromEntries(visibleRows.map((row) => [row.rowId, true])) : {}
+    }));
   }
 
   function updatePfdDraft(field: keyof PfdNewRowDraft, value: string) {
-    setPfdDraft((current) => ({ ...current, [field]: value }));
+    updateCurrentTableState((current) => ({
+      ...current,
+      pfdDraft: { ...current.pfdDraft, [field]: value }
+    }));
+  }
+
+  function setCurrentEditingCell(cell: DraftCell | null) {
+    updateCurrentTableState((current) => ({
+      ...current,
+      editingCell: cell
+    }));
   }
 
   async function reorderPfdRowToTarget(sourceRowId: string | null, targetRow: WorkbenchRow) {
@@ -385,17 +477,18 @@ export function WorkbenchTable({
   );
 
   return (
-    <div className="relative rounded-lg border bg-white overflow-hidden min-h-[480px]" aria-label="三表编辑画布">
+    <div className="relative min-h-[520px] overflow-hidden rounded-lg border bg-white shadow-[0_18px_45px_rgba(15,23,42,0.06)]" aria-label="三表编辑画布">
       {canAddPfdRow && (
-        <div className="border-b bg-white px-4 py-3">
+        <div className="border-b bg-muted/20 px-4 py-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-[13px] text-muted-foreground">过程流程图</span>
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => setIsAddingPfdRow((current) => !current)}>
+            <span className="text-[13px] font-medium text-foreground">过程流程图</span>
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => updateCurrentTableState((current) => ({ ...current, isAddingPfdRow: !current.isAddingPfdRow }))}>
+              <Plus size={14} aria-hidden="true" />
               新增行
             </Button>
           </div>
           {isAddingPfdRow && (
-            <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+            <div className="mt-3 grid gap-2 rounded-md border bg-white p-3 sm:grid-cols-2 xl:grid-cols-5">
               <Input aria-label="新增行编号" placeholder="编号" value={pfdDraft.process_step_id} onChange={(event) => updatePfdDraft("process_step_id", event.target.value)} />
               <Input aria-label="新增行流程符号" placeholder="流程符号" value={pfdDraft.operation_type} onChange={(event) => updatePfdDraft("operation_type", event.target.value)} />
               <Input aria-label="新增行工序名称" placeholder="工序名称" value={pfdDraft.operation} onChange={(event) => updatePfdDraft("operation", event.target.value)} />
@@ -410,8 +503,11 @@ export function WorkbenchTable({
                   保存新增行
                 </Button>
                 <Button size="sm" variant="ghost" disabled={busy} onClick={() => {
-                  setPfdDraft(emptyPfdDraft);
-                  setIsAddingPfdRow(false);
+                  updateCurrentTableState((current) => ({
+                    ...current,
+                    pfdDraft: { ...emptyPfdDraft },
+                    isAddingPfdRow: false
+                  }));
                 }}>
                   取消
                 </Button>
@@ -421,145 +517,164 @@ export function WorkbenchTable({
         </div>
       )}
       {hasContextActions && (
-        <div className="absolute right-4 top-4 z-20 flex items-center gap-2 rounded-lg border bg-white/95 px-3 py-2 text-[13px] shadow-[0_10px_30px_rgba(15,23,42,0.12)] backdrop-blur" aria-label="浮动上下文工具条">
+        <div className="absolute right-4 top-4 z-20 flex max-w-[calc(100%-2rem)] flex-wrap items-center justify-end gap-2 rounded-full border bg-white/95 px-3 py-2 text-[13px] shadow-[0_14px_36px_rgba(15,23,42,0.14)] backdrop-blur" aria-label="浮动上下文工具条">
           <span className="text-muted-foreground">
             {selectedRows.length > 0 ? `已选 ${selectedRows.length} 行` : `${draftEntries.length} 项未保存`}
           </span>
           <Button size="sm" variant="outline" disabled={busy || draftEntries.length === 0} onClick={saveDrafts}>
+            <Save size={14} aria-hidden="true" />
             保存更改
           </Button>
           <Button size="sm" variant="outline" disabled={busy || selectedRows.length === 0} onClick={markRowsForReview}>
+            <ClipboardCheck size={14} aria-hidden="true" />
             标记评审
           </Button>
           <Button size="sm" variant="outline" disabled={busy || selectedRows.length === 0} onClick={softDeleteRows}>
+            <Trash2 size={14} aria-hidden="true" />
             软删除
           </Button>
-          <Button size="sm" variant="ghost" disabled={busy || draftEntries.length === 0} onClick={() => setDraftChanges({})}>
+          <Button size="sm" variant="ghost" disabled={busy || draftEntries.length === 0} onClick={() => updateCurrentTableState((current) => ({ ...current, draftChanges: {} }))}>
+            <RotateCcw size={14} aria-hidden="true" />
             撤销本轮
           </Button>
         </div>
       )}
-      <Table>
-        <TableHeader>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <TableRow key={headerGroup.id}>
-              <TableHead className="w-10" />
-              <TableHead className="w-10">
-                <input
-                  type="checkbox"
-                  aria-label="选择当前页全部行"
-                  checked={visibleRows.length > 0 && selectedRows.length === visibleRows.length}
-                  onChange={(event) => toggleAll(event.currentTarget.checked)}
-                />
-              </TableHead>
-              {headerGroup.headers.map((header) => (
-                <TableHead key={header.id}>
-                  {flexRender(header.column.columnDef.header, header.getContext())}
-                </TableHead>
-              ))}
-            </TableRow>
-          ))}
-        </TableHeader>
-        <TableBody>
-          {table.getRowModel().rows.length > 0 ? (
-            table.getRowModel().rows.map((row) => (
-              <TableRow
-                key={row.original.id}
-                data-pfd-row-id={row.original.rowId}
-                draggable={canDragReorderPfdRows}
-                className={cn(
-                  "cursor-pointer",
-                  canDragReorderPfdRows && "cursor-grab",
-                  draggedRowId === row.original.rowId && "opacity-50",
-                  selectedRow?.id === row.original.id && "bg-accent",
-                  selectedRowIds[row.original.rowId] && "bg-primary/5"
-                )}
-                onClick={() => onSelectRow(row.original)}
-                onDragStart={(event) => startDrag(row.original, event)}
-                onDragOver={(event) => {
-                  if (canDragReorderPfdRows) event.preventDefault();
-                }}
-                onDrop={(event) => {
-                  if (!canDragReorderPfdRows) return;
-                  event.preventDefault();
-                  const transferredRowId = event.dataTransfer.getData("text/plain");
-                  if (transferredRowId) {
-                    draggedRowIdRef.current = transferredRowId;
-                  }
-                  void dropPfdRow(row.original);
-                }}
-                onDragEnd={endDrag}
-              >
-                <TableCell className="whitespace-nowrap" onClick={(event) => event.stopPropagation()}>
-                  <div className="inline-flex items-center gap-1">
-                    <span
-                      data-pfd-drag-handle
-                      aria-label={`整行拖拽调整 ${row.original.id} 顺序`}
-                      aria-disabled={!canDragReorderPfdRows}
-                      className={cn(
-                        "inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground",
-                        canDragReorderPfdRows && "cursor-grab hover:bg-muted hover:text-foreground"
-                      )}
-                      onPointerDown={(event) => startPointerDrag(row.original, event)}
-                      onPointerUp={(event) => void finishPointerDrag(event)}
-                      onPointerCancel={endDrag}
-                    >
-                      <GripVertical size={15} aria-hidden="true" />
-                    </span>
-                    <button
-                      type="button"
-                      aria-label={`${row.original.id} 上移`}
-                      disabled={!canDragReorderPfdRows}
-                      className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted disabled:opacity-40"
-                      onClick={() => void movePfdRow(row.original, -1)}
-                    >
-                      <ArrowUp size={14} aria-hidden="true" />
-                    </button>
-                    <button
-                      type="button"
-                      aria-label={`${row.original.id} 下移`}
-                      disabled={!canDragReorderPfdRows}
-                      className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted disabled:opacity-40"
-                      onClick={() => void movePfdRow(row.original, 1)}
-                    >
-                      <ArrowDown size={14} aria-hidden="true" />
-                    </button>
-                  </div>
-                </TableCell>
-                <TableCell onClick={(event) => event.stopPropagation()}>
+      <div className="max-h-[calc(100vh-330px)] min-h-[440px] overflow-auto">
+        <Table className="min-w-max">
+          <TableHeader className="sticky top-0 z-10 bg-white shadow-[0_1px_0_rgba(15,23,42,0.08)]">
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id} className="hover:bg-transparent">
+                <TableHead className="sticky left-0 z-20 w-10 bg-white" />
+                <TableHead className="sticky left-10 z-20 w-10 bg-white">
                   <input
                     type="checkbox"
-                    aria-label={`选择 ${row.original.id}`}
-                    checked={Boolean(selectedRowIds[row.original.rowId])}
-                    onChange={(event) => toggleRow(row.original, event.currentTarget.checked)}
+                    aria-label="选择当前页全部行"
+                    checked={visibleRows.length > 0 && selectedRows.length === visibleRows.length}
+                    onChange={(event) => toggleAll(event.currentTarget.checked)}
                   />
-                </TableCell>
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id} className="align-middle">
-                    <EditableCell
-                      row={row.original}
-                      columnDef={cell.column.columnDef as WorkbenchColumnDef}
-                      value={cell.getValue()}
-                      editingCell={editingCell}
-                      setEditingCell={setEditingCell}
-                      displayValue={displayValue}
-                      commitDraft={commitDraft}
-                    >
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </EditableCell>
-                  </TableCell>
+                </TableHead>
+                {headerGroup.headers.map((header) => (
+                  <TableHead key={header.id} className="bg-white text-[12px] text-muted-foreground">
+                    {flexRender(header.column.columnDef.header, header.getContext())}
+                  </TableHead>
                 ))}
               </TableRow>
-            ))
-          ) : (
-            <TableRow>
-              <TableCell colSpan={columns.length + 2} className="py-8 text-center text-muted-foreground">
-                当前没有可显示的三表记录。请先在图纸导入页生成运行，或调整筛选条件。
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {table.getRowModel().rows.length > 0 ? (
+              table.getRowModel().rows.map((row) => (
+                <TableRow
+                  key={row.original.id}
+                  data-pfd-row-id={row.original.rowId}
+                  data-workbench-row-id={row.original.rowId}
+                  draggable={canDragReorderPfdRows}
+                  className={cn(
+                    "cursor-pointer transition-[background-color,opacity,transform] duration-150",
+                    canDragReorderPfdRows && "cursor-grab",
+                    draggedRowId === row.original.rowId && "scale-[0.998] opacity-50",
+                    tableState.activeRowId === row.original.rowId && "bg-accent/80",
+                    selectedRowIds[row.original.rowId] && "bg-primary/5"
+                  )}
+                  onClick={() => activateRow(row.original)}
+                  onDragStart={(event) => startDrag(row.original, event)}
+                  onDragOver={(event) => {
+                    if (canDragReorderPfdRows) event.preventDefault();
+                  }}
+                  onDrop={(event) => {
+                    if (!canDragReorderPfdRows) return;
+                    event.preventDefault();
+                    const transferredRowId = event.dataTransfer.getData("text/plain");
+                    if (transferredRowId) {
+                      draggedRowIdRef.current = transferredRowId;
+                    }
+                    void dropPfdRow(row.original);
+                  }}
+                  onDragEnd={endDrag}
+                >
+                  <TableCell className="sticky left-0 z-[1] bg-inherit whitespace-nowrap" onClick={(event) => event.stopPropagation()}>
+                    <div className="inline-flex items-center gap-1">
+                      <span
+                        data-pfd-drag-handle
+                        aria-label={`整行拖拽调整 ${row.original.id} 顺序`}
+                        aria-disabled={!canDragReorderPfdRows}
+                        className={cn(
+                          "inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors",
+                          canDragReorderPfdRows && "cursor-grab hover:bg-muted hover:text-foreground"
+                        )}
+                        onPointerDown={(event) => startPointerDrag(row.original, event)}
+                        onPointerUp={(event) => void finishPointerDrag(event)}
+                        onPointerCancel={endDrag}
+                      >
+                        <GripVertical size={15} aria-hidden="true" />
+                      </span>
+                      <button
+                        type="button"
+                        aria-label={`${row.original.id} 上移`}
+                        disabled={!canDragReorderPfdRows}
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted disabled:opacity-40"
+                        onClick={() => void movePfdRow(row.original, -1)}
+                      >
+                        <ArrowUp size={14} aria-hidden="true" />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`${row.original.id} 下移`}
+                        disabled={!canDragReorderPfdRows}
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted disabled:opacity-40"
+                        onClick={() => void movePfdRow(row.original, 1)}
+                      >
+                        <ArrowDown size={14} aria-hidden="true" />
+                      </button>
+                    </div>
+                  </TableCell>
+                  <TableCell className="sticky left-10 z-[1] bg-inherit" onClick={(event) => event.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      aria-label={`选择 ${row.original.id}`}
+                      checked={Boolean(selectedRowIds[row.original.rowId])}
+                      onChange={(event) => toggleRow(row.original, event.currentTarget.checked)}
+                    />
+                  </TableCell>
+                  {row.getVisibleCells().map((cell) => {
+                    const columnDef = cell.column.columnDef as WorkbenchColumnDef;
+                    const dirty = isDraftCell(row.original, columnDef.editableField);
+
+                    return (
+                      <TableCell
+                        key={cell.id}
+                        className={cn(
+                          "align-middle transition-colors",
+                          dirty && "bg-amber-50/70 shadow-[inset_0_0_0_1px_rgba(245,158,11,0.24)]"
+                        )}
+                      >
+                        <EditableCell
+                          row={row.original}
+                        columnDef={columnDef}
+                        value={cell.getValue()}
+                        editingCell={editingCell}
+                        setEditingCell={setCurrentEditingCell}
+                        displayValue={displayValue}
+                        commitDraft={commitDraft}
+                        isDirty={dirty}
+                      >
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </EditableCell>
+                      </TableCell>
+                    );
+                  })}
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={columns.length + 2} className="py-8 text-center text-muted-foreground">
+                  当前没有可显示的三表记录。请先在图纸导入页生成运行，或调整筛选条件。
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }
@@ -572,6 +687,7 @@ type EditableCellProps = {
   setEditingCell: (cell: DraftCell | null) => void;
   displayValue: (row: WorkbenchRow, field: string, fallback: unknown) => string;
   commitDraft: (row: WorkbenchRow, field: string, value: string) => void;
+  isDirty: boolean;
   children: ReactNode;
 };
 
@@ -583,6 +699,7 @@ function EditableCell({
   setEditingCell,
   displayValue,
   commitDraft,
+  isDirty,
   children
 }: EditableCellProps) {
   const field = columnDef.editableField;
@@ -595,7 +712,7 @@ function EditableCell({
     return (
       <Input
         autoFocus
-        className="h-8"
+        className={cn("h-8", isDirty && "border-amber-300 bg-amber-50")}
         defaultValue={currentValue}
         onBlur={(event) => {
           commitDraft(row, field, event.target.value);
@@ -617,7 +734,10 @@ function EditableCell({
   return (
     <button
       type="button"
-      className="w-full rounded-md px-2 py-1 text-left hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring"
+      className={cn(
+        "relative min-h-8 w-full rounded-md border border-transparent px-2 py-1 text-left transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring",
+        isDirty && "border-amber-200 bg-amber-50 pr-5 shadow-[inset_3px_0_0_rgba(245,158,11,0.55)] hover:bg-amber-50"
+      )}
       onClick={(event) => {
         event.stopPropagation();
         setEditingCell({ rowId: row.rowId, field });
@@ -627,6 +747,7 @@ function EditableCell({
         setEditingCell({ rowId: row.rowId, field });
       }}
     >
+      {isDirty && <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-amber-500" aria-label="未保存更改" />}
       {currentValue || <span className="text-muted-foreground">点击编辑</span>}
     </button>
   );

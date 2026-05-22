@@ -206,7 +206,7 @@ export function buildProcessFlowLayout(steps: ProcessFlowStep[]): ProcessFlowLay
 export function PfdFlowDiagram({ steps, selectedRow, onSelectStep }: PfdFlowDiagramProps) {
   if (steps.length === 0) {
     return (
-      <section className="rounded-lg border bg-white px-3 py-4 text-center text-[13px] text-muted-foreground">
+      <section className="rounded-lg border bg-white/90 px-3 py-4 text-center text-[13px] text-muted-foreground">
         过程流程图暂无流程步骤。
       </section>
     );
@@ -215,86 +215,92 @@ export function PfdFlowDiagram({ steps, selectedRow, onSelectStep }: PfdFlowDiag
   const layout = buildProcessFlowLayout(steps);
 
   return (
-    <section className="rounded-lg border bg-white overflow-x-auto" aria-label="标准过程流程图">
-      <div className="relative min-w-max p-3" style={{ width: layout.width, height: layout.height }}>
-        <svg
-          className="pointer-events-none absolute left-0 top-0 z-0"
-          width={layout.width}
-          height={layout.height}
-          viewBox={`0 0 ${layout.width} ${layout.height}`}
-          aria-hidden="true"
-        >
-          <defs>
-            <marker id="pfd-flow-arrow" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto" markerUnits="strokeWidth">
-              <path d="M 0 0 L 9 4.5 L 0 9 z" className="fill-muted-foreground" />
-            </marker>
-          </defs>
-          {layout.edges.map((edge) => (
-            <path
-              key={edge.id}
-              d={edge.path}
-              data-edge-kind={edge.kind}
-              className={cn(
-                "fill-none stroke-muted-foreground",
-                edge.kind === "sequence" && "stroke-[1.5]",
-                edge.kind === "branch" && "stroke-[1.5] [stroke-dasharray:5_4]",
-                edge.kind === "backlink" && "stroke-[1.5] stroke-[#7c3aed] [stroke-dasharray:4_3]",
-                edge.kind === "rework" && "stroke-2 stroke-[#dc2626] [stroke-dasharray:3_3]"
-              )}
-              markerEnd="url(#pfd-flow-arrow)"
-            />
-          ))}
-        </svg>
-        {layout.nodes.map(({ step, id, index, x, y }) => {
-          const outgoing = nextStepIds(step, steps[index + 1], index);
-          const selected = selectedRow?.table === "pfd" && selectedRow.rowId === id;
-          const symbolMeta = FLOW_SYMBOL_META[flowSymbolKey(step)];
-          const confirmed = isConfirmedStep(step);
-
-          return (
-            <div key={`${id}-${index}`} className="absolute z-10" style={{ left: x, top: y }}>
-              <button
-                type="button"
-                onClick={() => onSelectStep(id)}
+    <section className="overflow-hidden rounded-lg border bg-white/90 shadow-[0_12px_30px_rgba(15,23,42,0.04)]" aria-label="标准过程流程图">
+      <div className="flex items-center justify-between border-b px-3 py-2 text-[12px] text-muted-foreground">
+        <span className="font-medium text-foreground">PFD 流程概览</span>
+        <span>{steps.length} 个步骤</span>
+      </div>
+      <div className="overflow-x-auto">
+        <div className="relative min-w-max p-3" style={{ width: layout.width, height: layout.height }}>
+          <svg
+            className="pointer-events-none absolute left-0 top-0 z-0"
+            width={layout.width}
+            height={layout.height}
+            viewBox={`0 0 ${layout.width} ${layout.height}`}
+            aria-hidden="true"
+          >
+            <defs>
+              <marker id="pfd-flow-arrow" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto" markerUnits="strokeWidth">
+                <path d="M 0 0 L 9 4.5 L 0 9 z" className="fill-muted-foreground" />
+              </marker>
+            </defs>
+            {layout.edges.map((edge) => (
+              <path
+                key={edge.id}
+                d={edge.path}
+                data-edge-kind={edge.kind}
                 className={cn(
-                  "grid w-[220px] min-h-[154px] content-start gap-1.5 rounded-md border px-3 py-2.5 text-left text-[12px] leading-snug transition-colors",
-                  selected ? "border-primary bg-accent" : "border-border bg-white hover:bg-muted/50"
+                  "fill-none stroke-muted-foreground transition-colors duration-150",
+                  edge.kind === "sequence" && "stroke-[1.5]",
+                  edge.kind === "branch" && "stroke-[1.5] [stroke-dasharray:5_4]",
+                  edge.kind === "backlink" && "stroke-[1.5] stroke-[#7c3aed] [stroke-dasharray:4_3]",
+                  edge.kind === "rework" && "stroke-2 stroke-[#dc2626] [stroke-dasharray:3_3]"
                 )}
-              >
-                <div className="flex items-start gap-2">
-                  <div className="relative grid h-9 w-11 shrink-0 place-items-center">
-                    {flowSymbolKey(step) === "transport" && (
-                      <div className="absolute right-0 h-0 w-0 border-y-[8px] border-l-[14px] border-y-transparent border-l-[#0891b2]" />
-                    )}
-                    {flowSymbolKey(step) === "rework" && <span className="absolute -right-1 -top-1 text-[16px] text-[#b91c1c]">↻</span>}
-                    {flowSymbolKey(step) === "outsourced" && <span className="absolute -right-0.5 -top-1 text-[14px] text-[#15803d]">↗</span>}
-                    <span className={cn("grid h-8 w-10 place-items-center border text-[10px] font-semibold", symbolMeta.shapeClassName)}>
-                      <span className={cn("leading-none", symbolMeta.textClassName)}>{symbolMeta.code}</span>
+                markerEnd="url(#pfd-flow-arrow)"
+              />
+            ))}
+          </svg>
+          {layout.nodes.map(({ step, id, index, x, y }) => {
+            const outgoing = nextStepIds(step, steps[index + 1], index);
+            const selected = selectedRow?.table === "pfd" && selectedRow.rowId === id;
+            const symbolMeta = FLOW_SYMBOL_META[flowSymbolKey(step)];
+            const confirmed = isConfirmedStep(step);
+
+            return (
+              <div key={`${id}-${index}`} className="absolute z-10" style={{ left: x, top: y }}>
+                <button
+                  type="button"
+                  onClick={() => onSelectStep(id)}
+                  className={cn(
+                    "grid w-[220px] min-h-[154px] content-start gap-1.5 rounded-md border px-3 py-2.5 text-left text-[12px] leading-snug shadow-sm transition-[background-color,border-color,box-shadow,transform] duration-150 hover:-translate-y-0.5",
+                    selected ? "border-primary bg-accent shadow-[0_10px_24px_rgba(15,23,42,0.10)]" : "border-border bg-white hover:bg-muted/50"
+                  )}
+                >
+                  <div className="flex items-start gap-2">
+                    <div className="relative grid h-9 w-11 shrink-0 place-items-center">
+                      {flowSymbolKey(step) === "transport" && (
+                        <div className="absolute right-0 h-0 w-0 border-y-[8px] border-l-[14px] border-y-transparent border-l-[#0891b2]" />
+                      )}
+                      {flowSymbolKey(step) === "rework" && <span className="absolute -right-1 -top-1 text-[16px] text-[#b91c1c]">↻</span>}
+                      {flowSymbolKey(step) === "outsourced" && <span className="absolute -right-0.5 -top-1 text-[14px] text-[#15803d]">↗</span>}
+                      <span className={cn("grid h-8 w-10 place-items-center border text-[10px] font-semibold", symbolMeta.shapeClassName)}>
+                        <span className={cn("leading-none", symbolMeta.textClassName)}>{symbolMeta.code}</span>
+                      </span>
+                    </div>
+                    <div className="min-w-0">
+                      <strong className="block text-[13px] text-foreground">{id}</strong>
+                      <span className="block truncate text-[11px] text-muted-foreground">{symbolLabel(step, symbolMeta)}</span>
+                    </div>
+                    <span className={cn("ml-auto rounded-full border px-1.5 py-0.5 text-[10px]", confirmed ? "border-[#34C759] text-[#1f8f3a]" : "border-[#f2d48a] text-[#8a6100]")}>
+                      {confirmed ? "已确认" : "待确认"}
                     </span>
                   </div>
-                  <div className="min-w-0">
-                    <strong className="block text-[13px] text-foreground">{id}</strong>
-                    <span className="block truncate text-[11px] text-muted-foreground">{symbolLabel(step, symbolMeta)}</span>
+                  <div className="font-medium text-[#303034]">{text(step.operation ?? step.process_step ?? step.process_item)}</div>
+                  <div className="grid gap-1 text-muted-foreground">
+                    <span>输入：{text(step.input_material)}</span>
+                    <span>输出：{text(step.output_result)}</span>
+                    <span>设备：{text(step.equipment)}</span>
                   </div>
-                  <span className={cn("ml-auto rounded-full border px-1.5 py-0.5 text-[10px]", confirmed ? "border-[#34C759] text-[#1f8f3a]" : "border-[#f2d48a] text-[#8a6100]")}>
-                    {confirmed ? "已确认" : "待确认"}
+                </button>
+                {outgoing.length > 0 && (
+                  <span className="mt-1 block max-w-[220px] truncate text-[11px] text-muted-foreground" aria-label={`${id} 指向 ${outgoing.join(", ")}`}>
+                    → {outgoing.join(", ")}
                   </span>
-                </div>
-                <div className="font-medium text-[#303034]">{text(step.operation ?? step.process_step ?? step.process_item)}</div>
-                <div className="grid gap-1 text-muted-foreground">
-                  <span>输入：{text(step.input_material)}</span>
-                  <span>输出：{text(step.output_result)}</span>
-                  <span>设备：{text(step.equipment)}</span>
-                </div>
-              </button>
-              {outgoing.length > 0 && (
-                <span className="mt-1 block max-w-[220px] truncate text-[11px] text-muted-foreground" aria-label={`${id} 指向 ${outgoing.join(", ")}`}>
-                  → {outgoing.join(", ")}
-                </span>
-              )}
-            </div>
-          );
-        })}
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </section>
   );

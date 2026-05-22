@@ -250,6 +250,39 @@ class OpenAITextGeneratorResponsesTests(unittest.TestCase):
         self.assertIn("LLM Responses timed out after", message)
         self.assertIn("PFD/PFMEA/CP", message)
 
+    def test_http_error_does_not_include_response_body_or_api_key(self):
+        config = AIProviderConfig(
+            provider="openai_responses",
+            model="gpt-test",
+            base_url="https://proxy.example/v1",
+            api_key_configured=True,
+            api_key_env_name="MINOS_OPENAI_API_KEY",
+            responses_path="responses",
+        )
+
+        def fake_urlopen(request, timeout=0):
+            raise urllib.error.HTTPError(
+                request.full_url,
+                401,
+                "Unauthorized",
+                {},
+                BytesIO(b'{"debug":"Bearer secret","message":"bad key"}'),
+            )
+
+        with patch.dict(os.environ, {"MINOS_OPENAI_API_KEY": "secret"}, clear=True):
+            with patch("urllib.request.urlopen", side_effect=fake_urlopen):
+                with self.assertLogs("minos_core.adapters.llm_text", level="ERROR") as logs:
+                    with self.assertRaises(RuntimeError) as raised:
+                        OpenAITextGenerator(config).generate_structured("system", "user")
+
+        message = str(raised.exception)
+        logged = "\n".join(logs.output)
+        self.assertIn("LLM Responses HTTP 401", message)
+        self.assertNotIn("secret", message)
+        self.assertNotIn("bad key", message)
+        self.assertNotIn("secret", logged)
+        self.assertNotIn("bad key", logged)
+
     def test_text_generation_defaults_to_medium_reasoning_when_codex_is_xhigh(self):
         config = AIProviderConfig(
             provider="openai_responses",

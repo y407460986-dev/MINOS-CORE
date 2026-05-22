@@ -100,12 +100,53 @@ export type DesktopSettings = {
     base_url: string;
     base_url_configured: boolean;
     base_url_source: string;
+    base_url_override: string;
+    base_url_locked_by_env: boolean;
     api_key_configured: boolean;
     api_key_source: string;
     api_key_env_name: string;
+    api_key_override_set: boolean;
+    api_key_locked_by_env: boolean;
+    model_override: string;
+    model_locked_by_env: boolean;
     wire_api: string;
     responses_path: string;
   };
+};
+
+export type AIConfigUpdatePayload = {
+  base_url?: string;
+  api_key?: string;
+  model?: string;
+};
+
+export type DesktopDataManagementStatus = {
+  data_dir: string;
+  db_path: string;
+  output_dir: string;
+  log_dir: string;
+  backup_dir: string;
+  project_count: number;
+  run_count: number;
+  knowledge_rule_count: number;
+  output_size_bytes: number;
+  db_size_bytes: number;
+  last_backup_path: string;
+  last_backup_created_at: string;
+};
+
+export type DesktopDataBackupResult = {
+  backup_path: string;
+  created_at: string;
+  size_bytes: number;
+};
+
+export type DesktopDataClearScope = "workspace" | "factory_reset";
+
+export type DesktopDataClearRequest = {
+  scope: DesktopDataClearScope;
+  delete_outputs: boolean;
+  confirm_text: string;
 };
 
 export type ExportResponse = {

@@ -9,7 +9,9 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from minos_core.ai_config import register_db_overrides_provider
 from minos_desktop.services import DEFAULT_DESKTOP_DB_PATH, DEFAULT_DESKTOP_OUTPUT_DIR
+from minos_desktop.services import DesktopSettingsStore
 
 from .auth import require_api_token
 from .routes_closure import router as closure_router
@@ -36,6 +38,9 @@ def create_app(
     )
     app.state.db_path = str(db_path)
     app.state.output_dir = str(output_dir)
+    register_db_overrides_provider(
+        lambda: DesktopSettingsStore(app.state.db_path).get_ai_overrides()
+    )
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[
@@ -86,7 +91,7 @@ def create_app(
         request: Request,
         exc: RequestValidationError,
     ) -> JSONResponse:
-        error = APIError(str(exc), "VALIDATION_ERROR", 422)
+        error = APIError("请求参数格式不正确。", "VALIDATION_ERROR", 422)
         return JSONResponse(
             status_code=422,
             content={

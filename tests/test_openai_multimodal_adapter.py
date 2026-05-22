@@ -259,6 +259,36 @@ class OpenAIResponsesMultimodalDrawingAnalyzerTests(unittest.TestCase):
         self.assertTrue(_should_retry_http_status(503))
         self.assertFalse(_should_retry_http_status(401))
 
+    def test_http_error_does_not_include_response_body_or_api_key(self):
+        analyzer = OpenAIResponsesMultimodalDrawingAnalyzer(
+            api_key="test-key",
+            base_url="https://proxy.example",
+            model="gpt-test",
+            responses_path="responses",
+            max_retries=0,
+        )
+
+        def fake_urlopen(request, timeout=0):
+            raise urllib.error.HTTPError(
+                request.full_url,
+                401,
+                "Unauthorized",
+                hdrs=None,
+                fp=BytesIO(b'{"debug":"Bearer test-key","message":"bad key"}'),
+            )
+
+        with patch("urllib.request.urlopen", side_effect=fake_urlopen):
+            with self.assertRaises(OpenAIMultimodalError) as raised:
+                analyzer._post_json(
+                    analyzer._responses_url(),
+                    {"model": "gpt-test", "stream": False},
+                )
+
+        message = str(raised.exception)
+        self.assertIn("401", message)
+        self.assertNotIn("test-key", message)
+        self.assertNotIn("bad key", message)
+
     def test_extract_output_text_supports_responses_shapes(self):
         self.assertEqual(_extract_output_text({"output_text": "hello"}), "hello")
         response = {

@@ -40,6 +40,158 @@ flowchart TD
 3. Implement：本轮只同步 OpenSpec、任务计划、进度、发现和流程图，不改运行代码或打包脚本。
 4. Verify：用 UTF-8 读取、Mermaid 节点 ID 去重、关键边检查和负责文件 `git diff --check` 作为本轮可验证证据。
 
+## V1.14.22 安静聚焦 UI motion 重构：流程文档、OpenSpec、测试与交付审核
+
+### 目标
+本轮只实现“流程文档、OpenSpec、测试与交付审核”部分，不改前端页面或后端。目标是把安静聚焦的 Tauri 桌面体验约束写清楚，并用静态测试锁定 motion token、体验组件、三表编辑画布、浮动工具条、无右侧检查器和导入页保活。
+
+```mermaid
+flowchart TD
+    QU0[确认写入范围和并行改动边界] --> QU1[建立 V1.14.22 OpenSpec]
+    QU1 --> QU2[proposal / design / tasks]
+    QU0 --> QU3[补任务计划 进度 发现]
+    QU3 --> QU4[更新 project_flow.mmd]
+    QU2 --> QU5[新增 Tauri 静态测试契约]
+    QU4 --> QU6[文档 UTF-8 与 Mermaid 节点审核]
+    QU5 --> QU7[运行静态测试并记录结果]
+    QU6 --> QU8[交付汇总]
+    QU7 --> QU8
+```
+
+/// 1. 用 `git status --short -- task_plan.md progress.md findings.md project_flow.mmd openspec/changes/v1.14.22-quiet-focused-ui-motion-refactor tests/test_desktop_tauri_app_state.py` 确认只触碰允许范围。
+/// 2. 读取现有 V1.14.21 OpenSpec 写法，按同一轻量结构新增 V1.14.22 `proposal.md`、`design.md`、`tasks.md`。
+/// 3. 在 `tasks.md` 中只勾选已验证的文档建立项，不把前端实现和静态测试通过项提前标完成。
+/// 4. 更新 `task_plan.md`：用本节记录目标、流程图、`///` 开发步骤和 OpenSpec 四步闭环。
+/// 5. 更新 `progress.md`：记录已建立的 OpenSpec、文档和测试契约，并把未完成实现/验证明确列为剩余项。
+/// 6. 更新 `findings.md`：记录 motion token、体验组件、编辑画布、浮动工具条、右侧检查器和导入页保活的边界。
+/// 7. 更新 `project_flow.mmd`：追加唯一节点 ID 的 V1.14.22 流程，不复用已有节点 ID。
+/// 8. 更新 `tests/test_desktop_tauri_app_state.py`：补静态测试锁定 motion token、体验组件、三表编辑画布、浮动工具条、无 `InspectorPanel`、导入页保活。
+/// 9. 运行文档 UTF-8 读取、OpenSpec 文件存在性、Mermaid 节点 ID 去重检查。
+/// 10. 运行 `python -m pytest tests/test_desktop_tauri_app_state.py -q`；如果并行前端实现尚未合入导致红灯，只记录真实失败点，不改前端绕过测试。
+
+### OpenSpec 四步闭环
+
+1. Define：本轮定义的是 UI motion 重构的交付边界和验收契约，不是直接改 UI。
+2. Specify：静态测试必须覆盖 motion token、体验组件、三表编辑画布、浮动工具条、无 `InspectorPanel` 和导入页保活。
+3. Implement：只新增 OpenSpec、流程文档、发现/进度记录、流程图节点和测试契约。
+4. Verify：用 UTF-8 读取、Mermaid 节点去重和静态测试结果作为本轮可验证证据。
+
+## V1.14.21 当前生成物审查与修复
+
+### 目标
+根据当前 MINOS-CORE 已生成的 sidecar、NSIS、设置页、数据管理和文档记录，找出会导致回归失败、备份不完整、打包产物被污染或交付说明误导的问题，并做最小修复。
+
+```mermaid
+flowchart TD
+    AU0[审查当前生成物和脏工作区] --> AU1[并行审查 Python API / Tauri 打包 / 文档流程]
+    AU1 --> AU2[复现 API sidecar 两个失败]
+    AU1 --> AU3[发现 SQLite 直接复制备份漏 WAL]
+    AU1 --> AU4[发现 build.rs 污染真实 _internal]
+    AU1 --> AU5[发现 README / OpenSpec / Mermaid 过期]
+    AU2 --> AU6[修测试桩和 CP 后批量确认断言]
+    AU3 --> AU7[SQLite online backup]
+    AU4 --> AU8[只为空 _internal 写 placeholder]
+    AU4 --> AU9[release 先构建 sidecar 并复制安装包到 dist/build/out]
+    AU5 --> AU10[补 OpenSpec 与文档流程图]
+    AU6 --> AU11[聚焦回归和可打开性检查]
+    AU7 --> AU11
+    AU8 --> AU11
+    AU9 --> AU11
+    AU10 --> AU11
+```
+
+/// 1. 用 `git status --short` 和 `git diff --stat` 确认当前生成物相关改动范围，不回滚现有改动。
+/// 2. 派发只读子代理审查 Python/API、Tauri/打包、文档/OpenSpec 三条线。
+/// 3. 复现 `tests/test_desktop_api_sidecar.py` 两个失败，确认根因是测试桩缺 `on_progress` 参数与批量确认测试未进入 CP 确认后总审核阶段。
+/// 4. 修复 API 测试：fake PFMEA 接受 `model=None, on_progress=None`；批量确认先走 `chain/cp-confirm`。
+/// 5. 写红灯测试：WAL 模式下已提交项目必须进入备份 zip 中的 `minos_desktop.sqlite3`。
+/// 6. 修复数据备份：用 `sqlite3.Connection.backup()` 生成临时数据库，再写入 zip。
+/// 7. 修复 Tauri `build.rs`：已有真实 `_internal` 时不再写 `.placeholder`，并删除已生成的污染文件。
+/// 8. 修复发布路径：`release:nsis` 先构建 sidecar；`scripts/build_release.ps1` 调用内部 `tauri:nsis` 并复制安装包到 `dist/build/out`。
+/// 9. 更新 README、V1.13 OpenSpec 和 `project_flow.mmd`，修正默认 AI URL、模型、测试命令、右侧检查器和 Mermaid 重复节点。
+/// 10. 补齐 V1.14.19、V1.14.20、V1.14.21 OpenSpec 变更目录。
+/// 11. 运行 Python 聚焦回归、Tauri 前端构建、Rust `cargo check`、`git diff --check` 和文档可打开性检查。
+
+### OpenSpec 四步闭环
+
+1. Define：当前问题来自已生成产物和记录不一致，不是新增业务能力需求。
+2. Specify：回归测试、备份 zip、sidecar binaries、发布目录和文档记录必须能反映当前真实流程。
+3. Implement：只修测试、备份实现、打包脚本和文档记录中的明确缺口。
+4. Verify：以聚焦测试、构建、静态检查和文档读取为验收。
+
+## V1.14.19 本地数据管理页
+
+### 目标
+把 MINOS-CORE 的本地数据位置、备份和清空入口暴露到桌面设置页，解决“安装在 E 盘但旧数据仍然存在、软件里找不到/清不掉数据”的问题。本轮只做可见、可备份、可清空，不做自动迁移或多工作区。
+
+```mermaid
+flowchart TD
+    DM0[用户反馈重装后旧数据仍在] --> DM1[确认数据在用户本地数据目录]
+    DM1 --> DM2[新增数据管理服务<br/>统计路径 数量 大小]
+    DM2 --> DM3[新增备份 zip<br/>DB out logs manifest]
+    DM2 --> DM4[新增清空入口<br/>workspace / factory_reset]
+    DM3 --> DM5[设置页显示数据管理]
+    DM4 --> DM5
+    DM5 --> DM6[回归测试与前端构建]
+```
+
+/// 1. 写服务层红灯测试：数据管理状态必须返回数据目录、DB、输出目录、日志目录、备份目录、项目/run/知识规则数量和占用大小。
+/// 2. 写服务层红灯测试：备份必须生成 zip，包含 `minos_desktop.sqlite3`、`out/`、`logs/` 和 `backup_manifest.json`。
+/// 3. 写服务层红灯测试：`workspace` 清空删除项目/run，可选删除输出，但保留设置、知识规则和备份。
+/// 4. 写服务层红灯测试：`factory_reset` 清空项目/run/设置/知识规则，并重新初始化默认知识规则。
+/// 5. 写 API 红灯测试：`GET /api/settings/data-management`、`POST /backup`、`POST /clear` 可用，错误确认文字返回 422。
+/// 6. 写 Tauri 静态红灯测试：设置页出现“数据管理”、打开目录、备份、清空和恢复初始状态入口。
+/// 7. 实现 `DesktopDataManagementService`，使用 SQL 清空表，不在运行进程里直接删除 SQLite 文件。
+/// 8. 实现 settings 数据管理 API 和前端 client/types。
+/// 9. 实现设置页数据管理区，二次确认文字为“清空项目”和“恢复初始状态”。
+/// 10. 新增 Tauri `open_path` 命令，保留现有 `open_output_dir` 兼容入口。
+/// 11. 运行桌面服务、设置页静态测试、Tauri build 和 diff 检查；若发现既有无关测试失败，记录影响范围。
+
+### OpenSpec 四步闭环
+
+1. Define：本轮解决数据不可见、不可备份、不可清空，不改变默认数据目录。
+2. Specify：备份默认写入数据目录 `backups`，清空不删除备份，不删除 Codex/OpenAI 外部密钥。
+3. Implement：新增数据管理服务/API/设置页入口，保持现有项目、运行和设置 Store 职责不膨胀。
+4. Verify：用服务/API/前端静态测试和 Tauri build 验证。
+
+## V1.14.20 设置页可视化 AI 服务配置
+
+### 目标
+把 AI 服务地址、API Key 和模型名从环境变量/开发者配置文件里暴露到桌面设置页，让安装版用户不用改系统环境变量也能配置 MINOS-CORE 的 AI 服务。本轮只做三项配置的可视化编辑，不改变 Codex auth 复用链路，不显示 API Key 明文。
+
+```mermaid
+flowchart TD
+    AI0[用户要求按计划修复 MINOS-CORE] --> AI1[读取 AI URL / API Key / 模型配置计划]
+    AI1 --> AI2[后端支持 DB/UI overrides]
+    AI2 --> AI3[环境变量仍最高优先级]
+    AI2 --> AI4[PATCH settings/ai-config]
+    AI4 --> AI5[设置页新增 AI 服务配置]
+    AI5 --> AI6[主代理审核安全边界]
+    AI6 --> AI7[修复 ARK_API_KEY 锁定误判]
+    AI6 --> AI8[禁止远端 HTTP URL 保护密钥]
+    AI6 --> AI9[HTTP 错误不回显上游响应体/日志体]
+    AI7 --> AI10[聚焦测试与前端/Rust 构建]
+    AI8 --> AI10
+    AI9 --> AI10
+```
+
+/// 1. 读取 `C:\Users\fgtan\.claude\plans\minos-core-exe-declarative-papert.md`，确认本轮目标是设置页可修改 AI URL、API Key、模型名。
+/// 2. 后端新增 `db_overrides` 与全局 provider 注入：优先级为 env > DB/UI 设置 > Codex/ARK/default。
+/// 3. `DesktopSettingsStore` 新增 AI overrides 读写，`DesktopAIConfigState` 返回 override 与 env lock 状态，但不返回 API Key 明文。
+/// 4. 新增 `PATCH /api/settings/ai-config`，保存三项配置并返回完整 settings。
+/// 5. 前端设置页在默认输出目录下方新增“AI 服务配置”，支持保存、清除自定义和环境变量锁定提示。
+/// 6. 主代理审核子代理改动，修复 `ARK_API_KEY` 锁定状态与真实优先级不一致的问题。
+/// 7. 加固 AI URL 保存：远端地址必须是 HTTPS，本机 `127.0.0.1/localhost` 代理可继续用 HTTP。
+/// 8. 加固 LLM HTTP 错误：不把上游响应体放进前端错误或本地日志，避免代理错误页回显密钥。
+/// 9. 验证 AI 配置、桌面服务、API、前端静态检查、Tauri build、Rust `cargo check` 和 `git diff --check`。
+
+### OpenSpec 四步闭环
+
+1. Define：安装版用户需要在软件内配置 AI 服务，不应被迫修改环境变量或 Codex 文件。
+2. Specify：环境变量仍最高优先级；UI/DB 设置只作为 fallback；API Key 只能保存和显示“是否已配置”，不能回显明文。
+3. Implement：在 `ai_config` 增加 DB override 层，在桌面 settings API 与设置页增加编辑入口。
+4. Verify：用后端优先级测试、API 脱敏测试、前端静态测试、构建和主代理安全审核验证。
+
 ## 当前任务：PFMEA 必须按确认后的 PFD 推理生成
 
 目标是修复 PFMEA 与 PFD 不一致的问题：PFD 不能把零件/物料名伪造成工序；PFMEA 的工序编号、工序名称、功能字段必须从已确认 PFD 继承；任何联动同步入口都不能用“待工程人员填写失效模式”占位行冒充正式 PFMEA。
@@ -241,7 +393,7 @@ flowchart TD
 
 ## 桌面业务闭环 MVP 执行流程
 /// 1. 新增 `minos_desktop/services.py`，把桌面项目、设置、运行记录和 core pipeline 调用收敛到服务层。
-/// 2. 默认使用 SQLite `out/desktop/minos_desktop.sqlite3` 保存桌面项目、运行状态和导出记录。
+/// 2. 默认使用 SQLite `%LOCALAPPDATA%\MINOS-CORE\minos_desktop.sqlite3` 保存桌面项目、运行状态和导出记录。
 /// 3. 通过 `DesktopSettingsStore` 管理 AI 配置状态和默认输出目录；设置页不得显示或保存明文 API key。
 /// 4. 通过 `DesktopProjectStore` 创建和更新项目，避免 Qt UI 直接操作持久化细节。
 /// 5. 通过 `DesktopRunService` 后台调用 `generate_three_tables_from_drawing(...)`，保存 `DesktopRunState`、`DesktopRunRecord` 和 `DesktopExportRecord`。

@@ -1,10 +1,14 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
   BootstrapPayload,
+  AIConfigUpdatePayload,
   ChainConfirmRequest,
   ChainState,
   ClosureTasksResponse,
   CreateProjectRequest,
+  DesktopDataBackupResult,
+  DesktopDataClearRequest,
+  DesktopDataManagementStatus,
   DesktopProject,
   DesktopRun,
   DesktopSettings,
@@ -200,6 +204,30 @@ export function setDefaultOutputDir(outputDir: string): Promise<DesktopSettings>
   });
 }
 
+export function updateAiConfig(payload: AIConfigUpdatePayload): Promise<DesktopSettings> {
+  return apiJson<DesktopSettings>("/api/settings/ai-config", {
+    method: "PATCH",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function getDataManagementStatus(): Promise<DesktopDataManagementStatus> {
+  return apiJson<DesktopDataManagementStatus>("/api/settings/data-management");
+}
+
+export function backupDataManagement(): Promise<DesktopDataBackupResult> {
+  return apiJson<DesktopDataBackupResult>("/api/settings/data-management/backup", {
+    method: "POST"
+  });
+}
+
+export function clearDataManagement(payload: DesktopDataClearRequest): Promise<DesktopDataManagementStatus> {
+  return apiJson<DesktopDataManagementStatus>("/api/settings/data-management/clear", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
 export function getBootstrap(): Promise<BootstrapPayload> {
   return invoke<BootstrapPayload>("get_bootstrap");
 }
@@ -214,6 +242,10 @@ export function selectOutputDir(): Promise<string | null> {
 
 export function openOutputDir(path: string): Promise<void> {
   return invoke("open_output_dir", { path });
+}
+
+export function openPath(path: string): Promise<void> {
+  return invoke("open_path", { path });
 }
 
 export function revealFile(path: string): Promise<void> {

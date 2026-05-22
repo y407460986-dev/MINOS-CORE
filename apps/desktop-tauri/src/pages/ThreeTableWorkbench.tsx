@@ -1,15 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, CheckCircle2, Loader2, SlidersHorizontal } from "lucide-react";
+import { CheckCircle2, Search, SlidersHorizontal } from "lucide-react";
 import { applyEditPatch, confirmPfdStage, confirmPfmeaStage, confirmCpStage, getRun, regeneratePfmeaStage, regenerateCpStage } from "../api/client";
 import { subscribeToChainStream } from "../api/sse-client";
-import type { DesktopRun, TableKind, WorkbenchRow } from "../api/types";
+import type { ChainState, DesktopRun, TableKind, WorkbenchRow } from "../api/types";
 import { PreviewRail } from "../components/PreviewRail";
 import { PfdFlowDiagram } from "../components/PfdFlowDiagram";
 import { SegmentedControl } from "../components/SegmentedControl";
-import { StatStrip } from "../components/StatStrip";
+import { ChainStepper } from "../components/ChainStepper";
 import { WorkbenchTable, type PfdNewRowDraft } from "../components/WorkbenchTable";
 import { filterRows, initialFilters, processFlowStepsFromRows, rowsFromResult, softDeletedRowsFromResult, type WorkbenchFilters } from "../state/workbench-store";
-import { stageStatusText } from "../state/workbench-display";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -45,12 +44,20 @@ export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onR
   const pfdConfirmedCount = visiblePfdRows.length - pfdPendingCount;
   const pfmeaPendingCount = visiblePfmeaRows.filter((row) => row.status !== "approved").length;
   const cpPendingCount = visibleCpRows.filter((row) => row.status !== "approved").length;
+  const reviewCount = sourceRows.filter((row) => row.status === "review").length;
+  const approvedCount = sourceRows.filter((row) => row.status === "approved").length;
+  const activeTableLabel = filters.table === "pfd" ? "过程流程图" : filters.table === "pfmea" ? "失效模式分析" : "控制计划";
+  const activeTableRows = filters.table === "pfd" ? visiblePfdRows : filters.table === "pfmea" ? visiblePfmeaRows : visibleCpRows;
+  const activePendingCount = filters.table === "pfd" ? pfdPendingCount : filters.table === "pfmea" ? pfmeaPendingCount : cpPendingCount;
+  const currentTableRow = selectedRow?.table === filters.table ? selectedRow : null;
   const pfdConfirmSummary = visiblePfdRows.length > 0
     ? `过程流程图确认进度：已确认 ${pfdConfirmedCount} 行，待确认 ${pfdPendingCount} 行`
     : "过程流程图暂无可确认行";
   const hasRun = Boolean(run);
-  const pfmeaFailed = stageStatus(run, "pfmea") === "failed";
-  const pfmeaNotStarted = stageStatus(run, "pfmea") === "" || stageStatus(run, "pfmea") === "not_started";
+  const pfmeaStatus = stageStatus(run, "pfmea");
+  const cpStatus = stageStatus(run, "cp");
+  const pfmeaNotStarted = pfmeaStatus === "" || pfmeaStatus === "not_started";
+  const cpNotStarted = cpStatus === "" || cpStatus === "not_started";
   const pfdReadyToConfirm = pfdPendingCount === 0 && visiblePfdRows.length > 0 && pfmeaNotStarted;
   function patchFilters(patch: Partial<WorkbenchFilters>) {
     setFilters((current) => ({ ...current, ...patch }));
@@ -173,13 +180,13 @@ export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onR
     return visiblePfdRows.map((row) => visibleOrderIds.has(row.rowId) ? (visibleQueue.shift() ?? row) : row);
   }
 
-  function chainStagesFromRun(updatedRun: DesktopRun | null): Record<string, unknown> | null {
+  function chainStagesFromRun(updatedRun: DesktopRun | null): ChainState | null {
     const topLevelStages = updatedRun?.chain_stages;
-    if (topLevelStages && typeof topLevelStages === "object") return topLevelStages as Record<string, unknown>;
+    if (topLevelStages && typeof topLevelStages === "object") return topLevelStages as ChainState;
     const rawStages = updatedRun?.raw_result?.chain_stages;
-    if (rawStages && typeof rawStages === "object") return rawStages as Record<string, unknown>;
+    if (rawStages && typeof rawStages === "object") return rawStages as ChainState;
     const currentStages = updatedRun?.current_result?.chain_stages;
-    return currentStages && typeof currentStages === "object" ? (currentStages as Record<string, unknown>) : null;
+    return currentStages && typeof currentStages === "object" ? (currentStages as ChainState) : null;
   }
 
   function stageStatus(updatedRun: DesktopRun | null, stage: "pfmea" | "cp"): string {
@@ -463,124 +470,154 @@ export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onR
     if (row) onSelectRow(row);
   }
 
-  function compactChainStages() {
-    const chainStages = chainStagesFromRun(run);
-    const stages = [
-      { key: "pfd", label: "过程流程图" },
-      { key: "pfmea", label: "失效模式分析" },
-      { key: "cp", label: "控制计划" }
-    ];
-    return stages.map((stage) => {
-      const value = chainStages?.[stage.key];
-      const status = value && typeof value === "object"
-        ? (value as Record<string, unknown>).status
-        : "";
-      return { ...stage, status: typeof status === "string" ? status : "not_started" };
-    });
+  function jumpToRow(row: WorkbenchRow) {
+    onSelectRow(row);
+    const element = document.querySelector(`[data-workbench-row-id="${CSS.escape(row.rowId)}"]`);
+    element?.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
   }
 
   return (
-    <div className="grid gap-4">
-      <StatStrip
-        stats={[
-          { label: "三表记录", value: sourceRows.length },
-          { label: "高风险", value: highRisk, tone: "danger" },
-          { label: "待确认", value: sourceRows.filter((row) => row.status === "review").length, tone: "warning" },
-          { label: "已确认", value: sourceRows.filter((row) => row.status === "approved").length }
-        ]}
-      />
-
-      <div className="rounded-lg border bg-white px-4 py-3" aria-label="紧凑阶段状态">
-        <div className="flex items-center justify-between gap-3">
-          <div className="text-[#56565b] text-[13px]">
-            {run ? `当前运行 #${run.id}：${run.status_display || run.status}` : '暂无运行结果，请先在"图纸导入"中生成三表。'}
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {compactChainStages().map((stage) => (
-              <span key={stage.key} className="inline-flex items-center gap-1.5 rounded-full border bg-muted/40 px-2.5 py-1 text-xs text-muted-foreground">
-                {stage.status === "running" ? <Loader2 size={13} className="animate-spin text-primary" /> : stage.status === "failed" ? <AlertTriangle size={13} className="text-destructive" /> : <CheckCircle2 size={13} className={stage.status === "confirmed" || stage.status === "generated" ? "text-[#34C759]" : "text-muted-foreground"} />}
-                {stage.label} · {stageStatusText(stage.status)}
-              </span>
-            ))}
+    <div className="grid gap-3">
+      <section className="grid gap-3 rounded-lg border bg-white/90 px-4 py-3 shadow-[0_12px_30px_rgba(15,23,42,0.04)]" aria-label="三表状态栏">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-muted-foreground">
+            <span className="font-medium text-foreground">
+              {run ? `运行 #${run.id}` : "暂无运行"}
+            </span>
+            <span>{run ? (run.status_display || run.status) : '请先在"图纸导入"中生成三表'}</span>
+            <span>记录 {sourceRows.length}</span>
+            <span className={highRisk > 0 ? "text-destructive" : ""}>高风险 {highRisk}</span>
+            <span>待确认 {reviewCount}</span>
+            <span>已确认 {approvedCount}</span>
           </div>
         </div>
-        {saveState && (
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-[#56565b] text-[13px]">
-            <span>{saveState}</span>
-          </div>
-        )}
-        {restorableSoftDeletedRows.length > 0 && (
-          <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md border border-[#f2d48a] bg-[#fff8e6] px-3 py-2 text-[13px] text-[#6f4e00]">
-            <span>已软删除 {restorableSoftDeletedRows.length} 行。</span>
-            <Button size="sm" variant="outline" disabled={isSaving} onClick={undoSoftDeleteRows}>
-              恢复软删除行
-            </Button>
-          </div>
-        )}
-      </div>
-
-      <section className={`flex items-center gap-2.5 min-h-12 flex-wrap ${hasRun ? "" : "pointer-events-none opacity-60"}`} aria-disabled={!hasRun}>
-        <SegmentedControl<TableKind>
-          value={filters.table}
-          onChange={(table) => patchFilters({ table })}
-          options={[
-            { value: "pfd", label: "过程流程图" },
-            { value: "pfmea", label: "失效模式分析" },
-            { value: "cp", label: "控制计划" }
-          ]}
+        <ChainStepper
+          chainState={chainStagesFromRun(run)}
+          run={run}
+          isGenerating={pfmeaStatus === "running" || cpStatus === "running"}
+          compact
+          readOnly
+          title="阶段"
+          className="border-0 bg-transparent p-0"
         />
-        <div className="grid gap-[5px] min-w-[240px] flex-1">
-          <Input
-            aria-label="搜索"
-            placeholder="搜索编号、过程、特性"
-            value={filters.query}
-            disabled={!hasRun}
-            onChange={(event) => patchFilters({ query: event.target.value })}
+        {(saveState || restorableSoftDeletedRows.length > 0) && (
+          <div className="mt-2 flex flex-wrap items-center gap-2 border-t pt-2 text-[13px] text-muted-foreground">
+            {saveState && <span>{saveState}</span>}
+            {restorableSoftDeletedRows.length > 0 && (
+              <>
+                <span className="text-[#6f4e00]">已软删除 {restorableSoftDeletedRows.length} 行。</span>
+                <Button size="sm" variant="outline" disabled={isSaving} onClick={undoSoftDeleteRows}>
+                  恢复软删除行
+                </Button>
+              </>
+            )}
+          </div>
+        )}
+      </section>
+
+      <section className={`rounded-lg border bg-white px-3 py-3 ${hasRun ? "" : "pointer-events-none opacity-60"}`} aria-label="三表上下文栏" aria-disabled={!hasRun}>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <SegmentedControl<TableKind>
+            value={filters.table}
+            onChange={(table) => patchFilters({ table })}
+            options={[
+              { value: "pfd", label: "过程流程图" },
+              { value: "pfmea", label: "失效模式分析" },
+              { value: "cp", label: "控制计划" }
+            ]}
           />
+          <div className="relative min-w-[240px] flex-1">
+            <Search size={15} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+            <Input
+              className="pl-8"
+              aria-label="搜索"
+              placeholder="搜索编号、过程、特性"
+              value={filters.query}
+              disabled={!hasRun}
+              onChange={(event) => patchFilters({ query: event.target.value })}
+            />
+          </div>
+          <div className="flex items-center gap-1.5 min-w-[136px]">
+            <SlidersHorizontal size={15} className="text-muted-foreground" aria-hidden="true" />
+            <Select value={filters.risk} disabled={!hasRun} onValueChange={(risk) => patchFilters({ risk: risk as WorkbenchFilters["risk"] })}>
+              <SelectTrigger className="min-w-[118px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">全部风险</SelectItem>
+                <SelectItem value="high">高风险</SelectItem>
+                <SelectItem value="medium">中风险</SelectItem>
+                <SelectItem value="low">低风险</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-1.5 min-w-[136px]">
+            <Select value={filters.status} disabled={!hasRun} onValueChange={(status) => patchFilters({ status: status as WorkbenchFilters["status"] })}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">全部状态</SelectItem>
+                <SelectItem value="draft">草稿</SelectItem>
+                <SelectItem value="review">待确认</SelectItem>
+                <SelectItem value="approved">已确认</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-        <div className="flex items-center gap-1.5 min-w-[136px]">
-          <SlidersHorizontal size={15} />
-          <Select value={filters.risk} disabled={!hasRun} onValueChange={(risk) => patchFilters({ risk: risk as WorkbenchFilters["risk"] })}>
-            <SelectTrigger className="min-w-[118px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">全部风险</SelectItem>
-              <SelectItem value="high">高风险</SelectItem>
-              <SelectItem value="medium">中风险</SelectItem>
-              <SelectItem value="low">低风险</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex items-center gap-1.5 min-w-[136px]">
-          <Select value={filters.status} disabled={!hasRun} onValueChange={(status) => patchFilters({ status: status as WorkbenchFilters["status"] })}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">全部状态</SelectItem>
-              <SelectItem value="draft">草稿</SelectItem>
-              <SelectItem value="review">待确认</SelectItem>
-              <SelectItem value="approved">已确认</SelectItem>
-            </SelectContent>
-          </Select>
+
+        <div className="mt-3 grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
+          <PreviewRail row={currentTableRow} onJumpToRow={jumpToRow} />
+          <div className="flex flex-wrap items-center gap-2 rounded-md bg-muted/20 px-3 py-2 text-[12px] text-muted-foreground">
+            <span className="mr-1 font-medium text-foreground">{activeTableLabel}</span>
+            <span>{activeTableRows.length} 行</span>
+            <span>待确认 {activePendingCount}</span>
+            {filters.table === "pfd" && (
+              <>
+                <span className="hidden text-muted-foreground md:inline">{pfdConfirmSummary}</span>
+                <Button size="sm" disabled={!hasRun || isSaving || visiblePfdRows.length === 0 || (pfdPendingCount === 0 && !pfdReadyToConfirm)} onClick={confirmAllPfdRows}>
+                  <CheckCircle2 size={14} aria-hidden="true" />
+                  {isSaving ? "确认中" : pfdReadyToConfirm ? "确认并生成 PFMEA" : "确认全部 PFD"}
+                </Button>
+                <Button size="sm" variant="outline" disabled={!hasRun || isSaving || pfmeaStatus === "running" || pfmeaNotStarted} onClick={regeneratePfmea}>
+                  重新生成 PFMEA
+                </Button>
+              </>
+            )}
+            {filters.table === "pfmea" && (
+              <>
+                <Button size="sm" disabled={!hasRun || isSaving || visiblePfmeaRows.length === 0 || (pfmeaPendingCount === 0 && !cpNotStarted)} onClick={confirmAllPfmeaRows}>
+                  <CheckCircle2 size={14} aria-hidden="true" />
+                  {isSaving ? "确认中" : "确认并生成 CP"}
+                </Button>
+                <Button size="sm" variant="outline" disabled={!hasRun || isSaving || cpStatus === "running" || cpNotStarted} onClick={regenerateCp}>
+                  重新生成 CP
+                </Button>
+              </>
+            )}
+            {filters.table === "cp" && (
+              <Button size="sm" disabled={!hasRun || isSaving || visibleCpRows.length === 0} onClick={confirmAllCpRows}>
+                <CheckCircle2 size={14} aria-hidden="true" />
+                {isSaving ? "确认中" : "确认全部控制计划"}
+              </Button>
+            )}
+          </div>
         </div>
       </section>
 
       {filters.table === "pfd" && (
         <PfdFlowDiagram
           steps={processFlowSteps}
-          selectedRow={selectedRow}
+          selectedRow={currentTableRow}
           onSelectStep={selectPfdStep}
         />
       )}
 
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_280px]" aria-label="三表编辑画布">
+      <div className="grid gap-3" aria-label="三表编辑画布">
         <WorkbenchTable
-          key={filters.table}
           rows={rows}
           table={filters.table}
-          selectedRow={selectedRow}
+          selectedRow={currentTableRow}
           onSelectRow={onSelectRow}
           onSaveDrafts={saveDraftChanges}
           onAddPfdRow={addPfdRow}
@@ -589,51 +626,6 @@ export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onR
           onMarkRowsForReview={markRowsForReview}
           busy={isSaving || !hasRun}
         />
-        <aside className="grid gap-3 content-start">
-          <PreviewRail row={selectedRow} />
-          <section className="grid gap-2 rounded-lg border bg-white p-3">
-            <span className="text-muted-foreground text-xs">阶段操作</span>
-            {saveState && (
-              <div className="rounded-md border bg-muted/30 px-3 py-2 text-[12px] text-muted-foreground">
-                {saveState}
-              </div>
-            )}
-            {filters.table === "pfd" && (
-              <>
-                <div className="text-[12px] text-muted-foreground">{pfdConfirmSummary}</div>
-                <Button disabled={!hasRun || isSaving || visiblePfdRows.length === 0 || (pfdPendingCount === 0 && !pfdReadyToConfirm)} onClick={confirmAllPfdRows}>
-                  {isSaving ? "确认中" : pfdReadyToConfirm ? "确认并生成失效模式分析" : "确认全部过程流程图"}
-                </Button>
-                <Button variant="outline" disabled={!hasRun || isSaving || stageStatus(run, "pfmea") === "running" || pfmeaNotStarted} onClick={regeneratePfmea}>
-                  重新生成失效模式分析
-                </Button>
-              </>
-            )}
-            {filters.table === "pfmea" && (
-              <>
-                <div className="text-[12px] text-muted-foreground">
-                  {visiblePfmeaRows.length > 0 ? `失效模式分析：${visiblePfmeaRows.length} 行，待确认 ${pfmeaPendingCount} 行` : "失效模式分析暂无数据"}
-                </div>
-                <Button disabled={!hasRun || isSaving || visiblePfmeaRows.length === 0 || (pfmeaPendingCount === 0 && stageStatus(run, "cp") !== "" && stageStatus(run, "cp") !== "not_started")} onClick={confirmAllPfmeaRows}>
-                  {isSaving ? "确认中" : "确认并生成控制计划"}
-                </Button>
-                <Button variant="outline" disabled={!hasRun || isSaving || stageStatus(run, "cp") === "running" || stageStatus(run, "cp") === "" || stageStatus(run, "cp") === "not_started"} onClick={regenerateCp}>
-                  重新生成控制计划
-                </Button>
-              </>
-            )}
-            {filters.table === "cp" && (
-              <>
-                <div className="text-[12px] text-muted-foreground">
-                  {visibleCpRows.length > 0 ? `控制计划：${visibleCpRows.length} 行，待确认 ${cpPendingCount} 行` : "控制计划暂无数据"}
-                </div>
-                <Button disabled={!hasRun || isSaving || visibleCpRows.length === 0} onClick={confirmAllCpRows}>
-                  {isSaving ? "确认中" : "确认全部控制计划"}
-                </Button>
-              </>
-            )}
-          </section>
-        </aside>
       </div>
     </div>
   );

@@ -12,6 +12,47 @@
 - 第一版 `MinerUOCRAdapter` 只承诺把 Markdown/文本归一为 OCR page/block evidence；bbox 和 confidence 可以为空，后续如果 MinerU 输出结构化版面再补映射。
 - `compare-ocr-engines` 的价值是验证工具，不是业务结果入口。它可以帮助同图纸比较 `mineru/pdf_text/rapidocr` 的摘要命中情况，但不会把结果写入正式三表链路。
 
+## V1.14.22 安静聚焦 UI motion 重构文档与测试发现
+
+- 本轮的第一性边界是“先把体验契约写清楚”，不是抢改前端。motion、体验组件、三表编辑画布、浮动工具条、右侧检查器和导入页保活都属于用户可感知体验，应该有静态测试兜底。
+- motion token 应集中在全局样式或共享体验层里。否则不同页面各写 `duration-*`、`ease-*`、`animate-*`，后续会很难统一减弱动效或支持 `prefers-reduced-motion`。
+- “体验组件”不是装饰组件，而是把安静界面里的页面区块、状态反馈和微动效集中起来，避免每个页面重复拼边框、阴影、状态文字和过渡样式。
+- 三表工作台的主体验应继续围绕 `三表编辑画布`，高频编辑、草稿保存、批量软删除和标记评审要靠画布内上下文完成，不应回到固定右侧检查器占空间。
+- `InspectorPanel` 已经被删除，静态测试必须防止它通过 `App.tsx`、`AppShell.tsx` 或三列网格布局悄悄回来。
+- 导入页保活是链式生成体验的一部分。用户从图纸导入页切到工作台或设置页时，导入页不应 unmount 后丢失后台生成、轮询或失败反馈状态。
+- 因为本轮不改前端，若静态测试发现 motion token 或体验组件尚未落地，应把它记录为并行 UI 实现待完成，而不是降低测试要求。
+
+## V1.14.21 当前生成物审查与修复发现
+
+- 当前“生成出来的东西”不只是代码，还包括 PyInstaller sidecar、Tauri binaries、NSIS 安装包、设置页 UI、计划文件和 OpenSpec。审查必须同时看运行测试、打包目录和文档记录，否则会出现安装包能生成但说明/验证命令已经失效。
+- `tests/test_desktop_api_sidecar.py` 的两个失败不是数据管理或 AI 设置改动引入的新业务回归，而是测试仍停在旧流程：PFMEA 生成函数现在会收到 `on_progress`，自动批量确认也被收紧到 CP 确认后的总审核阶段。
+- SQLite 备份不能直接复制主库文件。安装版长期运行时可能处于 WAL 模式，已提交数据可能还在 `-wal` 文件里；直接 `copy2` 主库会生成可打开但缺数据的备份。
+- Tauri `build.rs` 的调试占位逻辑需要区分“没有 sidecar”和“已有真实 PyInstaller sidecar”。已有真实 `_internal` 时继续写 `.placeholder` 会让 Tauri binaries 与 PyInstaller 源目录不一致，后续审查会误判产物被污染。
+- `npm run release:nsis` 如果只打包不先重建 sidecar，会把旧 sidecar 或被污染的 sidecar 打进安装包。发布命令应默认先重建 sidecar，真正只打包的命令应显式命名为内部命令。
+- `scripts/build_release.ps1` 末尾复制安装包时也要先定义 `$repo`。否则发布脚本会在 NSIS 已经生成之后才因为路径根为空退出，造成“包已打好但交付目录没产物”的假失败。
+- README 继续写“复用 Codex 中转配置”会误导用户，以为 Codex `base_url` 仍决定 MINOS 默认地址；当前事实是默认 `https://cx.allincoding.cc/responses`，Codex 只复用 auth/wire/store/reasoning/user-agent。
+- Mermaid 重复节点 ID 不是文档小问题。渲染时同 ID 会合并节点，导致流程图语义被后一个标签覆盖，影响后续代理按流程图判断当前状态。
+
+## V1.14.19 本地数据管理页发现
+
+- 用户看到“安装在 E 盘，但重装后旧数据还在”的根因是 Windows 桌面应用常见的数据模型：程序文件在安装目录，用户数据在 `%LOCALAPPDATA%`。当前 MINOS-CORE 的 Python 默认路径和 Tauri sidecar 启动参数都已经指向用户本地数据目录。
+- 立即把数据自动迁移到 E 盘风险更高。重装、升级、卸载时的保留/删除语义会变复杂，且可能误删用户已有项目；第一步应该先让用户在软件内看见数据目录、备份和清空。
+- 运行中的 SQLite 不适合直接删除数据库文件。更稳妥的清空方式是通过 SQL 删除业务表数据，再让既有迁移/seed 逻辑保证表结构和默认知识规则存在。
+- 备份目录不能放进清空范围。否则用户先备份再清空时，备份可能被同一次清空删掉；本轮清理输出目录时明确保留 `backups`。
+- `workspace` 清空和 `factory_reset` 必须区分。前者解决“清掉项目和运行记录重新开始”，后者才是“恢复初始状态”；AI key、Codex auth 和环境变量不属于 MINOS 数据目录，不能被软件清空。
+- 设置页是当前最短入口，因为用户已经在那里看服务状态和输出目录；新增独立页面会增加导航成本，而底层 API 仍可在未来迁移到完整工作区管理页。
+- 本轮完整 sidecar 测试最初暴露两个旧测试断言问题，说明审查生成物时不能只跑新增功能聚焦测试；这些断言已在 V1.14.21 中同步当前链式生成和总审核规则。
+
+## V1.14.20 设置页可视化 AI 服务配置发现
+
+- 用户要解决的是安装版“改不动 AI 服务配置”。把默认 URL 写死或只依赖环境变量，对普通桌面用户都不够；设置页必须能保存服务地址、API Key 和模型名。
+- 环境变量仍应该是最高优先级，因为它常用于企业部署、调试或管理员统一接管。设置页保存的值只应作为 fallback，不应偷偷覆盖显式 `MINOS_OPENAI_*` / `OPENAI_*` / `ARK_*` 配置。
+- API Key 的 UI 语义必须是“填入即更新，留空保持不变，清除自定义才传空字符串”。后端不能把明文 key 返回给前端，否则设置页、日志、截图和 API 响应都会扩大泄漏面。
+- `ARK_API_KEY` 在当前运行链路里是 Codex/ARK 兼容 fallback，不应和 `MINOS_OPENAI_API_KEY` / `OPENAI_API_KEY` 一样锁定 UI。否则会出现“界面显示环境变量接管，但实际生效是用户设置”的矛盾。
+- 允许用户保存任意 `http://` AI URL 会把 Bearer Key 明文发到远端普通 HTTP。最小安全边界是远端必须 HTTPS，同时保留本机 `127.0.0.1/localhost` HTTP 代理用于本地调试。
+- 只做到“响应不返回 key”还不够。上游代理的错误响应体可能回显请求头或调试上下文，文本/多模态适配器如果把响应体写进异常或日志，最终会出现在前端失败报告或数据备份里的日志中。
+- 把 DB override 注入点放在 `ai_config.py` 能让所有现有 LLM 调用方自动受益，不需要逐个改 `llm_text.py`、`openai_llm.py`、`pipeline_chain.py` 的业务调用。
+
 ## 当前任务发现：MINOS-CORE 调查审核与问题修复
 
 ## 删除右侧检查器面板发现
@@ -91,7 +132,7 @@
 - 当前真实运行环境中，MINOS 已能解析 Codex 配置的中转地址和可用 API key；按用户最新要求，MINOS 默认模型统一切换为 `gpt-5.5`，仍保留显式环境变量覆盖能力。
 - 桌面端之前必须先稳定后端闭环；`generate_three_tables_from_drawing(...)` 现在是桌面端应调用的业务入口，避免把图纸识别、质量门和导出逻辑散落到 UI。
 - 桌面业务闭环 MVP 已落地后，桌面端的关键边界从“能打开界面”变成“通过服务层记录项目、run、export，并后台调用 core pipeline”；UI 不应复制三表生成逻辑。
-- SQLite `out/desktop/minos_desktop.sqlite3` 只应保存桌面项目、设置、运行状态和导出记录，不应保存明文 API key。
+- SQLite `%LOCALAPPDATA%\MINOS-CORE\minos_desktop.sqlite3` 只应保存桌面项目、设置、运行状态和导出记录，不应保存明文 API key。
 - 桌面失败报告需要面向工程人员决策：保留原始错误，说明原因判断，并给出三种处理方案，其中必须包含“放弃任务”。
 - 未经人工复核的 AI 草案可以导出 draft 三表包，但 final export 必须被质量门阻断，这是第一版最重要的工程边界。
 - 严格三表一致性硬门必须区分适用对象：MINOS 新生成/人工编辑后的三表链路要硬阻断，历史 legacy fixture 和质量审计弱链接样本仍应由 audit 提醒，避免把旧数据迁移问题误判成核心 validate 失败。

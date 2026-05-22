@@ -23,7 +23,7 @@
     --border: 240 6% 86%;
     --input: 240 6% 86%;
     --ring: 212 93% 42%;
-    --radius: 0.625rem;
+    --radius: 0.5rem;
     --chart-1: 212 93% 42%;
     --chart-2: 170 60% 40%;
     --chart-3: 40 80% 50%;
@@ -37,6 +37,32 @@
     --sidebar-accent-foreground: 240 6% 16%;
     --sidebar-border: 240 6% 86%;
     --sidebar-ring: 212 93% 42%;
+    --shell: 240 11% 96%;
+    --surface: 0 0% 100%;
+    --surface-foreground: 240 6% 10%;
+    --surface-muted: 240 7% 98%;
+    --surface-hover: 240 8% 99%;
+    --surface-border: 240 6% 86%;
+    --surface-shadow: 0 1px 2px hsl(var(--foreground) / 0.04);
+    --surface-shadow-hover: 0 8px 24px hsl(var(--foreground) / 0.07);
+    --info-surface: 212 100% 96%;
+    --info-border: 212 75% 82%;
+    --success: 160 84% 32%;
+    --success-foreground: 160 86% 24%;
+    --success-surface: 160 84% 96%;
+    --success-border: 160 60% 78%;
+    --warning: 38 92% 44%;
+    --warning-foreground: 34 90% 26%;
+    --warning-surface: 42 100% 96%;
+    --warning-border: 38 82% 76%;
+    --danger-surface: 0 86% 97%;
+    --danger-border: 0 75% 82%;
+    --motion-reduced: 1ms;
+    --motion-fast: 100ms;
+    --motion-base: 150ms;
+    --motion-slow: 220ms;
+    --motion-ease: cubic-bezier(0.2, 0, 0, 1);
+    --motion-ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .dark {
@@ -72,6 +98,26 @@
     --sidebar-accent-foreground: 240 4% 96%;
     --sidebar-border: 0 0% 22%;
     --sidebar-ring: 211 100% 58%;
+    --shell: 0 0% 7%;
+    --surface: 0 0% 11%;
+    --surface-foreground: 240 4% 96%;
+    --surface-muted: 0 0% 14%;
+    --surface-hover: 0 0% 16%;
+    --surface-border: 0 0% 22%;
+    --surface-shadow: 0 1px 2px hsl(0 0% 0% / 0.2);
+    --surface-shadow-hover: 0 10px 30px hsl(0 0% 0% / 0.28);
+    --info-surface: 211 72% 12%;
+    --info-border: 211 62% 30%;
+    --success: 154 68% 45%;
+    --success-foreground: 154 68% 72%;
+    --success-surface: 154 64% 12%;
+    --success-border: 154 46% 30%;
+    --warning: 42 92% 56%;
+    --warning-foreground: 42 98% 74%;
+    --warning-surface: 42 74% 12%;
+    --warning-border: 42 58% 32%;
+    --danger-surface: 0 58% 13%;
+    --danger-border: 0 56% 34%;
   }
 
   * {
@@ -85,5 +131,25 @@
     margin: 0;
     min-width: 1080px;
     min-height: 100vh;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :root {
+      --motion-fast: var(--motion-reduced);
+      --motion-base: var(--motion-reduced);
+      --motion-slow: var(--motion-reduced);
+      --motion-ease: linear;
+      --motion-ease-emphasized: linear;
+    }
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: var(--motion-reduced) !important;
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+      transition-delay: 0ms !important;
+      transition-duration: var(--motion-reduced) !important;
+    }
   }
 }

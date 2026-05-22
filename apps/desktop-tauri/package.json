@@ -8,7 +8,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "release:nsis": "tauri build --ci --no-sign --bundles nsis"
+    "tauri:nsis": "tauri build --ci --no-sign --bundles nsis",
+    "release:nsis": "powershell -ExecutionPolicy Bypass -File ..\\..\\scripts\\build_sidecar.ps1 && npm run tauri:nsis"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.2.8",

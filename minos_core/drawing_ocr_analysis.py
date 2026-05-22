@@ -10,7 +10,6 @@ from typing import Any
 from minos_core._text_utils import float_or_none
 
 from .adapters.ocr import (
-    CompositeOCRAdapter,
     OCRBlock,
     OCRPageText,
     OCRResult,
@@ -52,7 +51,7 @@ def analyze_drawing_with_ocr(
 ) -> dict[str, Any]:
     """Run OCR over the drawing source and return a drawing_analysis bundle.
 
-    /// 1. Pick the configured OCR adapter: PDF text layer, RapidOCR, or auto.
+    /// 1. Pick the configured OCR adapter: MinerU-first by default, with explicit PDF text and RapidOCR fallbacks.
     /// 2. Extract OCR page/block evidence from the original drawing bytes.
     /// 3. Convert OCR evidence into the same drawing_analysis contract used downstream.
     """
@@ -166,12 +165,18 @@ def build_drawing_analysis_bundle_from_ocr(
 def _ocr_adapter_for_engine(ocr_engine: str) -> Any:
     engine = str(ocr_engine or "auto").strip().lower()
     if engine == "auto":
-        return CompositeOCRAdapter()
+        from .adapters.mineru_ocr import MinerUOCRAdapter
+
+        return MinerUOCRAdapter()
     if engine == "pdf_text":
         return PyMuPDFTextLayerOCRAdapter()
     if engine == "rapidocr":
         return RapidOCRPageAdapter()
-    raise ValueError("ocr_engine must be one of: auto, pdf_text, rapidocr")
+    if engine == "mineru":
+        from .adapters.mineru_ocr import MinerUOCRAdapter
+
+        return MinerUOCRAdapter()
+    raise ValueError("ocr_engine must be one of: auto, pdf_text, rapidocr, mineru")
 
 
 def _source_path(source: Any) -> Path | None:

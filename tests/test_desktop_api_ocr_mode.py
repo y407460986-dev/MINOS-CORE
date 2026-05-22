@@ -12,6 +12,88 @@ from minos_desktop.api.app import create_app
 
 
 class DesktopApiOCRModeTests(unittest.TestCase):
+    def test_project_create_preserves_explicit_ocr_modes(self) -> None:
+        for ocr_engine in ("rapidocr", "pdf_text", "mineru"):
+            with self.subTest(ocr_engine=ocr_engine):
+                asyncio.run(self._project_create_preserves_explicit_ocr_mode(ocr_engine))
+
+    async def _project_create_preserves_explicit_ocr_mode(self, ocr_engine: str) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            db_path = root / "desktop.sqlite3"
+            output_dir = root / "out"
+            app = create_app(db_path=db_path, output_dir=output_dir)
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                response = await client.post(
+                    "/api/projects",
+                    json={
+                        "project_name": "显式 OCR 项目",
+                        "drawing_path": "drawing.pdf",
+                        "output_dir": str(output_dir),
+                        "ocr_engine": ocr_engine,
+                    },
+                )
+
+        self.assertEqual(response.status_code, 201)
+        project_body = response.json()
+        self.assertEqual(project_body["ocr_engine"], ocr_engine)
+        self.assertEqual(project_body["context"]["ocr_engine"], ocr_engine)
+
+    def test_project_create_defaults_to_mineru_ocr_mode(self) -> None:
+        asyncio.run(self._project_create_defaults_to_mineru_ocr_mode())
+
+    async def _project_create_defaults_to_mineru_ocr_mode(self) -> None:
+        captured: dict[str, object] = {}
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            db_path = root / "desktop.sqlite3"
+            output_dir = root / "out"
+            app = create_app(db_path=db_path, output_dir=output_dir)
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                response = await client.post(
+                    "/api/projects",
+                    json={
+                        "project_name": "默认 OCR 项目",
+                        "drawing_path": "drawing.pdf",
+                        "output_dir": str(output_dir),
+                    },
+                )
+
+            self.assertEqual(response.status_code, 201)
+            project_body = response.json()
+            self.assertEqual(project_body["analysis_mode"], "hybrid")
+            self.assertEqual(project_body["ocr_engine"], "mineru")
+            self.assertEqual(project_body["context"]["analysis_mode"], "hybrid")
+            self.assertEqual(project_body["context"]["ocr_engine"], "mineru")
+
+            with patch(
+                "minos_desktop.services.analyze_drawing_for_three_table_chain",
+                side_effect=_capturing_analysis(captured),
+            ):
+                with patch(
+                    "minos_core.pipeline_chain.generate_pfd_from_drawing",
+                    return_value={
+                        "steps": [
+                            {
+                                "process_step_id": "P10",
+                                "operation": "来料检验",
+                                "needs_confirmation": True,
+                            }
+                        ]
+                    },
+                ):
+                    async with AsyncClient(transport=transport, base_url="http://test") as client:
+                        run_response = await client.post(
+                            f"/api/projects/{project_body['id']}/runs"
+                        )
+
+        self.assertEqual(run_response.status_code, 201)
+        self.assertEqual(captured["analysis_mode"], "hybrid")
+        self.assertEqual(captured["ocr_engine"], "mineru")
+
     def test_project_create_stores_ocr_mode_and_chain_run_passes_it(self) -> None:
         asyncio.run(self._project_create_stores_ocr_mode_and_chain_run_passes_it())
 
@@ -32,7 +114,7 @@ class DesktopApiOCRModeTests(unittest.TestCase):
                         "drawing_path": "drawing.pdf",
                         "output_dir": str(output_dir),
                         "analysis_mode": "ocr_only",
-                        "ocr_engine": "pdf_text",
+                        "ocr_engine": "mineru",
                         "context": {"part_no": "A-001"},
                     },
                 )
@@ -40,9 +122,9 @@ class DesktopApiOCRModeTests(unittest.TestCase):
             self.assertEqual(response.status_code, 201)
             project_body = response.json()
             self.assertEqual(project_body["analysis_mode"], "ocr_only")
-            self.assertEqual(project_body["ocr_engine"], "pdf_text")
+            self.assertEqual(project_body["ocr_engine"], "mineru")
             self.assertEqual(project_body["context"]["analysis_mode"], "ocr_only")
-            self.assertEqual(project_body["context"]["ocr_engine"], "pdf_text")
+            self.assertEqual(project_body["context"]["ocr_engine"], "mineru")
             with patch(
                 "minos_desktop.services.analyze_drawing_for_three_table_chain",
                 side_effect=_capturing_analysis(captured),
@@ -72,7 +154,7 @@ class DesktopApiOCRModeTests(unittest.TestCase):
         self.assertEqual(run_body["current_result"]["pfmea"]["rows"], [])
         self.assertEqual(run_body["current_result"]["control_plan"]["rows"], [])
         self.assertEqual(captured["analysis_mode"], "ocr_only")
-        self.assertEqual(captured["ocr_engine"], "pdf_text")
+        self.assertEqual(captured["ocr_engine"], "mineru")
         self.assertEqual(captured["context"]["part_no"], "A-001")
         self.assertEqual(captured["context"]["analysis_mode"], "ocr_only")
 

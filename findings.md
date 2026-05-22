@@ -1,5 +1,17 @@
 # 当前主目标发现：AI 图纸驱动三表生成工具
 
+## V1.14.23 MinerU 默认 OCR 引擎文档同步发现
+
+- MinerU 的正确定位已调整为默认 OCR 解析引擎。它替代的是图纸入口的 OCR 解析层，不替代 MINOS 的 drawing_analysis、domain extraction、零件族判断、PFD/PFMEA/CP 推理、质量门、人工确认和导出门。
+- `auto` 默认应进入 MinerU-first。文档如果继续把 MinerU 写成只在手动选择时才启用，会和目标行为冲突，也会误导后续 agent 把旧 PyMuPDF/RapidOCR 继续当默认主线。
+- `pdf_text` / `rapidocr` 应保留为显式兼容入口。它们适合旧环境回退、诊断和 OCR 对比，但不能因为 MinerU 缺失而静默接管默认 `auto`。
+- MinerU 输出应归一为 OCR evidence：页面文字、版面块、bbox、置信度和来源信息。它不应直接产出或覆盖 PFD、PFMEA、CP 的工程判断。
+- MinerU 默认分支接入点仍是 OCR evidence merge。这样证据引用、人工复核、质量门和三表链路仍统一由 MINOS 控制，避免出现两套图纸理解和三表生成路径。
+- 应用封装风险需要前置写清楚：发布版不能依赖 Codex、Claude、开发机虚拟环境或用户私有目录里的 MinerU。MinerU 命令必须通过 `MINOS_MINERU_COMMAND`、`MINERU_COMMAND`、系统 `PATH` 或打包配置定位。
+- 如果安装包内置 MinerU，打包配置还需要收齐可执行文件、Python 包、模型/资源目录和运行时依赖；如果不内置，启动前检查要给出清楚的依赖配置方式。
+- 第一版 `MinerUOCRAdapter` 只承诺把 Markdown/文本归一为 OCR page/block evidence；bbox 和 confidence 可以为空，后续如果 MinerU 输出结构化版面再补映射。
+- `compare-ocr-engines` 的价值是验证工具，不是业务结果入口。它可以帮助同图纸比较 `mineru/pdf_text/rapidocr` 的摘要命中情况，但不会把结果写入正式三表链路。
+
 ## 当前任务发现：MINOS-CORE 调查审核与问题修复
 
 ## 删除右侧检查器面板发现

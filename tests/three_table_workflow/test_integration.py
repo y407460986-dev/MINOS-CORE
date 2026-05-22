@@ -442,6 +442,7 @@ class IntegrationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             image_path = self._write_png(Path(tmpdir) / "drawing.png")
             result_path = Path(tmpdir) / "result.json"
+            captured: dict[str, object] = {}
             fake_result = {
                 "document_type": "three_table_generation_result",
                 "schema_version": "minos-core.three_table_generation_result.v1",
@@ -454,9 +455,14 @@ class IntegrationTests(unittest.TestCase):
                 "exports": {"unified_workbook": str(Path(tmpdir) / "三表总工作簿.xlsx")},
                 "manifest": {},
             }
+
+            def generate_three_tables(*args, **kwargs):
+                captured["ocr_engine"] = kwargs["ocr_engine"]
+                return fake_result
+
             with patch(
                 "minos_core.pipeline.generate_three_tables_from_drawing",
-                return_value=fake_result,
+                side_effect=generate_three_tables,
             ):
                 code = main(
                     [
@@ -467,6 +473,8 @@ class IntegrationTests(unittest.TestCase):
                         str(Path(tmpdir) / "out"),
                         "--result-output",
                         str(result_path),
+                        "--ocr-engine",
+                        "mineru",
                         "--context-json",
                         '{"part_family":"hinge"}',
                     ]
@@ -475,6 +483,40 @@ class IntegrationTests(unittest.TestCase):
             self.assertEqual(code, 0)
             saved = json.loads(result_path.read_text(encoding="utf-8"))
             self.assertEqual(saved["status"], "needs_review")
+            self.assertEqual(captured["ocr_engine"], "mineru")
+
+    def test_analyze_drawing_cli_accepts_mineru_ocr_engine(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            image_path = self._write_png(Path(tmpdir) / "drawing.png")
+            result_path = Path(tmpdir) / "analysis.json"
+            captured: dict[str, object] = {}
+
+            def analyze_for_mode(*args, **kwargs):
+                captured["ocr_engine"] = kwargs["ocr_engine"]
+                return {"metadata": {}}, [], "ocr", []
+
+            with patch(
+                "minos_core.pipeline._analyze_drawing_pages_for_mode",
+                side_effect=analyze_for_mode,
+            ):
+                with patch(
+                    "minos_core.pipeline._effective_ocr_engine",
+                    return_value="mineru",
+                ):
+                    code = main(
+                        [
+                            "analyze-drawing",
+                            "--input",
+                            str(image_path),
+                            "--output",
+                            str(result_path),
+                            "--ocr-engine",
+                            "mineru",
+                        ]
+                    )
+
+            self.assertEqual(code, 0)
+            self.assertEqual(captured["ocr_engine"], "mineru")
 
 
     def _write_png(self, path: Path) -> Path:

@@ -1,5 +1,45 @@
 # MINOS-CORE 重建任务计划
 
+## V1.14.23 MinerU 默认 OCR 引擎：OpenSpec、流程文档和发布风险同步
+
+### 目标
+本轮把 V1.14.23 文档收口为“MinerU 替代默认 OCR 解析层”。默认 `auto` 进入 MinerU-first；旧 PyMuPDF/文字层 `pdf_text` 和 RapidOCR `rapidocr` 作为显式兼容入口保留，不再是默认。MinerU 只替代 OCR 解析层，不替代 MINOS domain extraction、证据追溯、drawing_analysis、零件族、PFD、PFMEA、CP、质量门、人工复核和导出门。
+
+```mermaid
+flowchart TD
+    MU0[确认写入范围和并行改动边界] --> MU1[建立 V1.14.23 OpenSpec]
+    MU1 --> MU2[proposal / design / tasks]
+    MU2 --> MU3[默认 auto 进入 MinerU-first]
+    MU3 --> MU4[pdf_text / rapidocr 显式兼容入口]
+    MU4 --> MU5[打包定位风险<br/>MINOS_MINERU_COMMAND MINERU_COMMAND PATH]
+    MU5 --> MU6[补任务计划 进度 发现]
+    MU6 --> MU7[更新 project_flow.mmd]
+    MU7 --> MU8[MinerU 默认 OCR 分支接到 OCR evidence merge]
+    MU2 --> MU9[文档 UTF-8 可打开性检查]
+    MU8 --> MU10[Mermaid 节点 ID 与连接检查]
+    MU4 --> MU11[轻量文档验证]
+    MU9 --> MU12[交付汇总]
+    MU10 --> MU12
+    MU11 --> MU12
+```
+
+/// 1. 意图：确认写入边界并保护并行 worker 改动；输入：`git status --short` 和用户指定文件清单；输出：只改 OpenSpec、流程文档、进度/发现记录和 Mermaid；验证：最终 diff 不包含运行代码或非负责文件。
+/// 2. 意图：更新 `proposal.md` 的产品结论；输入：旧 OCR 引擎文案和用户新要求；输出：MinerU-first 默认、legacy 显式兼容、MINOS 业务边界；验证：proposal 明确 `auto` 默认进入 MinerU-first。
+/// 3. 意图：更新 `design.md` 的流程和运行时边界；输入：OCR engine 选择、evidence merge、发布封装风险；输出：默认 MinerU、`pdf_text`/`rapidocr` explicit legacy、MinerU 命令定位顺序；验证：design 写明不能依赖 Codex 私有路径。
+/// 4. 意图：更新 `tasks.md` 的执行步骤；输入：本轮文档动作；输出：每步包含意图、输入、输出和验证点的 `///` 记录；验证：tasks 中没有旧结论。
+/// 5. 意图：更新根计划、进度和发现；输入：`task_plan.md`、`progress.md`、`findings.md` 当前 V1.14.23 小节；输出：MinerU 替代默认 OCR、旧引擎显式兼容、封装风险；验证：V1.14.23 小节不再写 optional-only。
+/// 6. 意图：更新 `project_flow.mmd`；输入：现有 OCR-first 分支 PL170-PL186；输出：MinerU 位于默认 OCR 分支，PyMuPDF/RapidOCR 位于 compatibility fallback / explicit legacy branch；验证：MinerU 和 legacy 分支都连接到 `PL174` OCR evidence merge。
+/// 7. 意图：检查文档 UTF-8；输入：本轮负责 Markdown/Mermaid 文件；输出：UTF-8 读取结果；验证：PowerShell 读取不报错。
+/// 8. 意图：检查 Mermaid 节点 ID；输入：`project_flow.mmd`；输出：节点 ID 去重结果；验证：无重复节点 ID。
+/// 9. 意图：检查 diff 空白和冲突标记；输入：本轮负责文件；输出：`git diff --check -- <files>` 结果；验证：命令通过。
+
+### OpenSpec 四步闭环
+
+1. Define：定义 MinerU 替代默认 OCR 解析层，但不替代 MINOS 业务链路。
+2. Specify：`auto` 默认 MinerU-first；`pdf_text` / `rapidocr` 是显式兼容入口；MinerU 输出只作为 OCR evidence。
+3. Implement：本轮只同步 OpenSpec、任务计划、进度、发现和流程图，不改运行代码或打包脚本。
+4. Verify：用 UTF-8 读取、Mermaid 节点 ID 去重、关键边检查和负责文件 `git diff --check` 作为本轮可验证证据。
+
 ## 当前任务：PFMEA 必须按确认后的 PFD 推理生成
 
 目标是修复 PFMEA 与 PFD 不一致的问题：PFD 不能把零件/物料名伪造成工序；PFMEA 的工序编号、工序名称、功能字段必须从已确认 PFD 继承；任何联动同步入口都不能用“待工程人员填写失效模式”占位行冒充正式 PFMEA。

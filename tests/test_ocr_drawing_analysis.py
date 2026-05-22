@@ -11,9 +11,11 @@ from minos_core.adapters.ocr import (
     PyMuPDFTextLayerOCRAdapter,
     RapidOCRPageAdapter,
 )
+from minos_core.adapters.mineru_ocr import MinerUOCRAdapter
 from minos_core.drawing_input import DrawingPageEvidence
 from minos_core.drawing_ocr_analysis import build_drawing_analysis_bundle_from_ocr
 from minos_core.drawing_ocr_analysis import analyze_drawing_with_ocr
+from minos_core.drawing_ocr_analysis import _ocr_adapter_for_engine
 from minos_core.part_family_classifier import classify_part_family
 from minos_core.schemas import validate_bundle_schema
 
@@ -61,6 +63,42 @@ class OCRDrawingAnalysisTests(unittest.TestCase):
         self.assertEqual(bundle["metadata"]["ocr"]["engine"], "unit_ocr")
         self.assertEqual(bundle["metadata"]["drawing_page_evidence_refs"], ["drawing_page_001"])
         self.assertTrue(bundle["materials"][0]["evidence_refs"])
+
+    def test_auto_ocr_engine_uses_mineru_adapter_and_marks_metadata(self):
+        result = OCRResult(
+            source_ref="drawing.pdf",
+            pages=[
+                OCRPageText(
+                    page_number=1,
+                    text="Drawing No: AUTO-001\nPart Name: Auto Bracket\nMaterial: SPCC",
+                    confidence=0.91,
+                    engine="mineru",
+                    source_ref="drawing.pdf",
+                )
+            ],
+        )
+
+        class FakeMinerUAdapter:
+            def __init__(self) -> None:
+                self.calls = []
+
+            def extract_text(self, source_ref: str, content: bytes) -> OCRResult:
+                self.calls.append((source_ref, content))
+                return result
+
+        fake_adapter = FakeMinerUAdapter()
+
+        with patch("minos_core.drawing_ocr_analysis._ocr_adapter_for_engine", return_value=fake_adapter):
+            bundle = analyze_drawing_with_ocr(
+                source={"path": __file__},
+                pages=[_page_evidence()],
+                output_dir="unused",
+                context={},
+                ocr_engine="auto",
+            )
+
+        self.assertEqual(fake_adapter.calls[0][0], __file__)
+        self.assertEqual(bundle["metadata"]["ocr"]["engine"], "mineru")
 
     def test_ocr_only_bundle_has_stable_evidence_ids_and_valid_shape(self):
         ocr_result = OCRResult(
@@ -481,6 +519,14 @@ class OCRDrawingAnalysisTests(unittest.TestCase):
         self.assertEqual(result.pages[0].engine, "pymupdf_text_layer")
         self.assertEqual(result.pages[0].blocks[0].text, "Drawing No: PDF-001")
         self.assertEqual(result.pages[0].blocks[0].bbox, (10.0, 20.0, 30.0, 40.0))
+
+    def test_ocr_adapter_for_engine_selects_mineru_adapter(self):
+        self.assertIsInstance(_ocr_adapter_for_engine("auto"), MinerUOCRAdapter)
+        self.assertIsInstance(_ocr_adapter_for_engine("mineru"), MinerUOCRAdapter)
+
+    def test_ocr_adapter_for_engine_keeps_old_explicit_engines(self):
+        self.assertIsInstance(_ocr_adapter_for_engine("pdf_text"), PyMuPDFTextLayerOCRAdapter)
+        self.assertIsInstance(_ocr_adapter_for_engine("rapidocr"), RapidOCRPageAdapter)
 
 
 def _page_evidence():

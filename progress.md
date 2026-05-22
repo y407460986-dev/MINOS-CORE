@@ -1,5 +1,21 @@
 ## 当前主目标：AI 图纸驱动三表生成工具
 
+## V1.14.23 MinerU 默认 OCR 引擎文档同步当前状态
+
+- 已完成：确认工作区存在大量并行改动；本轮只审查和交付 MinerU 相关改动，不回滚其他改动。
+- 已完成：新增 OpenSpec 目录 `openspec/changes/v1.14.23-mineru-ocr-tool/`，包含 `proposal.md`、`design.md`、`tasks.md`。
+- 已更新：OpenSpec 结论已收口为“MinerU 替代默认 OCR 解析层，`auto` 默认 MinerU-first”。
+- 已明确：`pdf_text` / `rapidocr` 是显式兼容入口，用于旧 PyMuPDF/文字层和 RapidOCR 回退、诊断或对比，不再是默认路径。
+- 已明确：MinerU 输出只提供 OCR/版面证据，必须进入 OCR evidence merge；MINOS 继续负责 domain extraction、证据追溯、drawing_analysis、零件族、PFD、PFMEA、CP、质量门、人工复核、审核和导出门。
+- 已记录：应用封装不能依赖 Codex 私有路径或开发机虚拟环境定位 MinerU；运行时应通过 `MINOS_MINERU_COMMAND`、`MINERU_COMMAND`、系统 `PATH` 或安装包打包配置定位 MinerU。
+- 已记录：若安装包不内置 MinerU，默认 `auto` 缺 MinerU 时应给清晰依赖错误，不能静默退回旧引擎并改变 MinerU-first 语义。
+- 已更新：`task_plan.md` 记录 MinerU-first 目标、流程图、`///` 步骤和 OpenSpec 四步闭环。
+- 已更新：`findings.md` 记录 MinerU 默认 OCR 边界、legacy 显式兼容入口和打包/发布定位风险。
+- 已更新：`project_flow.mmd` 把 MinerU 放入默认 OCR 分支，节点 ID 使用 `PL183` 到 `PL187`；旧 PyMuPDF/RapidOCR 位于 compatibility fallback / explicit legacy branch，并接到现有 `PL174` OCR evidence merge。
+- 已验证：OpenSpec 和根文档 UTF-8 可读取。
+- 已验证：`project_flow.mmd` 节点 ID 不重复，MinerU 默认分支和 legacy 分支连接到 `OCR evidence merge`。
+- 已验证：`git diff --check` 已按本轮负责文件范围检查通过。
+
 ## 当前任务：MINOS-CORE 调查审核与问题修复
 
 ## 删除右侧检查器面板当前状态

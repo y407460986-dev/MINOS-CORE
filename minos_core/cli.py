@@ -47,10 +47,22 @@ def main(argv: list[str] | None = None) -> int:
     )
     analyze_drawing_parser.add_argument(
         "--ocr-engine",
-        choices=("auto", "pdf_text", "rapidocr"),
+        choices=("auto", "pdf_text", "rapidocr", "mineru"),
         default="auto",
-        help="OCR engine for ocr_only/hybrid modes",
+        help="OCR engine for ocr_only/hybrid modes; auto uses MinerU by default",
     )
+
+    compare_ocr_parser = subparsers.add_parser(
+        "compare-ocr-engines",
+        help="Compare OCR engines on one drawing and print a JSON summary",
+    )
+    compare_ocr_parser.add_argument("--input", required=True, help="Drawing PDF/PNG/JPG path")
+    compare_ocr_parser.add_argument(
+        "--engines",
+        default="auto,pdf_text,rapidocr,mineru",
+        help="Comma-separated OCR engines to compare; auto maps to MinerU default",
+    )
+    compare_ocr_parser.add_argument("--output", help="Optional comparison JSON path")
 
     generate_three_parser = subparsers.add_parser(
         "generate-three-tables",
@@ -81,9 +93,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     generate_three_parser.add_argument(
         "--ocr-engine",
-        choices=("auto", "pdf_text", "rapidocr"),
+        choices=("auto", "pdf_text", "rapidocr", "mineru"),
         default="auto",
-        help="OCR engine for ocr_only/hybrid modes",
+        help="OCR engine for ocr_only/hybrid modes; auto uses MinerU by default",
     )
 
     demo_drawing_parser = subparsers.add_parser(
@@ -286,6 +298,8 @@ def main(argv: list[str] | None = None) -> int:
             args.mode,
             args.ocr_engine,
         )
+    if args.command == "compare-ocr-engines":
+        return _compare_ocr_engines(args.input, args.engines, args.output)
     if args.command == "generate-three-tables":
         return _generate_three_tables(
             args.input,
@@ -384,6 +398,7 @@ def _analyze_drawing(
 
     context = _parse_context_json(context_json)
     try:
+        requested_ocr_engine = str(ocr_engine).strip().lower()
         active_analysis_mode = _effective_analysis_mode(analysis_mode, context)
         active_ocr_engine = _effective_ocr_engine(ocr_engine, context)
         context["analysis_mode"] = active_analysis_mode
@@ -412,6 +427,7 @@ def _analyze_drawing(
         _attach_analysis_metadata(
             bundle,
             analysis_mode=active_analysis_mode,
+            requested_ocr_engine=requested_ocr_engine,
             ocr_engine=active_ocr_engine,
             analysis_source=analysis_source,
             warnings=warnings,
@@ -445,6 +461,128 @@ def _parse_context_json(context_json: str) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise json.JSONDecodeError("context JSON must be an object", context_json, 0)
     return payload
+
+
+def _compare_ocr_engines(
+    drawing_input: str,
+    engines: str,
+    output: str | None,
+) -> int:
+    from .drawing_input import DrawingInputError, load_drawing_source, render_drawing_pages
+    from .drawing_ocr_analysis import analyze_drawing_with_ocr
+
+    try:
+        engine_names = _parse_compare_engines(engines)
+        source = load_drawing_source(drawing_input)
+        pages = render_drawing_pages(source)
+    except (DrawingInputError, FileNotFoundError, ValueError) as exc:
+        print(f"OCR 引擎比较失败：{exc}")
+        return 2
+
+    target_dir = Path(output).resolve().parent if output else Path(drawing_input).resolve().parent
+    payload = {
+        "input": drawing_input,
+        "engines": engine_names,
+        "results": [
+            _compare_one_ocr_engine(
+                engine,
+                source,
+                pages,
+                target_dir,
+                analyze_drawing_with_ocr,
+            )
+            for engine in engine_names
+        ],
+    }
+    text = json.dumps(payload, ensure_ascii=False, indent=2)
+    if output:
+        destination = Path(output)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(text, encoding="utf-8")
+    print(text)
+    return 0
+
+
+def _parse_compare_engines(engines: str) -> list[str]:
+    values = [item.strip().lower() for item in str(engines or "").split(",")]
+    engine_names = [item for item in values if item]
+    if not engine_names:
+        raise ValueError("--engines must include at least one OCR engine")
+    return engine_names
+
+
+def _compare_one_ocr_engine(
+    engine: str,
+    source: Any,
+    pages: list[Any],
+    target_dir: Path,
+    analyze_drawing_with_ocr: Any,
+) -> dict[str, Any]:
+    try:
+        bundle = analyze_drawing_with_ocr(
+            source=source,
+            pages=pages,
+            output_dir=target_dir,
+            context={"analysis_mode": "ocr_only", "ocr_engine": engine},
+            ocr_engine=engine,
+            ocr_adapter=_compare_ocr_adapter(engine),
+        )
+    except Exception as exc:  # Engine comparison should keep the other engines running.
+        return _compare_ocr_error(engine, exc)
+    return _compare_ocr_summary(engine, bundle)
+
+
+def _compare_ocr_adapter(engine: str) -> Any | None:
+    if engine != "mineru":
+        return None
+    from .adapters.mineru_ocr import MinerUOCRAdapter
+
+    return MinerUOCRAdapter()
+
+
+def _compare_ocr_summary(engine: str, bundle: dict[str, Any]) -> dict[str, Any]:
+    identity = bundle.get("drawing_identity")
+    if not isinstance(identity, dict):
+        identity = {}
+    metadata = bundle.get("metadata")
+    ocr_metadata = metadata.get("ocr") if isinstance(metadata, dict) else None
+    if not isinstance(ocr_metadata, dict):
+        ocr_metadata = {}
+    return {
+        "engine": engine,
+        "drawing_number": identity.get("drawing_number"),
+        "part_name": identity.get("part_name"),
+        "revision": identity.get("revision"),
+        "material_count": _item_count(bundle.get("materials")),
+        "special_characteristic_count": _item_count(bundle.get("special_characteristics")),
+        "dimension_count": _item_count(bundle.get("dimensions")),
+        "technical_requirement_count": _item_count(bundle.get("technical_requirements")),
+        "evidence_count": _item_count(bundle.get("evidence")),
+        "ocr_text_length": int(ocr_metadata.get("text_length") or 0),
+        "status": "ok",
+        "error": None,
+    }
+
+
+def _compare_ocr_error(engine: str, exc: Exception) -> dict[str, Any]:
+    return {
+        "engine": engine,
+        "drawing_number": None,
+        "part_name": None,
+        "revision": None,
+        "material_count": 0,
+        "special_characteristic_count": 0,
+        "dimension_count": 0,
+        "technical_requirement_count": 0,
+        "evidence_count": 0,
+        "ocr_text_length": 0,
+        "status": "error",
+        "error": str(exc),
+    }
+
+
+def _item_count(value: Any) -> int:
+    return len(value) if isinstance(value, list) else 0
 
 
 def _generate_three_tables(

@@ -16,6 +16,7 @@ from minos_core.pipeline import (
     HYBRID_VISION_MAX_RETRIES,
     HYBRID_VISION_TIMEOUT_SECONDS,
     _analyze_drawing_pages_for_mode,
+    _effective_ocr_engine,
     generate_three_tables_from_drawing,
 )
 
@@ -121,6 +122,51 @@ class PipelineOCRFirstTests(unittest.TestCase):
         error_text = str(result["drawing_analysis"]["metadata"]["analysis_errors"])
         self.assertIn("AI 视觉识别中断，已保留 OCR 识别结果。", error_text)
         self.assertIn("stream_read_error", error_text)
+
+    def test_effective_ocr_engine_accepts_mineru_and_error_lists_it(self) -> None:
+        self.assertEqual(_effective_ocr_engine("mineru", {}), "mineru")
+        self.assertEqual(_effective_ocr_engine("auto", {"ocr_engine": "mineru"}), "mineru")
+        self.assertEqual(_effective_ocr_engine("auto", {}), "mineru")
+
+        with self.assertRaisesRegex(ValueError, "mineru"):
+            _effective_ocr_engine("bad_engine", {})
+
+    def test_generate_three_tables_records_auto_as_mineru_default(self) -> None:
+        captured: dict[str, object] = {}
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            result = _run_pipeline(
+                tmpdir,
+                analysis_mode="ocr_only",
+                ocr_engine="auto",
+                analyzer=_FailingAnalyzer(captured),
+                captured=captured,
+            )
+
+        self.assertEqual(captured["ocr_engine"], "mineru")
+        self.assertEqual(result["drawing_analysis"]["metadata"]["ocr_engine"], "mineru")
+        self.assertEqual(result["drawing_analysis"]["metadata"]["ocr_engine_requested"], "auto")
+
+    def test_hybrid_with_mineru_falls_back_to_ocr_and_preserves_metadata(self) -> None:
+        captured: dict[str, object] = {}
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            result = _run_pipeline(
+                tmpdir,
+                analysis_mode="hybrid",
+                ocr_engine="mineru",
+                analyzer=_FailingAnalyzer(captured),
+                captured=captured,
+            )
+
+        self.assertEqual(result["status"], "needs_review")
+        self.assertEqual(captured["ocr_engine"], "mineru")
+        self.assertIn(HYBRID_OCR_FALLBACK_WARNING, result["warnings"])
+        self.assertEqual(
+            result["drawing_analysis"]["metadata"]["analysis_source"],
+            "hybrid_ocr_fallback",
+        )
+        self.assertEqual(result["drawing_analysis"]["metadata"]["ocr_engine"], "mineru")
 
     def test_hybrid_default_analyzer_gets_bounded_runtime_before_vision(self) -> None:
         captured: dict[str, object] = {}
@@ -539,6 +585,7 @@ def _run_pipeline(
     tmpdir: str,
     *,
     analysis_mode: str,
+    ocr_engine: str = "rapidocr",
     analyzer: object,
     captured: dict[str, object],
 ) -> dict[str, object]:
@@ -584,7 +631,7 @@ def _run_pipeline(
             root / "out",
             context={"analysis_mode": analysis_mode},
             analysis_mode=analysis_mode,
-            ocr_engine="rapidocr",
+            ocr_engine=ocr_engine,
             ocr_adapter=_FakeOCRAdapter(),
             analyzer=analyzer,
         )
@@ -595,6 +642,7 @@ def _run_pipeline_without_fake_ocr_module(
     drawing_path: Path,
     *,
     analysis_mode: str,
+    ocr_engine: str = "rapidocr",
     analyzer: object,
     captured: dict[str, object],
     export_mode: str = "draft",
@@ -610,7 +658,7 @@ def _run_pipeline_without_fake_ocr_module(
             root / "out",
             context={"analysis_mode": analysis_mode},
             analysis_mode=analysis_mode,
-            ocr_engine="rapidocr",
+            ocr_engine=ocr_engine,
             ocr_adapter=_FakeOCRAdapter(),
             analyzer=analyzer,
             export_mode=export_mode,

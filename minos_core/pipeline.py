@@ -63,7 +63,8 @@ HYBRID_VISION_TIMEOUT_SECONDS = 45.0
 HYBRID_VISION_MAX_RETRIES = 0
 
 ANALYSIS_MODES = {"hybrid", "ocr_only", "vision_only"}
-OCR_ENGINES = {"auto", "pdf_text", "rapidocr"}
+OCR_ENGINES = {"auto", "pdf_text", "rapidocr", "mineru"}
+DEFAULT_OCR_ENGINE = "mineru"
 
 
 GENERATED_DRAFT_STAGES = (
@@ -541,6 +542,7 @@ def analyze_drawing_for_three_table_chain(
     target_dir = Path(output_dir)
     target_dir.mkdir(parents=True, exist_ok=True)
     context_payload = dict(context or {})
+    requested_ocr_engine = str(ocr_engine).strip().lower()
     active_analysis_mode = _effective_analysis_mode(analysis_mode, context_payload)
     active_ocr_engine = _effective_ocr_engine(ocr_engine, context_payload)
     context_payload["analysis_mode"] = active_analysis_mode
@@ -574,6 +576,7 @@ def analyze_drawing_for_three_table_chain(
     _attach_analysis_metadata(
         drawing_analysis,
         analysis_mode=active_analysis_mode,
+        requested_ocr_engine=requested_ocr_engine,
         ocr_engine=active_ocr_engine,
         analysis_source=analysis_source,
         warnings=analysis_warnings,
@@ -742,14 +745,12 @@ def _effective_ocr_engine(
     ocr_engine: str,
     context_payload: dict[str, Any],
 ) -> str:
-    raw_value = (
-        context_payload.get("ocr_engine")
-        if ocr_engine == "auto"
-        else ocr_engine
-    )
-    value = str(raw_value or ocr_engine).strip().lower()
+    raw_value = ocr_engine if ocr_engine != "auto" else DEFAULT_OCR_ENGINE
+    value = str(raw_value or DEFAULT_OCR_ENGINE).strip().lower()
     if value not in OCR_ENGINES:
-        raise ValueError("ocr_engine must be one of: auto, pdf_text, rapidocr")
+        raise ValueError("ocr_engine must be one of: auto, pdf_text, rapidocr, mineru")
+    if value == "auto":
+        return DEFAULT_OCR_ENGINE
     return value
 
 
@@ -824,6 +825,7 @@ def _attach_analysis_metadata(
     drawing_analysis: dict[str, Any],
     *,
     analysis_mode: str,
+    requested_ocr_engine: str,
     ocr_engine: str,
     analysis_source: str,
     warnings: list[str],
@@ -834,6 +836,7 @@ def _attach_analysis_metadata(
         drawing_analysis["metadata"] = {}
         metadata = drawing_analysis["metadata"]
     metadata["analysis_mode"] = analysis_mode
+    metadata["ocr_engine_requested"] = requested_ocr_engine
     metadata["ocr_engine"] = ocr_engine
     metadata["analysis_source"] = analysis_source
     if warnings:

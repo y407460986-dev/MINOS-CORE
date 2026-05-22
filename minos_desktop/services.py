@@ -352,7 +352,7 @@ class DesktopRunService:
         from minos_core.pipeline_chain import generate_pfd_from_drawing
 
         analysis_mode = _project_context_value(project.context, "analysis_mode", "hybrid")
-        ocr_engine = _project_context_value(project.context, "ocr_engine", "auto")
+        ocr_engine = _project_context_value(project.context, "ocr_engine", "mineru")
 
         try:
             analysis_result = analyze_drawing_for_three_table_chain(

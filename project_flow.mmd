@@ -462,9 +462,15 @@ flowchart TD
     PL170[V1.14.1 OCR-first / hybrid drawing analysis]
     PL170 --> PL171[PDF渲染<br/>page image evidence]
     PL170 --> PL172[PDF文字层<br/>selectable text blocks]
-    PL171 --> PL173[RapidOCR<br/>image/page OCR]
-    PL172 --> PL174[OCR evidence merge<br/>page text bbox confidence]
-    PL173 --> PL174
+    PL183[V1.14.23 MinerU default OCR engine]
+    PL183 --> PL184[auto default<br/>MinerU-first]
+    PL184 --> PL186[MinerU OCR evidence<br/>text layout bbox confidence]
+    PL171 --> PL186
+    PL172 --> PL186
+    PL186 --> PL174[OCR evidence merge<br/>page text bbox confidence]
+    PL183 --> PL185[compatibility fallback<br/>explicit legacy branch]
+    PL185 --> PL187[pdf_text PyMuPDF<br/>rapidocr RapidOCR]
+    PL187 --> PL174
     PL174 --> PL175[OCR drawing_analysis<br/>dimensions tolerances notes<br/>process clues]
     PL175 --> PL176[可选AI增强<br/>GPT vision/text enrichment<br/>stream_read_error isolated]
     PL176 --> PL177[hybrid drawing_analysis<br/>OCR-first facts plus AI candidates]

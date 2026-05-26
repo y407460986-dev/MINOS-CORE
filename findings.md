@@ -890,3 +890,7 @@
 - `pyproject.toml` 同时声明 unittest 发现配置和 pytest 测试命令，会让维护者误判当前标准测试入口。
 
 - `tests/platform`、`tests/desktop`、`tests/acceptance` 没有包 marker 时，`unittest discover` 会漏掉一批测试，发布前全量验证不可信。
+
+- `tests/platform/__init__.py` 不能按原计划直接新增。原因是 `unittest discover -s tests` 会把该目录作为顶层 `platform` 包导入，从而遮蔽 Python 标准库 `platform`；SQLAlchemy 依赖标准库的 `platform.python_implementation()`，因此会出现 `AttributeError: module 'platform' has no attribute 'python_implementation'`。本轮只保留 `tests/desktop` 与 `tests/acceptance` marker。
+
+- demo acceptance 的 fake analyzer 漂移已经在当前树中被先前改动覆盖：`_analysis_payload()` 内各节点已有 `evidence_refs`，`tests.test_demo_acceptance` 6 项通过，因此无需再改 fixture。

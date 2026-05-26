@@ -1227,3 +1227,12 @@ Phase 6 真实项目试运行已完成代码落地：input_package 接入 genera
 - 当前状态：已读取 `C:\Users\fgtan\.claude\plans\superpower-skill-stateless-gadget.md`，确认本轮只收口发布前整改，不新增 CI、AI URL、README 或构建脚本改动。
 - 已校准：当前分支为 `codex/minos-review-remediation`，`Cargo.toml` 的构建后状态标记无内容差异，已通过 `git add -- apps/desktop-tauri/src-tauri/Cargo.toml` 刷新为干净状态。
 - 执行顺序：先仓库卫生与依赖，再版本一致性、pyproject 清理、OCR 默认值、schema/acceptance fixture、测试发现范围，最后全量 unittest。
+- 已完成：`.gitignore` 追加 `.obsidian/` 与 `obsidian-vault/`，临时 `.obsidian/probe` 未进入 `git status`。
+- 已完成：`.venv` 已安装 `.[dev]`，`sse_starlette` 与 `openpyxl` 可导入；桌面 API 依赖类测试通过。
+- 已完成：`pyproject.toml` 与 `minos_core`、`minos_desktop`、`minos_platform` 的 `__version__` 统一为 `2.0.0`，新增版本一致性测试 3 项通过。
+- 已完成：删除 `pyproject.toml` 中 `[tool.unittest]` 与 pytest 残留 `test_command`，TOML 解析后仅剩 `tool.setuptools`。
+- 已完成：桌面 API 默认 OCR 从 `rapidocr` 统一为 `mineru`，新增默认值测试与既有 `tests.test_desktop_api_ocr_mode` 均通过。
+- 已完成：`drawing_analysis_bundle` fixture 补齐 `sub_components` 后 `tests.test_schemas` 24 项通过；`tests.test_demo_acceptance` 当前已包含 evidence refs，6 项通过，无需额外修改。
+- 已完成：新增 `tests/desktop/__init__.py` 与 `tests/acceptance/__init__.py`，全量 `python -m unittest discover -s tests -v` 运行 893 项，结果 `OK (skipped=8)`。
+- 已调整：没有提交 `tests/platform/__init__.py`。验证发现它会让 `unittest discover -s tests` 导入顶层 `platform` 包，遮蔽 Python 标准库 `platform`，导致 SQLAlchemy 调用 `platform.python_implementation()` 失败。
+- 已确认：本轮没有新增 CI、AI URL、README 或桌面构建脚本改动；`main...HEAD` 中这些文件的差异来自本分支此前提交，不属于本轮整改新增。

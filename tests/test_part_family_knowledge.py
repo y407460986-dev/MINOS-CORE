@@ -223,6 +223,33 @@ class LoadPartFamilyKnowledgeTests(unittest.TestCase):
             )
         )
 
+    def test_door_hinge_process_inference_incoming_inspection_covers_bom_components(self):
+        knowledge = load_part_family_knowledge("door_hinge")
+        process_templates = [
+            template
+            for template in knowledge["process_route_templates"]
+            if template.get("source") == "process_inference"
+        ]
+
+        self.assertTrue(process_templates)
+        incoming_text = "\n".join(
+            " ".join(
+                str(step.get(field, ""))
+                for field in (
+                    "operation",
+                    "process_function",
+                    "process_purpose",
+                    "process_characteristics",
+                    "product_characteristics",
+                )
+            )
+            for template in process_templates
+            for step in template.get("steps", [])
+            if "来料" in str(step.get("operation", ""))
+        )
+        for expected in ("锻件", "销轴", "衬套"):
+            self.assertIn(expected, incoming_text)
+
     def test_openpyxl_missing_raises_clear_exception(self):
         fd, raw_path = tempfile.mkstemp(suffix=".xlsx")
         os.close(fd)

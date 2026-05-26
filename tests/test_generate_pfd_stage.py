@@ -133,6 +133,40 @@ class GeneratePfdStageTests(unittest.TestCase):
         self.assertEqual(step["documents"], ["WI-10"])
         self.assertEqual(step["flow_type"], "value_added")
 
+    def test_generate_pfd_accepts_manufacturing_clues_when_process_clues_missing(self):
+        analysis_bundle = {
+            "document_type": "analysis_bundle",
+            "product": {},
+            "evidence": [
+                {"evidence_id": "EV-MFG-10", "source": "drawing", "content": "P10"},
+                {"evidence_id": "EV-MFG-20", "source": "drawing", "content": "P20"},
+            ],
+            "drawings": [],
+            "characteristics": [],
+            "manufacturing_clues": [
+                {
+                    "process_step_id": "P10",
+                    "operation": "blanking",
+                    "process_function": "cut blank",
+                    "source_ref": "EV-MFG-10",
+                },
+                {
+                    "process_step_id": "P20",
+                    "operation": "piercing",
+                    "process_function": "pierce holes",
+                    "source_ref": "EV-MFG-20",
+                },
+            ],
+        }
+
+        result = run_stage(analysis_bundle, stage="generate_pfd")
+
+        self.assertEqual(result.status, "ok")
+        steps = _steps_by_id(result.output)
+        self.assertEqual(set(steps), {"P10", "P20"})
+        self.assertEqual(steps["P10"]["operation"], "blanking")
+        self.assertEqual(steps["P10"]["evidence_refs"], ["EV-MFG-10"])
+
     def test_generate_pfd_builds_sequence_links_between_extracted_steps(self):
         result = run_stage(FIXTURE_DIR, stage="generate_pfd")
 

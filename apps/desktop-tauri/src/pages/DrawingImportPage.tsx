@@ -159,7 +159,7 @@ export default function DrawingImportPage({ activeRun, onRunCreated, onRunUpdate
       const project = await createProject({
         project_name: autoProjectName, drawing_path: drawingPath,
         output_dir: outputDir,
-        context: { source: "tauri-react-desktop", analysis_mode: analysisMode, ocr_engine: "auto" },
+        context: { source: "tauri-react-desktop", analysis_mode: analysisMode, ocr_engine: "rapidocr" },
       });
       updateStory("running", "正在分析图纸", "第一阶段会生成过程流程图，完成后进入工作台确认。", "生成中");
       const run = await startChainRun(project.id);

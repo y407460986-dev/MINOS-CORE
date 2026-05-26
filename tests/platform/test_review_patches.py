@@ -121,3 +121,95 @@ async def test_template_patch_rejected(test_client, demo_package_path, demo_sha2
     )
     assert resp.status_code == 422
     assert resp.json()["code"] == "INVALID_PATCH"
+
+
+async def test_invalid_json_patch_rejected_without_advancing_status(
+    test_client, demo_package_path, demo_sha256
+):
+    proj = await test_client.post("/api/projects", json={"name": "Invalid JSON Patch Rejected Test"})
+    project_id = proj.json()["id"]
+
+    await _run_full_chain(test_client, project_id, demo_package_path, demo_sha256)
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as f:
+        f.write("{bad json")
+        patch_path = f.name
+
+    resp = await test_client.post(
+        f"/api/projects/{project_id}/review-patches",
+        json={
+            "patch_path": patch_path,
+            "sha256": "0" * 64,
+        },
+    )
+
+    assert resp.status_code == 422
+    proj_detail = await test_client.get(f"/api/projects/{project_id}")
+    assert proj_detail.json()["status"] == "review_template_ready"
+
+
+async def test_array_json_patch_rejected_without_advancing_status(
+    test_client, demo_package_path, demo_sha256
+):
+    proj = await test_client.post("/api/projects", json={"name": "Array JSON Patch Rejected Test"})
+    project_id = proj.json()["id"]
+
+    await _run_full_chain(test_client, project_id, demo_package_path, demo_sha256)
+
+    payload = ["not", "an", "object"]
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as f:
+        json.dump(payload, f)
+        patch_path = f.name
+
+    resp = await test_client.post(
+        f"/api/projects/{project_id}/review-patches",
+        json={
+            "patch_path": patch_path,
+            "sha256": "0" * 64,
+        },
+    )
+
+    assert resp.status_code == 422
+    proj_detail = await test_client.get(f"/api/projects/{project_id}")
+    assert proj_detail.json()["status"] == "review_template_ready"
+
+
+async def test_semantically_invalid_patch_rejected_without_advancing_status(
+    test_client, demo_package_path, demo_sha256
+):
+    proj = await test_client.post(
+        "/api/projects",
+        json={"name": "Semantic Patch Rejected Test"},
+    )
+    project_id = proj.json()["id"]
+
+    await _run_full_chain(test_client, project_id, demo_package_path, demo_sha256)
+
+    patch_data = {
+        "review_patch_version": "minos-core.review_patch.v1",
+        "confirmed_by": "qa.engineer",
+        "confirmed_at": "2026-04-25T10:00:00Z",
+        "reason": "test approval",
+        "items": [
+            {
+                "action": "confirm",
+                "target": "process_step:P-DOES-NOT-EXIST",
+                "evidence_refs": ["EV-DEMO-REQ-001"],
+            }
+        ],
+    }
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as f:
+        json.dump(patch_data, f)
+        patch_path = f.name
+
+    resp = await test_client.post(
+        f"/api/projects/{project_id}/review-patches",
+        json={
+            "patch_path": patch_path,
+            "sha256": sha256_json(patch_data),
+        },
+    )
+
+    assert resp.status_code == 422
+    proj_detail = await test_client.get(f"/api/projects/{project_id}")
+    assert proj_detail.json()["status"] == "review_template_ready"

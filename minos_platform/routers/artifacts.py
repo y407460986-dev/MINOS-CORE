@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from minos_platform import config, db
+from minos_platform.utils import calculate_file_sha256
 from minos_platform.errors import NotFoundError
 from minos_platform.models import ArtifactSummary
 
@@ -23,7 +24,17 @@ async def list_artifacts(
     """List all artifacts."""
     result = await session.execute(select(db.Artifact))
     artifacts = result.scalars().all()
-    return [ArtifactSummary.model_validate(a) for a in artifacts]
+    return [
+        ArtifactSummary(
+            id=a.id,
+            run_id=a.run_id,
+            artifact_type=a.artifact_type,
+            file_path="",
+            sha256=a.sha256,
+            created_at=a.created_at,
+        )
+        for a in artifacts
+    ]
 
 
 @router.get("/artifacts/{artifact_id}", response_class=FileResponse)
@@ -53,6 +64,12 @@ async def download_artifact(
         raise HTTPException(
             status_code=403,
             detail="Artifact path is outside the permitted artifacts directory",
+        )
+    actual_hash = calculate_file_sha256(path)
+    if actual_hash != artifact.sha256:
+        raise HTTPException(
+            status_code=409,
+            detail="Artifact SHA256 mismatch; file contents do not match recorded hash",
         )
 
     return FileResponse(

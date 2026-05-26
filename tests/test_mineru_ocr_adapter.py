@@ -122,7 +122,7 @@ class MinerUOCRAdapterTests(unittest.TestCase):
 
             adapter = MinerUOCRAdapter(output_dir=output_dir)
             with (
-                patch.dict("os.environ", {}, clear=True),
+                patch.dict("os.environ", {"MINOS_ALLOW_CODEX_MINERU_CONFIG": "1"}, clear=True),
                 patch("minos_core.adapters.mineru_ocr.Path.home", return_value=root),
                 patch("minos_core.adapters.mineru_ocr.shutil.which", return_value=None),
                 patch("minos_core.adapters.mineru_ocr.subprocess.run", side_effect=fake_run),
@@ -130,6 +130,38 @@ class MinerUOCRAdapterTests(unittest.TestCase):
                 result = adapter.extract_text(str(root / "drawing.pdf"), b"%PDF fake")
 
         self.assertEqual(result.pages[0].text, "Drawing No: MCP-001")
+
+    def test_frozen_app_does_not_discover_mineru_from_codex_config(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            runtime_dir = root / "runtime"
+            runtime_dir.mkdir()
+            mineru_exe = runtime_dir / "mineru.exe"
+            mineru_exe.write_text("@echo off\nexit /b 0\n", encoding="utf-8")
+            config_path = root / ".codex" / "config.toml"
+            script_path = root / "start-mineru-mcp.cmd"
+            config_path.parent.mkdir()
+            config_path.write_text(
+                "[mcp_servers.mineru]\n"
+                "args = [\n"
+                '    "/c",\n'
+                f"    '{script_path}',\n"
+                "]\n",
+                encoding="utf-8",
+            )
+            script_path.write_text(
+                f'@echo off\nset "MINERU_COMMAND={mineru_exe}"\n',
+                encoding="utf-8",
+            )
+
+            adapter = MinerUOCRAdapter()
+            with (
+                patch.dict("os.environ", {}, clear=True),
+                patch("minos_core.adapters.mineru_ocr.Path.home", return_value=root),
+                patch("minos_core.adapters.mineru_ocr.shutil.which", return_value=None),
+                patch("sys.frozen", True, create=True),
+            ):
+                self.assertIsNone(adapter._resolve_mineru_command())
 
 
 class _CompletedProcess:

@@ -209,6 +209,7 @@ def infer_process_flow_from_drawing(
     """
     family_context = _resolve_family_context(family_context)
     steps, pending_fields = _build_steps_from_clues(analysis_bundle, family_context)
+    _apply_bom_incoming_inspection_context(steps, analysis_bundle)
     return _finalize_process_flow(steps, analysis_bundle, family_context, pending_fields)
 
 
@@ -691,6 +692,8 @@ def _family_clue_from_step(
         "process_function": process_function,
         "equipment": equipment,
         "flow_type": _infer_flow_type(operation_key),
+        "product_characteristics": string_list(orig_step.get("product_characteristics", [])),
+        "process_characteristics": string_list(orig_step.get("process_characteristics", [])),
         "evidence_refs": list(evidence_refs),
         "knowledge_source_refs": all_knowledge_refs,
         "reasoning": str(orig_step.get("reasoning", "根据零件族知识库的工艺路线模板补充 PFD 工序")),
@@ -700,6 +703,81 @@ def _family_clue_from_step(
         "ai_inferred": True,
         "preserve_operation_name": bool(orig_step.get("preserve_operation_name", False)),
     }
+
+
+def _apply_bom_incoming_inspection_context(
+    steps: list[dict[str, Any]],
+    analysis_bundle: dict[str, Any],
+) -> None:
+    component_names = _bom_component_names(analysis_bundle)
+    if not component_names:
+        return
+    check_text = (
+        "按图纸BOM核对"
+        + "、".join(component_names)
+        + "的图号、数量、版本、批次、外观和供应商放行状态"
+    )
+    for step in steps:
+        if _canonical_operation(str(step.get("operation", ""))) != "incoming inspection":
+            continue
+        step["process_function"] = _append_text_once(
+            str(step.get("process_function", "")),
+            check_text,
+        )
+        existing_material = str(step.get("input_material", "")).strip()
+        if existing_material:
+            step["input_material"] = _append_text_once(existing_material, "BOM来件：" + "、".join(component_names))
+        else:
+            step["input_material"] = "BOM来件：" + "、".join(component_names)
+        product_characteristics = string_list(step.get("product_characteristics", []))
+        if check_text not in product_characteristics:
+            product_characteristics.append(check_text)
+        step["product_characteristics"] = product_characteristics
+        refs = string_list(step.get("evidence_refs", []))
+        for ref in _bom_component_refs(analysis_bundle):
+            if ref not in refs:
+                refs.append(ref)
+        step["evidence_refs"] = refs
+        return
+
+
+def _bom_component_names(analysis_bundle: dict[str, Any]) -> list[str]:
+    names: list[str] = []
+    for item in _bom_component_items(analysis_bundle):
+        name = row_text(item, "part_name", "name", "description", default="")
+        if not name:
+            continue
+        if name not in names:
+            names.append(name)
+    return names
+
+
+def _bom_component_refs(analysis_bundle: dict[str, Any]) -> list[str]:
+    refs: list[str] = []
+    for item in _bom_component_items(analysis_bundle):
+        for ref in string_list(item.get("evidence_refs", [])):
+            if ref not in refs:
+                refs.append(ref)
+    return refs
+
+
+def _bom_component_items(analysis_bundle: dict[str, Any]) -> list[dict[str, Any]]:
+    raw_items = analysis_bundle.get("sub_components")
+    if raw_items is None:
+        raw_items = analysis_bundle.get("subComponents")
+    return [item for item in raw_items if isinstance(item, dict)] if isinstance(raw_items, list) else []
+
+
+def _append_text_once(existing: str, addition: str) -> str:
+    existing = str(existing or "").strip()
+    addition = str(addition or "").strip()
+    if not addition:
+        return existing
+    if not existing:
+        return addition
+    if addition in existing:
+        return existing
+    return f"{existing}；{addition}"
 
 
 def _match_process_inference_variant(

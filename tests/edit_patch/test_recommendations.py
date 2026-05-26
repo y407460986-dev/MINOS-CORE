@@ -21,7 +21,7 @@ from minos_core.knowledge_recommendation import recommend_from_knowledge
 from minos_core.quality_gates import evaluate_export_gate
 
 
-ROOT_FIXTURE = "D:/MINOS-CORE/tests/fixtures/apqp_chain"
+ROOT_FIXTURE = str(Path(__file__).parents[1] / "fixtures" / "apqp_chain")
 
 from tests.edit_patch.conftest import _fixture, _three_table_result, ROOT_FIXTURE, NS
 

@@ -5,7 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
-from zipfile import BadZipFile, ZipFile
 
 
 REQUIRED_THREE_TABLE_EXPORTS = (
@@ -100,32 +99,42 @@ def write_safe_demo_drawing_png(path: str | Path) -> Path:
 
 
 def check_xlsx_zip_openable(path: str | Path) -> WorkbookZipCheck:
-    """Check that an xlsx file is a readable OpenXML zip workbook."""
+    """Check that an xlsx file can be opened and all sheets read by openpyxl."""
 
     workbook_path = Path(path)
     errors: list[str] = []
-    worksheets: list[str] = []
     if not workbook_path.exists():
         return WorkbookZipCheck(str(workbook_path), False, ("workbook file is missing",))
     if not workbook_path.is_file():
         return WorkbookZipCheck(str(workbook_path), False, ("workbook path is not a file",))
     try:
-        with ZipFile(workbook_path) as archive:
-            broken_member = archive.testzip()
-            names = set(archive.namelist())
-            worksheets = sorted(
-                name for name in names if name.startswith("xl/worksheets/sheet") and name.endswith(".xml")
-            )
-    except BadZipFile as exc:
-        return WorkbookZipCheck(str(workbook_path), False, (f"workbook is not a valid zip: {exc}",))
+        from openpyxl import load_workbook
+    except ImportError as exc:
+        return WorkbookZipCheck(
+            str(workbook_path),
+            False,
+            (f"openpyxl is required for workbook openability checks: {exc}",),
+        )
 
-    if broken_member:
-        errors.append(f"workbook zip member is corrupt: {broken_member}")
-    for required in ("[Content_Types].xml", "_rels/.rels", "xl/workbook.xml"):
-        if required not in names:
-            errors.append(f"workbook is missing {required}")
+    try:
+        workbook = load_workbook(workbook_path, data_only=False, read_only=True)
+        try:
+            worksheets = tuple(workbook.sheetnames)
+            for sheet_name in worksheets:
+                worksheet = workbook[sheet_name]
+                for _row in worksheet.iter_rows(values_only=True):
+                    pass
+        finally:
+            workbook.close()
+    except Exception as exc:
+        return WorkbookZipCheck(
+            str(workbook_path),
+            False,
+            (f"openpyxl could not open workbook or read all sheets: {exc}",),
+        )
+
     if not worksheets:
-        errors.append("workbook has no worksheet xml files")
+        errors.append("workbook has no worksheets")
     return WorkbookZipCheck(str(workbook_path), not errors, tuple(errors), tuple(worksheets))
 
 

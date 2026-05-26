@@ -13,7 +13,7 @@ from minos_core.pipeline import apply_review
 from minos_core.review_patch import REVIEW_PATCH_VERSION
 
 
-ROOT_FIXTURE = "D:/MINOS-CORE/tests/fixtures/apqp_chain"
+ROOT_FIXTURE = str(Path(__file__).parent / "fixtures" / "apqp_chain")
 
 
 def _review_patch(*targets: str, evidence_refs: list[str] | None = None) -> dict:

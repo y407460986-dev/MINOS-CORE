@@ -13,10 +13,11 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from typing import Any, Callable
 
-from ._text_utils import text, flow_type_display
+from ._text_utils import float_or_none, string_list, text, flow_type_display
 from .adapters.llm_text import OpenAITextGenerator
 from .aiag_vda_pfmea import normalize_pfmea_row, validate_severity_floor
 from .drawing_to_pfd import normalize_process_flow_steps
+from .three_table_result import canonical_three_table_bundle
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,9 @@ PFD_SYSTEM_PROMPT = """\
 - process_characteristics: 该工序的过程特性（输入变量，如冲压力、温度）
 - process_characteristic_class: 过程特性分类，取值为 SC / CC / 无。规则同上：必须有图纸标注依据，不得自行推断。
 - special_characteristics: 该工序涉及的特殊特性清单 (SC/CC)，无则为空数组 []
+- evidence_refs: 支撑该工序的证据 ID 数组；必须引用图纸分析证据，不能编造
+- confidence: 0-1 置信度；没有直接证据时取保守低值
+- ai_inferred: 是否由 AI 推断生成
 - needs_confirmation: AI 不确定时应设为 true
 
 工序数量控制在 5-20 个，覆盖从来料检验、加工、过程检验到最终检验的完整制造流程。
@@ -93,6 +97,8 @@ PFMEA_SYSTEM_PROMPT = """\
 - detection: 探测度 D (1-10)，基于探测方法成熟度、时机和能力
 - action_priority: H / M / L，基于 S/O/D 组合查 AIAG-VDA Action Priority 表
 - special_characteristics: 特殊特性标识，取值为 SC / CC / 无
+- special_characteristic_class: 特殊特性分类，取值为 SC / CC / 无
+- characteristic_refs: 具体特殊特性或产品/过程特性 ID 数组；保存如 SC-xxx/CHR-xxx，不要用"无"覆盖已有引用
 - control_logic_review: 控制逻辑复核摘要，说明失效原因、预防控制、探测控制是否分清
 注意：AIAG-VDA 2019 PFMEA 以 AP 为主，不输出旧版 RPN 排序字段。
 
@@ -105,6 +111,9 @@ PFMEA_SYSTEM_PROMPT = """\
 - status: 状态，取值为 未开始 / 进行中 / 已完成 / 已放弃
 
 【确认标记】
+- evidence_refs: 支撑该 PFMEA 行的证据 ID 数组；优先沿用 PFD 工序证据
+- confidence: 0-1 置信度；缺少直接证据时继承上游置信度并保守处理
+- ai_inferred: 是否由 AI 推断生成
 - needs_confirmation: 仅在以下情况设为 true：(1) 缺少图纸数据无法确定具体数值 (2) 工艺参数需要现场验证。对于基于通用工程知识可合理推断的字段（如标准预防控制、通用探测方法、常规反应计划），不应标记为需确认
 
 每个工序应生成 1-5 个失效模式行，覆盖不同类型和 4M 来源的失效方式。
@@ -137,6 +146,7 @@ CP_SYSTEM_PROMPT = """\
 - product_characteristic: 产品特性（零件可区分特征，如尺寸、硬度、颜色）
 - process_characteristic: 过程特性（影响产品特性的过程变量，如温度、压力、转速）
 - special_characteristic_class: 特性分类，取值为 SC(重要特性) / CC(关键特性) / 无
+- characteristic_refs: 具体特性 ID 数组；继承 PFMEA 的 characteristic_refs，不要用"无"覆盖已有引用
 
 【方法】
 - specification_tolerance: 产品/过程规格和公差（包含名义值和公差范围）
@@ -156,6 +166,9 @@ CP_SYSTEM_PROMPT = """\
 - reaction_plan: 反应计划（出现不合格时的具体纠正措施及责任人，如"隔离产品→通知质量工程师→调整参数→100%检验"）
 
 【确认标记】
+- evidence_refs: 支撑该 CP 行的证据 ID 数组；优先继承 PFMEA/PFD 证据
+- confidence: 0-1 置信度；缺少直接证据时继承上游置信度并保守处理
+- ai_inferred: 是否由 AI 推断生成
 - needs_confirmation: 仅在以下情况设为 true：(1) 缺少图纸数据无法确定具体规格数值 (2) 工艺参数需要现场验证。对于基于通用工程知识可合理推断的字段（如标准测量方法、通用抽样频率、常规反应计划），不应标记为需确认
 
 重点为 PFMEA 中 action_priority 为 H 和 M 的行生成对应的控制计划行。
@@ -224,6 +237,14 @@ PFD_OUTPUT_SCHEMA = {
                                 "type": "array",
                                 "items": {"type": "string"},
                             },
+                            "evidence_refs": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                            },
+                            "confidence": {
+                                "type": "number", "minimum": 0, "maximum": 1
+                            },
+                            "ai_inferred": {"type": "boolean"},
                             "needs_confirmation": {"type": "boolean"},
                         },
                         "required": [
@@ -237,6 +258,9 @@ PFD_OUTPUT_SCHEMA = {
                             "process_characteristics",
                             "process_characteristic_class",
                             "special_characteristics",
+                            "evidence_refs",
+                            "confidence",
+                            "ai_inferred",
                             "needs_confirmation",
                         ],
                         "additionalProperties": False,
@@ -303,6 +327,14 @@ PFMEA_OUTPUT_SCHEMA = {
                                 "type": "string",
                                 "enum": ["SC", "CC", "无"],
                             },
+                            "special_characteristic_class": {
+                                "type": "string",
+                                "enum": ["SC", "CC", "无"],
+                            },
+                            "characteristic_refs": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                            },
                             "preventive_action": {"type": "string"},
                             "detection_action": {"type": "string"},
                             "optimization_action": {"type": "string"},
@@ -313,6 +345,14 @@ PFMEA_OUTPUT_SCHEMA = {
                                 "enum": ["未开始", "进行中", "已完成", "已放弃"],
                             },
                             "control_logic_review": {"type": "string"},
+                            "evidence_refs": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                            },
+                            "confidence": {
+                                "type": "number", "minimum": 0, "maximum": 1
+                            },
+                            "ai_inferred": {"type": "boolean"},
                             "needs_confirmation": {"type": "boolean"},
                         },
                         "required": [
@@ -336,10 +376,15 @@ PFMEA_OUTPUT_SCHEMA = {
                             "detection_control_timing",
                             "detection",
                             "action_priority", "special_characteristics",
+                            "special_characteristic_class",
+                            "characteristic_refs",
                             "preventive_action", "detection_action",
                             "optimization_action",
                             "responsible_person", "target_date", "status",
                             "control_logic_review",
+                            "evidence_refs",
+                            "confidence",
+                            "ai_inferred",
                             "needs_confirmation",
                         ],
                         "additionalProperties": False,
@@ -377,6 +422,10 @@ CP_OUTPUT_SCHEMA = {
                                 "type": "string",
                                 "enum": ["SC", "CC", "无"],
                             },
+                            "characteristic_refs": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                            },
                             "specification_tolerance": {"type": "string"},
                             "process_parameter": {"type": "string"},
                             "parameter_specification": {"type": "string"},
@@ -390,6 +439,14 @@ CP_OUTPUT_SCHEMA = {
                             "sample_frequency": {"type": "string"},
                             "control_method": {"type": "string"},
                             "reaction_plan": {"type": "string"},
+                            "evidence_refs": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                            },
+                            "confidence": {
+                                "type": "number", "minimum": 0, "maximum": 1
+                            },
+                            "ai_inferred": {"type": "boolean"},
                             "needs_confirmation": {"type": "boolean"},
                         },
                         "required": [
@@ -398,6 +455,7 @@ CP_OUTPUT_SCHEMA = {
                             "characteristic_number", "product_characteristic",
                             "process_characteristic",
                             "special_characteristic_class",
+                            "characteristic_refs",
                             "specification_tolerance",
                             "process_parameter",
                             "parameter_specification",
@@ -409,6 +467,9 @@ CP_OUTPUT_SCHEMA = {
                             "measurement_method",
                             "sample_size", "sample_frequency",
                             "control_method", "reaction_plan",
+                            "evidence_refs",
+                            "confidence",
+                            "ai_inferred",
                             "needs_confirmation",
                         ],
                         "additionalProperties": False,
@@ -438,6 +499,7 @@ def _build_drawing_context(drawing_analysis: dict) -> str:
         ("materials", "材料"),
         ("dimensions", "关键尺寸"),
         ("special_characteristics", "特殊特性"),
+        ("sub_components", "BOM子件"),
         ("numeric_specifications", "数值型技术指标"),
         ("technical_requirements", "技术要求"),
         ("surface_treatments", "表面处理"),
@@ -454,6 +516,20 @@ def _build_drawing_context(drawing_analysis: dict) -> str:
                 ]
             elif key == "numeric_specifications":
                 texts = [f"{text(n.get('name'))}({text(n.get('value'))}{text(n.get('unit'))}): {text(n.get('source_text'))}" for n in items]
+            elif key == "sub_components":
+                texts = [
+                    " / ".join(
+                        value for value in (
+                            text(i.get("item_no")),
+                            text(i.get("part_name"), i.get("name")),
+                            text(i.get("part_number"), i.get("drawing_number")),
+                            f"数量{text(i.get('quantity'))}" if text(i.get("quantity")) else "",
+                        )
+                        if value
+                    )
+                    for i in items
+                    if isinstance(i, dict)
+                ]
             elif key == "technical_requirements":
                 texts = [text(i.get('text', i.get('description', i.get('name', '')))) for i in items]
             elif key == "surface_treatments":
@@ -476,7 +552,10 @@ def _ensure_list(result: dict, key: str) -> list[dict]:
 
 def _family_route_summary(route_templates: list[Any]) -> str:
     parts: list[str] = []
-    for template in route_templates[:2]:
+    templates_with_steps = [
+        template for template in route_templates if isinstance(template, dict) and isinstance(template.get("steps"), list)
+    ]
+    for template in templates_with_steps[:4]:
         if not isinstance(template, dict):
             continue
         steps = template.get("steps")
@@ -491,15 +570,125 @@ def _family_route_summary(route_templates: list[Any]) -> str:
                 or step.get("operation_key")
                 or step.get("name")
             )
+            detail = _route_step_detail(step)
             if name:
-                names.append(name)
+                names.append(f"{name}({detail})" if detail else name)
         if names:
             parts.append(" -> ".join(names))
     return "; ".join(parts)
 
 
+def _route_step_detail(step: dict[str, Any]) -> str:
+    for key in ("key_check", "process_function", "process_purpose", "process_characteristics"):
+        value = step.get(key)
+        if isinstance(value, list):
+            candidate = "、".join(text(item) for item in value if text(item))
+        else:
+            candidate = text(value)
+        if candidate and candidate != text(step.get("operation")):
+            return candidate[:120]
+    return ""
+
+
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _first_evidence_refs(*sources: Any) -> list[str]:
+    for source in sources:
+        refs = string_list(source)
+        if refs:
+            return refs
+    return []
+
+
+def _first_confidence(*sources: Any) -> float | None:
+    for source in sources:
+        value = float_or_none(source)
+        if value is not None:
+            return max(0.0, min(value, 1.0))
+    return None
+
+
+def _source_confidence_from_evidence(evidence: Any, refs: list[str]) -> float | None:
+    if not isinstance(evidence, list) or not refs:
+        return None
+    values: list[float] = []
+    wanted = set(refs)
+    for item in evidence:
+        if not isinstance(item, dict):
+            continue
+        if str(item.get("evidence_id", "")).strip() not in wanted:
+            continue
+        value = float_or_none(item.get("confidence"))
+        if value is not None:
+            values.append(max(0.0, min(value, 1.0)))
+    return min(values) if values else None
+
+
+def _evidence_source_type(item: dict[str, Any]) -> str:
+    return text(item.get("source"), item.get("type"), item.get("kind")).lower()
+
+
+def _analysis_default_evidence(drawing_analysis: dict[str, Any]) -> tuple[list[str], float | None]:
+    evidence = drawing_analysis.get("evidence", [])
+    page_refs: list[str] = []
+    refs: list[str] = []
+    if isinstance(evidence, list):
+        for item in evidence:
+            if not isinstance(item, dict):
+                continue
+            ref = text(item.get("evidence_id"), item.get("source_ref"), item.get("id"))
+            if not ref:
+                continue
+            source_type = _evidence_source_type(item)
+            if (
+                source_type in {"drawing_page", "page", "drawing"}
+                or ref.startswith("drawing_page_")
+            ) and ref not in page_refs:
+                page_refs.append(ref)
+            if ref and ref not in refs:
+                refs.append(ref)
+    selected_refs = page_refs or refs[:5]
+    return selected_refs, _source_confidence_from_evidence(evidence, selected_refs)
+
+
+def _row_needs_confirmation(
+    explicit_value: Any,
+    *,
+    evidence_refs: list[str],
+    confidence: float | None,
+    upstream_needs_confirmation: Any = False,
+) -> bool:
+    if bool(explicit_value) or bool(upstream_needs_confirmation):
+        return True
+    if confidence is not None and confidence < 0.75:
+        return True
+    return not evidence_refs or confidence is None
+
+
+def _special_class(value: Any) -> str:
+    marker = text(value).upper()
+    return marker if marker in ("SC", "CC") else "无"
+
+
+def _special_class_from_refs(refs: list[str]) -> str:
+    if any(ref.startswith("CC-") or ref == "CC" for ref in refs):
+        return "CC"
+    if any(ref.startswith("SC-") or ref == "SC" for ref in refs):
+        return "SC"
+    return "无"
+
+
+def _characteristic_refs(*sources: Any) -> list[str]:
+    refs: list[str] = []
+    for source in sources:
+        for item in string_list(source):
+            if item in {"无", "SC", "CC"}:
+                continue
+            if item and item not in refs:
+                refs.append(item)
+    return refs
 
 
 def _infer_flow_type_from_step(step: dict) -> str:
@@ -573,6 +762,7 @@ def generate_pfd_from_drawing(
 {context_text}
 
 请生成完整的 steps 数组。每个工序必须有 process_step_id、flow_type、flow_symbol、operation、input_material、output_result、previous_step_ids、next_step_ids、process_function、equipment。
+每个工序还必须包含 evidence_refs、confidence、ai_inferred、needs_confirmation。
 对不确定的字段请将 needs_confirmation 设为 true。"""
 
     llm = OpenAITextGenerator()
@@ -584,15 +774,25 @@ def generate_pfd_from_drawing(
     )
 
     pfd_steps = _ensure_list(pfd_result, "steps")
+    _apply_bom_incoming_inspection_context(pfd_steps, drawing_analysis)
     default_input_material = text(
         (drawing_analysis.get("drawing_identity") or {}).get("part_name", "")
     ) or "来料"
+    default_evidence_refs, default_confidence = _analysis_default_evidence(drawing_analysis)
     for i, step in enumerate(pfd_steps):
         if not step.get("process_step_id"):
             step["process_step_id"] = f"P{i + 1:02d}"
         step.setdefault("special_characteristics", [])
         step.setdefault("product_characteristics", "")
         step.setdefault("process_characteristics", "")
+        evidence_refs = _first_evidence_refs(step.get("evidence_refs"), default_evidence_refs)
+        confidence = _first_confidence(
+            step.get("confidence"),
+            _source_confidence_from_evidence(drawing_analysis.get("evidence", []), evidence_refs),
+            default_confidence,
+        )
+        step["evidence_refs"] = evidence_refs
+        step["confidence"] = confidence if confidence is not None else 0.0
         step["ai_inferred"] = True
         # Infer flow_type from available fields
         if not step.get("flow_type"):
@@ -604,6 +804,11 @@ def generate_pfd_from_drawing(
         step.setdefault("output_result", step.get("operation", ""))
         step.setdefault("previous_step_ids", [])
         step.setdefault("next_step_ids", [])
+        step["needs_confirmation"] = _row_needs_confirmation(
+            step.get("needs_confirmation"),
+            evidence_refs=evidence_refs,
+            confidence=confidence,
+        )
     normalize_process_flow_steps(
         pfd_steps,
         default_input_material=default_input_material,
@@ -611,7 +816,9 @@ def generate_pfd_from_drawing(
 
     logger.info("CHAIN [Stage 1] PFD generated: %d steps", len(pfd_steps))
 
-    return {
+    return canonical_three_table_bundle({
+        "document_type": "process_flow",
+        "schema_version": "minos-core.generated.v1",
         "steps": pfd_steps,
         "metadata": {
             "chain_stage": "pfd",
@@ -620,7 +827,76 @@ def generate_pfd_from_drawing(
             "process_route_summary": pfd_result.get("process_route_summary", ""),
             "generated_at": _now_iso(),
         },
-    }
+    }, document_type="process_flow", row_key="steps")
+
+
+def _apply_bom_incoming_inspection_context(
+    steps: list[dict[str, Any]],
+    drawing_analysis: dict[str, Any],
+) -> None:
+    component_names = _bom_component_names(drawing_analysis)
+    if not component_names:
+        return
+    check_text = (
+        "按图纸BOM核对"
+        + "、".join(component_names)
+        + "的图号、数量、版本、批次、外观和供应商放行状态"
+    )
+    for step in steps:
+        operation = text(step.get("operation"))
+        if "来料" not in operation and "incoming" not in operation.lower():
+            continue
+        step["process_function"] = _append_text_once(text(step.get("process_function")), check_text)
+        input_material = text(step.get("input_material"))
+        bom_material = "BOM来件：" + "、".join(component_names)
+        step["input_material"] = _append_text_once(input_material, bom_material) if input_material else bom_material
+        product_characteristics = string_list(step.get("product_characteristics", []))
+        if check_text not in product_characteristics:
+            product_characteristics.append(check_text)
+        step["product_characteristics"] = product_characteristics
+        refs = string_list(step.get("evidence_refs", []))
+        for ref in _bom_component_refs(drawing_analysis):
+            if ref not in refs:
+                refs.append(ref)
+        step["evidence_refs"] = refs
+        return
+
+
+def _bom_component_names(drawing_analysis: dict[str, Any]) -> list[str]:
+    names: list[str] = []
+    for item in _bom_component_items(drawing_analysis):
+        name = text(item.get("part_name"), item.get("name"), item.get("description"))
+        if name and name not in names:
+            names.append(name)
+    return names
+
+
+def _bom_component_refs(drawing_analysis: dict[str, Any]) -> list[str]:
+    refs: list[str] = []
+    for item in _bom_component_items(drawing_analysis):
+        for ref in string_list(item.get("evidence_refs", [])):
+            if ref not in refs:
+                refs.append(ref)
+    return refs
+
+
+def _bom_component_items(drawing_analysis: dict[str, Any]) -> list[dict[str, Any]]:
+    raw_items = drawing_analysis.get("sub_components")
+    if raw_items is None:
+        raw_items = drawing_analysis.get("subComponents")
+    return [item for item in raw_items if isinstance(item, dict)] if isinstance(raw_items, list) else []
+
+
+def _append_text_once(existing: str, addition: str) -> str:
+    existing = str(existing or "").strip()
+    addition = str(addition or "").strip()
+    if not addition:
+        return existing
+    if not existing:
+        return addition
+    if addition in existing:
+        return existing
+    return f"{existing}；{addition}"
 
 
 def _step_context_with_relevant_specs(
@@ -646,6 +922,69 @@ def _step_context_with_relevant_specs(
 # Stage 2: 基于已确认 PFD 生成 PFMEA
 # ---------------------------------------------------------------------------
 
+def _confirmed_pfd_chain_warnings(pfd_steps: list[dict[str, Any]]) -> list[dict[str, str]]:
+    warnings: list[dict[str, str]] = []
+    step_by_id = {
+        text(step.get("process_step_id")): step
+        for step in pfd_steps
+        if text(step.get("process_step_id"))
+    }
+    for step in pfd_steps:
+        step_id = text(step.get("process_step_id"))
+        operation = text(step.get("operation"), step.get("process_step_name")).lower()
+        if not step_id:
+            continue
+        if not any(keyword in operation for keyword in ("表面处理", "镀", "喷涂", "涂装", "surface")):
+            continue
+        for next_id in string_list(step.get("next_step_ids")):
+            next_step = step_by_id.get(next_id)
+            if not next_step:
+                continue
+            next_operation = text(next_step.get("operation"), next_step.get("process_step_name")).lower()
+            if any(keyword in next_operation for keyword in ("压装", "铆接", "装配", "press", "rivet", "assembly")):
+                warnings.append(
+                    {
+                        "type": "surface_treatment_before_assembly",
+                        "from_step_id": step_id,
+                        "to_step_id": next_id,
+                        "message": (
+                            f"{step_id} {text(step.get('operation'))} flows to "
+                            f"{next_id} {text(next_step.get('operation'))}; "
+                            "表面处理后又进入压装/铆接/装配，已按人工确认的 PFD 继续生成。"
+                        ),
+                    }
+                )
+    for step in pfd_steps:
+        step_id = text(step.get("process_step_id"))
+        if not step_id:
+            continue
+        output_state = text(step.get("output_result")).lower()
+        if not output_state:
+            continue
+        for next_id in string_list(step.get("next_step_ids")):
+            next_step = step_by_id.get(next_id)
+            if not next_step:
+                continue
+            next_input = text(next_step.get("input_material")).lower()
+            if (
+                any(keyword in output_state for keyword in ("零件", "散件", "放行至装配", "part", "component"))
+                and any(keyword in next_input for keyword in ("装配完成", "总成", "assembly complete", "assembled"))
+            ):
+                warnings.append(
+                    {
+                        "type": "assembly_state_jump",
+                        "from_step_id": step_id,
+                        "to_step_id": next_id,
+                        "message": (
+                            f"{step_id} output_result '{text(step.get('output_result'))}' flows to "
+                            f"{next_id} input_material '{text(next_step.get('input_material'))}'; "
+                            "相邻工序从零件直接跳到已装配总成，已按人工确认的 PFD 继续生成。"
+                        ),
+                    }
+                )
+    return warnings
+
+
 def generate_pfmea_from_confirmed_pfd(
     drawing_analysis: dict,
     confirmed_pfd: dict,
@@ -668,6 +1007,7 @@ def generate_pfmea_from_confirmed_pfd(
     ]
     if not pfd_steps:
         raise ValueError("Confirmed PFD has no steps — cannot generate PFMEA")
+    pfd_chain_warnings = _confirmed_pfd_chain_warnings(pfd_steps)
 
     context_text = _build_drawing_context(drawing_analysis)
     from minos_core.characteristic_registry import build_characteristic_registry
@@ -773,7 +1113,6 @@ def generate_pfmea_from_confirmed_pfd(
                 if row:
                     step_rows.append(row)
                     pfmea_rows.append(row)
-            completed_count += 1
             if on_progress and step_rows:
                 on_progress({
                     "type": "step_complete",
@@ -793,7 +1132,9 @@ def generate_pfmea_from_confirmed_pfd(
 
     logger.info("CHAIN [Stage 2] PFMEA generated: %d rows (failed steps: %s)", len(pfmea_rows), failed_step_ids)
 
-    return {
+    return canonical_three_table_bundle({
+        "document_type": "pfmea",
+        "schema_version": "minos-core.generated.v1",
         "rows": pfmea_rows,
         "metadata": {
             "chain_stage": "pfmea",
@@ -802,8 +1143,9 @@ def generate_pfmea_from_confirmed_pfd(
             "pfmea_generation_strategy": "per_pfd_step",
             "generated_at": _now_iso(),
             "failed_step_ids": failed_step_ids,
+            "pfd_chain_warnings": pfd_chain_warnings,
         },
-    }
+    }, document_type="pfmea", row_key="rows")
 
 
 def _build_pfmea_step_prompt(context_text: str, step: dict[str, Any]) -> str:
@@ -823,6 +1165,7 @@ def _build_pfmea_step_prompt(context_text: str, step: dict[str, Any]) -> str:
 
 请只为这个工序生成 1-5 个潜在的失效模式行。
 所有输出行的 process_step_id 必须等于该工序编号。
+所有输出行必须包含 evidence_refs、confidence、ai_inferred、needs_confirmation、special_characteristic_class、characteristic_refs；证据和置信度优先继承该 PFD 工序。
 {sc_note}
 重要：失效后果和严重度评估应结合该工序**直接相关**的图纸技术指标。例如铆接工序可引用"铆接力≥14.3KN"、表面处理工序可引用"盐雾≥120h"、整体检验可引用"纵向力≥25000N"。**绝不要把不相关工序的数值硬塞进失效后果**（如把盐雾时间用在铆接失效、把铆接力用在喷涂失效）。如果图纸没有该工序对应的数值，请基于通用工程判断给出合理后果描述。
 预防控制必须控制失效原因或原因过程参数，探测控制必须单独说明探测对象和时机。
@@ -905,8 +1248,30 @@ def _normalize_chain_pfmea_row(
         row["special_characteristics"] = pfd_sc
     else:
         row["special_characteristics"] = "无"
+    row["characteristic_refs"] = _characteristic_refs(
+        row.get("characteristic_refs"),
+        step.get("characteristic_refs"),
+        step.get("special_characteristics"),
+    )
+    row["special_characteristic_class"] = _special_class(
+        row.get("special_characteristic_class") or row.get("special_characteristics")
+    )
+    if row["special_characteristic_class"] == "无":
+        row["special_characteristic_class"] = _special_class_from_refs(row["characteristic_refs"])
+    if row["special_characteristic_class"] in {"SC", "CC"}:
+        row["special_characteristics"] = row["special_characteristic_class"]
+    evidence_refs = _first_evidence_refs(row.get("evidence_refs"), step.get("evidence_refs"))
+    confidence = _first_confidence(row.get("confidence"), step.get("confidence"))
+    row["evidence_refs"] = evidence_refs
+    row["confidence"] = confidence if confidence is not None else 0.0
     if not text(row.get("pfmea_id")):
         row["pfmea_id"] = f"PFMEA-{step_id}-{counters[step_id]:02d}"
+    row["needs_confirmation"] = _row_needs_confirmation(
+        row.get("needs_confirmation"),
+        evidence_refs=evidence_refs,
+        confidence=confidence,
+        upstream_needs_confirmation=step.get("needs_confirmation", False),
+    )
     row = validate_severity_floor(row)
     return normalize_pfmea_row(row, step)
 
@@ -940,8 +1305,9 @@ def generate_cp_from_confirmed_pfmea(
     if not pfmea_rows:
         raise ValueError("Confirmed PFMEA has no rows — cannot generate CP")
 
-    high_ap_rows = [r for r in pfmea_rows if r.get("action_priority") in ("H", "M")]
-    target_rows = high_ap_rows if high_ap_rows else pfmea_rows
+    target_rows = [r for r in pfmea_rows if _cp_required_for_pfmea_row(r)]
+    if not target_rows:
+        target_rows = pfmea_rows
 
     context_text = _build_drawing_context(drawing_analysis)
     pfd_map = {
@@ -1047,7 +1413,9 @@ def generate_cp_from_confirmed_pfmea(
 
     logger.info("CHAIN [Stage 3] CP generated: %d rows (failed rows: %s)", len(cp_rows), failed_row_ids)
 
-    return {
+    return canonical_three_table_bundle({
+        "document_type": "control_plan",
+        "schema_version": "minos-core.generated.v1",
         "rows": cp_rows,
         "metadata": {
             "chain_stage": "cp",
@@ -1057,7 +1425,28 @@ def generate_cp_from_confirmed_pfmea(
             "generated_at": _now_iso(),
             "failed_row_ids": failed_row_ids,
         },
-    }
+    }, document_type="control_plan", row_key="rows")
+
+
+def _cp_required_for_pfmea_row(row: dict[str, Any]) -> bool:
+    ap = text(row.get("action_priority"), row.get("AP")).upper()
+    if ap in {"H", "M"}:
+        return True
+    try:
+        if int(row.get("severity", row.get("S", 0)) or 0) >= 9:
+            return True
+    except (TypeError, ValueError):
+        pass
+    if _special_class(
+        text(
+            row.get("special_characteristic_class"),
+            row.get("special_characteristics"),
+            row.get("classification"),
+        )
+    ) in {"SC", "CC"}:
+        return True
+    refs = _characteristic_refs(row.get("characteristic_refs"))
+    return bool(refs) or _special_class_from_refs(refs) in {"SC", "CC"}
 
 
 def _build_cp_pfmea_row_prompt(
@@ -1080,6 +1469,7 @@ def _build_cp_pfmea_row_prompt(
 
 请只为这一条 PFMEA 行生成对应的控制计划行。
 输出行的 pfmea_id 必须等于该 PFMEA 行编号，process_step_id 必须等于该 PFMEA 行的工序编号。
+所有输出行必须包含 evidence_refs、confidence、ai_inferred、needs_confirmation、characteristic_refs；证据和置信度优先继承 PFMEA 行。
 重要：如果该 PFMEA 行的 special_characteristics 为 SC 或 CC，则输出行的 special_characteristic_class 必须继承该值，不得输出"无"。
 重要：specification_tolerance 必须填写该工序实际控制的产品/过程规格和公差。**只有当图纸数值与该工序直接相关时才引用**：例如铆接工序引用铆接力、表面处理工序引用盐雾时间和膜厚、检验工序引用承载力等。绝不要把不相关工序的数值（如把盐雾时间用在铆接、把铆接力用在表面处理）硬塞进去。如果图纸没有该工序对应的数值，应基于 PFMEA 失效原因和预防控制写出合理的工艺规范（如"铆接高度按工艺卡 ±0.1mm"、"扭矩按工装设定"），而不是引用无关数值。
 控制计划必须先说明过程如何被控制，再说明结果如何被检验：
@@ -1098,6 +1488,24 @@ def _extract_cp_base_fields(
     step_id: str,
     pfmea_id: str,
 ) -> dict[str, Any]:
+    characteristic_refs = _characteristic_refs(
+        row.get("characteristic_refs"),
+        pfmea_row.get("characteristic_refs"),
+        pfd_step.get("characteristic_refs"),
+        pfd_step.get("special_characteristics"),
+    )
+    special_class = _special_class(
+        text(
+            pfmea_row.get("special_characteristic_class"),
+            pfmea_row.get("special_characteristics"),
+            pfmea_row.get("classification"),
+            row.get("special_characteristic_class"),
+        )
+    )
+    if special_class == "无":
+        special_class = _special_class(row.get("special_characteristic_class"))
+    if special_class == "无":
+        special_class = _special_class_from_refs(characteristic_refs)
     return {
         "pfmea_id": pfmea_id,
         "source_pfmea_id": pfmea_id,
@@ -1121,13 +1529,8 @@ def _extract_cp_base_fields(
             pfmea_row.get("process_characteristic"),
             pfmea_row.get("process_characteristics"),
         ),
-        "special_characteristic_class": text(
-            row.get("special_characteristic_class"),
-            pfmea_row.get("special_characteristics"),
-            pfmea_row.get("special_characteristic_class"),
-            pfmea_row.get("classification"),
-            "无",
-        ),
+        "special_characteristic_class": special_class,
+        "characteristic_refs": characteristic_refs,
         "specification_tolerance": text(
             row.get("specification_tolerance"),
             row.get("specification"),
@@ -1187,11 +1590,32 @@ def _extract_cp_control_fields(
     }
 
 
-def _extract_cp_reaction_fields(row: dict[str, Any]) -> dict[str, Any]:
+def _extract_cp_reaction_fields(
+    row: dict[str, Any],
+    pfmea_row: dict[str, Any],
+    pfd_step: dict[str, Any],
+) -> dict[str, Any]:
+    evidence_refs = _first_evidence_refs(
+        row.get("evidence_refs"),
+        pfmea_row.get("evidence_refs"),
+        pfd_step.get("evidence_refs"),
+    )
+    confidence = _first_confidence(
+        row.get("confidence"),
+        pfmea_row.get("confidence"),
+        pfd_step.get("confidence"),
+    )
     return {
         "reaction_plan": text(row.get("reaction_plan"), "隔离可疑产品，通知质量人员，并验证纠正措施"),
-        "needs_confirmation": bool(row.get("needs_confirmation", True)),
+        "evidence_refs": evidence_refs,
+        "confidence": confidence if confidence is not None else 0.0,
         "ai_inferred": True,
+        "needs_confirmation": _row_needs_confirmation(
+            row.get("needs_confirmation"),
+            evidence_refs=evidence_refs,
+            confidence=confidence,
+            upstream_needs_confirmation=pfmea_row.get("needs_confirmation", False),
+        ),
     }
 
 
@@ -1228,7 +1652,7 @@ def _normalize_chain_cp_row(
     row = dict(raw_row)
     row.update(_extract_cp_base_fields(row, pfmea_row, pfd_step, step_id, pfmea_id))
     row.update(_extract_cp_control_fields(row, pfmea_row))
-    row.update(_extract_cp_reaction_fields(row))
+    row.update(_extract_cp_reaction_fields(row, pfmea_row, pfd_step))
     row.setdefault("sample_size", "")
     row.setdefault("sample_frequency", "")
     if not text(row.get("control_plan_id")):

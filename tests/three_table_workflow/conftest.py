@@ -3,6 +3,7 @@ import tempfile
 from pathlib import Path
 from zipfile import ZipFile
 
+from openpyxl import load_workbook
 from PIL import Image
 
 
@@ -84,10 +85,13 @@ class SharedTestHelpers:
     @staticmethod
     def assert_xlsx(test_case, path: Path):
         test_case.assertTrue(Path(path).exists())
-        with ZipFile(path) as archive:
-            names = set(archive.namelist())
-        test_case.assertIn("[Content_Types].xml", names)
-        test_case.assertIn("xl/workbook.xml", names)
+        workbook = load_workbook(path, data_only=False, read_only=True)
+        try:
+            test_case.assertTrue(workbook.sheetnames)
+            for sheet_name in workbook.sheetnames:
+                workbook[sheet_name]
+        finally:
+            workbook.close()
 
     @staticmethod
     def xlsx_text(path: Path) -> str:
@@ -100,12 +104,11 @@ class SharedTestHelpers:
 
     @staticmethod
     def sheet_names(path: Path) -> list[str]:
-        from xml.etree import ElementTree
-
-        ns = {"main": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
-        with ZipFile(path) as archive:
-            workbook = ElementTree.fromstring(archive.read("xl/workbook.xml"))
-        return [node.attrib["name"] for node in workbook.findall(".//main:sheet", ns)]
+        workbook = load_workbook(path, data_only=False, read_only=True)
+        try:
+            return list(workbook.sheetnames)
+        finally:
+            workbook.close()
 
 
 def canonical_review_key(value):

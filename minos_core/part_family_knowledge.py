@@ -632,6 +632,9 @@ def _normalize_family_payload(payload: Any, path: Path) -> dict[str, Any]:
                 normalized["process_route_templates"]
                 + _process_inference_route_templates(process_inference, family_key),
                 (
+                    "template_id",
+                    "variant_id",
+                    "source",
                     "process_step_id",
                     "operation",
                     "process_function",
@@ -732,9 +735,11 @@ def _process_inference_step(step: dict[str, Any], index: int) -> dict[str, Any]:
         "process_step_id": f"P{seq:02d}" if seq < 100 else f"P{seq}",
         "sequence": seq,
         "operation": operation,
+        "key_check": key_check,
         "process_function": key_check or operation,
         "process_purpose": key_check or operation,
         "equipment": _clean(step.get("equipment")),
+        "product_characteristics": [key_check] if key_check and "来料" in operation else [],
         "process_characteristics": [key_check] if key_check else [],
         "reasoning": "根据工艺推断知识库的零件族工艺变体补充 PFD 工序",
         "knowledge_source_refs": [],

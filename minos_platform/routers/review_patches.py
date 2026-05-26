@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from minos_platform import config, db, utils
-from minos_platform.errors import APIError, InvalidStateError, NotFoundError
+from minos_platform.errors import APIError, InvalidStateError, NotFoundError, map_core_error
 from minos_platform.models import SubmitReviewPatchRequest
 
 VALID_STATES = {"review_template_ready"}
@@ -52,7 +53,12 @@ async def submit_review_patch(
 
     # Reject patches that have template_status field
     parsed = utils.parse_review_patch(copied_path)
-    if parsed is not None and "template_status" in parsed:
+    if not isinstance(parsed, dict):
+        raise APIError(
+            message="Patch JSON must be a valid JSON object",
+            code="INVALID_PATCH",
+        )
+    if "template_status" in parsed:
         raise APIError(message="Patch must not contain template_status field", code="INVALID_PATCH")
 
     # Calculate actual SHA256 of copied file
@@ -62,6 +68,13 @@ async def submit_review_patch(
     # Compare against client-provided hash
     if actual_hash != req.sha256:
         raise APIError(message="SHA256 mismatch", code="SHA256_MISMATCH", status_code=422)
+
+    if run is None:
+        raise NotFoundError("run", f"project={project_id},type=draft")
+    draft_path = run.result_json_path
+    if not draft_path or not Path(draft_path).exists():
+        raise NotFoundError("draft_result", draft_path or "none")
+    _validate_review_patch_semantics(draft_path, parsed)
 
     patch = db.ReviewPatch(
         id=str(uuid.uuid4()),
@@ -75,3 +88,17 @@ async def submit_review_patch(
     project.status = "review_patch_submitted"
     await session.commit()
     return {"id": patch.id, "project_id": project_id, "patch_path": patch.patch_path}
+
+
+def _validate_review_patch_semantics(draft_path: str, patch: dict) -> None:
+    try:
+        from minos_core import apply_review as core_apply_review
+
+        core_apply_review(draft_result_or_chain=draft_path, review_patch=patch)
+    except (OSError, ValueError, TypeError, RuntimeError, KeyError, AttributeError) as exc:
+        api_err = map_core_error(exc)
+        raise APIError(
+            message=api_err.message,
+            code=api_err.code,
+            status_code=api_err.status_code,
+        ) from exc

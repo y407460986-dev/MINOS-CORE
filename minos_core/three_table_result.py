@@ -6,7 +6,58 @@ import json
 from pathlib import Path
 from typing import Any
 
+from ._text_utils import float_or_none, string_list, text
 from .run_manifest import build_run_manifest, write_run_manifest
+
+
+CANONICAL_THREE_TABLE_SCHEMA_VERSION = "minos-core.generated.v1"
+
+
+def canonical_three_table_bundle(
+    bundle: dict[str, Any] | None,
+    *,
+    document_type: str,
+    row_key: str,
+) -> dict[str, Any]:
+    """Return one canonical PFD/PFMEA/CP stage bundle.
+
+    Compatibility aliases are read here, then the returned bundle uses the
+    canonical row container passed by ``row_key``.
+    """
+
+    source = dict(bundle or {})
+    schema_version = text(
+        source.get("schema_version"), CANONICAL_THREE_TABLE_SCHEMA_VERSION
+    )
+    rows = _canonical_rows(
+        _bundle_rows(source, document_type=document_type, row_key=row_key),
+        schema_version=schema_version,
+    )
+    source["document_type"] = document_type
+    source["schema_version"] = schema_version
+    source[row_key] = rows
+    return source
+
+
+def build_canonical_three_table_bundle(
+    *,
+    process_flow: dict[str, Any] | None,
+    pfmea: dict[str, Any] | None,
+    control_plan: dict[str, Any] | None,
+) -> dict[str, dict[str, Any]]:
+    """Build the canonical three-table bundle map used inside core."""
+
+    return {
+        "process_flow": canonical_three_table_bundle(
+            process_flow, document_type="process_flow", row_key="steps"
+        ),
+        "pfmea": canonical_three_table_bundle(
+            pfmea, document_type="pfmea", row_key="rows"
+        ),
+        "control_plan": canonical_three_table_bundle(
+            control_plan, document_type="control_plan", row_key="rows"
+        ),
+    }
 
 
 def build_three_table_generation_envelope(
@@ -119,6 +170,100 @@ def three_table_status_display(status: str) -> str:
         "needs_review": "待人工复核",
         "blocked": "已阻断",
     }.get(status, status)
+
+
+def _bundle_rows(
+    bundle: dict[str, Any],
+    *,
+    document_type: str,
+    row_key: str,
+) -> list[Any]:
+    rows = bundle.get(row_key)
+    if isinstance(rows, list):
+        return rows
+    if document_type == "process_flow":
+        rows = bundle.get("process_steps")
+    elif document_type == "pfmea":
+        rows = bundle.get("failure_modes") or bundle.get("pfmea_items")
+    elif document_type == "control_plan":
+        rows = bundle.get("controls") or bundle.get("control_plan_items")
+    return rows if isinstance(rows, list) else []
+
+
+def _canonical_rows(rows: list[Any], *, schema_version: str) -> list[Any]:
+    return [
+        _canonical_row(row, schema_version=schema_version)
+        if isinstance(row, dict)
+        else row
+        for row in rows
+    ]
+
+
+def _canonical_row(row: dict[str, Any], *, schema_version: str) -> dict[str, Any]:
+    normalized = dict(row)
+    normalized["schema_version"] = text(
+        normalized.get("schema_version"), schema_version
+    )
+    normalized["evidence_refs"] = string_list(normalized.get("evidence_refs", []))
+    confidence = float_or_none(normalized.get("confidence"))
+    normalized["confidence"] = max(0.0, min(confidence, 1.0)) if confidence is not None else 0.0
+    normalized["ai_inferred"] = bool(normalized.get("ai_inferred", True))
+    normalized["needs_confirmation"] = bool(
+        normalized.get(
+            "needs_confirmation",
+            not normalized["evidence_refs"] or normalized["confidence"] == 0.0,
+        )
+    )
+
+    refs = _characteristic_refs(
+        normalized.get("characteristic_refs"),
+        normalized.get("special_characteristics"),
+        normalized.get("source_special_characteristics"),
+    )
+    explicit_special_class = text(normalized.get("special_characteristic_class"))
+    special_class = explicit_special_class or _special_class(
+        normalized.get("classification"),
+        normalized.get("product_characteristic_class"),
+        normalized.get("process_characteristic_class"),
+        normalized.get("special_characteristics"),
+    )
+    if special_class in {"", "无"}:
+        special_class = _special_class_from_refs(refs)
+    normalized["special_characteristic_class"] = special_class
+    normalized["characteristic_refs"] = refs
+    normalized.pop("classification", None)
+    return normalized
+
+
+def _special_class(*values: Any) -> str:
+    for value in values:
+        marker = text(value).upper()
+        if marker in {"SC", "CC"}:
+            return marker
+        for item in string_list(value):
+            marker = item.upper()
+            if marker in {"SC", "CC"}:
+                return marker
+    return "无"
+
+
+def _special_class_from_refs(refs: list[str]) -> str:
+    if any(ref == "CC" or ref.startswith("CC-") for ref in refs):
+        return "CC"
+    if any(ref == "SC" or ref.startswith("SC-") for ref in refs):
+        return "SC"
+    return "无"
+
+
+def _characteristic_refs(*sources: Any) -> list[str]:
+    refs: list[str] = []
+    for source in sources:
+        for item in string_list(source):
+            if item in {"无", "SC", "CC"}:
+                continue
+            if item and item not in refs:
+                refs.append(item)
+    return refs
 
 
 def dedupe_strings(values: list[Any]) -> list[str]:

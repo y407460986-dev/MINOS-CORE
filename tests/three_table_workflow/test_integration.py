@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 from zipfile import ZipFile
 
+from openpyxl import load_workbook
 from PIL import Image
 
 from minos_core.adapters.multimodal import FakeMultimodalDrawingAnalyzer
@@ -267,6 +268,53 @@ class IntegrationTests(unittest.TestCase):
             self.assertNotIn("旧合并特性", text)
             self.assertNotIn("旧规格", text)
 
+    def test_split_pfmea_export_accepts_aiag_short_risk_fields(self):
+        chain = {
+            "process_steps": [
+                {
+                    "process_step_id": "P10",
+                    "operation": "冲孔",
+                    "process_function": "形成安装孔",
+                }
+            ],
+            "failure_modes": [
+                {
+                    "pfmea_id": "PFMEA-P10-01",
+                    "process_step_id": "P10",
+                    "structure_process_item": "制造过程",
+                    "structure_process_step": "冲孔",
+                    "structure_work_element": "压力机",
+                    "function_process_item": "制造过程",
+                    "function_process_step": "形成安装孔",
+                    "function_work_element": "压力机",
+                    "failure_mode": "孔位偏移",
+                    "failure_effect": "装配困难",
+                    "S": 8,
+                    "failure_cause": "定位销磨损",
+                    "cause_process_parameter": "定位销状态",
+                    "prevention_control": "定位销点检",
+                    "prevention_control_target": "定位销磨损",
+                    "prevention_control_timing": "每班",
+                    "O": 4,
+                    "detection_control": "孔位检验",
+                    "detection_control_target": "安装孔位置",
+                    "detection_control_timing": "首件",
+                    "D": 6,
+                    "AP": "H",
+                    "control_logic_review": "预防和探测分列",
+                    "special_characteristics": "无",
+                }
+            ],
+            "controls": [],
+        }
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            split = export_split_three_table_workbooks(chain, Path(tmpdir) / "split")
+            pfmea_text = self._xlsx_text(split["pfmea"])
+
+        for expected in ("S", "O", "D", "AP", "8", "4", "6", "H"):
+            self.assertIn(expected, pfmea_text)
+
     def test_generated_three_table_user_content_is_chinese(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             pages = render_drawing_pages(load_drawing_source(self._write_png(Path(tmpdir) / "drawing.png")))
@@ -345,6 +393,22 @@ class IntegrationTests(unittest.TestCase):
                 for item in result["manual_review"]["items"]
             ]
             self.assertEqual(len(review_keys), len(set(review_keys)))
+            for container in (result, result["chain"]):
+                for table_name, row_key in (
+                    ("process_flow", "steps"),
+                    ("pfmea", "rows"),
+                    ("control_plan", "rows"),
+                ):
+                    self.assertIn(table_name, container)
+                    bundle = container[table_name]
+                    self.assertEqual(bundle["schema_version"], "minos-core.generated.v1")
+                    self.assertTrue(bundle[row_key])
+                    row = bundle[row_key][0]
+                    self.assertEqual(row["schema_version"], "minos-core.generated.v1")
+                    self.assertIn("evidence_refs", row)
+                    self.assertIn("confidence", row)
+                    self.assertIn("ai_inferred", row)
+                    self.assertIn("needs_confirmation", row)
 
     def test_three_table_result_builder_preserves_envelope_contract(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -591,10 +655,13 @@ class IntegrationTests(unittest.TestCase):
 
     def _assert_xlsx(self, path: Path):
         self.assertTrue(Path(path).exists())
-        with ZipFile(path) as archive:
-            names = set(archive.namelist())
-        self.assertIn("[Content_Types].xml", names)
-        self.assertIn("xl/workbook.xml", names)
+        workbook = load_workbook(path, data_only=False, read_only=True)
+        try:
+            self.assertTrue(workbook.sheetnames)
+            for sheet_name in workbook.sheetnames:
+                workbook[sheet_name]
+        finally:
+            workbook.close()
 
     def _xlsx_text(self, path: Path) -> str:
         with ZipFile(path) as archive:
@@ -605,12 +672,11 @@ class IntegrationTests(unittest.TestCase):
             )
 
     def _sheet_names(self, path: Path) -> list[str]:
-        from xml.etree import ElementTree
-
-        ns = {"main": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
-        with ZipFile(path) as archive:
-            workbook = ElementTree.fromstring(archive.read("xl/workbook.xml"))
-        return [node.attrib["name"] for node in workbook.findall(".//main:sheet", ns)]
+        workbook = load_workbook(path, data_only=False, read_only=True)
+        try:
+            return list(workbook.sheetnames)
+        finally:
+            workbook.close()
 
 
 def _canonical_review_key(value):

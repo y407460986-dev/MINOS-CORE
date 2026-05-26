@@ -21,9 +21,9 @@ router = APIRouter()
 def create_project(payload: CreateProjectRequest, request: Request) -> dict[str, Any]:
     context = dict(payload.context)
     analysis_mode = str(context.get("analysis_mode") or payload.analysis_mode or "hybrid").strip()
-    ocr_engine = str(context.get("ocr_engine") or payload.ocr_engine or "mineru").strip()
+    ocr_engine = str(context.get("ocr_engine") or payload.ocr_engine or "rapidocr").strip()
     context["analysis_mode"] = analysis_mode or "hybrid"
-    context["ocr_engine"] = ocr_engine or "mineru"
+    context["ocr_engine"] = ocr_engine or "rapidocr"
     record = DesktopProjectStore(request.app.state.db_path).create_project(
         DesktopProjectState(
             project_name=payload.project_name,

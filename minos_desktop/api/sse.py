@@ -1,12 +1,17 @@
 """SSE streaming infrastructure for long-running generation tasks."""
 from __future__ import annotations
 import asyncio
+import base64
+import hashlib
+import hmac
 import json
 import logging
+import time
 from typing import Any, AsyncGenerator
 from sse_starlette.sse import ServerSentEvent
 
 logger = logging.getLogger(__name__)
+SSE_TOKEN_TTL_SECONDS = 300
 
 # Registry of active channels: key = "{run_id}:{stage}"
 _channels: dict[str, "ProgressChannel"] = {}
@@ -91,9 +96,46 @@ def create_channel(run_id: int, stage: str) -> ProgressChannel:
 
 def get_channel(run_id: int, stage: str) -> ProgressChannel | None:
     """Get an active channel, or None if not found."""
-    return _channels.get(f"{run_id}:{stage}")
+    key = f"{run_id}:{stage}"
+    channel = _channels.get(key)
+    if channel is not None and channel._closed:
+        _channels.pop(key, None)
+        return None
+    return channel
 
 
 def remove_channel(run_id: int, stage: str) -> None:
     """Remove a channel from the registry."""
     _channels.pop(f"{run_id}:{stage}", None)
+
+
+def create_sse_token(api_token: str, *, now: int | None = None) -> str:
+    """Create a short-lived token that can safely travel in an EventSource URL."""
+    issued_at = int(time.time() if now is None else now)
+    message = str(issued_at)
+    signature = hmac.new(
+        api_token.encode("utf-8"),
+        message.encode("utf-8"),
+        hashlib.sha256,
+    ).digest()
+    return f"{message}.{_urlsafe_b64(signature)}"
+
+
+def is_valid_sse_token(api_token: str, supplied: str, *, now: int | None = None) -> bool:
+    """Validate an SSE query/cookie token without accepting the long-lived API token."""
+    if not api_token or not supplied or "." not in supplied:
+        return False
+    issued_at_text, signature = supplied.split(".", 1)
+    try:
+        issued_at = int(issued_at_text)
+    except ValueError:
+        return False
+    current = int(time.time() if now is None else now)
+    if issued_at > current + 5 or current - issued_at > SSE_TOKEN_TTL_SECONDS:
+        return False
+    expected = create_sse_token(api_token, now=issued_at)
+    return hmac.compare_digest(supplied, expected)
+
+
+def _urlsafe_b64(value: bytes) -> str:
+    return base64.urlsafe_b64encode(value).decode("ascii").rstrip("=")

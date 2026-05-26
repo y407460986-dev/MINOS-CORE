@@ -127,6 +127,68 @@ async def test_token_auth_requires_bearer_token_when_configured(tmp_path, monkey
     assert accepted.status_code == 200
 
 
+async def test_sse_requires_query_token_when_api_token_is_configured(tmp_path, monkeypatch):
+    monkeypatch.setenv("MINOS_DESKTOP_API_TOKEN", "secret-token")
+    db_path = tmp_path / "desktop.sqlite3"
+    output_dir = tmp_path / "out"
+    app = create_app(db_path=db_path, output_dir=output_dir)
+    chain_stages = ChainStageStates(
+        pfd=StageConfirmState(status="confirmed", row_count=1),
+        pfmea=StageConfirmState(status="generated", row_count=1),
+        pipeline_mode="chain",
+    )
+    run = DesktopRunService(db_path).save_chain_run(
+        None,
+        DesktopRunState(
+            status="needs_review",
+            status_display="待人工确认",
+            blocked_stage="",
+            exports=(),
+            manifest_path="",
+            manifest_run_id="",
+            manual_review_required=False,
+            manual_review_count=0,
+            manual_review_raw_count=0,
+            manual_review_items=(),
+            chain_stages=chain_stages,
+        ),
+        output_dir,
+        {
+            "document_type": "three_table_generation_result",
+            "status": "needs_review",
+            "process_flow": {"steps": [{"process_step_id": "P10"}]},
+            "pfmea": {"rows": [{"pfmea_id": "PFMEA-P10-01"}]},
+            "control_plan": {"rows": []},
+            "manual_review": {"required": False, "items": []},
+        },
+        "",
+        chain_stages,
+    )
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as authed_client:
+        rejected = await authed_client.get(f"/api/runs/{run.id}/chain/pfmea/stream")
+        long_lived_rejected = await authed_client.get(
+            f"/api/runs/{run.id}/chain/pfmea/stream?token=secret-token"
+        )
+        token_response = await authed_client.get(
+            "/api/sse-token",
+            headers={"Authorization": "Bearer secret-token"},
+        )
+        sse_token = token_response.json()["token"]
+        accepted = await authed_client.get(
+            f"/api/runs/{run.id}/chain/pfmea/stream?token={sse_token}"
+        )
+
+    assert rejected.status_code == 401
+    assert rejected.json()["code"] == "UNAUTHORIZED"
+    assert long_lived_rejected.status_code == 401
+    assert token_response.status_code == 200
+    assert sse_token
+    assert sse_token != "secret-token"
+    assert accepted.status_code == 200
+    assert '"status": "generated"' in accepted.text
+
+
 async def test_patch_ai_config_persists_overrides_without_returning_secret(tmp_path, monkeypatch):
     monkeypatch.delenv("MINOS_OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
@@ -361,7 +423,360 @@ async def test_chain_pfd_confirm_applies_edit_patch_before_generating_pfmea(
     assert restored["chain_stages"]["pfmea"]["status"] == "generated"
 
 
-async def test_closure_routes_update_run_metadata(client):
+async def test_chain_pfmea_regenerate_returns_persisted_running_before_background(
+    tmp_path, monkeypatch
+):
+    db_path = tmp_path / "desktop.sqlite3"
+    output_dir = tmp_path / "out"
+    app = create_app(db_path=db_path, output_dir=output_dir)
+    chain_stages = ChainStageStates(
+        pfd=StageConfirmState(status="confirmed", row_count=1),
+        pfmea=StageConfirmState(status="generated", row_count=1),
+        pipeline_mode="chain",
+    )
+    run = DesktopRunService(db_path).save_chain_run(
+        None,
+        DesktopRunState(
+            status="needs_review",
+            status_display="待人工确认",
+            blocked_stage="",
+            exports=(),
+            manifest_path="",
+            manifest_run_id="",
+            manual_review_required=False,
+            manual_review_count=0,
+            manual_review_raw_count=0,
+            manual_review_items=(),
+            chain_stages=chain_stages,
+        ),
+        output_dir,
+        {
+            "document_type": "three_table_generation_result",
+            "status": "needs_review",
+            "process_flow": {"steps": [{"process_step_id": "P10"}]},
+            "pfmea": {"rows": [{"pfmea_id": "PFMEA-P10-OLD"}]},
+            "control_plan": {"rows": []},
+            "manual_review": {"required": False, "items": []},
+        },
+        "",
+        chain_stages,
+    )
+
+    def fake_regenerate_pfmea_stage(_db_path, _run_id):
+        return DesktopRunService(_db_path).get_run(_run_id)
+
+    monkeypatch.setattr(jobs, "regenerate_pfmea_stage", fake_regenerate_pfmea_stage)
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as test_client:
+        response = await test_client.post(f"/api/runs/{run.id}/chain/pfmea-regenerate")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["chain_stages"]["pfmea"]["status"] == "running"
+    persisted = DesktopRunService(db_path).get_run(run.id)
+    assert persisted.state.chain_stages.pfmea.status == "running"
+
+
+async def test_chain_pfmea_regenerate_background_accepts_claimed_running_stage(
+    tmp_path, monkeypatch
+):
+    db_path = tmp_path / "desktop.sqlite3"
+    output_dir = tmp_path / "out"
+    app = create_app(db_path=db_path, output_dir=output_dir)
+    chain_stages = ChainStageStates(
+        pfd=StageConfirmState(status="confirmed", row_count=1),
+        pfmea=StageConfirmState(status="generated", row_count=1),
+        pipeline_mode="chain",
+    )
+    run = DesktopRunService(db_path).save_chain_run(
+        None,
+        DesktopRunState(
+            status="needs_review",
+            status_display="待人工确认",
+            blocked_stage="",
+            exports=(),
+            manifest_path="",
+            manifest_run_id="",
+            manual_review_required=False,
+            manual_review_count=0,
+            manual_review_raw_count=0,
+            manual_review_items=(),
+            chain_stages=chain_stages,
+        ),
+        output_dir,
+        {
+            "document_type": "three_table_generation_result",
+            "status": "needs_review",
+            "drawing_analysis": {},
+            "process_flow": {"steps": [{"process_step_id": "P10", "operation": "来料检验"}]},
+            "pfmea": {"rows": [{"pfmea_id": "PFMEA-P10-OLD"}]},
+            "control_plan": {"rows": []},
+            "manual_review": {"required": False, "items": []},
+        },
+        "",
+        chain_stages,
+    )
+
+    def fake_generate_pfmea(_drawing_analysis, _confirmed_pfd, on_progress=None):
+        return {
+            "rows": [
+                {
+                    "pfmea_id": "PFMEA-P10-NEW",
+                    "process_step_id": "P10",
+                    "failure_mode": "来料错误",
+                    "needs_confirmation": False,
+                }
+            ]
+        }
+
+    monkeypatch.setattr(
+        "minos_core.pipeline_chain.generate_pfmea_from_confirmed_pfd",
+        fake_generate_pfmea,
+    )
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as test_client:
+        response = await test_client.post(f"/api/runs/{run.id}/chain/pfmea-regenerate")
+
+    assert response.status_code == 200
+    persisted = DesktopRunService(db_path).get_run(run.id)
+    assert persisted.state.chain_stages.pfmea.status == "generated"
+    assert persisted.current_result["pfmea"]["rows"][0]["pfmea_id"] == "PFMEA-P10-NEW"
+
+
+async def test_chain_cp_regenerate_background_accepts_claimed_running_stage(
+    tmp_path, monkeypatch
+):
+    db_path = tmp_path / "desktop.sqlite3"
+    output_dir = tmp_path / "out"
+    app = create_app(db_path=db_path, output_dir=output_dir)
+    chain_stages = ChainStageStates(
+        pfd=StageConfirmState(status="confirmed", row_count=1),
+        pfmea=StageConfirmState(status="confirmed", row_count=1),
+        cp=StageConfirmState(status="generated", row_count=1),
+        pipeline_mode="chain",
+    )
+    run = DesktopRunService(db_path).save_chain_run(
+        None,
+        DesktopRunState(
+            status="needs_review",
+            status_display="待人工确认",
+            blocked_stage="",
+            exports=(),
+            manifest_path="",
+            manifest_run_id="",
+            manual_review_required=False,
+            manual_review_count=0,
+            manual_review_raw_count=0,
+            manual_review_items=(),
+            chain_stages=chain_stages,
+        ),
+        output_dir,
+        {
+            "document_type": "three_table_generation_result",
+            "status": "needs_review",
+            "drawing_analysis": {},
+            "process_flow": {"steps": [{"process_step_id": "P10", "operation": "来料检验"}]},
+            "pfmea": {"rows": [{"pfmea_id": "PFMEA-P10-01", "process_step_id": "P10"}]},
+            "control_plan": {"rows": [{"control_plan_id": "CP-OLD"}]},
+            "manual_review": {"required": False, "items": []},
+        },
+        "",
+        chain_stages,
+    )
+
+    def fake_generate_cp(_drawing_analysis, _confirmed_pfd, _confirmed_pfmea, on_progress=None):
+        return {
+            "rows": [
+                {
+                    "control_plan_id": "CP-NEW",
+                    "pfmea_id": "PFMEA-P10-01",
+                    "process_step_id": "P10",
+                    "needs_confirmation": False,
+                }
+            ]
+        }
+
+    monkeypatch.setattr(
+        "minos_core.pipeline_chain.generate_cp_from_confirmed_pfmea",
+        fake_generate_cp,
+    )
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as test_client:
+        response = await test_client.post(f"/api/runs/{run.id}/chain/cp-regenerate")
+
+    assert response.status_code == 200
+    persisted = DesktopRunService(db_path).get_run(run.id)
+    assert persisted.state.chain_stages.cp.status == "generated"
+    assert persisted.current_result["control_plan"]["rows"][0]["control_plan_id"] == "CP-NEW"
+
+
+async def test_chain_confirm_or_regenerate_rejects_duplicate_running_stage(
+    tmp_path, monkeypatch
+):
+    db_path = tmp_path / "desktop.sqlite3"
+    output_dir = tmp_path / "out"
+    app = create_app(db_path=db_path, output_dir=output_dir)
+    chain_stages = ChainStageStates(
+        pfd=StageConfirmState(status="confirmed", row_count=1),
+        pfmea=StageConfirmState(status="running", row_count=0),
+        pipeline_mode="chain",
+    )
+    run = DesktopRunService(db_path).save_chain_run(
+        None,
+        DesktopRunState(
+            status="needs_review",
+            status_display="待人工确认",
+            blocked_stage="",
+            exports=(),
+            manifest_path="",
+            manifest_run_id="",
+            manual_review_required=False,
+            manual_review_count=0,
+            manual_review_raw_count=0,
+            manual_review_items=(),
+            chain_stages=chain_stages,
+        ),
+        output_dir,
+        {
+            "document_type": "three_table_generation_result",
+            "status": "needs_review",
+            "process_flow": {"steps": [{"process_step_id": "P10"}]},
+            "pfmea": {"rows": []},
+            "control_plan": {"rows": []},
+            "manual_review": {"required": False, "items": []},
+        },
+        "",
+        chain_stages,
+    )
+
+    def fail_if_queued(*_args, **_kwargs):
+        raise AssertionError("duplicate request queued a background job")
+
+    monkeypatch.setattr(jobs, "generate_pfmea_for_confirmed_pfd", fail_if_queued)
+    monkeypatch.setattr(jobs, "regenerate_pfmea_stage", fail_if_queued)
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as test_client:
+        confirm = await test_client.post(
+            f"/api/runs/{run.id}/chain/pfd-confirm",
+            json={"confirmed_by": "qe"},
+        )
+        regenerate = await test_client.post(f"/api/runs/{run.id}/chain/pfmea-regenerate")
+
+    for response in (confirm, regenerate):
+        assert response.status_code == 409
+        body = response.json()
+        assert body["code"] == "CHAIN_STAGE_RUNNING"
+        assert body["stage"] == "pfmea"
+
+
+async def test_chain_cp_confirm_rejects_while_cp_is_running(tmp_path):
+    db_path = tmp_path / "desktop.sqlite3"
+    output_dir = tmp_path / "out"
+    app = create_app(db_path=db_path, output_dir=output_dir)
+    chain_stages = ChainStageStates(
+        pfd=StageConfirmState(status="confirmed", row_count=1),
+        pfmea=StageConfirmState(status="confirmed", row_count=1),
+        cp=StageConfirmState(status="running"),
+        pipeline_mode="chain",
+    )
+    run = DesktopRunService(db_path).save_chain_run(
+        None,
+        DesktopRunState(
+            status="needs_review",
+            status_display="待人工确认",
+            blocked_stage="",
+            exports=(),
+            manifest_path="",
+            manifest_run_id="",
+            manual_review_required=False,
+            manual_review_count=0,
+            manual_review_raw_count=0,
+            manual_review_items=(),
+            chain_stages=chain_stages,
+        ),
+        output_dir,
+        {
+            "document_type": "three_table_generation_result",
+            "status": "needs_review",
+            "process_flow": {"steps": [{"process_step_id": "P10"}]},
+            "pfmea": {"rows": [{"pfmea_id": "PFMEA-P10-01"}]},
+            "control_plan": {"rows": []},
+            "manual_review": {"required": False, "items": []},
+        },
+        "",
+        chain_stages,
+    )
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as test_client:
+        response = await test_client.post(
+            f"/api/runs/{run.id}/chain/cp-confirm",
+            json={"confirmed_by": "qe"},
+        )
+
+    assert response.status_code == 409
+    body = response.json()
+    assert body["code"] == "CHAIN_STAGE_RUNNING"
+    assert body["stage"] == "cp"
+
+
+async def test_chain_pfd_confirm_rejects_when_stage_was_already_confirmed(
+    tmp_path, monkeypatch
+):
+    db_path = tmp_path / "desktop.sqlite3"
+    output_dir = tmp_path / "out"
+    app = create_app(db_path=db_path, output_dir=output_dir)
+    chain_stages = ChainStageStates(
+        pfd=StageConfirmState(status="confirmed", row_count=1),
+        pfmea=StageConfirmState(status="generated", row_count=1),
+        pipeline_mode="chain",
+    )
+    run = DesktopRunService(db_path).save_chain_run(
+        None,
+        DesktopRunState(
+            status="needs_review",
+            status_display="待人工确认",
+            blocked_stage="",
+            exports=(),
+            manifest_path="",
+            manifest_run_id="",
+            manual_review_required=False,
+            manual_review_count=0,
+            manual_review_raw_count=0,
+            manual_review_items=(),
+            chain_stages=chain_stages,
+        ),
+        output_dir,
+        {
+            "document_type": "three_table_generation_result",
+            "status": "needs_review",
+            "process_flow": {"steps": [{"process_step_id": "P10"}]},
+            "pfmea": {"rows": [{"pfmea_id": "PFMEA-P10-01"}]},
+            "control_plan": {"rows": []},
+            "manual_review": {"required": False, "items": []},
+        },
+        "",
+        chain_stages,
+    )
+
+    def fail_if_queued(*_args, **_kwargs):
+        raise AssertionError("duplicate confirm queued a background job")
+
+    monkeypatch.setattr(jobs, "generate_pfmea_for_confirmed_pfd", fail_if_queued)
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as test_client:
+        response = await test_client.post(
+            f"/api/runs/{run.id}/chain/pfd-confirm",
+            json={"confirmed_by": "qe"},
+        )
+
+    assert response.status_code == 409
+    body = response.json()
+    assert body["code"] == "INVALID_STATE_TRANSITION"
+    assert body["stage"] == "pfd"
+    assert body["status"] == "confirmed"
+
+
+async def test_closure_routes_update_run_metadata(client, tmp_path):
     project = (
         await client.post(
             "/api/projects",
@@ -382,22 +797,88 @@ async def test_closure_routes_update_run_metadata(client):
         == "已忽略"
     )
 
-    project_for_batch = (
-        await client.post(
-            "/api/projects",
-            json={"project_name": "批量确认项目", "drawing_path": "drawing.pdf"},
+    db_path = tmp_path / "desktop.sqlite3"
+    output_dir = tmp_path / "out"
+    batch_app = create_app(db_path=db_path, output_dir=output_dir)
+    batch_chain_stages = ChainStageStates(
+        pfd=StageConfirmState(status="confirmed", row_count=1),
+        pfmea=StageConfirmState(status="confirmed", row_count=1),
+        cp=StageConfirmState(status="generated", row_count=1, pending_count=1),
+        pipeline_mode="chain",
+    )
+    batch_run = DesktopRunService(db_path).save_chain_run(
+        None,
+        DesktopRunState(
+            status="needs_review",
+            status_display="待人工确认",
+            blocked_stage="",
+            exports=(),
+            manifest_path="",
+            manifest_run_id="",
+            manual_review_required=True,
+            manual_review_count=0,
+            manual_review_raw_count=0,
+            manual_review_items=(),
+            chain_stages=batch_chain_stages,
+        ),
+        output_dir,
+        {
+            "document_type": "three_table_generation_result",
+            "status": "needs_review",
+            "process_flow": {
+                "steps": [
+                    {
+                        "process_step_id": "P10",
+                        "operation": "来料检验",
+                        "review_status": "AI建议确认",
+                        "needs_confirmation": False,
+                        "evidence_refs": ["EV-1"],
+                        "confidence": 0.95,
+                    }
+                ]
+            },
+            "pfmea": {
+                "rows": [
+                    {
+                        "pfmea_id": "PFMEA-P10-OK",
+                        "process_step_id": "P10",
+                        "failure_mode": "来料错误",
+                        "review_status": "AI建议确认",
+                        "needs_confirmation": False,
+                        "evidence_refs": ["EV-1"],
+                        "confidence": 0.95,
+                    }
+                ]
+            },
+            "control_plan": {
+                "rows": [
+                    {
+                        "control_plan_id": "CP-P10-OK",
+                        "process_step_id": "P10",
+                        "pfmea_id": "PFMEA-P10-OK",
+                        "control_method": "来料检验",
+                        "review_status": "AI建议确认",
+                        "needs_confirmation": True,
+                        "evidence_refs": ["EV-1"],
+                        "confidence": 0.95,
+                    }
+                ]
+            },
+            "drawing_analysis": {"evidence": [{"evidence_id": "EV-1"}]},
+            "manual_review": {"required": True, "items": []},
+        },
+        "",
+        batch_chain_stages,
+    )
+    batch_transport = ASGITransport(app=batch_app)
+    async with AsyncClient(transport=batch_transport, base_url="http://test") as batch_client:
+        cp_confirmed = await batch_client.post(
+            f"/api/runs/{batch_run.id}/chain/cp-confirm",
+            json={"confirmed_by": "qe"},
         )
-    ).json()
-    run_for_batch = (
-        await client.post(f"/api/projects/{project_for_batch['id']}/runs")
-    ).json()
-    cp_confirmed = await client.post(
-        f"/api/runs/{run_for_batch['id']}/chain/cp-confirm",
-        json={"confirmed_by": "qe"},
-    )
-    batch = await client.post(
-        f"/api/runs/{run_for_batch['id']}/automation-review/batch-confirm"
-    )
+        batch = await batch_client.post(
+            f"/api/runs/{batch_run.id}/automation-review/batch-confirm"
+        )
 
     assert cp_confirmed.status_code == 200
     assert batch.status_code == 200

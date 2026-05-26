@@ -30,6 +30,7 @@ type ChainStepperProps = {
   chainState: ChainState | null;
   run: DesktopRun | null;
   isGenerating?: boolean;
+  liveProgress?: Partial<Record<ChainStageKey, GenerationProgress>>;
   onConfirm?: (stage: ChainStageKey) => Promise<void>;
   onRegenerate?: (stage: ChainStageKey) => Promise<void>;
   onViewTable?: () => void;
@@ -39,10 +40,19 @@ type ChainStepperProps = {
   className?: string;
 };
 
+export type GenerationProgress = {
+  stepIndex?: number;
+  totalSteps?: number;
+  rowsSoFar?: number;
+  stepId?: string;
+  failedStepId?: string;
+};
+
 export function ChainStepper({
   chainState,
   run,
   isGenerating = false,
+  liveProgress,
   onConfirm,
   onRegenerate,
   onViewTable,
@@ -135,6 +145,7 @@ export function ChainStepper({
             const isReady = info.status === "generated";
             const isFailed = info.status === "failed";
             const isBlocked = info.status === "blocked";
+            const progress = liveProgress?.[step.key];
 
             return (
               <div key={step.key} className="flex min-w-0 items-center gap-2">
@@ -168,7 +179,7 @@ export function ChainStepper({
                     </Badge>
                   </div>
                   <div className="mt-1 truncate text-xs text-muted-foreground">
-                    {compactStageDetail(info, isActive)}
+                    {compactStageDetail(info, isActive, progress)}
                   </div>
                 </div>
                 {index < STEPS.length - 1 && (
@@ -352,10 +363,23 @@ function stageIcon(status: StageStatus, isActive: boolean, isGenerating: boolean
   return <Lock size={15} className="shrink-0 text-muted-foreground" />;
 }
 
-function compactStageDetail(info: ChainState[ChainStageKey], isActive: boolean): string {
+function compactStageDetail(
+  info: ChainState[ChainStageKey],
+  isActive: boolean,
+  progress?: GenerationProgress,
+): string {
   if (info.status === "failed") return "生成失败，可进入工作台查看并重试。";
   if (info.status === "blocked") return "等待补齐上游确认。";
-  if (info.status === "running") return `后台生成中，当前 ${info.row_count} 行。`;
+  if (info.status === "running") {
+    if (progress?.failedStepId) {
+      return `${progress.failedStepId} 生成失败，继续生成中；已生成 ${progress.rowsSoFar ?? info.row_count} 行。`;
+    }
+    if (progress?.totalSteps) {
+      const currentStep = Math.min((progress.stepIndex ?? 0) + 1, progress.totalSteps);
+      return `后台生成中，${currentStep}/${progress.totalSteps} 步，已生成 ${progress.rowsSoFar ?? info.row_count} 行。`;
+    }
+    return `后台生成中，等待首个工序返回，当前 ${info.row_count} 行。`;
+  }
   if (info.status === "generated") return `${info.row_count} 行已生成，${info.pending_count} 项待确认。`;
   if (info.status === "confirmed") {
     return info.confirmed_by ? `${info.row_count} 行，已由 ${info.confirmed_by} 确认。` : `${info.row_count} 行已确认。`;

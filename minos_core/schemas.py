@@ -15,6 +15,7 @@ SCHEMA_REQUIRED_FIELDS: dict[str, tuple[str, ...]] = {
         "materials",
         "dimensions",
         "special_characteristics",
+        "sub_components",
         "technical_requirements",
         "manufacturing_clues",
         "evidence",

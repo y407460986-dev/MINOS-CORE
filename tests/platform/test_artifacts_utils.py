@@ -51,10 +51,60 @@ async def test_artifact_router_reports_missing_file_on_disk(test_client, demo_pa
     export_path = Path(export_resp.json()["export_path"])
 
     artifacts_resp = await test_client.get("/api/artifacts")
-    artifact = next(item for item in artifacts_resp.json() if item["file_path"] == str(export_path))
+    artifact = next(
+        item for item in artifacts_resp.json() if item["artifact_type"] == "draft_xlsx"
+    )
     export_path.unlink()
 
     download_resp = await test_client.get(f"/api/artifacts/{artifact['id']}")
 
     assert download_resp.status_code == 404
     assert "Artifact file not found on disk" in download_resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_artifact_list_hides_absolute_file_path(test_client, demo_package_path, demo_sha256):
+    proj = await test_client.post("/api/projects", json={"name": "Artifact List Privacy Test"})
+    project_id = proj.json()["id"]
+    await test_client.post(
+        f"/api/projects/{project_id}/input-packages",
+        json={"input_package_path": demo_package_path, "sha256": demo_sha256, "redacted": "true"},
+    )
+    await test_client.post(f"/api/projects/{project_id}/draft-runs")
+    await test_client.post(
+        f"/api/projects/{project_id}/exports",
+        json={"export_mode": "draft"},
+    )
+
+    artifacts_resp = await test_client.get("/api/artifacts")
+
+    assert artifacts_resp.status_code == 200
+    for item in artifacts_resp.json():
+        assert not Path(item["file_path"]).is_absolute()
+
+
+@pytest.mark.asyncio
+async def test_artifact_download_rejects_sha256_mismatch(test_client, demo_package_path, demo_sha256):
+    proj = await test_client.post("/api/projects", json={"name": "Artifact Hash Mismatch Test"})
+    project_id = proj.json()["id"]
+    await test_client.post(
+        f"/api/projects/{project_id}/input-packages",
+        json={"input_package_path": demo_package_path, "sha256": demo_sha256, "redacted": "true"},
+    )
+    await test_client.post(f"/api/projects/{project_id}/draft-runs")
+    export_resp = await test_client.post(
+        f"/api/projects/{project_id}/exports",
+        json={"export_mode": "draft"},
+    )
+    export_path = Path(export_resp.json()["export_path"])
+
+    artifacts_resp = await test_client.get("/api/artifacts")
+    artifact = next(
+        item for item in artifacts_resp.json() if item["artifact_type"] == "draft_xlsx"
+    )
+    export_path.write_bytes(export_path.read_bytes() + b"tampered")
+
+    download_resp = await test_client.get(f"/api/artifacts/{artifact['id']}")
+
+    assert download_resp.status_code == 409
+    assert "sha256" in download_resp.json()["detail"].lower()

@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from socket import timeout as SocketTimeout
 from typing import Any, Protocol
+from urllib.parse import urlparse
 
 from minos_core.ai_config import load_openai_api_key, load_openai_responses_config
 from minos_core.drawing_input import DrawingPageEvidence
@@ -99,7 +100,7 @@ class OpenAIResponsesMultimodalDrawingAnalyzer:
                 f"unsupported Codex/OpenAI wire_api for drawing analyzer: {config.wire_api}"
             )
         self.api_key = api_key if api_key is not None else load_openai_api_key()
-        self.base_url = (base_url or config.base_url).rstrip("/")
+        self.base_url = _normalize_openai_base_url(base_url or config.base_url)
         self.model = model or config.model
         self.responses_path = (responses_path or config.responses_path).strip("/")
         self.store = config.store
@@ -262,12 +263,14 @@ def _drawing_analysis_prompt(context: dict[str, Any]) -> str:
         " drawing_page_001 这类页面证据编号。如果某个值不确定，请写入 uncertainties，或设置"
         " needs_confirmation=true 且 confidence 低于 0.75。必需顶层 JSON 键包括："
         "drawing_identity, materials, surface_treatments, dimensions, tolerances, "
-        "special_characteristics, technical_requirements, inspection_requirements, "
+        "special_characteristics, sub_components, technical_requirements, inspection_requirements, "
         "manufacturing_clues, uncertainties。manufacturing_clues 中优先返回明确的有序工序，"
         "例如 operation/process_step/process_sequence，并带 evidence_refs。不要在可以推断"
         "具体工序时只返回一段说明文字。需要通用工序名时，请使用中文且具体的名称，例如："
         "落料、冲孔、折弯、焊接、去毛刺、电镀、注塑、修边、装配、过程检验、最终检验、包装。"
         "识别顺序必须先读图框/标题栏，再看技术要求、BOM、局部标注和视图细节。"
+        "如果图纸有 BOM/明细表/序号数量名称图号表格，必须把每一行子件写入 sub_components，"
+        "字段至少包含 item_no、part_name、part_number、quantity、evidence_refs；不要把 BOM 子件覆盖成整件名称。"
         "drawing_identity.part_name 必须优先来自图框/标题栏中的整件名称；局部组件名、"
         "引出标注、BOM 子件、技术要求中的对象不能覆盖整张图纸的零件名。例如图框写"
         "“尾门铰链/尾门较链/door hinge/DH ASSY”，即使技术要求提到衬套、销轴或润滑，"
@@ -442,3 +445,15 @@ def _extract_content_part_text(part: Any) -> str:
         return ""
     text = part.get("text")
     return text if isinstance(text, str) else ""
+
+
+def _normalize_openai_base_url(value: str) -> str:
+    normalized = value.strip().rstrip("/")
+    parsed = urlparse(normalized)
+    if parsed.scheme == "https":
+        return normalized
+    if parsed.scheme == "http" and parsed.hostname in {"127.0.0.1", "localhost", "::1"}:
+        return normalized
+    raise OpenAIMultimodalError(
+        "OpenAI base_url must use HTTPS; HTTP is only allowed for localhost/127.0.0.1."
+    )

@@ -10,6 +10,9 @@
       "target": "evidence:EV-DEMO-REQ-001",
       "evidence_refs": ["EV-DEMO-REQ-001"]
     },
+    {"action": "confirm", "target": "process_step:P10"},
+    {"action": "confirm", "target": "process_step:P20"},
+    {"action": "confirm", "target": "process_step:P30"},
     {"action": "confirm", "target": "failure_mode_candidate:FMC-P10-001"},
     {"action": "confirm", "target": "failure_mode_candidate:FMC-P10-002"},
     {"action": "confirm", "target": "failure_mode_candidate:FMC-P10-003"},

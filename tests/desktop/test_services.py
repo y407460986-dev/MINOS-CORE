@@ -254,6 +254,56 @@ class TestDesktopServices(unittest.TestCase):
 
             self.assertEqual(row[0], "WAL 项目")
 
+    def test_data_management_backup_redacts_ai_api_key_in_database_copy(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = os.path.join(tmpdir, "minos_desktop.sqlite3")
+            output_dir = os.path.join(tmpdir, "out")
+            DesktopSettingsStore(db_path).set_ai_overrides(
+                base_url="https://proxy.example/v1",
+                api_key="secret-key",
+                model="gpt-test",
+            )
+
+            result = DesktopDataManagementService(db_path, output_dir).create_backup()
+
+            extracted_db = os.path.join(tmpdir, "backup.sqlite3")
+            with zipfile.ZipFile(result["backup_path"]) as archive:
+                archive.extract("minos_desktop.sqlite3", tmpdir)
+            os.replace(os.path.join(tmpdir, "minos_desktop.sqlite3"), extracted_db)
+            connection = sqlite3.connect(extracted_db)
+            try:
+                row = connection.execute(
+                    "SELECT value FROM settings WHERE key = ?",
+                    ("ai_api_key",),
+                ).fetchone()
+            finally:
+                connection.close()
+
+            self.assertIsNotNone(row)
+            self.assertNotEqual(row[0], "secret-key")
+
+    def test_data_management_backup_redacts_ai_api_key_from_zip_payloads(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = os.path.join(tmpdir, "minos_desktop.sqlite3")
+            output_dir = os.path.join(tmpdir, "out")
+            log_dir = os.path.join(tmpdir, "logs")
+            os.makedirs(output_dir, exist_ok=True)
+            os.makedirs(log_dir, exist_ok=True)
+            with open(os.path.join(log_dir, "api.log"), "w", encoding="utf-8") as file:
+                file.write("Authorization: Bearer secret-key\n")
+            DesktopSettingsStore(db_path).set_ai_overrides(
+                base_url="https://proxy.example/v1",
+                api_key="secret-key",
+                model="gpt-test",
+            )
+
+            result = DesktopDataManagementService(db_path, output_dir).create_backup()
+
+            with zipfile.ZipFile(result["backup_path"]) as archive:
+                for name in archive.namelist():
+                    payload = archive.read(name)
+                    self.assertNotIn(b"secret-key", payload, name)
+
     def test_data_management_clear_workspace_preserves_settings_knowledge_and_backups(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = os.path.join(tmpdir, "minos_desktop.sqlite3")
@@ -912,6 +962,92 @@ class TestDesktopServices(unittest.TestCase):
         self.assertEqual(updated.failure_message, "")
         self.assertEqual(updated.state.chain_stages.pfmea.status, "generated")
         self.assertEqual(updated.current_result["blocked_stage"], None)
+
+    def test_confirm_pfmea_requires_generated_stage(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = os.path.join(tmpdir, "desktop.sqlite3")
+            run_service = DesktopRunService(db_path)
+            run = run_service.save_chain_run(
+                None,
+                DesktopRunState(
+                    status="needs_review",
+                    status_display="待人工确认",
+                    blocked_stage="",
+                    exports=(),
+                    manifest_path="",
+                    manifest_run_id="",
+                    manual_review_required=False,
+                    manual_review_count=0,
+                    manual_review_raw_count=0,
+                    chain_stages=ChainStageStates(
+                        pfd=StageConfirmState(status="confirmed", row_count=1),
+                        pfmea=StageConfirmState(status="not_started"),
+                        pipeline_mode="chain",
+                    ),
+                ),
+                tmpdir,
+                {
+                    "document_type": "three_table_generation_result",
+                    "status": "needs_review",
+                    "process_flow": {"steps": [{"process_step_id": "P10"}]},
+                    "pfmea": {"rows": []},
+                    "control_plan": {"rows": []},
+                    "manual_review": {"required": False, "items": []},
+                },
+                "",
+                ChainStageStates(
+                    pfd=StageConfirmState(status="confirmed", row_count=1),
+                    pfmea=StageConfirmState(status="not_started"),
+                    pipeline_mode="chain",
+                ),
+            )
+
+            with self.assertRaisesRegex(ValueError, "pfmea stage must be generated before confirmation"):
+                run_service.confirm_pfmea_stage(run.id, confirmed_by="qe")
+
+    def test_regenerate_cp_requires_confirmed_pfmea_stage(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = os.path.join(tmpdir, "desktop.sqlite3")
+            run_service = DesktopRunService(db_path)
+            run = run_service.save_chain_run(
+                None,
+                DesktopRunState(
+                    status="needs_review",
+                    status_display="待人工确认",
+                    blocked_stage="",
+                    exports=(),
+                    manifest_path="",
+                    manifest_run_id="",
+                    manual_review_required=False,
+                    manual_review_count=0,
+                    manual_review_raw_count=0,
+                    chain_stages=ChainStageStates(
+                        pfd=StageConfirmState(status="confirmed", row_count=1),
+                        pfmea=StageConfirmState(status="generated", row_count=1),
+                        cp=StageConfirmState(status="failed"),
+                        pipeline_mode="chain",
+                    ),
+                ),
+                tmpdir,
+                {
+                    "document_type": "three_table_generation_result",
+                    "status": "needs_review",
+                    "process_flow": {"steps": [{"process_step_id": "P10"}]},
+                    "pfmea": {"rows": [{"pfmea_id": "PFMEA-P10-01"}]},
+                    "control_plan": {"rows": []},
+                    "manual_review": {"required": False, "items": []},
+                },
+                "",
+                ChainStageStates(
+                    pfd=StageConfirmState(status="confirmed", row_count=1),
+                    pfmea=StageConfirmState(status="generated", row_count=1),
+                    cp=StageConfirmState(status="failed"),
+                    pipeline_mode="chain",
+                ),
+            )
+
+            with self.assertRaisesRegex(ValueError, "pfmea stage must be confirmed before cp regeneration"):
+                run_service.regenerate_cp_stage(run.id)
 
     def test_apply_edit_patch_to_run_round_trips_current_result_and_patch(self):
         with tempfile.TemporaryDirectory() as tmpdir:

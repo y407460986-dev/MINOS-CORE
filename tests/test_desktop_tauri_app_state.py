@@ -23,6 +23,15 @@ def test_drawing_import_page_uses_chain_start_feedback() -> None:
     assert 'setStatus("PFD 已生成，请确认过程流程图。");' not in page_source
 
 
+def test_drawing_import_page_uses_packaged_rapidocr_by_default() -> None:
+    page_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "pages" / "DrawingImportPage.tsx"
+    ).read_text(encoding="utf-8")
+
+    assert 'ocr_engine: "rapidocr"' in page_source
+    assert 'ocr_engine: "auto"' not in page_source
+
+
 def test_drawing_import_page_refreshes_stage_context_and_shows_failure() -> None:
     page_source = (
         ROOT / "apps" / "desktop-tauri" / "src" / "pages" / "DrawingImportPage.tsx"
@@ -90,6 +99,25 @@ def test_workbench_uses_top_level_chain_stages_and_hides_legacy_pfmea_placeholde
     assert "PFMEA-SYNC-" in store_source
     assert "待工程人员填写失效模式" in store_source
     assert "联动新增" in store_source
+
+
+def test_workbench_reconnects_running_stage_stream_and_stepper_shows_live_progress() -> None:
+    page_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "pages" / "ThreeTableWorkbench.tsx"
+    ).read_text(encoding="utf-8")
+    stepper_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "components" / "ChainStepper.tsx"
+    ).read_text(encoding="utf-8")
+
+    assert "const [liveProgress" in page_source
+    assert "activeStreamKeyRef" in page_source
+    assert "startStreamingProgress(" in page_source
+    assert "runningStage" in page_source
+    assert 'event.status === "running"' in page_source
+    assert "liveProgress={liveProgress}" in page_source
+    assert "liveProgress?: Partial<Record<ChainStageKey, GenerationProgress>>" in stepper_source
+    assert "progress?.totalSteps" in stepper_source
+    assert "等待首个工序返回" in stepper_source
 
 
 def test_workbench_pfmea_columns_follow_aiag_vda_core_fields() -> None:
@@ -173,6 +201,19 @@ def test_chain_sse_client_reconnects_and_workbench_handles_step_failed() -> None
     assert "继续生成中" in page_source
     assert "正在自动重连" in page_source
     assert "已获取最终状态" not in page_source
+
+
+def test_chain_sse_client_passes_runtime_bootstrap_token() -> None:
+    sse_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "api" / "sse-client.ts"
+    ).read_text(encoding="utf-8")
+
+    assert "getBootstrap" in sse_source
+    assert "apiToken" in sse_source
+    assert "apiBaseUrl" in sse_source
+    assert "/api/sse-token" in sse_source
+    assert "Authorization" in sse_source
+    assert "encodeURIComponent" in sse_source
 
 
 def test_workbench_pfd_can_add_row_with_process_flow_patch() -> None:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import tempfile
 from pathlib import Path
 
@@ -26,6 +27,8 @@ async def test_client():
         db_url = f"sqlite+aiosqlite:///{db_path}"
         # Initialize the test DB before the client starts its lifespan
         await db.init_db(db_url)
+        previous = os.environ.get("MINOS_PLATFORM_ALLOW_NO_AUTH")
+        os.environ["MINOS_PLATFORM_ALLOW_NO_AUTH"] = "1"
 
         from minos_platform.app import app
 
@@ -38,6 +41,10 @@ async def test_client():
             await db._engine.dispose()
             db._engine = None
             db._session_factory = None
+        if previous is None:
+            os.environ.pop("MINOS_PLATFORM_ALLOW_NO_AUTH", None)
+        else:
+            os.environ["MINOS_PLATFORM_ALLOW_NO_AUTH"] = previous
 
 
 @pytest.fixture
@@ -58,8 +65,9 @@ def realistic_package_path():
 
 @pytest.fixture
 def demo_sha256():
-    # Real SHA256 of tests/fixtures/demo_input_package (directory hash)
-    return "f96b1b7a734767929e90d07430de96fb5e6362553af424141cc37a3d4ed40442"
+    from minos_platform.utils import calculate_directory_sha256
+
+    return calculate_directory_sha256(DEMO_PACKAGE)
 
 
 @pytest.fixture

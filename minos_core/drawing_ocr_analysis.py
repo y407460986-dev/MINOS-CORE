@@ -108,6 +108,7 @@ def build_drawing_analysis_bundle_from_ocr(
         "inspection_requirement",
     )
     standard_references = _standard_reference_items(text_units, fallback_refs)
+    sub_components = _sub_component_items(text_units, fallback_refs)
     manufacturing_clues = _manufacturing_clues(
         text_units,
         filename_text,
@@ -132,6 +133,7 @@ def build_drawing_analysis_bundle_from_ocr(
         "dimensions": dimensions,
         "tolerances": tolerances,
         "special_characteristics": special_characteristics,
+        "sub_components": sub_components,
         "numeric_specifications": numeric_specifications,
         "technical_requirements": technical_requirements,
         "inspection_requirements": inspection_requirements,
@@ -487,6 +489,52 @@ def _surface_treatment_items(
                 )
             )
     return items[:5]
+
+
+def _sub_component_items(
+    units: list[_TextUnit], fallback_refs: list[str]
+) -> list[dict[str, Any]]:
+    items: list[dict[str, Any]] = []
+    for unit in _line_units(units):
+        text = " ".join(unit.text.split())
+        if not text:
+            continue
+        match = re.match(
+            r"^\s*(\d{1,3})\s+(\d{1,4})\s+(.+?)\s+([A-Z]{1,8}[A-Z0-9_.\-/]{5,})\s*$",
+            text,
+            re.I,
+        )
+        if not match:
+            continue
+        item_no, quantity, part_name, part_number = match.groups()
+        cleaned_name = _clean_bom_part_name(part_name)
+        if not cleaned_name or _looks_like_bom_header(cleaned_name):
+            continue
+        items.append(
+            _ocr_item(
+                {
+                    "item_no": item_no,
+                    "quantity": int(quantity),
+                    "part_name": cleaned_name,
+                    "part_number": part_number.strip(),
+                    "source_text": unit.text,
+                },
+                [unit.evidence_id] or fallback_refs,
+                unit.confidence,
+            )
+        )
+    return _dedupe_items(items, "part_number")[:30]
+
+
+def _clean_bom_part_name(value: str) -> str:
+    text = " ".join(str(value or "").strip().split())
+    text = re.sub(r"^(?:名称|name)\s*[:：]?\s*", "", text, flags=re.I)
+    return text.strip(" ,;，；")
+
+
+def _looks_like_bom_header(value: str) -> bool:
+    compact = re.sub(r"\s+", "", value).lower()
+    return compact in {"名称", "partname", "name", "序号数量名称图号"}
 
 
 def _dimension_items(units: list[_TextUnit], fallback_refs: list[str]) -> list[dict[str, Any]]:

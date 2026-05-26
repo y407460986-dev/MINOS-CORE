@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import tempfile
+from pathlib import Path
 
 import pytest
 
@@ -131,3 +132,151 @@ async def test_draft_export_does_not_change_project_status(test_client, demo_pac
     status_after = proj_detail_after.json()["status"]
     assert status_after == status_before
     assert status_after != "final_export_ready"
+
+
+async def test_export_final_rejects_when_project_status_is_not_review_applied(
+    test_client, demo_package_path, demo_sha256
+):
+    proj = await test_client.post("/api/projects", json={"name": "Export Final Status Gate Test"})
+    project_id = proj.json()["id"]
+    draft_result_path, _ = await _run_full_chain(
+        test_client, project_id, demo_package_path, demo_sha256
+    )
+
+    apply_run_id = "manual-review-run"
+    review_result_path = Path(draft_result_path).with_name("manual_review_result.json")
+    review_result_path.write_text(
+        json.dumps(
+            {
+                "document_type": "apqp_chain_review_result",
+                "patched_chain": {"document_type": "apqp_chain", "process_steps": [], "failure_modes": [], "controls": []},
+                "final_export_allowed": True,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    from minos_platform import db
+    from sqlalchemy import select
+    from datetime import datetime, timezone
+
+    async with db._session_factory() as session:
+        project = (
+            await session.execute(select(db.Project).where(db.Project.id == project_id))
+        ).scalar_one()
+        project.status = "review_patch_submitted"
+        session.add(
+            db.Run(
+                id=apply_run_id,
+                project_id=project_id,
+                run_type="review",
+                status="review_applied",
+                result_json_path=str(review_result_path),
+                manifest_json_path=None,
+                created_at=datetime.now(timezone.utc).replace(microsecond=0),
+            )
+        )
+        await session.commit()
+
+    export_resp = await test_client.post(
+        f"/api/projects/{project_id}/exports",
+        json={"export_mode": "final"},
+    )
+
+    assert export_resp.status_code == 409
+
+
+async def test_export_final_rejects_non_object_patched_chain(
+    test_client, demo_package_path, demo_sha256
+):
+    proj = await test_client.post("/api/projects", json={"name": "Export Final Patched Chain Type Test"})
+    project_id = proj.json()["id"]
+    draft_result_path, _ = await _run_full_chain(
+        test_client, project_id, demo_package_path, demo_sha256
+    )
+
+    review_result_path = Path(draft_result_path).with_name("review_result_bad_chain.json")
+    review_result_path.write_text(
+        json.dumps(
+            {
+                "document_type": "apqp_chain_review_result",
+                "patched_chain": ["bad"],
+                "final_export_allowed": True,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    from minos_platform import db
+    from sqlalchemy import select
+
+    async with db._session_factory() as session:
+        project = (
+            await session.execute(select(db.Project).where(db.Project.id == project_id))
+        ).scalar_one()
+        project.status = "review_applied"
+        latest_review_run = (
+            await session.execute(
+                select(db.Run)
+                .where(db.Run.project_id == project_id, db.Run.run_type == "review")
+                .order_by(db.Run.created_at.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        if latest_review_run is not None:
+            latest_review_run.result_json_path = str(review_result_path)
+        await session.commit()
+
+    export_resp = await test_client.post(
+        f"/api/projects/{project_id}/exports",
+        json={"export_mode": "final"},
+    )
+
+    assert export_resp.status_code == 422
+
+
+async def test_export_final_rejects_review_result_when_quality_gate_not_cleared(
+    test_client, demo_package_path, demo_sha256
+):
+    proj = await test_client.post("/api/projects", json={"name": "Export Final Quality Gate Test"})
+    project_id = proj.json()["id"]
+    await _run_full_chain(
+        test_client, project_id, demo_package_path, demo_sha256
+    )
+
+    from minos_platform import db
+    from sqlalchemy import select
+
+    async with db._session_factory() as session:
+        project = (
+            await session.execute(select(db.Project).where(db.Project.id == project_id))
+        ).scalar_one()
+        project.status = "review_applied"
+        latest_review_run = (
+            await session.execute(
+                select(db.Run)
+                .where(db.Run.project_id == project_id, db.Run.run_type == "review")
+                .order_by(db.Run.created_at.desc())
+                .limit(1)
+            )
+        ).scalar_one()
+        review_result_path = Path(latest_review_run.result_json_path)
+        review_result = json.loads(review_result_path.read_text(encoding="utf-8"))
+        review_result["final_export_allowed"] = False
+        blocked_review_result_path = review_result_path.with_name(
+            "review_result_gate_blocked.json"
+        )
+        blocked_review_result_path.write_text(
+            json.dumps(review_result),
+            encoding="utf-8",
+        )
+        latest_review_run.result_json_path = str(blocked_review_result_path)
+        await session.commit()
+
+    export_resp = await test_client.post(
+        f"/api/projects/{project_id}/exports",
+        json={"export_mode": "final"},
+    )
+
+    assert export_resp.status_code == 409
+    assert export_resp.json()["code"] == "EXPORT_GATE_BLOCKED"

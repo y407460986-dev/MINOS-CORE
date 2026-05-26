@@ -7,6 +7,7 @@ from typing import Any
 
 from .aiag_vda_pfmea import calculate_rpn, normalize_pfmea_row
 from minos_core._text_utils import integer, string_list, text
+from minos_core.three_table_result import canonical_three_table_bundle
 
 
 def generate_pfmea_from_candidates(
@@ -28,7 +29,7 @@ def generate_pfmea_from_candidates(
         counters[step_id] += 1
         rows.append(_pfmea_row(candidate, counters[step_id], inherited_step))
 
-    return {
+    return canonical_three_table_bundle({
         "document_type": "pfmea",
         "schema_version": "minos-core.generated.v1",
         "source_document_type": candidates_bundle.get(
@@ -47,7 +48,7 @@ def generate_pfmea_from_candidates(
             "requires_engineering_review": True,
             "source_process_step_ids": sorted(steps_by_id),
         },
-    }
+    }, document_type="pfmea", row_key="rows")
 
 
 def _steps_by_id(candidates_bundle: dict[str, Any]) -> dict[str, dict[str, Any]]:

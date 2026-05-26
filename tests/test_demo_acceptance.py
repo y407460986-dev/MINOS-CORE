@@ -4,6 +4,7 @@ import json
 import io
 import tempfile
 import unittest
+import zipfile
 from contextlib import redirect_stdout
 from pathlib import Path
 
@@ -89,6 +90,23 @@ class DemoAcceptanceTests(unittest.TestCase):
 
             self.assertFalse(manifest_summary.ok)
             self.assertIn("manifest must be a non-empty object", manifest_summary.errors)
+
+    def test_xlsx_check_rejects_zip_that_openpyxl_cannot_open(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workbook = Path(tmpdir) / "fake.xlsx"
+            with zipfile.ZipFile(workbook, "w") as archive:
+                archive.writestr("[Content_Types].xml", "<Types/>")
+                archive.writestr("_rels/.rels", "<Relationships/>")
+                archive.writestr(
+                    "xl/workbook.xml",
+                    "<workbook><sheets><sheet name='Sheet1'/></sheets></workbook>",
+                )
+                archive.writestr("xl/worksheets/sheet1.xml", "<worksheet/>")
+
+            check = check_xlsx_zip_openable(workbook)
+
+            self.assertFalse(check.ok)
+            self.assertTrue(any("openpyxl" in error for error in check.errors), check.errors)
 
     def test_demo_drawing_and_acceptance_cli_commands(self):
         with tempfile.TemporaryDirectory() as tmpdir:

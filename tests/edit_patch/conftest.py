@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import copy
+from pathlib import Path
 
 from minos_core.adapters.fixture_json import load_fixture_payload
 
 
-ROOT_FIXTURE = "D:/MINOS-CORE/tests/fixtures/apqp_chain"
+ROOT_FIXTURE = str(Path(__file__).parents[1] / "fixtures" / "apqp_chain")
 NS = {"main": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
 
 

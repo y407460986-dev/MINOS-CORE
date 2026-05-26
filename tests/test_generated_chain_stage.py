@@ -70,6 +70,22 @@ def _stage_statuses_are_ok(testcase, results):
             testcase.assertTrue(result.quality_gate.can_continue)
 
 
+def _assert_canonical_row_contract(testcase, row):
+    for field in (
+        "schema_version",
+        "evidence_refs",
+        "confidence",
+        "ai_inferred",
+        "needs_confirmation",
+    ):
+        testcase.assertIn(field, row)
+    testcase.assertEqual(row["schema_version"], "minos-core.generated.v1")
+    testcase.assertIsInstance(row["evidence_refs"], list)
+    testcase.assertIsInstance(row["confidence"], float)
+    testcase.assertIsInstance(row["ai_inferred"], bool)
+    testcase.assertIsInstance(row["needs_confirmation"], bool)
+
+
 class GeneratedChainStageTests(unittest.TestCase):
     def test_generated_pipeline_contract_from_evidence_to_audit(self):
         ingest_result = run_stage(EVIDENCE_INPUT, stage="ingest")
@@ -166,6 +182,103 @@ class GeneratedChainStageTests(unittest.TestCase):
         self.assertEqual(audit_report.counts["process_steps"], len(draft["process_steps"]))
         self.assertEqual(audit_report.counts["failure_modes"], len(draft["failure_modes"]))
         self.assertEqual(audit_report.counts["controls"], len(draft["controls"]))
+
+    def test_assembled_chain_keeps_canonical_three_table_bundles(self):
+        process_flow = {
+            "document_type": "process_flow",
+            "schema_version": "minos-core.generated.v1",
+            "product": {"part_name": "Demo"},
+            "evidence": [{"evidence_id": "EV-P10", "source": "fixture"}],
+            "steps": [
+                {
+                    "process_step_id": "P10",
+                    "operation": "piercing",
+                    "special_characteristics": ["SC-HOLE-POS"],
+                    "evidence_refs": ["EV-P10"],
+                    "confidence": 0.86,
+                    "ai_inferred": True,
+                    "needs_confirmation": False,
+                }
+            ],
+        }
+        pfmea = {
+            "document_type": "pfmea",
+            "schema_version": "minos-core.generated.v1",
+            "rows": [
+                {
+                    "pfmea_id": "PFMEA-P10-01",
+                    "process_step_id": "P10",
+                    "failure_mode": "hole position out of tolerance",
+                    "failure_effect": "assembly issue",
+                    "failure_cause": "pin wear",
+                    "severity": 8,
+                    "occurrence": 4,
+                    "detection": 5,
+                    "action_priority": "M",
+                    "special_characteristic_class": "SC",
+                    "special_characteristics": "SC",
+                    "characteristic_refs": ["SC-HOLE-POS"],
+                    "evidence_refs": ["EV-P10"],
+                    "confidence": 0.8,
+                    "ai_inferred": True,
+                    "needs_confirmation": False,
+                }
+            ],
+        }
+        control_plan = {
+            "document_type": "control_plan",
+            "schema_version": "minos-core.generated.v1",
+            "rows": [
+                {
+                    "control_plan_id": "CP-P10-01",
+                    "process_step_id": "P10",
+                    "pfmea_id": "PFMEA-P10-01",
+                    "process_name": "piercing",
+                    "special_characteristic_class": "SC",
+                    "characteristic_refs": ["SC-HOLE-POS"],
+                    "evidence_refs": ["EV-P10"],
+                    "confidence": 0.78,
+                    "ai_inferred": True,
+                    "needs_confirmation": False,
+                }
+            ],
+        }
+
+        draft = _call_assemble_generated_apqp_chain(
+            pfd=process_flow,
+            brainstorm={},
+            pfmea=pfmea,
+            control_plan=control_plan,
+        )
+
+        self.assertEqual(draft["document_type"], "apqp_chain")
+        for bundle_key, row_key in (
+            ("process_flow", "steps"),
+            ("pfmea", "rows"),
+            ("control_plan", "rows"),
+        ):
+            with self.subTest(bundle=bundle_key):
+                bundle = draft[bundle_key]
+                self.assertEqual(bundle["document_type"], bundle_key)
+                self.assertEqual(bundle["schema_version"], "minos-core.generated.v1")
+                self.assertTrue(bundle[row_key])
+                _assert_canonical_row_contract(self, bundle[row_key][0])
+
+        self.assertEqual(
+            draft["pfmea"]["rows"][0]["special_characteristic_class"], "SC"
+        )
+        self.assertEqual(
+            draft["pfmea"]["rows"][0]["characteristic_refs"], ["SC-HOLE-POS"]
+        )
+        self.assertEqual(
+            draft["control_plan"]["rows"][0]["special_characteristic_class"], "SC"
+        )
+        self.assertEqual(
+            draft["control_plan"]["rows"][0]["characteristic_refs"], ["SC-HOLE-POS"]
+        )
+        self.assertIs(draft["process_steps"], draft["process_flow"]["steps"])
+        self.assertIs(draft["failure_modes"], draft["pfmea"]["rows"])
+        self.assertIs(draft["controls"], draft["control_plan"]["rows"])
 
     def test_generate_draft_pipeline_api_returns_draft_envelope(self):
         from minos_core.pipeline import DRAFT_WARNING, generate_draft

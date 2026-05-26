@@ -3,7 +3,9 @@
  * Connects to GET /api/runs/{runId}/chain/{stage}/stream
  */
 
-import { getApiBaseUrl } from "./client";
+import { getApiBaseUrl, getBootstrap } from "./client";
+
+const BUILD_TIME_API_TOKEN = import.meta.env.VITE_MINOS_API_TOKEN ?? "";
 
 export type StepCompleteEvent = {
   type: "step_complete";
@@ -72,21 +74,26 @@ export function subscribeToChainStream(
   stage: "pfmea" | "cp",
   handlers: StreamHandlers,
 ): () => void {
-  const baseUrl = getApiBaseUrl();
-  const url = `${baseUrl}/api/runs/${runId}/chain/${stage}/stream`;
   const MAX_RETRIES = 5;
   let closed = false;
   let retryCount = 0;
   let retryTimer: number | undefined;
   let currentEs: EventSource | null = null;
+  let runtimeBaseUrl = getApiBaseUrl();
+  let runtimeToken = "";
 
   function resetRetryCount() {
     retryCount = 0;
   }
 
+  function streamUrl() {
+    const tokenQuery = runtimeToken ? `?token=${encodeURIComponent(runtimeToken)}` : "";
+    return `${runtimeBaseUrl}/api/runs/${runId}/chain/${stage}/stream${tokenQuery}`;
+  }
+
   function connect() {
     if (closed) return;
-    const es = new EventSource(url);
+    const es = new EventSource(streamUrl());
     currentEs = es;
 
     es.onopen = () => {
@@ -161,7 +168,26 @@ export function subscribeToChainStream(
     };
   }
 
-  connect();
+  async function configureStreamAuth() {
+    const bootstrap = await getBootstrap();
+    runtimeBaseUrl = bootstrap.apiBaseUrl || runtimeBaseUrl;
+    const apiToken = bootstrap.apiToken || BUILD_TIME_API_TOKEN;
+    if (!apiToken) return;
+    const response = await fetch(`${runtimeBaseUrl}/api/sse-token`, {
+      headers: { Authorization: `Bearer ${apiToken}` },
+    });
+    if (!response.ok) {
+      return;
+    }
+    const body = await response.json() as { token?: string };
+    runtimeToken = body.token || "";
+  }
+
+  void configureStreamAuth()
+    .catch(() => {
+      /* keep build-time token or unauthenticated local mode */
+    })
+    .finally(connect);
 
   return () => {
     closed = true;

@@ -21,6 +21,7 @@ from ._text_utils import string_list
 from .stage import assemble_generated_apqp_chain as _assemble_generated_apqp_chain
 from .three_table_result import (
     build_three_table_generation_envelope,
+    build_canonical_three_table_bundle,
     dedupe_strings as _dedupe_strings,
     three_table_manual_review as _three_table_manual_review,
     three_table_status_display as _three_table_status_display,
@@ -1123,9 +1124,20 @@ def _assemble_three_table_chain(
     """
     from .knowledge_recommendation import recommend_from_knowledge
 
+    canonical = build_canonical_three_table_bundle(
+        process_flow=process_flow,
+        pfmea=pfmea,
+        control_plan=control_plan,
+    )
+    process_flow = canonical["process_flow"]
+    pfmea = canonical["pfmea"]
+    control_plan = canonical["control_plan"]
     chain = {
         "document_type": "apqp_chain",
         "schema_version": "minos-core.generated.v1",
+        "process_flow": process_flow,
+        "pfmea": pfmea,
+        "control_plan": control_plan,
         "product": process_flow.get("product", {}),
         "drawings": process_flow.get("drawings", []),
         "characteristics": process_flow.get("characteristics", []),
@@ -1257,12 +1269,17 @@ def _three_table_generation_envelope(
     part_family_classification: dict[str, Any] | None = None,
     family_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    return build_three_table_generation_envelope(
-        status=status,
-        drawing_analysis=drawing_analysis,
+    canonical = build_canonical_three_table_bundle(
         process_flow=process_flow,
         pfmea=pfmea,
         control_plan=control_plan,
+    )
+    return build_three_table_generation_envelope(
+        status=status,
+        drawing_analysis=drawing_analysis,
+        process_flow=canonical["process_flow"],
+        pfmea=canonical["pfmea"],
+        control_plan=canonical["control_plan"],
         chain=chain,
         quality_gates=quality_gates,
         exports=exports,

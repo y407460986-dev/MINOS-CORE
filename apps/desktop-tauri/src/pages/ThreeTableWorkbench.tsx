@@ -6,7 +6,7 @@ import type { ChainState, DesktopRun, TableKind, WorkbenchRow } from "../api/typ
 import { PreviewRail } from "../components/PreviewRail";
 import { PfdFlowDiagram } from "../components/PfdFlowDiagram";
 import { SegmentedControl } from "../components/SegmentedControl";
-import { ChainStepper } from "../components/ChainStepper";
+import { ChainStepper, type GenerationProgress } from "../components/ChainStepper";
 import { WorkbenchTable, type PfdNewRowDraft } from "../components/WorkbenchTable";
 import { filterRows, initialFilters, processFlowStepsFromRows, rowsFromResult, softDeletedRowsFromResult, type WorkbenchFilters } from "../state/workbench-store";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,7 @@ function stepIdsFrom(value: unknown): string[] {
 export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onRunUpdated }: ThreeTableWorkbenchProps) {
   const [filters, setFilters] = useState<WorkbenchFilters>(initialFilters);
   const [saveState, setSaveState] = useState("");
+  const [liveProgress, setLiveProgress] = useState<Partial<Record<"pfmea" | "cp", GenerationProgress>>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [lastSoftDeletedRows, setLastSoftDeletedRows] = useState<WorkbenchRow[]>([]);
   const sourceRows = useMemo(() => rowsFromResult(run?.current_result), [run]);
@@ -198,20 +199,52 @@ export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onR
   }
 
   const sseCleanupRef = useRef<(() => void) | null>(null);
+  const activeStreamKeyRef = useRef("");
 
   useEffect(() => {
     return () => { sseCleanupRef.current?.(); };
   }, []);
 
-  function startStreamingProgress(runId: number, stage: "pfmea" | "cp", runningMessage: string) {
+  function clearStreamingProgress() {
+    activeStreamKeyRef.current = "";
     sseCleanupRef.current?.();
+    sseCleanupRef.current = null;
+  }
+
+  function startStreamingProgress(runId: number, stage: "pfmea" | "cp", runningMessage: string) {
+    const streamKey = `${runId}:${stage}`;
+    if (activeStreamKeyRef.current === streamKey) return;
+    clearStreamingProgress();
+    activeStreamKeyRef.current = streamKey;
     setSaveState(runningMessage);
+    setLiveProgress((current) => ({
+      ...current,
+      [stage]: {},
+    }));
 
     const cleanup = subscribeToChainStream(runId, stage, {
       onProgress: (event) => {
+        setLiveProgress((current) => ({
+          ...current,
+          [stage]: {
+            stepIndex: event.step_index,
+            totalSteps: event.total_steps,
+            rowsSoFar: event.rows_so_far,
+            stepId: event.step_id,
+          },
+        }));
         setSaveState(`${runningMessage}（${event.step_index + 1}/${event.total_steps} 步，已生成 ${event.rows_so_far} 行）`);
       },
       onStepFailed: (event) => {
+        setLiveProgress((current) => ({
+          ...current,
+          [stage]: {
+            stepIndex: event.step_index,
+            totalSteps: event.total_steps,
+            rowsSoFar: event.rows_so_far,
+            failedStepId: event.step_id,
+          },
+        }));
         setSaveState(`${runningMessage}（${event.step_id} 生成失败，继续生成中；已生成 ${event.rows_so_far} 行）`);
       },
       onConnectionStateChange: (state, retryCount) => {
@@ -220,16 +253,24 @@ export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onR
         }
       },
       onDone: async (event) => {
-        sseCleanupRef.current = null;
+        clearStreamingProgress();
+        setLiveProgress((current) => ({
+          ...current,
+          [stage]: undefined,
+        }));
         const latest = await getRun(runId);
         onRunUpdated?.(latest);
+        if (event.status === "running") {
+          pollRunUntil(runId, stage, "阶段生成仍在后台运行，已切换为状态轮询...");
+          return;
+        }
         setSaveState(event.status === "failed"
           ? `生成失败：${event.failure_message || "未知错误"}`
           : `已完成，共生成 ${event.total_rows} 行。`
         );
       },
       onError: async () => {
-        sseCleanupRef.current = null;
+        clearStreamingProgress();
         try {
           const latest = await getRun(runId);
           onRunUpdated?.(latest);
@@ -246,6 +287,25 @@ export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onR
 
     sseCleanupRef.current = cleanup;
   }
+
+  useEffect(() => {
+    if (!run) {
+      clearStreamingProgress();
+      setLiveProgress({});
+      return;
+    }
+    const runningStage = pfmeaStatus === "running" ? "pfmea" : cpStatus === "running" ? "cp" : null;
+    if (!runningStage) {
+      clearStreamingProgress();
+      setLiveProgress({});
+      return;
+    }
+    startStreamingProgress(
+      run.id,
+      runningStage,
+      runningStage === "pfmea" ? "失效模式分析正在生成" : "控制计划正在生成",
+    );
+  }, [run?.id, pfmeaStatus, cpStatus]);
 
   function pollRunUntil(runId: number, stage: "pfmea" | "cp", runningMessage: string) {
     setSaveState(runningMessage);
@@ -495,6 +555,7 @@ export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onR
           chainState={chainStagesFromRun(run)}
           run={run}
           isGenerating={pfmeaStatus === "running" || cpStatus === "running"}
+          liveProgress={liveProgress}
           compact
           readOnly
           title="阶段"

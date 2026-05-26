@@ -5,8 +5,10 @@ import tempfile
 import unittest
 from datetime import datetime
 from pathlib import Path
-from xml.etree import ElementTree
 from zipfile import ZipFile
+
+import pytest
+from openpyxl import load_workbook
 
 from minos_core.adapters.multimodal import OpenAIResponsesMultimodalDrawingAnalyzer
 from minos_core.ai_config import load_openai_responses_config
@@ -15,6 +17,8 @@ from minos_core.drawing_input import load_drawing_source, render_drawing_pages
 from minos_core.exporters.three_table_workbooks import export_three_table_workbook
 from minos_core.pipeline import generate_three_tables_from_drawing
 
+
+pytestmark = [pytest.mark.real_api, pytest.mark.acceptance]
 
 RUN_REAL_ENV = "MINOS_RUN_REAL_ACCEPTANCE"
 REAL_DRAWING_ENV = "MINOS_REAL_DRAWING_PATH"
@@ -120,25 +124,24 @@ def _real_output_dir() -> Path:
 def _assert_xlsx_can_open(path: Path) -> None:
     if not path.exists():
         raise AssertionError(f"xlsx does not exist: {path}")
-    with ZipFile(path) as archive:
-        names = set(archive.namelist())
-        required = {
-            "[Content_Types].xml",
-            "_rels/.rels",
-            "xl/workbook.xml",
-            "xl/_rels/workbook.xml.rels",
-        }
-        missing = required - names
-        if missing:
-            raise AssertionError(f"xlsx missing OpenXML parts: {sorted(missing)}")
-        ElementTree.fromstring(archive.read("xl/workbook.xml"))
+    workbook = load_workbook(path, data_only=False, read_only=True)
+    try:
+        if not workbook.sheetnames:
+            raise AssertionError(f"xlsx has no sheets: {path}")
+        for sheet_name in workbook.sheetnames:
+            worksheet = workbook[sheet_name]
+            for _row in worksheet.iter_rows(values_only=True):
+                pass
+    finally:
+        workbook.close()
 
 
 def _sheet_names(path: Path) -> list[str]:
-    ns = {"main": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
-    with ZipFile(path) as archive:
-        workbook = ElementTree.fromstring(archive.read("xl/workbook.xml"))
-    return [node.attrib["name"] for node in workbook.findall(".//main:sheet", ns)]
+    workbook = load_workbook(path, data_only=False, read_only=True)
+    try:
+        return list(workbook.sheetnames)
+    finally:
+        workbook.close()
 
 
 def _xlsx_text(path: Path) -> str:

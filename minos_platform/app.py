@@ -27,17 +27,31 @@ from minos_platform.routers import (
 logger = logging.getLogger(__name__)
 
 
+def _allow_no_auth() -> bool:
+    return os.getenv("MINOS_PLATFORM_ALLOW_NO_AUTH", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize the async SQLite engine on startup, close it on shutdown."""
     db_url = config.get_db_url()
     await db.init_db(db_url)
     token = os.getenv("MINOS_PLATFORM_API_TOKEN")
-    if not token:
+    if not token and _allow_no_auth():
         logger.warning(
-            "MINOS_PLATFORM_API_TOKEN is not set — platform API is running "
-            "without authentication. Set the environment variable to enable "
-            "Bearer token auth."
+            "MINOS_PLATFORM_API_TOKEN is not set and MINOS_PLATFORM_ALLOW_NO_AUTH "
+            "is enabled — platform API is running without authentication."
+        )
+    elif not token:
+        logger.warning(
+            "MINOS_PLATFORM_API_TOKEN is not set — platform API will reject "
+            "requests until a bearer token is configured, unless "
+            "MINOS_PLATFORM_ALLOW_NO_AUTH enables local dev mode."
         )
     yield
     if db._engine is not None:
@@ -68,17 +82,19 @@ app.add_middleware(
 @app.middleware("http")
 async def platform_auth_middleware(request: Request, call_next):
     token = os.getenv("MINOS_PLATFORM_API_TOKEN")
-    if token:
-        authorization = request.headers.get("Authorization")
-        expected = f"Bearer {token}"
-        if authorization != expected:
-            return JSONResponse(
-                status_code=401,
-                content={
-                    "detail": "missing or invalid Authorization bearer token",
-                    "code": "UNAUTHORIZED",
-                },
-            )
+    if not token and _allow_no_auth():
+        return await call_next(request)
+
+    authorization = request.headers.get("Authorization")
+    expected = f"Bearer {token}" if token else ""
+    if authorization != expected:
+        return JSONResponse(
+            status_code=401,
+            content={
+                "detail": "missing or invalid Authorization bearer token",
+                "code": "UNAUTHORIZED",
+            },
+        )
     response = await call_next(request)
     return response
 

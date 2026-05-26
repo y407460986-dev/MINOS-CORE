@@ -64,6 +64,28 @@ class OpenAIResponsesMultimodalDrawingAnalyzerTests(unittest.TestCase):
 
         self.assertEqual(analyzer._responses_url(), "https://proxy.example/v1/responses")
 
+    def test_rejects_remote_http_base_url(self):
+        with self.assertRaisesRegex(OpenAIMultimodalError, "HTTPS"):
+            OpenAIResponsesMultimodalDrawingAnalyzer(
+                api_key="test-key",
+                base_url="http://proxy.example/v1",
+                model="gpt-test",
+                responses_path="responses",
+            )
+
+    def test_allows_local_http_base_url(self):
+        analyzer = OpenAIResponsesMultimodalDrawingAnalyzer(
+            api_key="test-key",
+            base_url="http://127.0.0.1:11434/v1",
+            model="gpt-test",
+            responses_path="responses",
+        )
+
+        self.assertEqual(
+            analyzer._responses_url(),
+            "http://127.0.0.1:11434/v1/responses",
+        )
+
     def test_rejects_unsupported_wire_api_before_network_call(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             codex_home = Path(tmpdir)

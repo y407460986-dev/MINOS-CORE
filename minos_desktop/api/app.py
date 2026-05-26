@@ -72,7 +72,6 @@ def create_app(
             dependencies=protected_dependencies,
         )
 
-    # SSE router — no auth required (read-only progress stream, local desktop only)
     app.include_router(sse_router)
 
     @app.exception_handler(APIError)
@@ -83,6 +82,7 @@ def create_app(
                 "detail": exc.detail,
                 "code": exc.code,
                 "failure_message": exc.failure_message,
+                **exc.extra,
             },
         )
 

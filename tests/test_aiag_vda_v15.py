@@ -97,6 +97,25 @@ class AIAGVDAV15Tests(unittest.TestCase):
         self.assertNotIn("rpn", row)
         self.assertNotIn("after_rpn", row)
 
+    def test_pfmea_normalization_recalculates_conflicting_action_priority(self):
+        row = normalize_pfmea_row(
+            {
+                "severity": 9,
+                "occurrence": 3,
+                "detection": 5,
+                "action_priority": "M",
+                "AP": "M",
+                "after_severity": 9,
+                "after_occurrence": 2,
+                "after_detection": 5,
+                "after_ap": "L",
+            }
+        )
+
+        self.assertEqual(row["AP"], "H")
+        self.assertEqual(row["action_priority"], "H")
+        self.assertEqual(row["after_ap"], "H")
+
     def test_action_closure_blocks_high_ap_missing_owner_due_date_and_after_scores(self):
         row = normalize_pfmea_row(
             {

@@ -112,7 +112,7 @@ def normalize_pfmea_row(row: dict[str, Any], process_step: dict[str, Any] | None
     severity = bounded_rating(normalized.get("severity", normalized.get("S")), default=5)
     occurrence = bounded_rating(normalized.get("occurrence", normalized.get("O")), default=3)
     detection = bounded_rating(normalized.get("detection", normalized.get("D")), default=6)
-    ap = text(normalized.get("action_priority"), normalized.get("AP"), calculate_ap(severity, occurrence, detection)).upper()
+    ap = calculate_ap(severity, occurrence, detection)
     preventive_action = text(
         normalized.get("preventive_action"),
         normalized.get("recommended_preventive_action"),
@@ -234,14 +234,11 @@ def normalize_pfmea_row(row: dict[str, Any], process_step: dict[str, Any] | None
     if after_d not in {None, ""}:
         normalized["after_detection"] = bounded_rating(after_d, default=detection)
     if all(normalized.get(field) not in {None, ""} for field in ("after_severity", "after_occurrence", "after_detection")):
-        normalized["after_ap"] = text(
-            normalized.get("after_ap"),
-            calculate_ap(
-                normalized["after_severity"],
-                normalized["after_occurrence"],
-                normalized["after_detection"],
-            ),
-        ).upper()
+        normalized["after_ap"] = calculate_ap(
+            normalized["after_severity"],
+            normalized["after_occurrence"],
+            normalized["after_detection"],
+        )
     return normalized
 
 

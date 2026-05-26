@@ -3,6 +3,7 @@
 import unittest
 
 from minos_core.domain import TraceLinkType
+from minos_core.three_table_linkage import build_three_table_linkage_map
 
 
 FIXTURE_PROCESS_FLOW = {
@@ -408,6 +409,62 @@ class TraceLinkGenerationTests(unittest.TestCase):
         self.assertIn("CAND-001", cand_ids)
         self.assertIn("CAND-002", cand_ids)
         self.assertNotIn("CAND-003", cand_ids, "Orphan CAND-003 should be excluded")
+
+    def test_linkage_map_confidence_uses_conservative_row_and_evidence_values(self):
+        """Linkage-map confidence should not average away weak evidence."""
+        source = {
+            "process_flow": {
+                "steps": [
+                    {
+                        "process_step_id": "STEP-01",
+                        "operation": "来料检验",
+                        "evidence_refs": ["EV-STEP-1"],
+                        "confidence": 0.92,
+                    }
+                ],
+            },
+            "pfmea": {
+                "rows": [
+                    {
+                        "pfmea_id": "FM-001",
+                        "process_step_id": "STEP-01",
+                        "failure_mode": "来料厚度不符合规格",
+                        "evidence_refs": ["EV-PFMEA-1", "EV-PFMEA-2"],
+                        "confidence": 0.88,
+                    }
+                ],
+            },
+            "control_plan": {
+                "rows": [
+                    {
+                        "control_plan_id": "CP-001",
+                        "pfmea_id": "FM-001",
+                        "evidence_refs": ["EV-CP-1"],
+                        "confidence": 0.76,
+                    }
+                ],
+            },
+            "evidence": [
+                {"evidence_id": "EV-PFMEA-1", "confidence": 0.81},
+                {"evidence_id": "EV-PFMEA-2", "confidence": 0.67},
+                {"evidence_id": "EV-CP-1", "confidence": 0.95},
+            ],
+        }
+
+        linkage = build_three_table_linkage_map(source)
+        pfd_pfmea_link = next(
+            link
+            for link in linkage["links"]
+            if link["link_type"] == TraceLinkType.PFD_TO_PFMEA.value
+        )
+        pfmea_cp_link = next(
+            link
+            for link in linkage["links"]
+            if link["link_type"] == TraceLinkType.PFMEA_TO_CP.value
+        )
+
+        self.assertAlmostEqual(pfd_pfmea_link["confidence"], 0.67)
+        self.assertAlmostEqual(pfmea_cp_link["confidence"], 0.76)
 
 
 if __name__ == "__main__":

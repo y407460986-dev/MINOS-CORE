@@ -141,8 +141,8 @@ def export_edited_three_tables(
     if export_mode not in {"draft", "final"}:
         raise EditPatchError("export_mode must be 'draft' or 'final'")
     gate_result = evaluate_edit_export_gate(source)
-    # Export is always allowed.  Warnings are included in the result for
-    # the caller to display without blocking the user.
+    if export_mode == "final" and not gate_result["final_export_allowed"]:
+        raise EditPatchError("final export is blocked until the export gate is cleared")
 
     target_dir = Path(output_dir)
     target_dir.mkdir(parents=True, exist_ok=True)

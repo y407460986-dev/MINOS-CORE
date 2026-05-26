@@ -123,6 +123,9 @@ def _normalize_drawing_analysis_payload(
         "dimensions": _normalize_analysis_items(payload.get("dimensions")),
         "tolerances": _normalize_analysis_items(payload.get("tolerances")),
         "special_characteristics": _normalize_analysis_items(payload.get("special_characteristics")),
+        "sub_components": _normalize_analysis_items(
+            payload.get("sub_components", payload.get("subComponents"))
+        ),
         "technical_requirements": _normalize_analysis_items(payload.get("technical_requirements")),
         "inspection_requirements": _normalize_analysis_items(payload.get("inspection_requirements")),
         "manufacturing_clues": _normalize_analysis_items(payload.get("manufacturing_clues")),
@@ -165,6 +168,7 @@ def _drawing_analysis_report(bundle: dict[str, Any]) -> dict[str, Any]:
         "materials",
         "dimensions",
         "special_characteristics",
+        "sub_components",
         "technical_requirements",
         "manufacturing_clues",
     ):
@@ -225,6 +229,7 @@ def _validate_all_refs_exist(bundle: dict[str, Any], evidence_ids: set[str]) -> 
         "dimensions",
         "tolerances",
         "special_characteristics",
+        "sub_components",
         "technical_requirements",
         "inspection_requirements",
         "manufacturing_clues",
@@ -387,6 +392,7 @@ def _repair_page_evidence_refs(
         "dimensions",
         "tolerances",
         "special_characteristics",
+        "sub_components",
         "technical_requirements",
         "inspection_requirements",
         "manufacturing_clues",

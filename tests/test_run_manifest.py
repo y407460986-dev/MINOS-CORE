@@ -16,7 +16,7 @@ from minos_core.run_manifest import (
 )
 
 
-ROOT_FIXTURE = "D:/MINOS-CORE/tests/fixtures/apqp_chain"
+ROOT_FIXTURE = str(Path(__file__).parent / "fixtures" / "apqp_chain")
 
 
 class RunManifestTests(unittest.TestCase):

@@ -24,6 +24,13 @@ class RuntimePathsTest(unittest.TestCase):
         self.assertNotIn('"minos_core.pipeline"', spec_text)
         self.assertNotIn('"minos_desktop.api.app"', spec_text)
 
+    def test_sidecar_build_script_places_internal_next_to_root_exe(self):
+        script_text = Path("scripts/build_sidecar.ps1").read_text(encoding="utf-8")
+
+        self.assertIn('$destInternal = Join-Path $dest "_internal"', script_text)
+        self.assertIn('Copy-Item -Recurse -Force $sourceInternal $destInternal', script_text)
+        self.assertIn('python311.dll', script_text)
+
     def test_desktop_api_entrypoint_restores_missing_standard_streams(self):
         import scripts.entrypoint_desktop_api as entrypoint
 

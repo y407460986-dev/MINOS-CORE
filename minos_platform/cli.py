@@ -10,7 +10,7 @@ import sys
 def main(argv: list[str] | None = None) -> int:
     """Start the uvicorn server for minos_platform."""
     parser = argparse.ArgumentParser(prog="minos-platform")
-    parser.add_argument("--host", default="0.0.0.0")
+    parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
     try:
         args = parser.parse_args(argv)

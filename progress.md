@@ -1,5 +1,44 @@
 ## 当前主目标：AI 图纸驱动三表生成工具
 
+## 当前安装版打开/导入报错修复与重新封包状态
+
+- 已定位：旧安装目录 `E:\MINOS-CORE` 的最新失败 run 卡在 PFD 阶段，原始错误是 `MinerUOCRAdapter requires a parser or MinerU command...`，说明当时默认导入路径走到了外部 MinerU，但安装包没有内置或配置 MinerU。
+- 已修复：安装版冻结环境不再读取 Codex 私有 MinerU MCP 配置；只有显式设置 `MINOS_ALLOW_CODEX_MINERU_CONFIG=1` 才允许开发机兜底。
+- 已修复：桌面项目创建、运行链路和 Tauri 导入页默认 `ocr_engine` 改为 `rapidocr`；显式传 `mineru`、`pdf_text`、`rapidocr` 仍保留。
+- 已补强：旧项目缺少 `context.ocr_engine` 时，API 序列化默认也返回 `rapidocr`，避免界面显示和运行链路不一致。
+- 已修复：`scripts/build_sidecar.ps1` 会把 PyInstaller one-folder 的 `_internal` 复制到 Tauri sidecar exe 同级，并校验 `_internal\python311.dll`，避免安装后 Python DLL 弹窗。
+- 已验证：`python -m pytest tests/test_desktop_api_ocr_mode.py tests/test_desktop_tauri_app_state.py tests/test_mineru_ocr_adapter.py tests/desktop/test_shell.py tests/test_runtime_paths.py -q`：65 项通过，3 个 subtests 通过。
+- 已验证：构建出的 sidecar 真实启动 smoke 通过，`/api/health` 返回 `status=ok`，新建项目默认 `ocr_engine=rapidocr`，且 `_internal\python311.dll` 存在。
+- 已验证：`npm run tauri:nsis` 通过，生成 `D:\MINOS-CORE\apps\desktop-tauri\src-tauri\target\release\bundle\nsis\MINOS-CORE_1.14.0_x64-setup.exe`。
+- 已交付：安装包已复制到 `D:\MINOS-CORE\dist\build\out\MINOS-CORE_1.14.0_x64-setup.exe`，大小 `95447107` 字节，SHA256 为 `207F38DD528C00914D9DC05AD5E66031A9BACC850F408A3881382C430F4E70C4`，签名状态 `NotSigned`（本地构建使用 `--no-sign`）。
+- 已验证：使用交付安装包静默安装到临时目录成功；安装目录包含 `minos-core-desktop.exe`、`minos-desktop-api.exe`、`_internal` 和 `uninstall.exe`。
+- 已验证：临时安装目录中的 `minos-desktop-api.exe` 可启动，`/api/health` 正常，新建项目默认 `rapidocr`，`_internal\python311.dll` 存在。
+- 已验证：临时安装目录中的 `minos-core-desktop.exe` 可启动，并能拉起同目录 `minos-desktop-api.exe`；验证后已关闭进程并清理临时目录。
+
+## V1.14.24 审查问题整改当前状态
+
+- 已完成：确认起点在 `main` 且工作区干净。
+- 已完成：创建整改分支 `codex/minos-review-remediation`。
+- 已完成：读取 Superpowers 的 `using-superpowers`、`subagent-driven-development`、`test-driven-development`、`receiving-code-review`、`verification-before-completion` 和 `using-git-worktrees` 流程要求。
+- 已完成：新增 OpenSpec 目录 `openspec/changes/v1.14.24-review-remediation/`，包含 `proposal.md`、`design.md`、`tasks.md`。
+- 已完成：`task_plan.md` 记录本轮目标、流程图、`///` 步骤和 OpenSpec 四步闭环。
+- 已完成：安全与 final export 阻断、三表合同、桌面长任务状态、CI 测试可信度、架构减重边界五条线并行推进并完成集成补丁。
+- 已完成：按 5 个并行代理复核结果补强第一轮缺口：平台 review patch 提交前做语义 dry-run，语义错误 patch 不推进项目状态；桌面备份 zip 写入日志/out 时替换已知 API key；SSE token 鉴权补测试；PFMEA/CP 重生成后台接受路由已认领的 running 状态；canonical row 剥离旧 `classification` 字段；CI 离线 job 改为直接收集全量 `python -m pytest tests -q`。
+- 已完成：`pipeline.py` 的 drawing pipeline chain 已接入 canonical three-table bundle，顶层 result 和 chain 均保留 `process_flow`、`pfmea`、`control_plan`。
+- 已完成：demo input package review patch 补充 PFD process_step 人工确认，避免严格 final gate 下遗漏行级确认。
+- 已完成：`accept-three-tables` 使用 `openpyxl.load_workbook` 打开所有 sheet，不再只检查 xlsx zip 结构。
+- 已验证：五条线聚焦测试 `python -m pytest tests/platform tests/edit_patch tests/desktop/test_sse_chain_resilience.py tests/desktop/test_services.py tests/test_desktop_api_sidecar.py tests/test_desktop_tauri_app_state.py tests/test_generated_chain_stage.py tests/test_confidence_propagation.py tests/test_generate_pfd_stage.py tests/test_generate_pfmea_stage.py tests/test_generate_control_plan_stage.py tests/three_table_workflow/test_chain_generation.py tests/three_table_workflow/test_integration.py tests/acceptance/test_real_api_acceptance.py -q -m "not real_api"`：277 项通过，1 项 deselected，21 个 subtests 通过。
+- 已验证：补强后聚焦测试 `python -m pytest tests/platform/test_review_patches.py tests/desktop/test_sse_chain_resilience.py tests/desktop/test_services.py tests/test_desktop_api_sidecar.py tests/three_table_workflow/test_chain_generation.py tests/acceptance/test_real_api_acceptance.py -q -m "not real_api"`：82 项通过，1 项 deselected。
+- 已验证：补强后三表聚焦测试 `python -m pytest tests/three_table_workflow tests/test_generated_chain_stage.py tests/test_generate_pfd_stage.py tests/test_generate_pfmea_stage.py tests/test_generate_control_plan_stage.py tests/test_confidence_propagation.py -q`：112 项通过，9 个 subtests 通过。
+- 已验证：补强后安全/桌面/CI 聚焦测试 `python -m pytest tests/platform tests/edit_patch/test_export_gate.py tests/test_desktop_api_sidecar.py tests/desktop/test_sse_chain_resilience.py tests/desktop/test_services.py tests/test_desktop_tauri_app_state.py tests/acceptance/test_real_api_acceptance.py -q -m "not real_api"`：150 项通过，1 项 deselected，12 个 subtests 通过。
+- 已验证：`python -m pytest tests -q`：975 项通过，8 项 skipped，70 个 subtests 通过。
+- 已验证：`python -m pytest tests/acceptance/test_real_api_acceptance.py -q -m "real_api and acceptance" --strict-markers --collect-only`：收集到 1 个真实 API 验收测试。
+- 已验证：`python -m pytest tests/acceptance/test_real_api_acceptance.py -q -m "real_api and acceptance" --strict-markers`：当前无真实 API 密钥环境，1 项按预期 skipped。
+- 已验证：`npm ci` 在 `apps/desktop-tauri` 通过；首次失败根因是本仓库残留 Vite dev/preview 与 esbuild 服务进程锁住 `node_modules` 下的 `esbuild.exe`，停止这些前端构建相关进程后复跑通过。
+- 已验证：`npm run build` 在 `apps/desktop-tauri` 通过，完成 TypeScript 检查和 Vite production build。
+- 已验证：OpenSpec、根文档和流程图 UTF-8 可读取；`project_flow.mmd` 节点 ID 唯一，共 57 个节点定义。
+- 已验证：`git diff --check` 通过；目标范围内未检出硬编码 `D:/MINOS-CORE` 或 `D:\MINOS-CORE`。
+
 ## V1.14.23 MinerU 默认 OCR 引擎文档同步当前状态
 
 - 已完成：确认工作区存在大量并行改动；本轮只审查和交付 MinerU 相关改动，不回滚其他改动。
@@ -1147,3 +1186,38 @@ Phase 6 真实项目试运行已完成代码落地：input_package 接入 genera
 - 已验证：`python -m pytest tests/test_desktop_tauri_app_state.py -q`：25 项通过。
 - 已验证：Tauri 前端 `npm run build` 通过；运行时配置读取显示 `https://cx.allincoding.cc`、`base_url_source=default`、`responses_path=responses`。
 - 已验证：`git diff --check` 通过，仅有 CRLF 换行提示。
+
+## V1.14.25 PFMEA 进度与门铰链 BOM 来料检验修复
+
+- 已定位：PFMEA 生成进度出现 `16/14`、`24/14` 的直接原因是 `generate_pfmea_from_confirmed_pfd()` 成功处理一个 PFD 工序后重复递增 `completed_count`，前端再用 `step_index + 1` 显示，导致分子超过 PFD 总步数。
+- 已修复：PFMEA 成功事件改为每个 PFD 工序只计一次；新增回归测试锁定两个工序完成事件为 `step_index=[0,1]`、`total_steps=[2,2]`。
+- 已确认：用户图纸右侧 BOM 表列出车身件、车门件、衬套、销轴等子件，门铰链来料检验不能只检查锻件或板料。
+- 已修复：图纸分析 bundle 新增 `sub_components` 字段，多模态 prompt 要求识别 BOM/明细表；OCR 路径支持从“序号 数量 名称 图号”行提取 BOM 子件。
+- 已修复：门铰链工艺推断知识库的锻造、冲压、级进模、冷镦轴孔路线的来料检验都扩展为按图纸 BOM 核对锻件/板料、车身件、车门件、销轴、衬套及图号、数量、版本、批次、供应商放行状态。
+- 已修复：零件族知识加载保留 process inference 的 `key_check`、产品/过程特性和多个变体模板，避免来料检查要点被去重或转换丢失。
+- 已修复：规则 PFD 与链式 LLM PFD 都会把 BOM 子件补入“来料检验”的 `input_material`、`process_function`、`product_characteristics` 和证据引用。
+- 已修复：链式 PFD prompt 的知识库路线摘要会跳过旧扁平模板，输出“工序 + 检查要点”，LLM 能看到 BOM 子件和门铰链来料检查范围。
+- 已验证：`python -m pytest tests/three_table_workflow/test_chain_generation.py tests/test_part_family_knowledge.py tests/test_drawing_to_pfd_family_context.py tests/three_table_workflow/test_drawing_analysis.py tests/test_drawing_ocr_analysis.py tests/test_ocr_drawing_analysis.py tests/desktop/test_sse_chain_resilience.py -q`：89 项通过。
+- 已验证：`python -m pytest tests/test_pipeline_part_family_context.py tests/test_pipeline_ocr_first.py tests/test_openai_multimodal_adapter.py -q`：38 项通过。
+- 已验证：`python -m pytest tests/test_desktop_api_ocr_mode.py tests/test_desktop_tauri_app_state.py -q`：38 项通过，3 个 subtests 通过。
+- 已验证：`python -m pytest tests/test_desktop_api_sidecar.py tests/desktop/test_services.py -q`：48 项通过。
+
+## V1.14.26 PFMEA 质量闸口修复
+
+- 当前状态：已完成代码修复、聚焦回归、sidecar 重建、NSIS 安装包重建与打包 sidecar smoke。
+- 已核查：桌面端真实 SQLite `C:\Users\fgtan\AppData\Local\com.minos.core.desktop\minos_desktop.sqlite3` 的 run #1 中，PFMEA 37 行存在 11 行 AP 与 S/O/D 规则不一致、9 行继承 61 个 OCR block 证据、30 行 `confidence < 0.75` 但未标记待确认。
+- 已核查：旧 PFD 快照会被启发式识别为链路疑点：`P11 表面处理镀锌 -> P09 压装衬套销轴铆接`。该判断不能覆盖人工确认，只能记录 warning 并继续生成 PFMEA。
+- 已修复：`normalize_pfmea_row()` 不再保留模型返回的 AP，统一按 S/O/D 计算 `AP/action_priority`；措施后 `after_ap` 也按 after S/O/D 计算。
+- 已修复：PFD 默认证据 fallback 优先页级证据；没有页级证据时最多取前 5 条，避免整页 OCR block 全量扩散到每个 PFD/PFMEA 行。
+- 已修复：`_row_needs_confirmation()` 对 `confidence < 0.75` 自动返回 true，和质量门规则保持一致。
+- 已修复：PFMEA 生成入口会记录 PFD 链路疑点，但不阻断人工确认后的 PFD；“表面处理后又压装/铆接/装配”和“上一工序还是零件、下一步却输入已装配总成”会进入 `metadata.pfd_chain_warnings`。
+- 已修复：独立 `PFMEA.xlsx` 导出兼容 `S/O/D/AP` 短字段，和统一三表工作簿保持一致。
+- 已验证：新增红灯测试先失败后通过，覆盖 AP 重算、after AP 重算、证据 fallback 限制、低置信度待确认、PFD 链路疑点不阻断人工确认并写 warning，以及 split PFMEA 短字段导出。
+- 已验证：`python -m pytest tests/test_aiag_vda_v15.py tests/three_table_workflow/test_chain_generation.py tests/three_table_workflow/test_integration.py tests/test_export_modes.py tests/test_quality_audit.py -q`：68 项通过，4 个 subtests 通过。
+- 已验证：`powershell -ExecutionPolicy Bypass -File .\scripts\build_release.ps1` 通过，已重建 PyInstaller sidecar、Tauri release 和 NSIS 安装包，并复制到 `dist\build\out`。
+- 已验证：安装包 `D:\MINOS-CORE\dist\build\out\MINOS-CORE_1.14.0_x64-setup.exe`，大小 95,440,847 bytes，SHA256 `1FDE253C7822BF6A226E8618F2028A8A8C9D82D53D672BE8649E65ABA8FE25CF`。
+- 已验证：`Get-AuthenticodeSignature` 显示 `NotSigned`，本地 `--no-sign` 构建未签名，符合当前构建脚本预期。
+- 已验证：打包 sidecar `apps\desktop-tauri\src-tauri\binaries\minos-desktop-api-x86_64-pc-windows-msvc.exe` 可运行，`_internal\python311.dll` 存在；带 token 调用 `http://127.0.0.1:8027/api/health` 返回 `{"ok":true,"status":"ok","service":"minos-desktop-api","version":"1.14.0"}`。
+- 已定位并修复：工作台阶段卡片只读持久化 `row_count`，没有自动接回 running 阶段 SSE，所以 PFMEA 生成时会显示“当前 0 行”；现在进入 running 阶段会自动订阅 PFMEA/CP SSE，并在阶段卡片显示 `当前步数/总步数` 与已生成行数。
+- 已验证：`python -m pytest tests/test_desktop_tauri_app_state.py tests/desktop/test_sse_chain_resilience.py tests/desktop/test_services.py tests/test_desktop_api_sidecar.py -q`：93 项通过。
+- 已验证：`npm run build` 在 `apps\desktop-tauri` 通过。

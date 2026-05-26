@@ -21,7 +21,7 @@ from minos_core.knowledge_recommendation import recommend_from_knowledge
 from minos_core.quality_gates import evaluate_export_gate
 
 
-ROOT_FIXTURE = "D:/MINOS-CORE/tests/fixtures/apqp_chain"
+ROOT_FIXTURE = str(Path(__file__).parents[1] / "fixtures" / "apqp_chain")
 
 from tests.edit_patch.conftest import _fixture, _three_table_result, ROOT_FIXTURE, NS
 
@@ -133,7 +133,9 @@ class EditPatchTests(unittest.TestCase):
         for item in p10_impacts:
             self.assertIn(item["item_id"], gate["change_impacts"])
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = export_edited_three_tables(edited, Path(tmpdir), export_mode="final")
+            with self.assertRaises(EditPatchError):
+                export_edited_three_tables(edited, Path(tmpdir), export_mode="final")
+            result = export_edited_three_tables(edited, Path(tmpdir), export_mode="draft")
             self.assertFalse(result["final_export_allowed"])
 
         restored = apply_edit_patch(
@@ -215,8 +217,8 @@ class EditPatchTests(unittest.TestCase):
         gate = evaluate_edit_export_gate(edited)
         self.assertIn("pfmea:PFMEA-P30-001", gate["soft_deleted_items"])
 
-    def test_soft_deleted_rows_excluded_from_final_export(self):
-        """软删除行不进入正式导出表（控制计划工作表不含已删行）。"""
+    def test_soft_deleted_rows_excluded_from_draft_export_when_final_is_blocked(self):
+        """软删除行不进入草案导出表；正式导出被质量门阻断。"""
         source = apply_edit_patch(
             _three_table_result(),
             {
@@ -235,7 +237,9 @@ class EditPatchTests(unittest.TestCase):
         )
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = export_edited_three_tables(source, Path(tmpdir), export_mode="final")
+            with self.assertRaises(EditPatchError):
+                export_edited_three_tables(source, Path(tmpdir), export_mode="final")
+            result = export_edited_three_tables(source, Path(tmpdir), export_mode="draft")
             workbook = Path(result["exports"]["unified_workbook"])
             self.assertTrue(workbook.exists())
             # 检查控制计划工作表（不含已删行）

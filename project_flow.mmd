@@ -5,11 +5,37 @@ flowchart TD
     A --> QG[Quality Gates]
     A --> D181[MINOS v1.8.1 子任务 D<br/>核心巨型逻辑低风险拆分]
     A --> AUD[当前调查审核与问题修复]
+    A --> RR24[V1.14.24 审查问题整改<br/>安全 合同 状态 CI 架构边界]
     AUD --> AUD1[定位真实工作区<br/>D:\MINOS-CORE]
     AUD1 --> AUD2[审核 stage / quality_gates<br/>包化兼容导入]
     AUD2 --> AUD3[运行聚焦与全量非真实 API 测试]
     AUD3 --> AUD4[修复 minos_platform CLI<br/>help 与端口参数崩溃]
     AUD4 --> AUD5[平台测试 / unittest / CLI help smoke]
+    RR24 --> RR241[建立 OpenSpec<br/>proposal design tasks]
+    RR241 --> RR242[安全与 final export 阻断]
+    RR241 --> RR243[三表 canonical contract<br/>证据与置信度贯穿]
+    RR241 --> RR244[桌面 running 状态<br/>SSE 真实终态]
+    RR241 --> RR245[CI 与测试可信度<br/>pytest desktop build Excel 打开]
+    RR241 --> RR247[架构减重边界<br/>quality_gates 副作用识别]
+    RR242 --> RR254[review patch semantic dry-run<br/>backup zip secret redaction]
+    RR243 --> RR255[canonical row<br/>retire classification alias]
+    RR244 --> RR256[PFMEA CP regenerate<br/>claimed running handoff]
+    RR245 --> RR257[full pytest collection<br/>xlsx sheet row read]
+    RR247 --> RR248[第二轮拆分顺序]
+    RR248 --> RR249[drawing analysis]
+    RR248 --> RR250[three-table generation]
+    RR248 --> RR251[chain assembly]
+    RR248 --> RR252[export facade]
+    RR247 --> RR253[quality_gates projection split]
+    RR242 --> RR246[聚焦回归与全量验证]
+    RR243 --> RR246
+    RR244 --> RR246
+    RR245 --> RR246
+    RR254 --> RR246
+    RR255 --> RR246
+    RR256 --> RR246
+    RR257 --> RR246
+    RR247 --> RR246
 
     DC --> DC1[Product]
     DC --> DC2[Drawing]
@@ -778,4 +804,33 @@ flowchart TD
     UI526 --> UI527[no InspectorPanel<br/>PreviewRail remains]
     UI527 --> UI528[drawing import page stays mounted<br/>navigation preserves run state]
     UI528 --> UI529[delivery audit<br/>UTF-8 Mermaid pytest status]
-    UI529 --> G
+    UI529 --> PKG600[installer open import failure fix<br/>Windows packaged release]
+    PKG600 --> PKG601[diagnosis<br/>old run failed on missing MinerU command]
+    PKG600 --> PKG602[sidecar runtime layout<br/>_internal python311.dll beside exe]
+    PKG601 --> PKG603[packaged default OCR<br/>rapidocr not auto MinerU]
+    PKG603 --> PKG604[legacy project serializer<br/>missing ocr_engine shows rapidocr]
+    PKG602 --> PKG605[sidecar smoke<br/>health OK rapidocr default]
+    PKG604 --> PKG605
+    PKG605 --> PKG606[NSIS rebuilt<br/>dist build out setup exe]
+    PKG606 --> PKG607[temp install verification<br/>desktop exe launches sidecar]
+    PKG607 --> G
+    PKG607 --> FIX620[PFMEA progress and hinge BOM incoming fix<br/>installer rebuild]
+    FIX620 --> FIX621[PFMEA step_index counted by PFD step<br/>no 16 over 14]
+    FIX620 --> FIX622[drawing analysis sub_components<br/>BOM table preserved]
+    FIX622 --> FIX623[OCR BOM rows<br/>item qty name drawing number]
+    FIX623 --> FIX624[door hinge process inference<br/>forging sheet pin bushing incoming checks]
+    FIX624 --> FIX625[PFD prompt route summary<br/>operation plus key checks]
+    FIX625 --> FIX626[PFD incoming inspection enrichment<br/>BOM components and evidence]
+    FIX621 --> FIX627[verification<br/>89 focused tests<br/>38 pipeline tests<br/>38 desktop UI tests<br/>48 sidecar tests]
+    FIX626 --> FIX627
+    FIX627 --> FIX628[sidecar and NSIS rebuild<br/>copy hash smoke verify]
+    FIX628 --> FIX629[workbench running stage<br/>auto reconnect SSE]
+    FIX629 --> FIX630[stage card live progress<br/>step count rows so far]
+    FIX628 --> FIX630[PFMEA quality gate fix<br/>AP evidence confidence PFD chain]
+    FIX630 --> FIX631[AP recalculated from SOD<br/>after AP recalculated]
+    FIX630 --> FIX632[evidence fallback limited<br/>page refs over OCR blocks]
+    FIX632 --> FIX633[confidence below 0.75<br/>needs confirmation]
+    FIX633 --> FIX634[PFD chain warnings<br/>manual confirmation keeps priority]
+    FIX634 --> FIX635[split PFMEA export<br/>S O D AP aliases]
+    FIX635 --> FIX636[verification<br/>68 tests plus 4 subtests<br/>sidecar NSIS smoke OK]
+    FIX636 --> G

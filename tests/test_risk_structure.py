@@ -506,6 +506,31 @@ class LinkageGapsReviewTests(unittest.TestCase):
         risk = result["process_nodes"][0]["risk_nodes"][0]
         self.assertTrue(risk["needs_review"])
 
+    def test_linkage_gap_source_target_ref_prefixes_flag_needs_review(self):
+        """Gap source/target/ref fields may include table prefixes."""
+        pfmea = dict(
+            PFMEA_P10_001,
+            needs_confirmation=False,
+            ai_inferred=False,
+            prevention_control="Some control",
+            detection_control="Some detection",
+        )
+
+        for gap in (
+            {"source": "pfmea:PFMEA-P10-001"},
+            {"target": "failure_mode:PFMEA-P10-001"},
+            {"ref": "control_plan:PFMEA-P10-001"},
+        ):
+            with self.subTest(gap=gap):
+                payload = _make_fixture(
+                    steps=[P10_STEP],
+                    pfmea=[pfmea],
+                    linkage_gaps=[gap],
+                )
+                result = build_risk_structure(payload)
+                risk = result["process_nodes"][0]["risk_nodes"][0]
+                self.assertTrue(risk["needs_review"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -6,6 +6,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Callable
@@ -82,8 +83,9 @@ class MinerUOCRAdapter:
             os.environ.get("MINOS_MINERU_COMMAND"),
             os.environ.get("MINERU_COMMAND"),
             shutil.which("mineru"),
-            _mineru_command_from_codex_config(),
         ]
+        if _allow_codex_mineru_config_fallback():
+            candidates.append(_mineru_command_from_codex_config())
         for candidate in candidates:
             if not candidate:
                 continue
@@ -227,3 +229,9 @@ def _mineru_command_from_cmd(text: str) -> str | None:
         return match.group(1).strip()
     match = re.search(r"(?im)^\s*set\s+MINERU_COMMAND=([^\r\n]+)", text)
     return match.group(1).strip().strip('"') if match else None
+
+
+def _allow_codex_mineru_config_fallback() -> bool:
+    if getattr(sys, "frozen", False):
+        return False
+    return os.environ.get("MINOS_ALLOW_CODEX_MINERU_CONFIG", "").strip() == "1"

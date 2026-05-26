@@ -63,6 +63,24 @@ class TestExtractSurfaceTreatmentFromOcrText(unittest.TestCase):
         self.assertTrue(any("镀锌" in t["name"] for t in treatments))
 
 
+class TestExtractBomFromOcrText(unittest.TestCase):
+    def test_extract_bom_sub_components_from_ocr_text(self):
+        bundle = _bundle(
+            "\n".join(
+                [
+                    "序号 数量 名称 图号",
+                    "2 1 车门铰链车身件 JLV03000501",
+                    "3 1 车门铰链盖件 JLV03000502",
+                    "4 1 衬套 BZJ01011000",
+                    "5 1 销轴 BZJ01011100",
+                ]
+            )
+        )
+
+        names = [item["part_name"] for item in bundle["sub_components"]]
+        self.assertEqual(names, ["车门铰链车身件", "车门铰链盖件", "衬套", "销轴"])
+
+
 class TestConfidenceCalculationForHighQualityOcr(unittest.TestCase):
     def test_confidence_calculation_for_high_quality_ocr(self):
         bundle = _bundle("Drawing No.: HQ-001\nPart Name: Test Part", confidence=0.98)

@@ -13,7 +13,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from minos_platform import config, db
-from minos_platform.errors import InvalidStateError, NotFoundError, map_core_error
+from minos_platform.utils import calculate_file_sha256
+from minos_platform.errors import APIError, InvalidStateError, NotFoundError, map_core_error
 from minos_platform.models import ExportResponse, TriggerExportRequest
 
 VALID_STATES_FINAL = {"review_applied"}
@@ -80,8 +81,21 @@ async def trigger_export(
         # The result JSON may be an apqp_chain_review_result envelope.
         # Extract patched_chain if present, otherwise use as-is.
         result_json = json.loads(Path(chain_input).read_text(encoding="utf-8"))
+        if result_json.get("document_type") == "apqp_chain_review_result" and not result_json.get(
+            "final_export_allowed", False
+        ):
+            raise APIError(
+                message="Final export is blocked because review quality gate did not clear",
+                code="EXPORT_GATE_BLOCKED",
+                status_code=409,
+            )
         if "patched_chain" in result_json:
             chain_input = result_json["patched_chain"]
+        if not isinstance(chain_input, dict):
+            raise HTTPException(
+                status_code=422,
+                detail="Final export requires patched_chain to be a JSON object",
+            )
     else:
         chain_input = latest_run.result_json_path
         if not chain_input or not Path(chain_input).exists():
@@ -139,6 +153,9 @@ async def trigger_export(
         session.add(artifact)
 
         if export_mode == "final":
+            actual_hash = calculate_file_sha256(exported)
+            if actual_hash != file_hash:
+                raise ValueError("exported artifact sha256 verification failed")
             project.status = "final_export_ready"
             export_run.status = "final_export_ready"
         else:

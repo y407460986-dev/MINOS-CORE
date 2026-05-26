@@ -36,6 +36,7 @@ from minos_core.pipeline_chain import (
     generate_cp_from_confirmed_pfmea,
     generate_pfd_from_drawing,
     generate_pfmea_from_confirmed_pfd,
+    _family_route_summary,
 )
 from minos_core.three_table_result import build_three_table_generation_envelope
 from minos_core.cli import main
@@ -106,6 +107,186 @@ class ChainGenerationTests(unittest.TestCase):
                 "needs_confirmation",
             ):
                 self.assertIn(field, step)
+
+    def test_chain_pfd_generation_adds_canonical_contract_and_row_provenance(self):
+        llm_payload = {
+            "steps": [
+                {
+                    "process_step_id": "P10",
+                    "operation_type": "加工",
+                    "operation": "冲压成形",
+                    "output_result": "冲压完成",
+                    "process_function": "形成安装面",
+                    "equipment": "压力机",
+                    "product_characteristics": "",
+                    "product_characteristic_class": "无",
+                    "process_characteristics": "",
+                    "process_characteristic_class": "无",
+                    "special_characteristics": [],
+                    "needs_confirmation": False,
+                }
+            ]
+        }
+        drawing_analysis = {
+            "drawing_identity": {"part_name": "Demo"},
+            "evidence": [
+                {
+                    "evidence_id": "EV-DRAW-001",
+                    "source": "drawing",
+                    "confidence": 0.91,
+                }
+            ],
+        }
+
+        with patch("minos_core.pipeline_chain.OpenAITextGenerator") as generator:
+            llm = generator.return_value
+            llm.generate_structured.return_value = llm_payload
+
+            pfd = generate_pfd_from_drawing(drawing_analysis)
+
+        call_kwargs = llm.generate_structured.call_args.kwargs
+        schema_items = (
+            call_kwargs["response_format"]["json_schema"]["schema"]["properties"]["steps"]["items"]
+        )
+        for field in ("evidence_refs", "confidence", "ai_inferred", "needs_confirmation"):
+            self.assertIn(field, schema_items["properties"])
+            self.assertIn(field, schema_items["required"])
+        self.assertIn("evidence_refs", call_kwargs["system_prompt"])
+        self.assertIn("confidence", call_kwargs["system_prompt"])
+        self.assertEqual(pfd["document_type"], "process_flow")
+        self.assertEqual(pfd["schema_version"], "minos-core.generated.v1")
+        row = pfd["steps"][0]
+        self.assertEqual(row["evidence_refs"], ["EV-DRAW-001"])
+        self.assertAlmostEqual(row["confidence"], 0.91)
+        self.assertTrue(row["ai_inferred"])
+        self.assertFalse(row["needs_confirmation"])
+
+    def test_chain_pfd_generation_does_not_fallback_to_all_ocr_blocks(self):
+        llm_payload = {
+            "steps": [
+                {
+                    "process_step_id": "P10",
+                    "operation_type": "加工",
+                    "operation": "冲压成形",
+                    "output_result": "冲压完成",
+                    "process_function": "形成安装面",
+                    "equipment": "压力机",
+                    "product_characteristics": "",
+                    "product_characteristic_class": "无",
+                    "process_characteristics": "",
+                    "process_characteristic_class": "无",
+                    "special_characteristics": [],
+                    "needs_confirmation": False,
+                }
+            ]
+        }
+        drawing_analysis = {
+            "drawing_identity": {"part_name": "Demo"},
+            "evidence": [
+                {
+                    "evidence_id": "drawing_page_001",
+                    "source": "drawing_page",
+                    "confidence": 0.91,
+                },
+                *[
+                    {
+                        "evidence_id": f"ocr_block_{i:03d}",
+                        "source": "ocr_block",
+                        "confidence": 0.91,
+                    }
+                    for i in range(1, 62)
+                ],
+            ],
+        }
+
+        with patch("minos_core.pipeline_chain.OpenAITextGenerator") as generator:
+            generator.return_value.generate_structured.return_value = llm_payload
+
+            pfd = generate_pfd_from_drawing(drawing_analysis)
+
+        row = pfd["steps"][0]
+        self.assertEqual(row["evidence_refs"], ["drawing_page_001"])
+        self.assertNotIn("ocr_block_001", row["evidence_refs"])
+
+    def test_chain_pfd_generation_expands_incoming_inspection_from_bom_items(self):
+        llm_payload = {
+            "steps": [
+                {
+                    "process_step_id": "P10",
+                    "flow_type": "inspection",
+                    "flow_symbol": "inspection",
+                    "operation_type": "检验",
+                    "operation": "来料检验",
+                    "input_material": "锻件",
+                    "output_result": "来料合格",
+                    "previous_step_ids": [],
+                    "next_step_ids": [],
+                    "process_function": "检查锻件外观和尺寸",
+                    "equipment": "来料检验台",
+                    "product_characteristics": "",
+                    "product_characteristic_class": "无",
+                    "process_characteristics": "",
+                    "process_characteristic_class": "无",
+                    "special_characteristics": [],
+                    "evidence_refs": ["EV-BOM"],
+                    "confidence": 0.88,
+                    "ai_inferred": True,
+                    "needs_confirmation": False,
+                }
+            ]
+        }
+        drawing_analysis = {
+            "drawing_identity": {"part_name": "尾门铰链总成"},
+            "sub_components": [
+                {"part_name": "锻件", "quantity": 1, "part_number": "JLV03000501", "evidence_refs": ["EV-BOM"]},
+                {"part_name": "销轴", "quantity": 1, "part_number": "BZJ01011100", "evidence_refs": ["EV-BOM"]},
+                {"part_name": "衬套", "quantity": 1, "part_number": "BZJ01011000", "evidence_refs": ["EV-BOM"]},
+            ],
+            "evidence": [{"evidence_id": "EV-BOM", "source": "drawing_bom"}],
+        }
+
+        with patch("minos_core.pipeline_chain.OpenAITextGenerator") as generator:
+            llm = generator.return_value
+            llm.generate_structured.return_value = llm_payload
+
+            pfd = generate_pfd_from_drawing(drawing_analysis)
+
+        user_prompt = llm.generate_structured.call_args.kwargs["user_prompt"]
+        self.assertIn("BOM子件", user_prompt)
+        self.assertIn("销轴", user_prompt)
+        self.assertIn("衬套", user_prompt)
+
+        incoming = pfd["steps"][0]
+        combined = " ".join(
+            str(incoming.get(field, ""))
+            for field in ("input_material", "process_function", "product_characteristics", "process_characteristics")
+        )
+        for expected in ("锻件", "销轴", "衬套"):
+            self.assertIn(expected, combined)
+
+    def test_family_route_summary_scans_process_inference_steps_and_key_checks(self):
+        route_templates = [
+            {"operation": "来料检验"},
+            {"operation": "入库"},
+            {
+                "template_id": "door-hinge-process",
+                "steps": [
+                    {
+                        "operation": "来料检验",
+                        "process_function": "锻件、销轴、衬套按BOM检验",
+                    },
+                    {
+                        "operation": "压装衬套+销轴铆接",
+                        "process_function": "压入力和转动扭矩确认",
+                    },
+                ],
+            },
+        ]
+
+        summary = _family_route_summary(route_templates)
+
+        self.assertIn("来料检验(锻件、销轴、衬套按BOM检验)", summary)
+        self.assertIn("压装衬套+销轴铆接(压入力和转动扭矩确认)", summary)
 
     def test_rule_pfd_inference_outputs_standard_flow_type_fields(self):
         pfd = infer_process_flow_from_drawing(
@@ -266,6 +447,368 @@ class ChainGenerationTests(unittest.TestCase):
         self.assertTrue(row["detection_control_timing"])
         self.assertIn("预防", row["control_logic_review"])
         self.assertIn("探测", row["control_logic_review"])
+
+    def test_chain_pfmea_contract_inherits_evidence_confidence_and_characteristics(self):
+        llm_payload = {
+            "rows": [
+                {
+                    "pfmea_id": "",
+                    "process_step_id": "P20",
+                    "process_item": "制造过程",
+                    "process_step_name": "",
+                    "structure_process_item": "制造过程",
+                    "structure_process_step": "",
+                    "structure_work_element": "压力机",
+                    "work_element_4m": "机",
+                    "function_process_item": "制造过程",
+                    "function_process_step": "",
+                    "function_work_element": "压力机稳定输出",
+                    "failure_effect": "安装孔位置偏差导致装配困难",
+                    "severity": 8,
+                    "failure_mode": "安装孔偏移",
+                    "failure_cause": "定位销磨损",
+                    "cause_process_parameter": "定位销状态",
+                    "prevention_control": "点检定位销",
+                    "prevention_control_target": "定位销磨损",
+                    "prevention_control_timing": "每班",
+                    "occurrence": 4,
+                    "detection_control": "首件检验孔位",
+                    "detection_control_target": "安装孔位置",
+                    "detection_control_timing": "首件",
+                    "detection": 5,
+                    "action_priority": "M",
+                    "special_characteristics": "无",
+                    "preventive_action": "更换定位销",
+                    "detection_action": "增加巡检",
+                    "optimization_action": "更换定位销；增加巡检",
+                    "responsible_person": "",
+                    "target_date": "",
+                    "status": "未开始",
+                    "control_logic_review": "预防和探测分列",
+                    "needs_confirmation": False,
+                }
+            ]
+        }
+        confirmed_pfd = {
+            "steps": [
+                {
+                    "process_step_id": "P20",
+                    "operation": "冲孔",
+                    "process_function": "形成安装孔",
+                    "equipment": "压力机",
+                    "product_characteristic_class": "SC",
+                    "special_characteristics": ["SC-HOLE-POS"],
+                    "evidence_refs": ["EV-PFD-020"],
+                    "confidence": 0.84,
+                }
+            ]
+        }
+
+        with patch("minos_core.pipeline_chain.OpenAITextGenerator") as generator:
+            llm = generator.return_value
+            llm.generate_structured.return_value = llm_payload
+
+            pfmea = generate_pfmea_from_confirmed_pfd({}, confirmed_pfd)
+
+        call_kwargs = llm.generate_structured.call_args.kwargs
+        schema_items = (
+            call_kwargs["response_format"]["json_schema"]["schema"]["properties"]["rows"]["items"]
+        )
+        for field in (
+            "evidence_refs",
+            "confidence",
+            "ai_inferred",
+            "needs_confirmation",
+            "special_characteristic_class",
+            "characteristic_refs",
+        ):
+            self.assertIn(field, schema_items["properties"])
+            self.assertIn(field, schema_items["required"])
+        self.assertIn("evidence_refs", call_kwargs["system_prompt"])
+        self.assertIn("confidence", call_kwargs["system_prompt"])
+
+        self.assertEqual(pfmea["document_type"], "pfmea")
+        self.assertEqual(pfmea["schema_version"], "minos-core.generated.v1")
+        row = pfmea["rows"][0]
+        self.assertEqual(row["evidence_refs"], ["EV-PFD-020"])
+        self.assertAlmostEqual(row["confidence"], 0.84)
+        self.assertTrue(row["ai_inferred"])
+        self.assertFalse(row["needs_confirmation"])
+        self.assertEqual(row["special_characteristic_class"], "SC")
+        self.assertEqual(row["characteristic_refs"], ["SC-HOLE-POS"])
+        self.assertEqual(row["special_characteristics"], "SC")
+
+    def test_chain_pfmea_recalculates_action_priority_and_marks_low_confidence(self):
+        llm_payload = {
+            "rows": [
+                {
+                    "pfmea_id": "",
+                    "process_step_id": "P20",
+                    "process_item": "制造过程",
+                    "process_step_name": "",
+                    "structure_process_item": "制造过程",
+                    "structure_process_step": "",
+                    "structure_work_element": "压力机",
+                    "work_element_4m": "机",
+                    "function_process_item": "制造过程",
+                    "function_process_step": "",
+                    "function_work_element": "压力机稳定输出",
+                    "failure_effect": "安装孔位置偏差导致装配困难",
+                    "severity": 9,
+                    "failure_mode": "安装孔偏移",
+                    "failure_cause": "定位销磨损",
+                    "cause_process_parameter": "定位销状态",
+                    "prevention_control": "点检定位销",
+                    "prevention_control_target": "定位销磨损",
+                    "prevention_control_timing": "每班",
+                    "occurrence": 3,
+                    "detection_control": "首件检验孔位",
+                    "detection_control_target": "安装孔位置",
+                    "detection_control_timing": "首件",
+                    "detection": 5,
+                    "action_priority": "M",
+                    "special_characteristics": "无",
+                    "preventive_action": "更换定位销",
+                    "detection_action": "增加巡检",
+                    "optimization_action": "更换定位销；增加巡检",
+                    "responsible_person": "",
+                    "target_date": "",
+                    "status": "未开始",
+                    "control_logic_review": "预防和探测分列",
+                    "evidence_refs": [],
+                    "confidence": 0.62,
+                    "ai_inferred": True,
+                    "needs_confirmation": False,
+                }
+            ]
+        }
+        confirmed_pfd = {
+            "steps": [
+                {
+                    "process_step_id": "P20",
+                    "operation": "冲孔",
+                    "process_function": "形成安装孔",
+                    "equipment": "压力机",
+                    "evidence_refs": ["EV-PFD-020"],
+                    "confidence": 0.84,
+                    "needs_confirmation": False,
+                }
+            ]
+        }
+
+        with patch("minos_core.pipeline_chain.OpenAITextGenerator") as generator:
+            generator.return_value.generate_structured.return_value = llm_payload
+
+            pfmea = generate_pfmea_from_confirmed_pfd({}, confirmed_pfd)
+
+        row = pfmea["rows"][0]
+        self.assertEqual(row["AP"], "H")
+        self.assertEqual(row["action_priority"], "H")
+        self.assertEqual(row["confidence"], 0.62)
+        self.assertTrue(row["needs_confirmation"])
+
+    def test_chain_pfmea_allows_manually_confirmed_surface_treatment_before_press_fit(self):
+        confirmed_pfd = {
+            "steps": [
+                {
+                    "process_step_id": "P10",
+                    "operation": "表面处理镀锌",
+                    "input_material": "已压装总成",
+                    "output_result": "表面处理后总成",
+                    "next_step_ids": ["P20"],
+                },
+                {
+                    "process_step_id": "P20",
+                    "operation": "压装衬套销轴铆接",
+                    "input_material": "表面处理后总成",
+                    "output_result": "压装完成总成",
+                    "previous_step_ids": ["P10"],
+                },
+            ]
+        }
+        payloads = [
+            {
+                "rows": [
+                    {
+                        "pfmea_id": "",
+                        "process_step_id": "P10",
+                        "process_item": "制造过程",
+                        "process_step_name": "",
+                        "structure_process_item": "制造过程",
+                        "structure_process_step": "",
+                        "structure_work_element": "电镀线",
+                        "work_element_4m": "机",
+                        "function_process_item": "制造过程",
+                        "function_process_step": "",
+                        "function_work_element": "电镀线",
+                        "failure_effect": "耐腐蚀能力不足",
+                        "severity": 8,
+                        "failure_mode": "镀层厚度不足",
+                        "failure_cause": "电镀参数偏低",
+                        "prevention_control": "电镀参数点检",
+                        "occurrence": 3,
+                        "detection_control": "镀层厚度检测",
+                        "detection": 5,
+                        "action_priority": "M",
+                        "special_characteristics": "无",
+                        "preventive_action": "",
+                        "detection_action": "",
+                        "responsible_person": "",
+                        "target_date": "",
+                        "status": "未开始",
+                        "needs_confirmation": False,
+                    }
+                ]
+            },
+            {
+                "rows": [
+                    {
+                        "pfmea_id": "",
+                        "process_step_id": "P20",
+                        "process_item": "制造过程",
+                        "process_step_name": "",
+                        "structure_process_item": "制造过程",
+                        "structure_process_step": "",
+                        "structure_work_element": "压装机",
+                        "work_element_4m": "机",
+                        "function_process_item": "制造过程",
+                        "function_process_step": "",
+                        "function_work_element": "压装机",
+                        "failure_effect": "转动卡滞",
+                        "severity": 7,
+                        "failure_mode": "衬套压装不到位",
+                        "failure_cause": "压装行程不足",
+                        "prevention_control": "压装行程点检",
+                        "occurrence": 5,
+                        "detection_control": "压装后外观检查",
+                        "detection": 5,
+                        "action_priority": "M",
+                        "special_characteristics": "无",
+                        "preventive_action": "",
+                        "detection_action": "",
+                        "responsible_person": "",
+                        "target_date": "",
+                        "status": "未开始",
+                        "needs_confirmation": False,
+                    }
+                ]
+            },
+        ]
+
+        with patch("minos_core.pipeline_chain.OpenAITextGenerator") as generator:
+            generator.return_value.generate_structured.side_effect = payloads
+
+            pfmea = generate_pfmea_from_confirmed_pfd({}, confirmed_pfd)
+
+        self.assertEqual(
+            [row["process_step_id"] for row in pfmea["rows"]],
+            ["P10", "P20"],
+        )
+        warning = pfmea["metadata"]["pfd_chain_warnings"][0]
+        self.assertEqual(warning["type"], "surface_treatment_before_assembly")
+        self.assertEqual(warning["from_step_id"], "P10")
+        self.assertEqual(warning["to_step_id"], "P20")
+        self.assertIn("人工确认", warning["message"])
+        self.assertIn("继续生成", warning["message"])
+
+    def test_chain_pfmea_allows_manually_confirmed_assembly_state_jump_between_linked_steps(self):
+        confirmed_pfd = {
+            "steps": [
+                {
+                    "process_step_id": "P10",
+                    "operation": "过程尺寸检验",
+                    "output_result": "尺寸合格的铰链零件放行至装配",
+                    "next_step_ids": ["P20"],
+                },
+                {
+                    "process_step_id": "P20",
+                    "operation": "转运表面处理",
+                    "input_material": "装配完成的尾门铰链总成",
+                    "previous_step_ids": ["P10"],
+                },
+            ]
+        }
+        payloads = [
+            {
+                "rows": [
+                    {
+                        "pfmea_id": "",
+                        "process_step_id": "P10",
+                        "process_item": "制造过程",
+                        "process_step_name": "",
+                        "structure_process_item": "制造过程",
+                        "structure_process_step": "",
+                        "structure_work_element": "检具",
+                        "work_element_4m": "机",
+                        "function_process_item": "制造过程",
+                        "function_process_step": "",
+                        "function_work_element": "检具",
+                        "failure_effect": "不合格流入后续装配",
+                        "severity": 8,
+                        "failure_mode": "尺寸误判",
+                        "failure_cause": "检具未校准",
+                        "prevention_control": "检具校准",
+                        "occurrence": 3,
+                        "detection_control": "复核记录",
+                        "detection": 5,
+                        "action_priority": "M",
+                        "special_characteristics": "无",
+                        "preventive_action": "",
+                        "detection_action": "",
+                        "responsible_person": "",
+                        "target_date": "",
+                        "status": "未开始",
+                        "needs_confirmation": False,
+                    }
+                ]
+            },
+            {
+                "rows": [
+                    {
+                        "pfmea_id": "",
+                        "process_step_id": "P20",
+                        "process_item": "制造过程",
+                        "process_step_name": "",
+                        "structure_process_item": "制造过程",
+                        "structure_process_step": "",
+                        "structure_work_element": "转运车",
+                        "work_element_4m": "机",
+                        "function_process_item": "制造过程",
+                        "function_process_step": "",
+                        "function_work_element": "转运车",
+                        "failure_effect": "表面处理前状态混淆",
+                        "severity": 7,
+                        "failure_mode": "转运状态标识错误",
+                        "failure_cause": "批次标识不清",
+                        "prevention_control": "批次标识确认",
+                        "occurrence": 3,
+                        "detection_control": "转运前复核",
+                        "detection": 5,
+                        "action_priority": "M",
+                        "special_characteristics": "无",
+                        "preventive_action": "",
+                        "detection_action": "",
+                        "responsible_person": "",
+                        "target_date": "",
+                        "status": "未开始",
+                        "needs_confirmation": False,
+                    }
+                ]
+            },
+        ]
+
+        with patch("minos_core.pipeline_chain.OpenAITextGenerator") as generator:
+            generator.return_value.generate_structured.side_effect = payloads
+
+            pfmea = generate_pfmea_from_confirmed_pfd({}, confirmed_pfd)
+
+        self.assertEqual([row["process_step_id"] for row in pfmea["rows"]], ["P10", "P20"])
+        warning = pfmea["metadata"]["pfd_chain_warnings"][0]
+        self.assertEqual(warning["type"], "assembly_state_jump")
+        self.assertEqual(warning["from_step_id"], "P10")
+        self.assertEqual(warning["to_step_id"], "P20")
+        self.assertIn("人工确认", warning["message"])
+        self.assertIn("继续生成", warning["message"])
 
     def test_chain_pfmea_generates_one_llm_request_per_confirmed_pfd_step(self):
         confirmed_pfd = {
@@ -588,6 +1131,124 @@ class ChainGenerationTests(unittest.TestCase):
                 self.assertTrue(row[field])
         self.assertEqual(cp["metadata"]["cp_generation_strategy"], "per_pfmea_row")
 
+    def test_chain_cp_targets_high_severity_and_special_characteristic_rows(self):
+        confirmed_pfd = {
+            "steps": [
+                {"process_step_id": "P10", "operation": "来料检验"},
+                {"process_step_id": "P20", "operation": "冲压成形"},
+                {"process_step_id": "P30", "operation": "终检"},
+            ]
+        }
+        confirmed_pfmea = {
+            "rows": [
+                {
+                    "pfmea_id": "PFMEA-P10-01",
+                    "process_step_id": "P10",
+                    "process_step_name": "来料检验",
+                    "failure_mode": "来料尺寸不符",
+                    "action_priority": "M",
+                    "severity": 7,
+                    "evidence_refs": ["EV-P10"],
+                    "confidence": 0.86,
+                    "needs_confirmation": False,
+                },
+                {
+                    "pfmea_id": "PFMEA-P20-01",
+                    "process_step_id": "P20",
+                    "process_step_name": "冲压成形",
+                    "failure_mode": "安全相关尺寸失效",
+                    "action_priority": "L",
+                    "severity": 9,
+                    "evidence_refs": ["EV-P20"],
+                    "confidence": 0.81,
+                    "needs_confirmation": False,
+                },
+                {
+                    "pfmea_id": "PFMEA-P30-01",
+                    "process_step_id": "P30",
+                    "process_step_name": "终检",
+                    "failure_mode": "特殊特性漏检",
+                    "action_priority": "L",
+                    "severity": 5,
+                    "characteristic_refs": ["SC-HOLE-POS"],
+                    "evidence_refs": ["EV-P30"],
+                    "confidence": 0.77,
+                    "needs_confirmation": False,
+                },
+            ]
+        }
+
+        def payload_for(pfmea_id, step_id, special_class="无"):
+            return {
+                "rows": [
+                    {
+                        "control_plan_id": "",
+                        "process_step_id": step_id,
+                        "pfmea_id": pfmea_id,
+                        "process_name": "",
+                        "equipment": "",
+                        "characteristic_number": "",
+                        "product_characteristic": "",
+                        "process_characteristic": "",
+                        "special_characteristic_class": special_class,
+                        "specification_tolerance": "",
+                        "process_parameter": "过程参数",
+                        "parameter_specification": "参数范围",
+                        "process_control_method": "参数点检",
+                        "setup_verification": "首件确认",
+                        "poka_yoke_device": "防错",
+                        "poka_yoke_verification": "每班验证",
+                        "process_record": "点检表",
+                        "measurement_method": "检验",
+                        "sample_size": "5件",
+                        "sample_frequency": "每班",
+                        "control_method": "过程控制和检验",
+                        "reaction_plan": "隔离并通知质量工程师",
+                        "needs_confirmation": False,
+                    }
+                ]
+            }
+
+        with patch("minos_core.pipeline_chain.OpenAITextGenerator") as generator:
+            llm = generator.return_value
+            llm.generate_structured.side_effect = [
+                payload_for("PFMEA-P10-01", "P10"),
+                payload_for("PFMEA-P20-01", "P20"),
+                payload_for("PFMEA-P30-01", "P30", "无"),
+            ]
+
+            cp = generate_cp_from_confirmed_pfmea({}, confirmed_pfd, confirmed_pfmea)
+
+        self.assertEqual(llm.generate_structured.call_count, 3)
+        self.assertEqual(cp["document_type"], "control_plan")
+        self.assertEqual(cp["schema_version"], "minos-core.generated.v1")
+        schema_items = (
+            llm.generate_structured.call_args_list[0]
+            .kwargs["response_format"]["json_schema"]["schema"]["properties"]["rows"]["items"]
+        )
+        for field in (
+            "evidence_refs",
+            "confidence",
+            "ai_inferred",
+            "needs_confirmation",
+            "characteristic_refs",
+        ):
+            self.assertIn(field, schema_items["properties"])
+            self.assertIn(field, schema_items["required"])
+        self.assertIn("evidence_refs", llm.generate_structured.call_args_list[0].kwargs["system_prompt"])
+        self.assertIn("confidence", llm.generate_structured.call_args_list[0].kwargs["system_prompt"])
+        self.assertEqual(
+            [row["pfmea_id"] for row in cp["rows"]],
+            ["PFMEA-P10-01", "PFMEA-P20-01", "PFMEA-P30-01"],
+        )
+        special_row = cp["rows"][2]
+        self.assertEqual(special_row["special_characteristic_class"], "SC")
+        self.assertEqual(special_row["characteristic_refs"], ["SC-HOLE-POS"])
+        self.assertEqual(special_row["evidence_refs"], ["EV-P30"])
+        self.assertAlmostEqual(special_row["confidence"], 0.77)
+        self.assertTrue(special_row["ai_inferred"])
+        self.assertFalse(special_row["needs_confirmation"])
+
     def test_control_plan_generation_outputs_process_controls_not_only_result_checks(self):
         pfmea_bundle = {
             "document_type": "pfmea",
@@ -873,7 +1534,7 @@ class ChainGenerationTests(unittest.TestCase):
         self.assertEqual(row["specification_tolerance"], "标准规格公差")
         self.assertEqual(row["specification"], "标准规格公差")
         self.assertEqual(row["special_characteristic_class"], "标准特殊分类")
-        self.assertEqual(row["classification"], "标准特殊分类")
+        self.assertNotIn("classification", row)
 
     def test_pfmea_ai_risk_inference_uses_step_context_and_confirmation_rules(self):
         pfd = {

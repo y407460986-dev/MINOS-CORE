@@ -78,6 +78,44 @@ class DrawingAnalysisTests(unittest.TestCase):
             self.assertFalse(gate.allow_user_export)
             self.assertTrue(gate.needs_human_review)
 
+    def test_drawing_analysis_preserves_bom_sub_components(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            pages = render_drawing_pages(load_drawing_source(SharedTestHelpers.write_png(Path(tmpdir) / "drawing.png")))
+            payload = SharedTestHelpers.analysis_payload()
+            payload["sub_components"] = [
+                {
+                    "item_no": "2",
+                    "part_name": "车门铰链车身件",
+                    "part_number": "JLV03000501",
+                    "quantity": 1,
+                    "evidence_refs": ["drawing_page_001"],
+                },
+                {
+                    "item_no": "4",
+                    "part_name": "衬套",
+                    "part_number": "BZJ01011000",
+                    "quantity": 1,
+                    "evidence_refs": ["drawing_page_001"],
+                },
+                {
+                    "item_no": "5",
+                    "part_name": "销轴",
+                    "part_number": "BZJ01011100",
+                    "quantity": 1,
+                    "evidence_refs": ["drawing_page_001"],
+                },
+            ]
+
+            bundle = analyze_drawing_pages(
+                pages,
+                FakeMultimodalDrawingAnalyzer(json.dumps(payload)),
+                {"part_family": "hinge"},
+            )
+
+            self.assertTrue(validate_bundle_schema(bundle, "drawing_analysis_bundle"))
+            names = [item["part_name"] for item in bundle["sub_components"]]
+            self.assertEqual(names, ["车门铰链车身件", "衬套", "销轴"])
+
     def test_invalid_ai_json_and_non_page_unknown_evidence_refs_fail(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             pages = render_drawing_pages(load_drawing_source(SharedTestHelpers.write_png(Path(tmpdir) / "drawing.png")))

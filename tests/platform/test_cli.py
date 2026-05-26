@@ -22,7 +22,7 @@ def test_platform_cli_default_port_is_passed_as_text():
 
     assert result == 0
     command = run.call_args.args[0]
-    assert command[command.index("--host") + 1] == "0.0.0.0"
+    assert command[command.index("--host") + 1] == "127.0.0.1"
     assert command[command.index("--port") + 1] == "8000"
     assert all(isinstance(value, str) for value in command)
 

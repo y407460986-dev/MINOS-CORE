@@ -21,7 +21,7 @@ from minos_core.knowledge_recommendation import recommend_from_knowledge
 from minos_core.quality_gates import evaluate_export_gate
 
 
-ROOT_FIXTURE = "D:/MINOS-CORE/tests/fixtures/apqp_chain"
+ROOT_FIXTURE = str(Path(__file__).parents[1] / "fixtures" / "apqp_chain")
 
 from tests.edit_patch.conftest import _fixture, _three_table_result, ROOT_FIXTURE, NS
 
@@ -30,8 +30,8 @@ class EditPatchTests(unittest.TestCase):
     def test_final_export_raises_when_unconfirmed_and_succeeds_after_confirmed(self):
         source = _three_table_result()
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = export_edited_three_tables(source, Path(tmpdir), export_mode="final")
-            self.assertFalse(result["final_export_allowed"])
+            with self.assertRaises(EditPatchError):
+                export_edited_three_tables(source, Path(tmpdir), export_mode="final")
 
         confirmed = apply_edit_patch(source, _confirm_all_patch(source))
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -46,6 +46,15 @@ class EditPatchTests(unittest.TestCase):
             self.assertIn("soft_deleted_items", workbook_text)
 
         self.assertTrue(result["final_export_allowed"])
+
+    def test_draft_export_still_allowed_when_final_gate_not_cleared(self):
+        source = _three_table_result()
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            result = export_edited_three_tables(source, Path(tmpdir), export_mode="draft")
+            self.assertTrue(Path(result["exports"]["unified_workbook"]).exists())
+
+        self.assertFalse(result["final_export_allowed"])
 
     def test_ai_batch_confirm_history_and_core_export_blockers(self):
         source = _automation_chain()

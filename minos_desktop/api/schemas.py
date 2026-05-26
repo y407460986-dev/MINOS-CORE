@@ -20,9 +20,11 @@ class APIError(HTTPException):
         status_code: int = 422,
         *,
         failure_message: str | None = None,
+        extra: dict[str, Any] | None = None,
     ) -> None:
         self.code = code
         self.failure_message = failure_message or format_desktop_failure(detail)
+        self.extra = extra or {}
         super().__init__(status_code=status_code, detail=detail)
 
 
@@ -31,7 +33,7 @@ class CreateProjectRequest(BaseModel):
     drawing_path: str = ""
     output_dir: str = ""
     analysis_mode: str = Field(default="hybrid", pattern="^(ocr_only|vision_only|hybrid)$")
-    ocr_engine: str = Field(default="mineru", pattern="^(auto|pdf_text|rapidocr|mineru)$")
+    ocr_engine: str = Field(default="rapidocr", pattern="^(auto|pdf_text|rapidocr|mineru)$")
     context: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -149,7 +151,7 @@ class KnowledgeImportSeedsRequest(BaseModel):
 
 def project_to_dict(record: DesktopProjectRecord) -> dict[str, Any]:
     analysis_mode = str(record.context.get("analysis_mode") or "hybrid")
-    ocr_engine = str(record.context.get("ocr_engine") or "mineru")
+    ocr_engine = str(record.context.get("ocr_engine") or "rapidocr")
     return {
         "id": record.id,
         "project_name": record.project_name,

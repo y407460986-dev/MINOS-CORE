@@ -14,6 +14,7 @@ from .schemas import (
     ChainConfirmRequest,
     DrawingConfirmationsRequest,
     EditPatchRequest,
+    APIError,
     PartFamilyRequest,
     ProcessFlowConfirmationsRequest,
     failure_from_exception,
@@ -159,6 +160,10 @@ async def chain_confirm_pfd(
 ) -> dict[str, Any]:
     try:
         from .sse import create_channel, get_channel
+        _raise_if_stage_running(request.app.state.db_path, run_id, "pfmea")
+        _raise_if_stage_status_not_in(
+            request.app.state.db_path, run_id, "pfd", {"generated"}
+        )
         record = jobs.confirm_pfd_stage(
             request.app.state.db_path,
             run_id,
@@ -186,7 +191,14 @@ async def chain_regenerate_pfmea(
     try:
         from .sse import create_channel, get_channel
         svc = DesktopRunService(request.app.state.db_path)
-        run = svc.get_run(run_id)
+        _raise_if_stage_running(request.app.state.db_path, run_id, "pfmea")
+        _raise_if_stage_status_not_in(
+            request.app.state.db_path, run_id, "pfd", {"confirmed"}
+        )
+        _raise_if_stage_status_not_in(
+            request.app.state.db_path, run_id, "pfmea", {"generated", "failed"}
+        )
+        run = svc.mark_chain_stage_running(run_id, "pfmea")
         channel = get_channel(run_id, "pfmea")
         if channel is None:
             channel = create_channel(run_id, "pfmea")
@@ -208,6 +220,13 @@ async def chain_confirm_pfmea(
 ) -> dict[str, Any]:
     try:
         from .sse import create_channel, get_channel
+        _raise_if_stage_running(request.app.state.db_path, run_id, "cp")
+        _raise_if_stage_status_not_in(
+            request.app.state.db_path, run_id, "pfd", {"confirmed"}
+        )
+        _raise_if_stage_status_not_in(
+            request.app.state.db_path, run_id, "pfmea", {"generated"}
+        )
         record = jobs.confirm_pfmea_stage(
             request.app.state.db_path,
             run_id,
@@ -235,7 +254,14 @@ async def chain_regenerate_cp(
     try:
         from .sse import create_channel, get_channel
         svc = DesktopRunService(request.app.state.db_path)
-        run = svc.get_run(run_id)
+        _raise_if_stage_running(request.app.state.db_path, run_id, "cp")
+        _raise_if_stage_status_not_in(
+            request.app.state.db_path, run_id, "pfmea", {"confirmed"}
+        )
+        _raise_if_stage_status_not_in(
+            request.app.state.db_path, run_id, "cp", {"generated", "failed"}
+        )
+        run = svc.mark_chain_stage_running(run_id, "cp")
         channel = get_channel(run_id, "cp")
         if channel is None:
             channel = create_channel(run_id, "cp")
@@ -248,11 +274,61 @@ async def chain_regenerate_cp(
         raise failure_from_exception(exc) from exc
 
 
+def _raise_if_stage_running(db_path: str, run_id: int, stage: str) -> None:
+    run = DesktopRunService(db_path).get_run(run_id)
+    chain_stages = run.state.chain_stages
+    stage_state = getattr(chain_stages, stage, None) if chain_stages is not None else None
+    if str(getattr(stage_state, "status", "")) != "running":
+        return
+    raise APIError(
+        detail=f"{stage} stage is already running",
+        code="CHAIN_STAGE_RUNNING",
+        status_code=409,
+        extra={
+            "stage": stage,
+            "status": "running",
+            "run_id": run_id,
+        },
+    )
+
+
+def _raise_if_stage_status_not_in(
+    db_path: str,
+    run_id: int,
+    stage: str,
+    allowed_statuses: set[str],
+) -> None:
+    run = DesktopRunService(db_path).get_run(run_id)
+    chain_stages = run.state.chain_stages
+    stage_state = getattr(chain_stages, stage, None) if chain_stages is not None else None
+    status = str(getattr(stage_state, "status", "") or "not_started")
+    if status in allowed_statuses:
+        return
+    raise APIError(
+        detail=f"{stage} stage is {status}; expected {' or '.join(sorted(allowed_statuses))}",
+        code="INVALID_STATE_TRANSITION",
+        status_code=409,
+        extra={
+            "stage": stage,
+            "status": status,
+            "expected_statuses": sorted(allowed_statuses),
+            "run_id": run_id,
+        },
+    )
+
+
 @router.post("/runs/{run_id}/chain/cp-confirm")
 def chain_confirm_cp(
     run_id: int, payload: ChainConfirmRequest, request: Request
 ) -> dict[str, Any]:
     try:
+        _raise_if_stage_running(request.app.state.db_path, run_id, "cp")
+        _raise_if_stage_status_not_in(
+            request.app.state.db_path, run_id, "pfmea", {"confirmed"}
+        )
+        _raise_if_stage_status_not_in(
+            request.app.state.db_path, run_id, "cp", {"generated"}
+        )
         return run_to_dict(
             jobs.confirm_cp_stage(
                 request.app.state.db_path,

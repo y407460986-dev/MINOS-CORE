@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import json
+import os
 import shutil
 import sqlite3
 import zipfile
@@ -254,6 +255,8 @@ class DesktopDataManagementService:
         finally:
             target.close()
             source.close()
+        redaction_values = _backup_redaction_values(temp_db_path)
+        _redact_backup_settings_api_key(temp_db_path)
         manifest = {
             "app": "MINOS-CORE",
             "created_at": created_at,
@@ -268,9 +271,22 @@ class DesktopDataManagementService:
         try:
             with zipfile.ZipFile(backup_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
                 archive.write(temp_db_path, "minos_desktop.sqlite3")
-                archive.writestr("backup_manifest.json", _to_json(manifest))
-                _zip_directory(archive, self.output_dir, "out")
-                _zip_directory(archive, self.log_dir, "logs")
+                archive.writestr(
+                    "backup_manifest.json",
+                    _redact_sensitive_text(_to_json(manifest), redaction_values),
+                )
+                _zip_directory(
+                    archive,
+                    self.output_dir,
+                    "out",
+                    redaction_values=redaction_values,
+                )
+                _zip_directory(
+                    archive,
+                    self.log_dir,
+                    "logs",
+                    redaction_values=redaction_values,
+                )
         finally:
             temp_db_path.unlink(missing_ok=True)
         return {
@@ -500,7 +516,7 @@ class DesktopRunService:
         from minos_core.pipeline_chain import generate_pfd_from_drawing
 
         analysis_mode = _project_context_value(project.context, "analysis_mode", "hybrid")
-        ocr_engine = _project_context_value(project.context, "ocr_engine", "mineru")
+        ocr_engine = _project_context_value(project.context, "ocr_engine", "rapidocr")
 
         try:
             analysis_result = analyze_drawing_for_three_table_chain(
@@ -618,6 +634,7 @@ class DesktopRunService:
         run = self.get_run(run_id)
         current = run.current_result
         chain_stages = _chain_stages_from_run(run)
+        _require_chain_stage_status(chain_stages, "pfd", {"generated"}, action="confirmation")
         current, cumulative_patch, chain_stages = _apply_confirm_edit_patch(
             current, run.edit_patch, edit_patch, chain_stages
         )
@@ -659,6 +676,9 @@ class DesktopRunService:
         run = self.get_run(run_id)
         current = run.current_result
         chain_stages = _chain_stages_from_run(run)
+        _require_chain_stage_status(
+            chain_stages, "pfd", {"confirmed"}, action="pfmea generation"
+        )
         confirmed_pfd = current.get("process_flow") or {}
         drawing_analysis = current.get("drawing_analysis") or {}
         envelope = _desktop_result_envelope(
@@ -765,6 +785,10 @@ class DesktopRunService:
         run = self.get_run(run_id)
         current = run.current_result
         chain_stages = _chain_stages_from_run(run)
+        _require_chain_stage_status(
+            chain_stages, "pfd", {"confirmed"}, action="pfmea confirmation"
+        )
+        _require_chain_stage_status(chain_stages, "pfmea", {"generated"}, action="confirmation")
         current, cumulative_patch, chain_stages = _apply_confirm_edit_patch(
             current, run.edit_patch, edit_patch, chain_stages
         )
@@ -806,6 +830,9 @@ class DesktopRunService:
         run = self.get_run(run_id)
         current = run.current_result
         chain_stages = _chain_stages_from_run(run)
+        _require_chain_stage_status(
+            chain_stages, "pfmea", {"confirmed"}, action="cp generation"
+        )
         confirmed_pfd = current.get("process_flow") or {}
         confirmed_pfmea = current.get("pfmea") or {}
         drawing_analysis = current.get("drawing_analysis") or {}
@@ -878,6 +905,10 @@ class DesktopRunService:
         chain_stages = _chain_stages_from_run(run)
         now = _utc_now()
         current = run.current_result
+        _require_chain_stage_status(
+            chain_stages, "pfmea", {"confirmed"}, action="cp confirmation"
+        )
+        _require_chain_stage_status(chain_stages, "cp", {"generated"}, action="confirmation")
         current, cumulative_patch, chain_stages = _apply_confirm_edit_patch(
             current, run.edit_patch, edit_patch, chain_stages
         )
@@ -909,7 +940,12 @@ class DesktopRunService:
         self._persist_chain_update(run_id, envelope)
         return self.get_run(run_id)
 
-    def regenerate_pfmea_stage(self, run_id: int) -> DesktopRunRecord:
+    def regenerate_pfmea_stage(
+        self,
+        run_id: int,
+        *,
+        already_claimed: bool = False,
+    ) -> DesktopRunRecord:
         """重新生成 PFMEA（用户对当前结果不满意）。"""
         from minos_core.pipeline_chain import generate_pfmea_from_confirmed_pfd
         from .api.sse import create_channel, remove_channel
@@ -920,6 +956,16 @@ class DesktopRunService:
         drawing_analysis = current.get("drawing_analysis") or {}
 
         chain_stages = _chain_stages_from_run(run)
+        _require_chain_stage_status(
+            chain_stages, "pfd", {"confirmed"}, action="pfmea regeneration"
+        )
+        allowed_pfmea_statuses = {"running"} if already_claimed else {"generated", "failed"}
+        _require_chain_stage_status(
+            chain_stages,
+            "pfmea",
+            allowed_pfmea_statuses,
+            action="regeneration",
+        )
         chain_stages = ChainStageStates(
             pfd=chain_stages.pfd,
             pfmea=StageConfirmState(status="running"),
@@ -1012,7 +1058,12 @@ class DesktopRunService:
         remove_channel(run_id, "pfmea")
         return self.get_run(run_id)
 
-    def regenerate_cp_stage(self, run_id: int) -> DesktopRunRecord:
+    def regenerate_cp_stage(
+        self,
+        run_id: int,
+        *,
+        already_claimed: bool = False,
+    ) -> DesktopRunRecord:
         """重新生成 CP。"""
         from minos_core.pipeline_chain import generate_cp_from_confirmed_pfmea
         from .api.sse import create_channel, remove_channel
@@ -1024,6 +1075,16 @@ class DesktopRunService:
         drawing_analysis = current.get("drawing_analysis") or {}
 
         chain_stages = _chain_stages_from_run(run)
+        _require_chain_stage_status(
+            chain_stages, "pfmea", {"confirmed"}, action="cp regeneration"
+        )
+        allowed_cp_statuses = {"running"} if already_claimed else {"generated", "failed"}
+        _require_chain_stage_status(
+            chain_stages,
+            "cp",
+            allowed_cp_statuses,
+            action="regeneration",
+        )
         chain_stages = ChainStageStates(
             pfd=chain_stages.pfd,
             pfmea=chain_stages.pfmea,
@@ -1085,6 +1146,36 @@ class DesktopRunService:
     def get_chain_state(self, run_id: int) -> dict[str, Any]:
         """返回当前链式流程状态。"""
         return _chain_stages_from_run(self.get_run(run_id)).to_dict()
+
+    def mark_chain_stage_running(self, run_id: int, stage: str) -> DesktopRunRecord:
+        """Persist that a downstream chain stage has entered background generation."""
+        if stage not in {"pfmea", "cp"}:
+            raise ValueError("stage must be 'pfmea' or 'cp'")
+        run = self.get_run(run_id)
+        current = run.current_result
+        chain_stages = _chain_stages_from_run(run)
+        if stage == "pfmea":
+            chain_stages = ChainStageStates(
+                pfd=chain_stages.pfd,
+                pfmea=StageConfirmState(status="running"),
+                cp=chain_stages.cp,
+                pipeline_mode="chain",
+            )
+        else:
+            chain_stages = ChainStageStates(
+                pfd=chain_stages.pfd,
+                pfmea=chain_stages.pfmea,
+                cp=StageConfirmState(status="running"),
+                pipeline_mode="chain",
+            )
+        envelope = _desktop_result_envelope(
+            run.raw_result,
+            current_result=current,
+            edit_patch=run.edit_patch,
+        )
+        envelope["chain_stages"] = chain_stages.to_dict()
+        self._persist_chain_update(run_id, envelope)
+        return self.get_run(run_id)
 
     def save_chain_run(
         self,
@@ -1836,14 +1927,27 @@ def _directory_size(path: Path) -> int:
     return total
 
 
-def _zip_directory(archive: zipfile.ZipFile, directory: Path, prefix: str) -> None:
+def _zip_directory(
+    archive: zipfile.ZipFile,
+    directory: Path,
+    prefix: str,
+    *,
+    redaction_values: set[str] | None = None,
+) -> None:
     if not directory.exists():
         return
     for item in directory.rglob("*"):
         if not item.is_file():
             continue
         try:
-            archive.write(item, str(Path(prefix) / item.relative_to(directory)))
+            archive_name = str(Path(prefix) / item.relative_to(directory))
+            if redaction_values:
+                archive.writestr(
+                    archive_name,
+                    _redact_sensitive_bytes(item.read_bytes(), redaction_values),
+                )
+            else:
+                archive.write(item, archive_name)
         except OSError:
             continue
 
@@ -1862,6 +1966,8 @@ def _clear_directory_contents(path: Path, *, keep_names: set[str]) -> None:
 
 def _guess_failure_reason(message: str) -> str:
     lowered = message.lower()
+    if "mineru" in lowered:
+        return "MinerU OCR 运行时未配置或不可用。"
     if "504" in lowered or "gateway time-out" in lowered or "gateway timeout" in lowered:
         return "AI 上游模型或中转服务响应超时。"
     if "timed out" in lowered or "timeout" in lowered:
@@ -1879,6 +1985,13 @@ def _guess_failure_reason(message: str) -> str:
 
 def _default_failure_actions(message: str) -> list[str]:
     lowered = message.lower()
+    if "mineru" in lowered:
+        return [
+            "在设置页或系统环境变量配置 MINOS_MINERU_COMMAND，指向可运行的 mineru.exe。",
+            "确认 MinerU 运行环境可独立处理当前图纸，并且输出目录有写入权限。",
+            "如暂不使用 MinerU，创建项目时改用 pdf_text 或 rapidocr OCR 模式。",
+            "放弃任务。",
+        ]
     if "504" in lowered or "gateway time-out" in lowered or "gateway timeout" in lowered:
         return [
             "稍后重试失效模式分析生成；当前 PFD 已保留。",
@@ -1928,6 +2041,58 @@ def _utc_now() -> str:
 
 def _to_json(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, sort_keys=True)
+
+
+def _backup_redaction_values(db_path: Path) -> set[str]:
+    values: set[str] = set()
+    connection = sqlite3.connect(db_path)
+    try:
+        rows = connection.execute(
+            "SELECT value FROM settings WHERE key IN (?)",
+            ("ai_api_key",),
+        ).fetchall()
+    finally:
+        connection.close()
+    for row in rows:
+        value = str(row[0] or "").strip()
+        if value:
+            values.add(value)
+    for env_name in (
+        "MINOS_OPENAI_API_KEY",
+        "OPENAI_API_KEY",
+        "ARK_API_KEY",
+        "MINOS_DESKTOP_API_TOKEN",
+    ):
+        value = os.getenv(env_name, "").strip()
+        if value:
+            values.add(value)
+    return values
+
+
+def _redact_sensitive_text(text: str, redaction_values: set[str]) -> str:
+    redacted = text
+    for value in redaction_values:
+        redacted = redacted.replace(value, "[REDACTED]")
+    return redacted
+
+
+def _redact_sensitive_bytes(payload: bytes, redaction_values: set[str]) -> bytes:
+    redacted = payload
+    for value in redaction_values:
+        redacted = redacted.replace(value.encode("utf-8"), b"[REDACTED]")
+    return redacted
+
+
+def _redact_backup_settings_api_key(db_path: Path) -> None:
+    connection = sqlite3.connect(db_path)
+    try:
+        connection.execute(
+            "UPDATE settings SET value = ?, updated_at = ? WHERE key = ?",
+            ("[REDACTED]", _utc_now(), "ai_api_key"),
+        )
+        connection.commit()
+    finally:
+        connection.close()
 
 
 def _desktop_result_envelope(
@@ -2418,3 +2583,18 @@ def _table_rows_for_chain(result: dict[str, Any], table: str) -> list[Any]:
 
 def _dedupe_texts(values: list[Any]) -> list[str]:
     return _chain_dedupe_texts(values)
+
+
+def _require_chain_stage_status(
+    chain_stages: ChainStageStates | None,
+    stage: str,
+    allowed: set[str],
+    *,
+    action: str,
+) -> None:
+    stage_state = getattr(chain_stages, stage, None) if chain_stages is not None else None
+    status = str(getattr(stage_state, "status", "") or "not_started")
+    if status in allowed:
+        return
+    allowed_text = " or ".join(sorted(allowed))
+    raise ValueError(f"{stage} stage must be {allowed_text} before {action}")

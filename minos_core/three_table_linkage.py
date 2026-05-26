@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Any
 
 from .change_management import _rows, _group
-from minos_core._text_utils import text
+from minos_core._text_utils import float_or_none, text
 from .domain import EntityType, TraceLinkType
 from .three_table_linkage_reports import (
     build_sync_issues as _build_sync_issues,
@@ -52,9 +52,11 @@ def build_three_table_linkage_map(source: dict[str, Any]) -> dict[str, Any]:
 
     characteristics = _collect_characteristics(active_steps, active_pfmea, active_cp)
 
+    evidence_by_id = _index_evidence(source)
+
     links = _build_links(
         active_steps, active_pfmea, active_cp,
-        step_by_id, pfmea_by_id, pfmea_by_step, cp_by_pfmea,
+        step_by_id, pfmea_by_id, pfmea_by_step, cp_by_pfmea, evidence_by_id,
     )
 
     gaps = _build_gaps(
@@ -165,6 +167,25 @@ def _index_pfmea(
     return pfmea_by_id, pfmea_ids
 
 
+def _index_evidence(source: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    evidence_by_id: dict[str, dict[str, Any]] = {}
+    candidates = [source.get("evidence")]
+    for table_name in ("process_flow", "pfmea", "control_plan"):
+        table = source.get(table_name)
+        if isinstance(table, dict):
+            candidates.append(table.get("evidence"))
+    for rows in candidates:
+        if not isinstance(rows, list):
+            continue
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            evidence_id = text(row.get("evidence_id"), row.get("id"))
+            if evidence_id:
+                evidence_by_id[evidence_id] = row
+    return evidence_by_id
+
+
 def _collect_characteristics(
     active_steps: list[dict[str, Any]],
     active_pfmea: list[dict[str, Any]],
@@ -235,6 +256,7 @@ def _build_links(
     pfmea_by_id: dict[str, dict[str, Any]],
     pfmea_by_step: dict[str, list[dict[str, Any]]],
     cp_by_pfmea: dict[str, list[dict[str, Any]]],
+    evidence_by_id: dict[str, dict[str, Any]],
 ) -> list[dict[str, Any]]:
     links: list[dict[str, Any]] = []
 
@@ -255,7 +277,7 @@ def _build_links(
             "to_id": pfmea_id,
             "link_type": TraceLinkType.PFD_TO_PFMEA.value,
             "evidence_refs": evidence_refs,
-            "confidence": _compute_confidence(evidence_refs),
+            "confidence": _compute_confidence(evidence_refs, evidence_by_id, row, step_by_id.get(step_id)),
             "ai_inferred": bool(row.get("ai_inferred", False)),
             "needs_confirmation": bool(row.get("needs_confirmation", False)),
         })
@@ -277,7 +299,12 @@ def _build_links(
             "to_id": control_plan_id,
             "link_type": TraceLinkType.PFMEA_TO_CP.value,
             "evidence_refs": evidence_refs,
-            "confidence": _compute_confidence(evidence_refs),
+            "confidence": _compute_confidence(
+                evidence_refs,
+                evidence_by_id,
+                row,
+                pfmea_by_id.get(pfmea_id),
+            ),
             "ai_inferred": bool(row.get("ai_inferred", False)),
             "needs_confirmation": bool(row.get("needs_confirmation", False)),
         })
@@ -298,7 +325,11 @@ def _build_links(
                 "to_id": step_id,
                 "link_type": TraceLinkType.CHARACTERISTIC_TO_STEP.value,
                 "evidence_refs": _list_str(step.get("evidence_refs")),
-                "confidence": None,
+                "confidence": _compute_confidence(
+                    _list_str(step.get("evidence_refs")),
+                    evidence_by_id,
+                    step,
+                ),
                 "ai_inferred": False,
                 "needs_confirmation": False,
             })
@@ -306,9 +337,29 @@ def _build_links(
     return links
 
 
-def _compute_confidence(evidence_refs: list[str]) -> float | None:
-    """Return a default confidence when evidence refs are present."""
-    return 0.7 if evidence_refs else None
+def _compute_confidence(
+    evidence_refs: list[str],
+    evidence_by_id: dict[str, dict[str, Any]],
+    *rows: dict[str, Any] | None,
+) -> float | None:
+    """Combine row and evidence confidence conservatively."""
+    values: list[float] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        value = float_or_none(row.get("confidence"))
+        if value is not None:
+            values.append(value)
+    for ref in evidence_refs:
+        evidence = evidence_by_id.get(ref)
+        if not isinstance(evidence, dict):
+            continue
+        value = float_or_none(evidence.get("confidence"))
+        if value is not None:
+            values.append(value)
+    if not values:
+        return None
+    return min(max(0.0, min(value, 1.0)) for value in values)
 
 
 def _build_gaps(

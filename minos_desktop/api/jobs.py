@@ -398,7 +398,10 @@ def generate_pfmea_for_confirmed_pfd(db_path: str | Path, run_id: int):
 
 def regenerate_pfmea_stage(db_path: str | Path, run_id: int):
     """重新生成 PFMEA。"""
-    return DesktopRunService(db_path).regenerate_pfmea_stage(run_id)
+    return DesktopRunService(db_path).regenerate_pfmea_stage(
+        run_id,
+        already_claimed=True,
+    )
 
 
 def confirm_pfmea_stage(
@@ -420,7 +423,10 @@ def generate_cp_for_confirmed_pfmea(db_path: str | Path, run_id: int):
 
 def regenerate_cp_stage(db_path: str | Path, run_id: int):
     """重新生成 CP。"""
-    return DesktopRunService(db_path).regenerate_cp_stage(run_id)
+    return DesktopRunService(db_path).regenerate_cp_stage(
+        run_id,
+        already_claimed=True,
+    )
 
 
 def confirm_cp_stage(

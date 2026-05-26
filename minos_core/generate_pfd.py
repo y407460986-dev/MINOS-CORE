@@ -6,6 +6,7 @@ import re
 from typing import Any
 
 from minos_core._text_utils import sequence_links, string_list, text
+from minos_core.three_table_result import canonical_three_table_bundle
 
 
 _STEP_CHARACTERISTIC_RULES = {
@@ -19,7 +20,10 @@ def generate_pfd_from_analysis(analysis_bundle: dict[str, Any]) -> dict[str, Any
     pending_fields = list(analysis_bundle.get("pending_fields", []))
     characteristics = _characteristics_by_ref(analysis_bundle.get("characteristics", []))
     steps_by_id: dict[str, dict[str, Any]] = {}
-    for clue in analysis_bundle.get("process_clues", []):
+    process_clues = analysis_bundle.get("process_clues")
+    if not isinstance(process_clues, list) or not process_clues:
+        process_clues = analysis_bundle.get("manufacturing_clues", [])
+    for clue in process_clues:
         if not isinstance(clue, dict):
             continue
         step_id = str(clue.get("process_step_id", "")).strip().upper()
@@ -108,7 +112,7 @@ def generate_pfd_from_analysis(analysis_bundle: dict[str, Any]) -> dict[str, Any
 
     steps = sorted(steps_by_id.values(), key=lambda item: item["sequence"])
     links = sequence_links(steps, step_key="process_step_id")
-    return {
+    return canonical_three_table_bundle({
         "document_type": "process_flow",
         "schema_version": "minos-core.generated.v1",
         "source_document_type": analysis_bundle.get("document_type", "analysis_bundle"),
@@ -125,7 +129,7 @@ def generate_pfd_from_analysis(analysis_bundle: dict[str, Any]) -> dict[str, Any
             "llm_used": False,
             "source_stage": "analyze",
         },
-    }
+    }, document_type="process_flow", row_key="steps")
 
 
 def _characteristics_by_ref(characteristics: Any) -> dict[str, list[dict[str, Any]]]:

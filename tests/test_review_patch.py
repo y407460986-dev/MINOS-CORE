@@ -1,5 +1,6 @@
 import copy
 import unittest
+from pathlib import Path
 
 from minos_core.adapters.fixture_json import load_fixture_payload
 from minos_core.quality_gates import evaluate_stage_gate
@@ -11,7 +12,7 @@ from minos_core.review_patch import (
 )
 
 
-ROOT_FIXTURE = "D:/MINOS-CORE/tests/fixtures/apqp_chain"
+ROOT_FIXTURE = str(Path(__file__).parent / "fixtures" / "apqp_chain")
 
 
 def _fixture():
@@ -346,7 +347,7 @@ class ReviewPatchTests(unittest.TestCase):
                     "--output",
                     str(output_path),
                 ],
-                cwd="D:/MINOS-CORE",
+                cwd=Path(__file__).parents[1],
                 text=True,
                 capture_output=True,
                 check=False,

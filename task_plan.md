@@ -1,5 +1,85 @@
 # MINOS-CORE 重建任务计划
 
+## 当前安装版打开/导入报错修复与重新封包
+
+### 目标
+修复 Windows 安装版启动和图纸导入时直接报错的问题，并重新封装可验证的 NSIS 安装包。本轮收口两类根因：PyInstaller sidecar 运行目录必须带 `_internal\python311.dll`；安装版默认导入不能依赖外部 MinerU，默认使用安装包内置的 `rapidocr`，显式选择 `mineru` 时才要求用户配置 MinerU 命令。
+
+```mermaid
+flowchart TD
+    PKG0[复查旧安装版失败证据] --> PKG1[定位 sidecar Python DLL 布局]
+    PKG0 --> PKG2[定位默认 OCR 走 MinerU]
+    PKG1 --> PKG3[build_sidecar 同步 _internal 到 exe 同级]
+    PKG2 --> PKG4[桌面默认 OCR 改为 rapidocr]
+    PKG4 --> PKG5[旧项目 serializer 默认 rapidocr]
+    PKG3 --> PKG6[sidecar HTTP smoke]
+    PKG5 --> PKG6
+    PKG6 --> PKG7[重打 Tauri NSIS]
+    PKG7 --> PKG8[复制到 dist/build/out]
+    PKG8 --> PKG9[临时目录静默安装验证]
+    PKG9 --> PKG10[主程序和 sidecar 启动验证]
+```
+
+/// 1. 输入：旧安装目录、SQLite run 记录和日志；输出：确认旧失败是 MinerU 未配置，不是新包验证失败；验证：失败信息包含 `MinerUOCRAdapter requires a parser or MinerU command`。
+/// 2. 输入：PyInstaller one-folder 产物和 Tauri binaries；输出：`_internal` 同步到 sidecar exe 同级；验证：`python311.dll` 存在且 sidecar `--help` 可运行。
+/// 3. 输入：桌面项目创建、运行链路和导入页 context；输出：默认 `ocr_engine` 为 `rapidocr`；验证：API 新建项目和运行链路均传递 `rapidocr`。
+/// 4. 输入：旧项目缺少 `context.ocr_engine` 的兼容场景；输出：API 序列化默认也显示 `rapidocr`；验证：回归测试先红后绿。
+/// 5. 输入：最终 NSIS 安装包；输出：交付到 `dist\build\out`；验证：SHA256、签名状态、临时静默安装、安装目录 sidecar `/api/health` 和默认 OCR。
+
+### OpenSpec 四步闭环
+
+1. Define：本轮解决安装版打开/导入直接报错，不改变三表业务链路。
+2. Specify：sidecar 运行时必须自带 Python `_internal`；默认 OCR 必须不依赖外部 MinerU。
+3. Implement：最小修改打包脚本、桌面默认值、导入页 context、错误提示和回归测试。
+4. Verify：用聚焦测试、前端 build、sidecar smoke、NSIS 打包、临时目录安装和安装目录启动验证收口。
+
+## V1.14.24 审查问题整改：安全门槛、三表合同、桌面状态和 CI 信号
+
+### 目标
+本轮执行 5 路深度审查后的整改计划。优先降低可交付风险：先修平台/桌面安全和 final export 硬门槛，再让链式 PFD/PFMEA/CP 保留统一 schema、证据和置信度，再修桌面长任务状态与 SSE，最后修 CI/测试信号并记录架构减重边界。第一轮不大拆 `pipeline.py`。
+
+```mermaid
+flowchart TD
+    RR0[确认分支和干净工作区] --> RR1[建立 V1.14.24 OpenSpec]
+    RR1 --> RR2[proposal / design / tasks]
+    RR2 --> RR3[安全与 final export 阻断]
+    RR2 --> RR4[三表 canonical contract]
+    RR2 --> RR5[桌面 running / SSE 状态]
+    RR2 --> RR6[CI 与测试可信度]
+    RR2 --> RR7[架构减重边界与副作用识别]
+    RR3 --> RR3A[review patch dry-run<br/>backup secret redaction]
+    RR4 --> RR4A[canonical row retires classification]
+    RR5 --> RR5A[regenerate background accepts claimed running]
+    RR6 --> RR6A[full pytest CI collection<br/>xlsx row read]
+    RR3 --> RR8[聚焦回归]
+    RR4 --> RR8
+    RR5 --> RR8
+    RR6 --> RR8
+    RR3A --> RR8
+    RR4A --> RR8
+    RR5A --> RR8
+    RR6A --> RR8
+    RR7 --> RR8
+    RR8 --> RR9[全量 pytest 与前端 build]
+    RR9 --> RR10[文档 / Mermaid / diff 审核]
+```
+
+/// 1. 意图：保护主分支并隔离本轮整改；输入：`git branch --show-current`、`git status --short`；输出：`codex/minos-review-remediation` 分支；验证：工作区起点干净。
+/// 2. 意图：建立 OpenSpec 四步闭环；输入：审查结论和用户实施计划；输出：`openspec/changes/v1.14.24-review-remediation/`；验证：proposal、design、tasks 均可 UTF-8 读取。
+/// 3. 意图：先补安全和交付硬门槛；输入：平台鉴权、artifact hash、review patch、final export、备份脱敏问题；输出：失败测试和最小实现；验证：平台/adapter/export/backup 聚焦测试通过。
+/// 4. 意图：统一链式三表合同；输入：PFD/PFMEA/CP 证据、置信度和特殊特性断链问题；输出：带 schema、evidence_refs、confidence、ai_inferred、needs_confirmation 的 bundle/row；验证：三表 workflow、linkage 和 risk 聚焦测试通过。
+/// 5. 意图：修复桌面长任务状态；输入：running 未落库、重复提交、SSE 假终态、SSE 无鉴权问题；输出：持久化状态、阶段保护和真实终态恢复；验证：desktop API/SSE 聚焦测试通过。
+/// 6. 意图：修复 CI 和测试可信度；输入：pytest/unittest 混用、依赖不全、marker 失效、路径写死、Excel 浅检查；输出：test/dev extra、CI jobs、marker、路径和 openpyxl 验证；验证：相关检查命令通过。
+/// 7. 意图：识别架构减重边界；输入：`pipeline.py`、`quality_gates`、stage assembly 和 OpenSpec；输出：第一轮不大拆、第二轮拆分点和副作用迁移清单；验证：发现记录能指导后续重构而不扩大本轮代码改动。
+/// 8. 意图：完成集成审核；输入：五条线改动；输出：冲突解决、文档同步和风险记录；验证：`python -m pytest tests`、前端 build、`git diff --check` 或真实失败原因记录。
+
+### OpenSpec 四步闭环
+
+1. Define：定义本轮只做审查风险整改，不做无关大重构。
+2. Specify：安全门槛、三表合同、桌面任务状态、CI 信号均有明确验收语义。
+3. Implement：按五条线并行推进，主线程集成和验证。
+4. Verify：用聚焦测试、全量 pytest、前端 build、OpenSpec/流程文档检查和 `git diff --check` 验证。
+
 ## V1.14.23 MinerU 默认 OCR 引擎：OpenSpec、流程文档和发布风险同步
 
 ### 目标
@@ -1616,3 +1696,52 @@ PFMEA 不做成第二张控制计划，但必须把风险控制逻辑写清楚�
 /// 4. 桌面设置页的 base URL 来源在无显式环境变量时显示为 `default`。
 /// 5. 增加回归测试覆盖无 Codex、存在 Codex base URL、环境变量覆盖三种路径。
 /// 6. 运行聚焦测试、Tauri 前端构建、运行时配置检查和 `git diff --check`。
+
+---
+
+## V1.14.25 PFMEA 进度与门铰链 BOM 来料检验修复
+
+### 目标
+同时修复安装版中 PFMEA 生成进度分子超过 PFD 总工序数、以及门铰链来料检验只覆盖锻件而漏掉 BOM 子件的问题。图纸存在 BOM/明细表时，PFD 的来料检验必须覆盖车身件/车门件、锻件或板料、销轴、衬套等实际来件；PFMEA 进度必须按 PFD 工序计数。
+
+### OpenSpec 四步闭环
+1. Define：用户反馈真实安装版出现 `16/14`、`24/14` 这类进度显示，同时门铰链 BOM 明确包含车身件、车门件、衬套、销轴，来料检验却只检查锻件。
+2. Specify：PFMEA 进度事件 `step_index` 必须按已处理 PFD 工序递增且小于 `total_steps`；图纸分析必须保留 BOM 子件；PFD prompt 和规范化结果必须把 BOM 子件带入来料检验。
+3. Implement：删除 PFMEA 成功分支重复计数；新增 `sub_components` 图纸分析字段、OCR BOM 解析、门铰链知识库来料检查扩展、PFD 来料检验 BOM 补全、路线摘要携带检查要点。
+4. Verify：新增红灯回归测试，运行链式 PFD/PFMEA、零件族知识库、图纸分析、OCR、桌面服务和 Tauri 静态回归；最后重建 sidecar 与 NSIS 安装包并做 smoke/hash 校验。
+
+### 开发步骤
+/// 1. 复现 PFMEA 进度计数，确认根因是 `generate_pfmea_from_confirmed_pfd()` 成功处理一个 PFD 工序后多递增一次。
+/// 2. 新增 PFMEA 进度回归测试，断言两个 PFD 工序的完成事件为 `step_index=[0,1]`、`total_steps=[2,2]`。
+/// 3. 从用户截图确认图纸右侧 BOM 表包含车身件、车门件、衬套、销轴，来料检验不能只围绕锻件。
+/// 4. 新增 `sub_components` 图纸分析字段和多模态 prompt 要求，OCR 文本中识别“序号/数量/名称/图号”BOM 行。
+/// 5. 扩展门铰链 `process_inference` 来料检查内容，覆盖锻件/板料、车身件、车门件、销轴、衬套、图号、数量、版本、批次和供应商放行状态。
+/// 6. 保留 process inference 的 `key_check` 和产品/过程特性，防止知识库检查要点在 PFD 链路中丢失。
+/// 7. 改造链式 PFD route summary，跳过旧扁平模板，输出工序名和检查要点，保证 LLM prompt 能看到 BOM/来料检查范围。
+/// 8. 在规则 PFD 和链式 LLM PFD 后处理阶段，对来料检验补入 BOM 子件清单和证据引用。
+/// 9. 运行聚焦与相关回归测试，确认进度和 BOM 来料检验两个问题同时通过。
+/// 10. 重新构建 sidecar、NSIS 安装包，复制到 `dist\build\out` 并做 hash、签名状态和安装版 sidecar smoke。
+
+---
+
+## V1.14.26 PFMEA 质量闸口修复
+
+### 目标
+修复桌面端真实 PFMEA 结果中的质量闸口问题：AP 必须按 S/O/D 规则重算，行级 evidence fallback 不能继承全部 OCR block，低置信度行必须进入待确认，PFD 链路疑点不得覆盖人工确认但要记录 warning，独立 PFMEA 导出必须兼容 `S/O/D/AP` 短字段。
+
+### OpenSpec 四步闭环
+1. Define：当前 run #1 的 PFMEA 有 AP 不一致、证据引用过宽、低置信度未待确认、PFD 链路启发式误拦人工确认、独立导出字段兼容不完整。
+2. Specify：PFMEA 归一化不信模型 AP；默认证据优先页级证据且限制 fallback 数量；`confidence < 0.75` 自动待确认；PFD 链路疑点只写 `pfd_chain_warnings` 不阻断人工确认后的 PFMEA 生成；split PFMEA 导出读入 `S/O/D/AP`。
+3. Implement：按 TDD 新增红灯测试，修改 `aiag_vda_pfmea.py`、`pipeline_chain.py`、`three_table_workbooks.py`，不改无关结构。
+4. Verify：运行 AIAG-VDA、链式生成、三表集成导出、导出模式和质量审核聚焦回归，并重建安装包做 sidecar smoke。
+
+### 开发步骤
+/// 1. 只读核查桌面 SQLite 当前 run，确认 AP mismatch、长 evidence refs、低置信度未待确认和 PFD 链路矛盾均来自真实运行结果。
+/// 2. 新增 AP 重算红灯测试：模型给 `S/O/D=9/3/5` 且 AP=M 时，归一化输出必须为 H；措施后 AP 也按 after S/O/D 重算。
+/// 3. 新增 PFD evidence fallback 红灯测试：图纸存在页级证据和 61 个 OCR block 时，PFD 行默认 evidence 只能用页级证据，不能继承全部 block。
+/// 4. 新增 PFMEA 低置信度红灯测试：PFMEA 行 `confidence=0.62` 即使模型给 `needs_confirmation=false` 也必须标记待确认。
+/// 5. 新增 PFD 链路疑点红灯测试：表面处理后又压装、零件直接跳到已装配总成都不得阻断人工确认后的 PFMEA 生成，只能写入 `pfd_chain_warnings`。
+/// 6. 新增独立 PFMEA 导出红灯测试：只给 `S/O/D/AP` 短字段时，split `PFMEA.xlsx` 仍导出风险列。
+/// 7. 做最小生产代码修复并运行相关回归。
+/// 8. 更新 findings/progress/project_flow，并重建 sidecar/NSIS 安装包做 smoke、hash 和签名状态记录。
+/// 9. 修复工作台 running 阶段进度不可见：进入运行态自动重连 PFMEA/CP SSE，把 step_index/total_steps/rows_so_far 传给阶段卡片；验证前端静态回归、桌面/SSE 回归和 Tauri build。

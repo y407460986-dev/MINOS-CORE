@@ -16,7 +16,7 @@
     "forged_type": {
       "description": "锻造铰链——丸钢棒热锻成形(950-1350°C),强度可达GB标准3倍以上,德系车主流",
       "process_sequence": [
-        { "seq": 10, "operation": "来料检验", "equipment": "光谱仪/硬度计", "key_check": "丸钢棒材质、化学成分、直径" },
+        { "seq": 10, "operation": "来料检验", "equipment": "光谱仪/硬度计/检具/量具", "key_check": "按图纸BOM核对锻件/铰链车身件/铰链车门件、销轴、衬套的图号、数量、版本、批次和供应商放行状态；锻件或丸钢棒材质、化学成分、直径；销轴外径/滚花/端部状态；衬套材质、内外径、外观无破损" },
         { "seq": 20, "operation": "加热", "equipment": "中频感应加热炉", "key_check": "加热温度950-1350°C" },
         { "seq": 30, "operation": "热锻成形", "equipment": "热模锻压力机/电液锤", "key_check": "充填完整、无折叠、无裂纹" },
         { "seq": 40, "operation": "切边", "equipment": "切边压力机", "key_check": "飞边切除干净" },
@@ -34,7 +34,7 @@
     "stamped_type": {
       "description": "冲压铰链——钢板冷冲压级进模成形,成本低,日系/经济型车主流,强度可达GB标准2倍以上",
       "process_sequence": [
-        { "seq": 10, "operation": "来料检验", "equipment": "检具/量具/光谱仪", "key_check": "材质(SAPH310等)、料厚(1-4mm)、卷料宽度" },
+        { "seq": 10, "operation": "来料检验", "equipment": "检具/量具/光谱仪", "key_check": "按图纸BOM核对铰链页板/铰链车身件/铰链车门件、销轴、衬套的图号、数量、版本、批次和供应商放行状态；板料材质(SAPH310等)、料厚(1-4mm)、卷料宽度；销轴外径/滚花/端部状态；衬套材质、内外径、外观无破损" },
         { "seq": 20, "operation": "开卷校平", "equipment": "开卷校平机", "key_check": "板形、表面清洁、送料顺畅" },
         { "seq": 30, "operation": "级进模冲压(含多工位)", "equipment": "精密压力机(160-630T)+级进模(4-12工位)", "key_check": "工位1-2:导正孔/冲孔、工位3-4:切边/切槽、工位5-8:弯曲(90°/60°渐进)、工位9-10:卷圆(curling,铰链筒成形)、工位11:镦粗(螺纹区域)、工位12:切断" },
         { "seq": 40, "operation": "去毛刺/清洗", "equipment": "振动光饰/超声波清洗", "key_check": "毛刺≤0.05mm、清洁度" },
@@ -65,7 +65,7 @@
       "description": "冲压型铰链级进模工艺——适合大批量生产(年产>50万件)",
       "match_keywords": ["级进模", "冷轧", "卷料", "SPCC", "SAPH", "料厚", "冲压"],
       "process_sequence": [
-        { "seq": 10, "operation": "来料检验", "equipment": "检具/量具", "key_check": "材质(SPCC/SAPH)、料厚(1-4mm)、卷宽" },
+        { "seq": 10, "operation": "来料检验", "equipment": "检具/量具", "key_check": "按图纸BOM核对铰链页板/车身件/车门件、销轴、衬套的图号、数量、版本、批次和供应商放行状态；板料材质(SPCC/SAPH)、料厚(1-4mm)、卷宽；销轴外径/滚花/端部状态；衬套材质、内外径、外观无破损" },
         { "seq": 20, "operation": "开卷校平+送料", "equipment": "开卷校平机+伺服送料", "key_check": "板形、送料精度±0.01mm" },
         { "seq": 30, "operation": "级进模冲压(12工位)", "equipment": "精密压力机(160-630T)", "key_check": "导正孔→冲孔→切边→多向弯曲(外→内)→卷圆→镦粗→切断" },
         { "seq": 40, "operation": "去毛刺清洗", "equipment": "超声波/碳氢清洗", "key_check": "毛刺≤0.05mm" },
@@ -80,7 +80,7 @@
       "description": "锻造型铰链工艺——适合高强度/高安全要求车型(德系主流)",
       "match_keywords": ["锻造", "锻件", "丸钢", "热锻", "调质", "模锻", "钢质模"],
       "process_sequence": [
-        { "seq": 10, "operation": "来料检验", "equipment": "光谱仪/硬度计", "key_check": "丸钢棒材质、直径、炉号" },
+        { "seq": 10, "operation": "来料检验", "equipment": "光谱仪/硬度计/检具/量具", "key_check": "按图纸BOM核对锻件/铰链车身件/铰链车门件、销轴、衬套的图号、数量、版本、批次和供应商放行状态；锻件或丸钢棒材质、直径、炉号；销轴外径/滚花/端部状态；衬套材质、内外径、外观无破损" },
         { "seq": 20, "operation": "加热", "equipment": "中频感应炉", "key_check": "950-1350°C" },
         { "seq": 30, "operation": "热锻成形+切边", "equipment": "热模锻压力机", "key_check": "无折叠/裂纹、飞边切除" },
         { "seq": 40, "operation": "轴孔冲制+精整", "equipment": "冲孔压力机", "key_check": "锥形冲头70-120°,轴孔高≥2×孔径" },
@@ -96,7 +96,7 @@
       "description": "冲压铰链冷镦轴孔工艺(小川专利US2013/0061437)——钢板冷镦成形圆柱膨出部后冲制轴孔,省去锻坯,大幅减少材料去除量",
       "match_keywords": ["冷镦", "膨出", "cold heading", "冷镦轴孔"],
       "process_sequence": [
-        { "seq": 10, "operation": "来料检验", "equipment": "检具/量具/光谱仪", "key_check": "材质(SAPH310/SPCC等)、料厚(1-4mm)、板宽,钢板毛坯" },
+        { "seq": 10, "operation": "来料检验", "equipment": "检具/量具/光谱仪", "key_check": "按图纸BOM核对钢板毛坯/铰链车身件/铰链车门件、销轴、衬套的图号、数量、版本、批次和供应商放行状态；板料材质(SAPH310/SPCC等)、料厚(1-4mm)、板宽；销轴外径/滚花/端部状态；衬套材质、内外径、外观无破损" },
         { "seq": 20, "operation": "冷镦成形圆柱膨出部", "equipment": "压力机+冷镦模", "key_check": "钢板宽度方向一端冷镦,材料挤出形成圆柱状膨出部(cylindrical bulging portion),用于后续冲制轴孔" },
         { "seq": 30, "operation": "退火(可选)", "equipment": "退火炉", "key_check": "球化退火或软化退火,消除冷镦加工硬化,改善后续冲孔成形性;视材料与变形量决定是否实施" },
         { "seq": 40, "operation": "轴孔冲制", "equipment": "冲孔压力机+锥形冲头(70-120°顶角)+第一模具", "key_check": "锥形冲头前端角度70-120°;第一模具与圆柱部保持间隙;轴孔高≥2.0×孔径;可温锻(450-900°C);前半程:不产生废料(slug),材料向外膨出;后半程:产生废料(slug)并冲出通孔" },

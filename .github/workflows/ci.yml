@@ -24,13 +24,47 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e ".[platform]" pytest pytest-asyncio
+          python -m pip install -e ".[dev]"
 
       - name: Run pytest
         run: python -m pytest tests -q
 
-      - name: Run unittest
-        run: python -m unittest discover -s tests -v
+  desktop-build:
+    name: Desktop build
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: apps/desktop-tauri
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/desktop-tauri/package-lock.json
+
+      - name: Install desktop dependencies
+        run: npm ci
+
+      - name: Build desktop frontend
+        run: npm run build
+
+  windows-sidecar-smoke:
+    name: Windows sidecar smoke
+    runs-on: windows-latest
+    if: github.event_name != 'pull_request'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build sidecar
+        run: powershell -ExecutionPolicy Bypass -File scripts\build_sidecar.ps1
 
   real-acceptance:
     name: Real API acceptance
@@ -65,7 +99,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e ".[platform]" pytest pytest-asyncio
+          python -m pip install -e ".[dev]"
 
       - name: Check real API secret
         run: |
@@ -78,4 +112,4 @@ jobs:
           PY
 
       - name: Run real API acceptance tests
-        run: python -m pytest tests -q -m "real_api and acceptance"
+        run: python -m pytest tests/acceptance/test_real_api_acceptance.py -q -m "real_api and acceptance" --strict-markers

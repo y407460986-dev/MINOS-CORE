@@ -48,7 +48,7 @@ python -m minos_core.cli generate-three-tables --input path\to\drawing.png --out
 ## 当前交付状态
 
 - APQP workbook 当前固定导出 7 张 sheet：`摘要`、`质量门状态`、`过程流程图`、`PFMEA`、`控制计划`、`三表追溯矩阵`、`人工复核清单`。
-- 测试数量不在文档中固化；当前通过情况以本地 `python -m unittest discover -s tests -v` 或任务记录中的最新检查结果为准。
+- 测试数量不在文档中固化；当前通过情况以本地全量 `python -m pytest tests`、真实 API 验收命令或任务记录中的最新检查结果为准。
 - `generate-draft` / `run-pipeline` 入口输出草案 JSON，不等同正式导出。
 
 ## 工程化基础设施
@@ -176,11 +176,11 @@ python -m minos_core.cli write-demo-drawing --output out\desktop_acceptance\safe
 python -m minos_core.cli generate-three-tables --input out\desktop_acceptance\safe_demo_drawing.png --output-dir out\desktop_acceptance\cli_smoke
 python -m minos_core.cli accept-three-tables --result out\desktop_acceptance\cli_smoke\three_table_generation_result.json
 python -m minos_desktop.api.cli --db-path out\desktop_acceptance\api\minos_desktop.sqlite3 --output-dir out\desktop_acceptance\api
-python -m unittest discover -s tests -v
-python -m pytest tests/platform -q
+python -m pytest tests
+python -m pytest tests/acceptance/test_real_api_acceptance.py -q -m "real_api and acceptance" --strict-markers
 ```
 
-`write-demo-drawing` 生成的是合成 PNG，只用于验收链路；`accept-three-tables` 会检查结果 JSON、manifest、AI evidence refs、PFD/PFMEA/CP 内容和四个 xlsx 的 OpenXML zip 基础结构。它能作为交付前体检，但不等同于真实 Excel 自动打开验证。真实打开桌面 UI 的人工验收通过 `apps/desktop-tauri` 完成。
+`write-demo-drawing` 生成的是合成 PNG，只用于验收链路；`accept-three-tables` 会检查结果 JSON、manifest、AI evidence refs、PFD/PFMEA/CP 内容和四个 xlsx 的基础可打开性。测试 helper 使用 `openpyxl.load_workbook` 加载工作簿和所有 sheet，避免只检查 zip 结构。它能作为交付前体检，但不等同于真实桌面版 Excel 人工验收。真实打开桌面 UI 的人工验收通过 `apps/desktop-tauri` 完成。
 
 ## Demo input package CLI 端到端流程
 
@@ -257,8 +257,29 @@ python -m minos_core.cli export --input out\real_project_review_result.json --ou
 ## 测试
 
 ```powershell
-python -m unittest discover -s tests -v
+pip install -e ".[dev]"
+python -m pytest tests -q -m "not real_api"
 ```
+
+官方全量测试命令为 `python -m pytest tests`；需要跳过真实 API 时，使用 `python -m pytest tests -q -m "not real_api"`。
+
+真实 API 验收需要显式配置密钥、图纸路径并启用开关：
+
+```powershell
+$env:MINOS_RUN_REAL_ACCEPTANCE = "1"
+$env:MINOS_REAL_DRAWING_PATH = "path\to\drawing.pdf"
+python -m pytest tests\acceptance\test_real_api_acceptance.py -q -m "real_api and acceptance" --strict-markers
+```
+
+桌面前端构建：
+
+```powershell
+cd apps\desktop-tauri
+npm ci
+npm run build
+```
+
+Windows sidecar 打包较重，只在 CI 手动触发的 `windows-sidecar-smoke` job 中运行 `scripts\build_sidecar.ps1`；脚本末尾会执行 sidecar `--help`，作为打包产物能启动到 CLI 入口的 smoke 检查。
 
 ## 模块边界
 

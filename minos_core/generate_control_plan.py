@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from minos_core._text_utils import row_text, string_list, integer, dedupe
+from minos_core.three_table_result import canonical_three_table_bundle
 
 
 LOW_CONFIDENCE_THRESHOLD = 0.75
@@ -34,7 +35,7 @@ def generate_control_plan_from_pfmea(
             if row.get("ai_inferred") and row.get("control_plan_id")
         ]
     )
-    return {
+    return canonical_three_table_bundle({
         "document_type": "control_plan",
         "schema_version": "minos-core.generated.v1",
         "source_document_type": pfmea_bundle.get("document_type", "pfmea"),
@@ -50,7 +51,7 @@ def generate_control_plan_from_pfmea(
             "llm_used": False,
             "source_stage": "generate_pfmea",
         },
-    }
+    }, document_type="control_plan", row_key="rows")
 
 
 def _pfmea_rows(pfmea_bundle: dict[str, Any]) -> list[Any]:

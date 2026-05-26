@@ -1,5 +1,29 @@
 # 当前主目标发现：AI 图纸驱动三表生成工具
 
+## 当前安装版打开/导入报错修复发现
+
+- 这次“打开/导入直接报错”有两个不同层面的根因。早期弹窗来自 PyInstaller one-folder 运行时 `_internal\python311.dll` 没有出现在 sidecar exe 同级；后续导入失败来自默认 OCR 走到 MinerU，但安装版没有内置或配置 MinerU。
+- 安装包默认导入不能依赖开发机私有环境。Codex MCP 里的 MinerU 配置只能作为显式开发兜底，不能在冻结安装版里自动读取，否则用户机器上会出现不可解释的路径依赖。
+- 如果安装包不内置 MinerU，默认导入路径必须走已打包的 RapidOCR。MinerU 可以保留为显式高级选项，但缺 MinerU 时应给清楚配置提示，而不是让普通导入第一步失败。
+- 桌面默认值必须在三处一致：API 请求 schema、项目创建路由/运行链路、Tauri 导入页 context。只改其中一处会造成新项目显示、运行和界面行为不一致。
+- 旧项目兼容也要收口。即使运行链路已经默认 `rapidocr`，API serializer 若继续把缺失 OCR 上下文显示成 `mineru`，用户会误判新包仍在默认走 MinerU。
+- 对安装包的有效验证不能只跑源码目录里的 sidecar。必须用最终 NSIS 安装包安装到独立目录，再从安装目录启动主程序和 sidecar，才能证明 `_internal` 资源映射和默认 OCR 真的进入交付包。
+- 本地 `--no-sign` 生成的安装包签名状态为 `NotSigned` 是预期结果；这不影响功能验证，但正式外发仍需要代码签名策略来降低 Windows 未知发布者提示。
+
+## V1.14.24 审查问题整改发现
+
+- 本轮第一性目标是降低“错误交付”和“不可追溯交付”的风险，不是追求一次性重写架构。安全门槛、final export 阻断、证据/置信度贯穿和 CI 信号比拆大文件更靠前。
+- 平台 API、桌面 SSE、API key 备份、artifact hash 和 final export 都属于边界问题。边界问题不能只靠 UI 文案提示，必须在后端或导出入口形成硬阻断。
+- 5 路复核发现安全边界还有两个容易漏的地方：review patch 只验 JSON/hash 不够，提交前必须用当前 draft 做语义 dry-run；备份脱敏不能只处理 SQLite settings 表，日志和输出文件入 zip 时也不能携带已知 API key 明文。
+- 三表 canonical contract 的关键不是新增字段本身，而是保证 PFD/PFMEA/CP 每一行都能回答：来源证据是什么、置信度是多少、是否 AI 推断、是否待人工确认。
+- 特殊特性不能只保留 `SC/CC/无` 分类。分类回答“是否特殊”，`characteristic_refs` 才回答“控制的是哪个特性”；这两者混用会让三表追溯失真。
+- canonical contract 还需要剥离旧字段别名。`classification` 可以在生成/归一化边界被读取并映射到 `special_characteristic_class`，但进入 canonical row 后不应继续作为并行字段流动。
+- 桌面长任务状态需要以持久化 run/chain state 为准。SSE 是传输通道，不应成为唯一事实来源；重连和晚到订阅必须能恢复真实终态。
+- 路由先落库 running、后台再执行重生成时，后台服务必须识别这个 running 是已经认领的合法任务，否则会被自己的阶段保护拦住并把 run 卡在 running。
+- 测试数量多不等于测试信号可信。官方命令、CI 安装依赖、marker、绝对路径和 Excel 打开验证必须对齐，否则本地通过、CI 通过和真实可交付之间没有稳定关系。
+- 架构减重应作为第二轮：先用 normalizer/canonical contract 把入口结果对齐，再拆 `pipeline.py`、`quality_gates` 和 `DesktopRunService`，避免边修风险边扩大重构面。
+- 架构减重的下一步应拆成 drawing analysis、three-table generation、chain assembly、export facade 四块；`quality_gates` 后续只保留 blocker/debt 判定，review issue/manual review/knowledge recommendation projection/auto confirmation 迁出到报告或预处理层。
+
 ## V1.14.23 MinerU 默认 OCR 引擎文档同步发现
 
 - MinerU 的正确定位已调整为默认 OCR 解析引擎。它替代的是图纸入口的 OCR 解析层，不替代 MINOS 的 drawing_analysis、domain extraction、零件族判断、PFD/PFMEA/CP 推理、质量门、人工确认和导出门。
@@ -822,3 +846,37 @@
 - `https://cx.allincoding.cc/` 作为根地址时，Responses path 应为 `responses`。如果沿用 OpenAI 根地址默认的 `v1/responses`，实际请求会变成新中转不一定支持的 `/v1/responses`。
 
 - 桌面设置页的 `base_url_source` 需要显示 `default`，否则用户会误以为仍然来自 Codex 配置。
+
+## V1.14.25 PFMEA 进度与门铰链 BOM 来料检验发现
+
+- PFMEA 生成可以一条 PFD 工序生成多条 PFMEA 行，所以“已生成 60 行 / PFD 14 步”本身不是问题；问题是进度分子应该按 PFD 工序计数，不能把 PFMEA 行数或重复递增后的计数当作步数。
+
+- `step_index` 是 0-based，前端显示时会加 1。因此后端成功事件的 `step_index` 必须始终小于 `total_steps`，否则用户会看到 `16/14` 这种不可信进度。
+
+- 门铰链是总成件，来料检验的对象来自图纸 BOM，而不只是制造路线中的主毛坯。用户截图里的 BOM 已经给出车身件、车门件、衬套、销轴，PFD 如果只写锻件，是把总成 BOM 语义丢掉了。
+
+- 零件族知识库原来在 `description` 中知道门铰链核心部件包含销轴和衬套，但具体 `process_sequence[0].key_check` 只写丸钢、板料或毛坯。模型会优先相信具体路线步骤，所以修复必须落到工艺推断步骤的来料检查内容。
+
+- 链式 LLM PFD 原来的 `_family_route_summary()` 只输出工序名，而且只看前两个模板。门铰链前两个模板常常是旧 Excel 扁平行，没有 `steps`，导致真正的 process inference 变体和 `key_check` 没进入 prompt。
+
+- 仅靠 prompt 不够稳妥。即使模型漏写 BOM 子件，规则 PFD 和链式 PFD 后处理也应该把 `sub_components` 确定性补入来料检验，保证 PFMEA 和 CP 下游继承正确对象。
+
+- OCR 路径也需要识别 BOM。安装版默认走 RapidOCR 时，如果只靠多模态视觉字段，实际本地 OCR 项目仍可能丢失 BOM 子件；因此要支持从“序号 数量 名称 图号”文本行提取 `sub_components`。
+
+## V1.14.26 PFMEA 质量闸口发现
+
+- 桌面端当前 run #1 不是 `D:\MINOS-CORE\out` 旧文件，而是 `C:\Users\fgtan\AppData\Local\com.minos.core.desktop\minos_desktop.sqlite3` 中的真实运行结果；PFMEA 有 37 行，PFD 快照 13 步，状态为 `needs_review`。
+
+- AP 并不是没有生成，而是生成后不可信。旧结果里有 11 行 `action_priority/AP` 与 S/O/D 规则不一致，例如 `PFMEA-P01-01` 的 S/O/D/AP 为 `9/3/5/M`，按当前 `calculate_ap()` 应为 `H`。
+
+- 根因是 `normalize_pfmea_row()` 以前优先保留模型返回的 `action_priority` 或 `AP`。PFMEA 风险等级属于规则计算结果，不能信任模型自报。
+
+- 证据引用污染会把人工复核数量放大。旧结果中 P01/P07 共 9 行 PFMEA 每行继承了 61 个 OCR block 证据，`manual_review_count` 达到 668；这说明默认行级 evidence fallback 不能直接使用全部 OCR block。
+
+- 低置信度与待确认语义不一致。旧结果里有 30 行 `confidence < 0.75` 但 `needs_confirmation=false`，质量门和行内状态会给用户不同信号。
+
+- PFD 链路启发式不能高于人工确认。即使系统怀疑“表面处理后又压装”或“零件到总成状态跳变”，只要 PFD 已由人工确认，PFMEA 生成应继续执行，并把疑点记录为 `pfd_chain_warnings` 供后续复核。
+
+- 独立 PFMEA 导出和统一工作簿字段兼容不一致。统一导出已兼容 `S/O/D/AP`，独立 `PFMEA.xlsx` 原来只读取 `severity/occurrence/detection/action_priority`，会导致编辑或兼容数据导出空风险列。
+
+- 桌面端“看不到生成进度”的根因不是后端没有进度事件，而是工作台进入 running 状态后没有自动重新订阅对应 SSE；已有 SSE 事件也只写到底部 `saveState`，没有传给阶段卡片。阶段卡片只读持久化 `row_count`，在首个 checkpoint 前就会一直显示“当前 0 行”。

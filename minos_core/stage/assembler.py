@@ -2,6 +2,7 @@
 from __future__ import annotations
 from typing import Any
 from ..domain import APQPChain, EntityType, TraceLinkType
+from ..three_table_result import build_canonical_three_table_bundle
 from ._utils import _dedupe_mappings, _dedupe_values, _list_value, _text_value
 from .links import _generated_pfd_pfmea_links, _generated_pfmea_cp_links, _generated_step_candidate_links
 
@@ -68,6 +69,15 @@ def assemble_generated_apqp_chain(
         if isinstance(embedded_control_plan, dict):
             control_plan = embedded_control_plan
 
+    canonical_bundle = build_canonical_three_table_bundle(
+        process_flow=process_flow,
+        pfmea=pfmea,
+        control_plan=control_plan,
+    )
+    process_flow = canonical_bundle["process_flow"]
+    pfmea = canonical_bundle["pfmea"]
+    control_plan = canonical_bundle["control_plan"]
+
     bundles = [
         bundle
         for bundle in (process_flow, failure_mode_candidates, pfmea, control_plan)
@@ -80,24 +90,18 @@ def assemble_generated_apqp_chain(
         [process_flow, failure_mode_candidates, pfmea, control_plan], "schema_version"
     )
 
-    process_steps = list(
-        (process_flow or {}).get("steps", (process_flow or {}).get("process_steps", []))
-    )
+    process_steps = _dedupe_mappings(list((process_flow or {}).get("steps", [])))
     candidate_rows = list(
         (failure_mode_candidates or {}).get(
             "candidates",
             (failure_mode_candidates or {}).get("failure_mode_candidates", []),
         )
     )
-    pfmea_rows = list((pfmea or {}).get("rows", (pfmea or {}).get("failure_modes", [])))
-    control_rows = list(
-        (control_plan or {}).get(
-            "rows",
-            (control_plan or {}).get(
-                "controls", (control_plan or {}).get("control_plan_items", [])
-            ),
-        )
-    )
+    pfmea_rows = _dedupe_mappings(list((pfmea or {}).get("rows", [])))
+    control_rows = _dedupe_mappings(list((control_plan or {}).get("rows", [])))
+    process_flow["steps"] = process_steps
+    pfmea["rows"] = pfmea_rows
+    control_plan["rows"] = control_rows
     evidence_rows = _merge_evidence(bundles)
     links = _dedupe_mappings(
         list((process_flow or {}).get("links", []))
@@ -116,10 +120,13 @@ def assemble_generated_apqp_chain(
         "document_type": "apqp_chain",
         "schema_version": schema_version or "minos-core.generated.v1",
         "product": product,
-        "process_steps": _dedupe_mappings(process_steps),
+        "process_flow": process_flow,
+        "pfmea": pfmea,
+        "control_plan": control_plan,
+        "process_steps": process_steps,
         "failure_mode_candidates": _dedupe_mappings(candidate_rows),
-        "failure_modes": _dedupe_mappings(pfmea_rows),
-        "controls": _dedupe_mappings(control_rows),
+        "failure_modes": pfmea_rows,
+        "controls": control_rows,
         "evidence": _merge_evidence(bundles),
         "links": links,
         "pending_fields": _merge_list_field(bundles, "pending_fields"),

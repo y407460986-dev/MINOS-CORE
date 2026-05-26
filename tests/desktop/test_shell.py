@@ -305,6 +305,14 @@ class TestDesktopShell(unittest.TestCase):
         self.assertIn("原因判断：AI 上游模型或中转服务响应超时。", message)
         self.assertIn("稍后重试", message)
 
+    def test_failure_formatter_identifies_mineru_dependency_error(self):
+        message = format_desktop_failure(
+            "MinerUOCRAdapter requires a parser or MinerU command. "
+            "Set MINOS_MINERU_COMMAND or MINERU_COMMAND."
+        )
+
+        self.assertIn("原因判断：MinerU OCR 运行时未配置或不可用。", message)
+        self.assertIn("在设置页或系统环境变量配置 MINOS_MINERU_COMMAND", message)
 
 
 if __name__ == "__main__":

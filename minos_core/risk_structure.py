@@ -285,12 +285,38 @@ def _has_linkage_gap(
     for gap in linkage_gaps:
         if not isinstance(gap, dict):
             continue
-        target = text(gap.get("target", "") or gap.get("item_id", ""))
-        ref = gap.get("ref", "")
-        ref_id = text(gap.get("pfmea_id", ""))
-        if pfmea_id in (target, ref, ref_id):
+        refs = [
+            gap.get("source", ""),
+            gap.get("target", ""),
+            gap.get("item_id", ""),
+            gap.get("ref", ""),
+            gap.get("pfmea_id", ""),
+        ]
+        if _strip_linkage_prefix(pfmea_id) in {
+            _strip_linkage_prefix(text(ref)) for ref in refs if text(ref)
+        }:
             return True
     return False
+
+
+def _strip_linkage_prefix(value: str) -> str:
+    current = text(value)
+    while ":" in current:
+        prefix, rest = current.split(":", 1)
+        if prefix in {
+            "pfmea",
+            "failure_mode",
+            "control_plan",
+            "process_flow",
+            "process_step",
+            "source",
+            "target",
+            "ref",
+        }:
+            current = rest.strip()
+            continue
+        break
+    return current
 
 
 def _get_linkage_gaps(source: dict[str, Any]) -> list[dict[str, Any]]:
@@ -311,5 +337,4 @@ def _get_linkage_gaps(source: dict[str, Any]) -> list[dict[str, Any]]:
             if isinstance(gaps, list):
                 return gaps
     return []
-
 

@@ -33,7 +33,7 @@ class CreateProjectRequest(BaseModel):
     drawing_path: str = ""
     output_dir: str = ""
     analysis_mode: str = Field(default="hybrid", pattern="^(ocr_only|vision_only|hybrid)$")
-    ocr_engine: str = Field(default="rapidocr", pattern="^(auto|pdf_text|rapidocr|mineru)$")
+    ocr_engine: str = Field(default="mineru", pattern="^(auto|pdf_text|rapidocr|mineru)$")
     context: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -151,7 +151,7 @@ class KnowledgeImportSeedsRequest(BaseModel):
 
 def project_to_dict(record: DesktopProjectRecord) -> dict[str, Any]:
     analysis_mode = str(record.context.get("analysis_mode") or "hybrid")
-    ocr_engine = str(record.context.get("ocr_engine") or "rapidocr")
+    ocr_engine = str(record.context.get("ocr_engine") or "mineru")
     return {
         "id": record.id,
         "project_name": record.project_name,

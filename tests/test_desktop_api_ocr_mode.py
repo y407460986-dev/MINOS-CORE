@@ -14,7 +14,7 @@ from minos_desktop.app_state import DesktopProjectRecord
 
 
 class DesktopApiOCRModeTests(unittest.TestCase):
-    def test_project_serializer_defaults_legacy_records_to_packaged_rapidocr(self) -> None:
+    def test_project_serializer_defaults_legacy_records_to_mineru(self) -> None:
         record = DesktopProjectRecord(
             id=1,
             project_name="旧项目",
@@ -25,7 +25,7 @@ class DesktopApiOCRModeTests(unittest.TestCase):
             updated_at="2026-05-23T00:00:00+00:00",
         )
 
-        self.assertEqual(project_to_dict(record)["ocr_engine"], "rapidocr")
+        self.assertEqual(project_to_dict(record)["ocr_engine"], "mineru")
 
     def test_project_create_preserves_explicit_ocr_modes(self) -> None:
         for ocr_engine in ("rapidocr", "pdf_text", "mineru"):
@@ -55,10 +55,10 @@ class DesktopApiOCRModeTests(unittest.TestCase):
         self.assertEqual(project_body["ocr_engine"], ocr_engine)
         self.assertEqual(project_body["context"]["ocr_engine"], ocr_engine)
 
-    def test_project_create_defaults_to_packaged_rapidocr_mode(self) -> None:
-        asyncio.run(self._project_create_defaults_to_packaged_rapidocr_mode())
+    def test_project_create_defaults_to_mineru_mode(self) -> None:
+        asyncio.run(self._project_create_defaults_to_mineru_mode())
 
-    async def _project_create_defaults_to_packaged_rapidocr_mode(self) -> None:
+    async def _project_create_defaults_to_mineru_mode(self) -> None:
         captured: dict[str, object] = {}
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -80,9 +80,9 @@ class DesktopApiOCRModeTests(unittest.TestCase):
             self.assertEqual(response.status_code, 201)
             project_body = response.json()
             self.assertEqual(project_body["analysis_mode"], "hybrid")
-            self.assertEqual(project_body["ocr_engine"], "rapidocr")
+            self.assertEqual(project_body["ocr_engine"], "mineru")
             self.assertEqual(project_body["context"]["analysis_mode"], "hybrid")
-            self.assertEqual(project_body["context"]["ocr_engine"], "rapidocr")
+            self.assertEqual(project_body["context"]["ocr_engine"], "mineru")
 
             with patch(
                 "minos_desktop.services.analyze_drawing_for_three_table_chain",
@@ -107,7 +107,7 @@ class DesktopApiOCRModeTests(unittest.TestCase):
 
         self.assertEqual(run_response.status_code, 201)
         self.assertEqual(captured["analysis_mode"], "hybrid")
-        self.assertEqual(captured["ocr_engine"], "rapidocr")
+        self.assertEqual(captured["ocr_engine"], "mineru")
 
     def test_project_create_stores_ocr_mode_and_chain_run_passes_it(self) -> None:
         asyncio.run(self._project_create_stores_ocr_mode_and_chain_run_passes_it())

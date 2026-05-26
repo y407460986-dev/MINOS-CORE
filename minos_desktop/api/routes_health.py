@@ -6,9 +6,16 @@ from typing import Any
 
 from fastapi import APIRouter
 
+from minos_desktop import __version__
+
 router = APIRouter()
 
 
 @router.get("/health")
 def health() -> dict[str, Any]:
-    return {"ok": True, "status": "ok", "service": "minos-desktop-api", "version": "1.14.0"}
+    return {
+        "ok": True,
+        "status": "ok",
+        "service": "minos-desktop-api",
+        "version": __version__,
+    }

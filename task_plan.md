@@ -1770,3 +1770,5 @@ PFMEA 不做成第二张控制计划，但必须把风险控制逻辑写清楚�
 /// 8. 复现并修复 demo acceptance fake analyzer 缺 `evidence_refs` 的守卫漂移。
 /// 9. 给 `tests/platform`、`tests/desktop`、`tests/acceptance` 补 `__init__.py`，确认 unittest 发现数上涨。
 /// 10. 跑全量 unittest、关键聚焦测试和 git 状态检查，更新进度与发现记录后收尾。
+/// 11. 修复运行时版本显示：`/api/health` 和 FastAPI metadata 读取 `minos_desktop.__version__`，Tauri bootstrap 读取 `CARGO_PKG_VERSION`，右上角徽标和关于页不再保留旧版本兜底。
+/// 12. 运行版本聚焦测试、前端 build、Rust check、旧版本硬编码扫描，确认安装包重建后 sidecar health 返回 `2.0.0`。

@@ -1236,3 +1236,7 @@ Phase 6 真实项目试运行已完成代码落地：input_package 接入 genera
 - 已完成：新增 `tests/desktop/__init__.py` 与 `tests/acceptance/__init__.py`，全量 `python -m unittest discover -s tests -v` 运行 893 项，结果 `OK (skipped=8)`。
 - 已调整：没有提交 `tests/platform/__init__.py`。验证发现它会让 `unittest discover -s tests` 导入顶层 `platform` 包，遮蔽 Python 标准库 `platform`，导致 SQLAlchemy 调用 `platform.python_implementation()` 失败。
 - 已确认：本轮没有新增 CI、AI URL、README 或桌面构建脚本改动；`main...HEAD` 中这些文件的差异来自本分支此前提交，不属于本轮整改新增。
+- 已修复：右上角版本徽标和关于页不再依赖 `1.14.x` 硬编码；后端 `/api/health` 与 FastAPI metadata 读取 `minos_desktop.__version__`，Tauri bootstrap 读取 `Cargo.toml` 的 `CARGO_PKG_VERSION`。
+- 已验证：版本聚焦测试先红后绿；`tests.test_version_consistency` 4 项通过，`test_health_allows_no_token_when_env_token_is_absent` 通过，Tauri `npm run build` 和 `cargo check --locked` 通过。
+- 已重建：`dist\build\out\MINOS-CORE_2.0.0_x64-setup.exe` 已重新封包，大小 `95,445,892` bytes，SHA256 `81516A13EF1E36F29B41EA5C4790B1CCB5DA39321EB9EA49B8D8B1F35FC016CE`，本地 `--no-sign` 构建签名状态为 `NotSigned`。
+- 已验证：打包 sidecar `_internal\python311.dll` 存在；使用空闲高端口启动 `minos-desktop-api-x86_64-pc-windows-msvc.exe` 后，`/api/health` 返回 `{"version":"2.0.0"}`。本机 `8031-8130` 处于 Windows TCP 排除端口段，smoke 改用 `18000` 端口。

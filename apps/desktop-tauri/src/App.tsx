@@ -114,7 +114,7 @@ export default function App() {
                 <RefreshCw size={16} />
               </Button>
               <span className="flex h-7 items-center rounded-full border border-border bg-card/80 px-2.5 text-xs font-medium text-muted-foreground">
-                v{bootstrap?.version ?? "1.14"}
+                {bootstrap?.version ? `v${bootstrap.version}` : "v-"}
               </span>
             </>
           }

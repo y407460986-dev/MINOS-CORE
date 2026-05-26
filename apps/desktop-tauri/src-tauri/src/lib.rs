@@ -49,7 +49,7 @@ fn get_bootstrap(app: tauri::AppHandle) -> BootstrapPayload {
     });
     BootstrapPayload {
         app_name: "MINOS-CORE".to_string(),
-        version: "1.14.0".to_string(),
+        version: env!("CARGO_PKG_VERSION").to_string(),
         api_base_url,
         api_token: SIDECAR_TOKEN
             .get()

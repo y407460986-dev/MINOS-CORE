@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+import minos_desktop
 from minos_desktop.api import jobs
 from minos_desktop.api.app import create_app
 from minos_desktop.app_state import (
@@ -108,6 +109,7 @@ async def test_health_allows_no_token_when_env_token_is_absent(client, monkeypat
 
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
+    assert response.json()["version"] == minos_desktop.__version__
 
 
 async def test_token_auth_requires_bearer_token_when_configured(tmp_path, monkeypatch):

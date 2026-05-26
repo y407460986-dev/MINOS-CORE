@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from minos_core.ai_config import register_db_overrides_provider
+from minos_desktop import __version__
 from minos_desktop.services import DEFAULT_DESKTOP_DB_PATH, DEFAULT_DESKTOP_OUTPUT_DIR
 from minos_desktop.services import DesktopSettingsStore
 
@@ -34,7 +35,7 @@ def create_app(
     app = FastAPI(
         title="MINOS Desktop Sidecar API",
         description="Local API facade for minos_desktop services.",
-        version="1.14.0",
+        version=__version__,
     )
     app.state.db_path = str(db_path)
     app.state.output_dir = str(output_dir)

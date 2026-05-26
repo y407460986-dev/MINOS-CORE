@@ -885,6 +885,10 @@
 
 - 2.0.0 桌面壳元数据已经在 Tauri 侧对齐，但 Python 包仍是 `0.0.0` 且三个包入口没有 `__version__`，会让 sidecar 健康检查和桌面壳版本认知不一致。
 
+- 右上角版本徽标的直接来源不是 `tauri.conf.json`，而是 Rust `get_bootstrap()` 返回的 `version`；如果这里继续硬编码 `1.14.0`，即使安装包文件名和 Tauri metadata 都是 `2.0.0`，界面仍会显示旧版本。
+
+- 版本显示必须走单一版本链路：Python sidecar 使用 `minos_desktop.__version__`，Tauri bootstrap 使用 `CARGO_PKG_VERSION`，前端只显示 bootstrap 返回值；不要在 React 里保留具体旧版本兜底。
+
 - OCR 默认值存在前后端分裂：`minos_core.pipeline` 默认已经是 `mineru`，但桌面 API schema 和项目响应 fallback 仍回退到 `rapidocr`。
 
 - `pyproject.toml` 同时声明 unittest 发现配置和 pytest 测试命令，会让维护者误判当前标准测试入口。

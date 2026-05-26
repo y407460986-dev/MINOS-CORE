@@ -39,6 +39,22 @@ class VersionConsistencyTests(unittest.TestCase):
         self.assertIsNotNone(match)
         self.assertEqual(match.group(1), self.EXPECTED)
 
+    def test_desktop_runtime_version_uses_package_metadata(self):
+        tauri_source = (
+            REPO_ROOT / "apps/desktop-tauri/src-tauri/src/lib.rs"
+        ).read_text(encoding="utf-8")
+        app_source = (
+            REPO_ROOT / "apps/desktop-tauri/src/App.tsx"
+        ).read_text(encoding="utf-8")
+        settings_source = (
+            REPO_ROOT / "apps/desktop-tauri/src/pages/SettingsPage.tsx"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn('env!("CARGO_PKG_VERSION")', tauri_source)
+        for source in (tauri_source, app_source, settings_source):
+            self.assertNotIn("1.14.0", source)
+            self.assertNotIn('"1.14"', source)
+
 
 if __name__ == "__main__":
     unittest.main()

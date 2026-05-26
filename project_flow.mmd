@@ -12,6 +12,9 @@ flowchart TD
     RR200 --> RR200C[OCR 默认统一<br/>desktop schema -> mineru]
     RR200 --> RR200D[测试漂移修复<br/>schema fake analyzer discover]
     RR200 --> RR200E[全量 unittest 验证<br/>>=800 tests]
+    RR200B --> RR200F[运行时版本显示<br/>health + bootstrap use package metadata]
+    RR200F --> RR200G[右上角徽标和关于页<br/>no stale fallback version]
+    RR200G --> RR200E
     AUD --> AUD1[定位真实工作区<br/>D:\MINOS-CORE]
     AUD1 --> AUD2[审核 stage / quality_gates<br/>包化兼容导入]
     AUD2 --> AUD3[运行聚焦与全量非真实 API 测试]

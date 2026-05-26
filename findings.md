@@ -880,3 +880,13 @@
 - 独立 PFMEA 导出和统一工作簿字段兼容不一致。统一导出已兼容 `S/O/D/AP`，独立 `PFMEA.xlsx` 原来只读取 `severity/occurrence/detection/action_priority`，会导致编辑或兼容数据导出空风险列。
 
 - 桌面端“看不到生成进度”的根因不是后端没有进度事件，而是工作台进入 running 状态后没有自动重新订阅对应 SSE；已有 SSE 事件也只写到底部 `saveState`，没有传给阶段卡片。阶段卡片只读持久化 `row_count`，在首个 checkpoint 前就会一直显示“当前 0 行”。
+
+## V2.0.0 发布前整改发现
+
+- 2.0.0 桌面壳元数据已经在 Tauri 侧对齐，但 Python 包仍是 `0.0.0` 且三个包入口没有 `__version__`，会让 sidecar 健康检查和桌面壳版本认知不一致。
+
+- OCR 默认值存在前后端分裂：`minos_core.pipeline` 默认已经是 `mineru`，但桌面 API schema 和项目响应 fallback 仍回退到 `rapidocr`。
+
+- `pyproject.toml` 同时声明 unittest 发现配置和 pytest 测试命令，会让维护者误判当前标准测试入口。
+
+- `tests/platform`、`tests/desktop`、`tests/acceptance` 没有包 marker 时，`unittest discover` 会漏掉一批测试，发布前全量验证不可信。

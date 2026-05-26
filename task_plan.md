@@ -1745,3 +1745,28 @@ PFMEA 不做成第二张控制计划，但必须把风险控制逻辑写清楚�
 /// 7. 做最小生产代码修复并运行相关回归。
 /// 8. 更新 findings/progress/project_flow，并重建 sidecar/NSIS 安装包做 smoke、hash 和签名状态记录。
 /// 9. 修复工作台 running 阶段进度不可见：进入运行态自动重连 PFMEA/CP SSE，把 step_index/total_steps/rows_so_far 传给阶段卡片；验证前端静态回归、桌面/SSE 回归和 Tauri build。
+
+---
+
+## V2.0.0 发布前整改
+
+### 目标
+把桌面版 2.0.0 发布前发现的测试、版本、OCR 默认值、配置矛盾和仓库卫生问题收口，确保 `unittest discover` 全量验证可信。
+
+### OpenSpec 四步闭环
+1. Define：当前 2.0.0 壳版本已更新，但 Python 包版本、桌面 API OCR 默认值、测试依赖、schema fixture、测试发现范围和 `.gitignore` 仍存在发布前缺口。
+2. Specify：Python 与 Tauri 版本统一为 `2.0.0`；默认 OCR 统一为 `mineru`；测试配置统一到 unittest；新增目录 marker 让测试被发现；只修计划列出的漂移。
+3. Implement：按 TDD/复现优先新增版本一致性与 OCR 默认测试，补依赖、fixture、fake analyzer 和测试目录 marker，不动 CI、AI URL、README、桌面构建脚本。
+4. Verify：跑聚焦 unittest、全量 `python -m unittest discover -s tests -v`，确认 `Ran >= 800` 且失败/错误为 0。
+
+### 开发步骤
+/// 1. 校准当前分支和工作区状态，确认 `Cargo.toml` 只有构建后的假修改标记且无内容差异。
+/// 2. 补 `.gitignore` 的 Obsidian 忽略项，并用临时 `.obsidian` 文件验证不会进入 `git status`。
+/// 3. 用 `.venv/Scripts/python` 复现并安装缺失测试依赖，确认 `sse_starlette` 和 `openpyxl` 可 import。
+/// 4. 新增版本一致性红灯测试，再把 `pyproject.toml` 与三个 Python 包 `__version__` 统一为 `2.0.0`。
+/// 5. 删除 `pyproject.toml` 中 pytest 残留测试命令，验证 TOML 仍可解析。
+/// 6. 新增桌面 OCR 默认值红灯测试，再把 `CreateProjectRequest` 和项目响应 fallback 默认值改为 `mineru`。
+/// 7. 复现并修复 `drawing_analysis_bundle` fixture 缺 `sub_components` 的 schema 漂移。
+/// 8. 复现并修复 demo acceptance fake analyzer 缺 `evidence_refs` 的守卫漂移。
+/// 9. 给 `tests/platform`、`tests/desktop`、`tests/acceptance` 补 `__init__.py`，确认 unittest 发现数上涨。
+/// 10. 跑全量 unittest、关键聚焦测试和 git 状态检查，更新进度与发现记录后收尾。

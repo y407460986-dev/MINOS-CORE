@@ -1221,3 +1221,9 @@ Phase 6 真实项目试运行已完成代码落地：input_package 接入 genera
 - 已定位并修复：工作台阶段卡片只读持久化 `row_count`，没有自动接回 running 阶段 SSE，所以 PFMEA 生成时会显示“当前 0 行”；现在进入 running 阶段会自动订阅 PFMEA/CP SSE，并在阶段卡片显示 `当前步数/总步数` 与已生成行数。
 - 已验证：`python -m pytest tests/test_desktop_tauri_app_state.py tests/desktop/test_sse_chain_resilience.py tests/desktop/test_services.py tests/test_desktop_api_sidecar.py -q`：93 项通过。
 - 已验证：`npm run build` 在 `apps\desktop-tauri` 通过。
+
+## V2.0.0 发布前整改
+
+- 当前状态：已读取 `C:\Users\fgtan\.claude\plans\superpower-skill-stateless-gadget.md`，确认本轮只收口发布前整改，不新增 CI、AI URL、README 或构建脚本改动。
+- 已校准：当前分支为 `codex/minos-review-remediation`，`Cargo.toml` 的构建后状态标记无内容差异，已通过 `git add -- apps/desktop-tauri/src-tauri/Cargo.toml` 刷新为干净状态。
+- 执行顺序：先仓库卫生与依赖，再版本一致性、pyproject 清理、OCR 默认值、schema/acceptance fixture、测试发现范围，最后全量 unittest。

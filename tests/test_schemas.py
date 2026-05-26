@@ -76,6 +76,7 @@ VALID_BUNDLES = {
         "dimensions": [],
         "tolerances": [],
         "special_characteristics": [],
+        "sub_components": [],
         "technical_requirements": [],
         "inspection_requirements": [],
         "manufacturing_clues": [],

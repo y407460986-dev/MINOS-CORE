@@ -67,8 +67,3 @@ minos-desktop-api = "minos_desktop.api.cli:main"
 [tool.setuptools.packages.find]
 include = ["minos_core*", "minos_desktop*", "minos_platform*"]
 
-[tool.unittest]
-discover_start_dir = "tests"
-discover_pattern = "test*.py"
-
-test_command = "python -m pytest tests"

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "minos-core"
-version = "0.0.0"
+version = "2.0.0"
 description = "Evidence-driven APQP linkage core for PFD, PFMEA, and control plan workflows."
 readme = "README.md"
 requires-python = ">=3.11"

@@ -1,0 +1,324 @@
+"""
+Environment diagnostics command for MINOS-CORE.
+
+Checks system configuration, dependencies, and provides recommendations
+for optimal setup.
+"""
+
+import sys
+import os
+import shutil
+import logging
+from pathlib import Path
+from typing import Any
+
+logger = logging.getLogger(__name__)
+
+
+class DiagnosticCheck:
+    """Represents a single diagnostic check."""
+
+    def __init__(
+        self,
+        name: str,
+        status: str,
+        message: str,
+        details: str | None = None,
+    ):
+        self.name = name
+        self.status = status  # "ok", "warning", "error"
+        self.message = message
+        self.details = details
+
+    def __str__(self) -> str:
+        """Format check result for display."""
+        # Use ASCII-safe symbols for Windows compatibility
+        symbols = {"ok": "[OK]", "warning": "[WARN]", "error": "[ERROR]"}
+        symbol = symbols.get(self.status, "[?]")
+        result = f"{symbol} {self.name}: {self.message}"
+        if self.details:
+            result += f"\n   {self.details}"
+        return result
+
+
+def check_python_version() -> DiagnosticCheck:
+    """Check Python version."""
+    version = sys.version_info
+    version_str = f"{version.major}.{version.minor}.{version.micro}"
+
+    if version.major == 3 and version.minor >= 11:
+        return DiagnosticCheck(
+            "Python Version",
+            "ok",
+            f"Python {version_str}",
+        )
+    else:
+        return DiagnosticCheck(
+            "Python Version",
+            "error",
+            f"Python {version_str} (requires >= 3.11)",
+        )
+
+
+def check_ocr_engines() -> list[DiagnosticCheck]:
+    """Check available OCR engines."""
+    from minos_core.ocr_detection import (
+        detect_available_ocr_engines,
+        get_ocr_engine_info,
+    )
+
+    checks = []
+    available = detect_available_ocr_engines()
+
+    # Check RapidOCR
+    if "rapidocr" in available:
+        try:
+            import rapidocr_onnxruntime
+
+            version = getattr(rapidocr_onnxruntime, "__version__", "unknown")
+            checks.append(
+                DiagnosticCheck(
+                    "RapidOCR",
+                    "ok",
+                    f"Installed (version {version})",
+                )
+            )
+        except Exception as e:
+            checks.append(
+                DiagnosticCheck(
+                    "RapidOCR",
+                    "warning",
+                    "Detected but cannot import",
+                    str(e),
+                )
+            )
+    else:
+        checks.append(
+            DiagnosticCheck(
+                "RapidOCR",
+                "error",
+                "Not installed",
+                "Install with: pip install rapidocr-onnxruntime",
+            )
+        )
+
+    # Check MinerU
+    if "mineru" in available:
+        mineru_cmd = shutil.which("magic-pdf") or os.getenv("MINERU_COMMAND")
+        checks.append(
+            DiagnosticCheck(
+                "MinerU",
+                "ok",
+                f"Installed (command: {mineru_cmd})",
+            )
+        )
+    else:
+        checks.append(
+            DiagnosticCheck(
+                "MinerU",
+                "warning",
+                "Not found (optional)",
+                "MinerU provides higher accuracy OCR but is optional",
+            )
+        )
+
+    return checks
+
+
+def check_ai_config() -> DiagnosticCheck:
+    """Check AI service configuration."""
+    try:
+        from minos_core import ai_config
+
+        # Try to get AI config - different projects may have different methods
+        config = None
+        if hasattr(ai_config, "load_ai_config"):
+            config = ai_config.load_ai_config()
+        elif hasattr(ai_config, "get_ai_config"):
+            config = ai_config.get_ai_config()
+        elif hasattr(ai_config, "AIConfig"):
+            # Try to instantiate directly
+            config = ai_config.AIConfig()
+
+        if config and hasattr(config, "base_url") and config.base_url:
+            return DiagnosticCheck(
+                "AI Configuration",
+                "ok",
+                f"Primary endpoint: {config.base_url}",
+            )
+        else:
+            return DiagnosticCheck(
+                "AI Configuration",
+                "warning",
+                "Configuration loaded but no endpoint found",
+            )
+
+    except Exception as e:
+        # AI config errors are warnings, not critical errors
+        return DiagnosticCheck(
+            "AI Configuration",
+            "warning",
+            "Could not verify AI configuration",
+            str(e),
+        )
+
+
+def check_backup_endpoints() -> DiagnosticCheck:
+    """Check if backup AI endpoints are configured."""
+    # This is a placeholder - actual implementation depends on how
+    # backup endpoints are configured in the system
+    backup_env = os.getenv("MINOS_BACKUP_AI_ENDPOINTS")
+
+    if backup_env:
+        endpoints = backup_env.split(",")
+        return DiagnosticCheck(
+            "Backup AI Endpoints",
+            "ok",
+            f"{len(endpoints)} backup endpoint(s) configured",
+        )
+    else:
+        return DiagnosticCheck(
+            "Backup AI Endpoints",
+            "warning",
+            "No backup endpoints configured",
+            "Consider configuring backup endpoints for resilience",
+        )
+
+
+def check_dependencies() -> list[DiagnosticCheck]:
+    """Check core dependencies."""
+    checks = []
+
+    dependencies = [
+        ("httpx", "HTTP client"),
+        ("pydantic", "Data validation"),
+        ("PyMuPDF", "PDF processing"),
+    ]
+
+    for package, description in dependencies:
+        try:
+            module = __import__(package.lower().replace("-", "_"))
+            version = getattr(module, "__version__", "unknown")
+            checks.append(
+                DiagnosticCheck(
+                    package,
+                    "ok",
+                    f"{description} (version {version})",
+                )
+            )
+        except ImportError:
+            checks.append(
+                DiagnosticCheck(
+                    package,
+                    "error",
+                    f"{description} not installed",
+                )
+            )
+
+    return checks
+
+
+def check_disk_space() -> DiagnosticCheck:
+    """Check available disk space."""
+    try:
+        import shutil
+
+        total, used, free = shutil.disk_usage("/")
+        free_gb = free // (2**30)
+
+        if free_gb > 10:
+            return DiagnosticCheck(
+                "Disk Space",
+                "ok",
+                f"{free_gb} GB available",
+            )
+        elif free_gb > 5:
+            return DiagnosticCheck(
+                "Disk Space",
+                "warning",
+                f"{free_gb} GB available (low)",
+            )
+        else:
+            return DiagnosticCheck(
+                "Disk Space",
+                "error",
+                f"{free_gb} GB available (critically low)",
+            )
+    except Exception as e:
+        return DiagnosticCheck(
+            "Disk Space",
+            "warning",
+            "Could not check disk space",
+            str(e),
+        )
+
+
+def run_diagnostics() -> list[DiagnosticCheck]:
+    """
+    Run all diagnostic checks.
+
+    Returns:
+        List of diagnostic check results
+    """
+    checks = []
+
+    # System checks
+    checks.append(check_python_version())
+    checks.append(check_disk_space())
+
+    # Dependency checks
+    checks.extend(check_dependencies())
+
+    # OCR checks
+    checks.extend(check_ocr_engines())
+
+    # AI configuration checks
+    checks.append(check_ai_config())
+    checks.append(check_backup_endpoints())
+
+    return checks
+
+
+def print_diagnostics(checks: list[DiagnosticCheck]) -> None:
+    """
+    Print diagnostic results to console.
+
+    Args:
+        checks: List of diagnostic check results
+    """
+    print("\n" + "=" * 60)
+    print("MINOS-CORE Environment Diagnostics")
+    print("=" * 60 + "\n")
+
+    # Group by status
+    ok_checks = [c for c in checks if c.status == "ok"]
+    warning_checks = [c for c in checks if c.status == "warning"]
+    error_checks = [c for c in checks if c.status == "error"]
+
+    # Print all checks
+    for check in checks:
+        print(check)
+
+    # Summary
+    print("\n" + "-" * 60)
+    print(f"Summary: {len(ok_checks)} OK, {len(warning_checks)} warnings, {len(error_checks)} errors")
+
+    if error_checks:
+        print("\n[!] Critical issues found. Please address errors above.")
+        sys.exit(1)
+    elif warning_checks:
+        print("\n[!] Some warnings found. System should work but may not be optimal.")
+        sys.exit(0)
+    else:
+        print("\n[OK] All checks passed!")
+        sys.exit(0)
+
+
+def doctor_command() -> None:
+    """Main entry point for the doctor command."""
+    checks = run_diagnostics()
+    print_diagnostics(checks)
+
+
+if __name__ == "__main__":
+    doctor_command()

@@ -23,6 +23,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     subparsers.add_parser("list-samples", help="List configured sample metadata")
     subparsers.add_parser("ai-config", help="Show AI provider config status without printing secrets")
+    subparsers.add_parser("doctor", help="Run environment diagnostics")
 
     analyze_drawing_parser = subparsers.add_parser(
         "analyze-drawing",
@@ -289,6 +290,10 @@ def main(argv: list[str] | None = None) -> int:
         return _list_samples(getattr(args, "samples_dir", None))
     if args.command == "ai-config":
         return _ai_config()
+    if args.command == "doctor":
+        from .cli_doctor import doctor_command
+        doctor_command()
+        return 0
     if args.command == "analyze-drawing":
         return _analyze_drawing(
             args.input,

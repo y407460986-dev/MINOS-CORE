@@ -16,6 +16,10 @@
 - [x] /// 9. 意图：实现桌面长任务状态修复。输入：worker 桌面状态线测试。输出：running 落库、重复保护、SSE 真实终态与鉴权，PFMEA/CP 重生成后台接受已认领 running。验证：desktop API/SSE 聚焦测试通过。
 - [x] /// 10. 意图：实现 CI 与测试可信度修复。输入：worker CI 测试线验证。输出：test/dev extra、CI jobs、marker、路径和 Excel 打开验证。验证：pytest marker/path/openpyxl 聚焦检查通过。
 - [x] /// 11. 意图：识别架构减重边界。输入：`pipeline.py`、`quality_gates`、stage assembly 和当前 OpenSpec。输出：本轮不拆范围、第二轮拆分顺序和副作用迁移清单。验证：发现记录可指导后续重构，不扩大本轮改动。
+- [x] /// 16. 意图：实现公司工艺边界默认档案。输入：用户确认的本厂能力、外购输入和禁止工序。输出：`minos_core.process_boundary` 默认配置、prompt 文本和 PFD 后处理。验证：`tests/test_process_boundary.py` 红绿通过。
+- [x] /// 17. 意图：把工艺边界接入桌面设置。输入：现有 SQLite settings 和 `/api/settings`。输出：`get_process_boundary_config`、`set_process_boundary_config`、GET 返回和 PATCH 保存。验证：desktop service/API 聚焦测试通过，空 payload 返回 422。
+- [x] /// 18. 意图：把工艺边界接入 PFD 链路。输入：`generate_pfd_from_drawing` 和桌面 `start_chain_run`。输出：prompt 注入、生成后自动修正、metadata 调整记录和桌面运行传参。验证：三表链路 mock LLM 测试和服务层传参测试通过。
+- [x] /// 19. 意图：在设置页开放全局编辑入口。输入：SettingsPage、前端 API/types。输出：“公司工艺边界”区块、编辑/保存/恢复默认、多行文本输入和 PATCH client。验证：`tests/test_desktop_tauri_app_state.py` 静态契约通过。
 
 ## Verify
 - [x] /// 12. 意图：运行 Python 聚焦回归。输入：五条线改动文件。输出：相关测试结果。验证：`tests/three_table_workflow ... tests/test_confidence_propagation.py` 112 项和 9 个 subtests 通过；安全/桌面/CI 聚焦 150 项和 12 个 subtests 通过。

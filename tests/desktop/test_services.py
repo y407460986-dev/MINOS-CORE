@@ -29,9 +29,32 @@ from minos_desktop.table_editor import (
     three_table_to_table_model,
 )
 from minos_core._paths import user_data_dir
+from minos_core.process_boundary import default_process_boundary_config
 
 
 class TestDesktopServices(unittest.TestCase):
+    def test_process_boundary_config_defaults_and_round_trips(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = DesktopSettingsStore(os.path.join(tmpdir, "desktop.sqlite3"))
+
+            default_config = store.get_process_boundary_config()
+            saved = store.set_process_boundary_config(
+                {
+                    **default_config,
+                    "enabled": False,
+                    "disallowed_internal_operations": [
+                        *default_config["disallowed_internal_operations"],
+                        "供应商预加工",
+                    ],
+                }
+            )
+            loaded = store.get_process_boundary_config()
+
+        self.assertEqual(default_config, default_process_boundary_config())
+        self.assertFalse(saved["enabled"])
+        self.assertEqual(saved, loaded)
+        self.assertIn("供应商预加工", loaded["disallowed_internal_operations"])
+
     def test_ai_overrides_round_trip_and_settings_do_not_expose_api_key(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             store = DesktopSettingsStore(os.path.join(tmpdir, "desktop.sqlite3"))
@@ -46,6 +69,7 @@ class TestDesktopServices(unittest.TestCase):
                 settings = settings_to_dict(
                     store.get_default_output_dir(),
                     store.get_ai_config_state(),
+                    store.get_process_boundary_config(),
                 )
 
         self.assertEqual(
@@ -437,6 +461,48 @@ class TestDesktopServices(unittest.TestCase):
             self.assertEqual(loaded.state.manual_review_count, 2)
             self.assertEqual(loaded.raw_result["status"], "needs_review")
             self.assertTrue(os.path.exists(os.path.join(updated.output_dir, "three_table_generation_result.json")))
+
+    def test_chain_start_passes_global_process_boundary_to_pfd_generation(self):
+        analysis_result = {
+            "drawing_analysis": {
+                "document_type": "drawing_analysis_bundle",
+                "drawing_identity": {"part_name": "尾门铰链"},
+                "metadata": {},
+            },
+            "drawing_gate": type("Gate", (), {"can_continue": True, "model_dump": lambda self: {"ok": True}})(),
+            "part_family_classification": {"family_key": "door_hinge"},
+            "family_context": {"family_key": "door_hinge"},
+        }
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = os.path.join(tmpdir, "desktop.sqlite3")
+            config = DesktopSettingsStore(db_path).set_process_boundary_config(
+                {
+                    **default_process_boundary_config(),
+                    "enabled": False,
+                }
+            )
+            project = DesktopProjectStore(db_path).create_project(
+                DesktopProjectState(
+                    project_name="链式项目",
+                    drawing_path="drawing.pdf",
+                    output_dir=tmpdir,
+                    context={"analysis_mode": "ocr_only"},
+                )
+            )
+            with patch(
+                "minos_desktop.services.analyze_drawing_for_three_table_chain",
+                return_value=analysis_result,
+            ):
+                with patch(
+                    "minos_core.pipeline_chain.generate_pfd_from_drawing",
+                    return_value={"steps": [{"process_step_id": "P01", "operation": "来料检验"}]},
+                ) as pfd_mock:
+                    run = DesktopRunService(db_path).start_chain_run(project)
+
+        self.assertEqual(run.state.status, "needs_review")
+        pfd_mock.assert_called_once()
+        self.assertEqual(pfd_mock.call_args.kwargs["process_boundary"], config)
 
     def test_pfd_confirm_returns_immediately_and_pfmea_generation_runs_separately(self):
         with tempfile.TemporaryDirectory() as tmpdir:

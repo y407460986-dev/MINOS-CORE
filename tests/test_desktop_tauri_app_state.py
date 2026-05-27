@@ -450,6 +450,37 @@ def test_settings_page_exposes_ai_service_config_controls() -> None:
     assert "AIConfigUpdatePayload" in types_source
 
 
+def test_settings_page_exposes_process_boundary_controls() -> None:
+    page_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "pages" / "SettingsPage.tsx"
+    ).read_text(encoding="utf-8")
+    client_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "api" / "client.ts"
+    ).read_text(encoding="utf-8")
+    types_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "api" / "types.ts"
+    ).read_text(encoding="utf-8")
+
+    assert "公司工艺边界" in page_source
+    assert "settings-process-boundary" in page_source
+    assert "本公司总成制造过程" in page_source
+    assert "供应商制程" in page_source
+    assert "本厂可做" in page_source
+    assert "外购输入" in page_source
+    assert "禁止作为本厂工序" in page_source
+    assert "编辑" in page_source
+    assert "保存" in page_source
+    assert "恢复默认" in page_source
+    assert "updateProcessBoundaryConfig" in page_source
+    assert "process_boundary_config" in page_source
+    assert "updateProcessBoundaryConfig" in client_source
+    assert '"/api/settings/process-boundary"' in client_source
+    assert "ProcessBoundaryConfig" in types_source
+    assert "process_boundary_config" in types_source
+    assert "supplier_processes_excluded" in types_source
+    assert "disallowed_internal_operations" in types_source
+
+
 def test_tauri_build_script_does_not_pollute_real_sidecar_internal_dir() -> None:
     build_script = (
         ROOT / "apps" / "desktop-tauri" / "src-tauri" / "build.rs"

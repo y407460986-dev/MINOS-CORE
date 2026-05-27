@@ -6,6 +6,16 @@ flowchart TD
     A --> D181[MINOS v1.8.1 子任务 D<br/>核心巨型逻辑低风险拆分]
     A --> AUD[当前调查审核与问题修复]
     A --> RR24[V1.14.24 审查问题整改<br/>安全 合同 状态 CI 架构边界]
+    A --> PB700[公司工艺边界配置<br/>能力档案 prompt 注入 后处理]
+    PB700 --> PB701[结构化公司能力档案<br/>本厂可做 外购输入 禁止工序]
+    PB701 --> PB702[PFD prompt 注入<br/>本公司总成制造过程]
+    PB702 --> PB703[生成后校验<br/>删除供应商锻造热处理抛丸]
+    PB703 --> PB704[外购锻件补入来料检验<br/>重排 Pxx 链路]
+    PB701 --> PB705[SQLite settings<br/>GET settings PATCH process-boundary]
+    PB705 --> PB706[Settings UI<br/>编辑 保存 恢复默认]
+    PB704 --> PB707[verification<br/>core desktop API chain UI tests]
+    PB706 --> PB707
+    PB707 --> G
     A --> RR200[V2.0.0 发布前整改<br/>unittest 版本 OCR schema hygiene]
     RR200 --> RR200A[依赖补齐<br/>sse-starlette openpyxl]
     RR200 --> RR200B[版本一致<br/>Python package + Tauri metadata]

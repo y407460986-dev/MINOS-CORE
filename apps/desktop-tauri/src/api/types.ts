@@ -92,6 +92,7 @@ export type DesktopRun = {
 
 export type DesktopSettings = {
   default_output_dir: string;
+  process_boundary_config: ProcessBoundaryConfig;
   ai_config: {
     provider: string;
     model: string;
@@ -112,6 +113,15 @@ export type DesktopSettings = {
     wire_api: string;
     responses_path: string;
   };
+};
+
+export type ProcessBoundaryConfig = {
+  enabled: boolean;
+  process_scope: string;
+  supplier_processes_excluded: boolean;
+  in_house_processes: string[];
+  purchased_inputs: string[];
+  disallowed_internal_operations: string[];
 };
 
 export type AIConfigUpdatePayload = {

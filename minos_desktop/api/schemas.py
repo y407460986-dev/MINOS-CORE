@@ -47,6 +47,15 @@ class AIConfigUpdateRequest(BaseModel):
     model: str | None = None
 
 
+class ProcessBoundaryUpdateRequest(BaseModel):
+    enabled: bool
+    process_scope: str = Field(..., min_length=1)
+    supplier_processes_excluded: bool
+    in_house_processes: list[str]
+    purchased_inputs: list[str]
+    disallowed_internal_operations: list[str]
+
+
 class DataManagementClearRequest(BaseModel):
     scope: str = Field(..., pattern="^(workspace|factory_reset)$")
     delete_outputs: bool = False
@@ -197,9 +206,14 @@ def run_to_dict(record: DesktopRunRecord) -> dict[str, Any]:
     }
 
 
-def settings_to_dict(default_output_dir: str, ai_config: Any) -> dict[str, Any]:
+def settings_to_dict(
+    default_output_dir: str,
+    ai_config: Any,
+    process_boundary_config: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     return {
         "default_output_dir": default_output_dir,
+        "process_boundary_config": process_boundary_config or {},
         "ai_config": {
             "provider": ai_config.provider,
             "model": ai_config.model,

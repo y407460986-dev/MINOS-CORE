@@ -20,7 +20,8 @@ import type {
   KnowledgeImportSeedsResponse,
   LinkageApplySyncRequest,
   LinkageApplySyncResponse,
-  PartFamilyResponse
+  PartFamilyResponse,
+  ProcessBoundaryConfig
 } from "./types";
 
 const API_BASE_URL = import.meta.env.VITE_MINOS_API_BASE_URL ?? "http://127.0.0.1:8000";
@@ -206,6 +207,13 @@ export function setDefaultOutputDir(outputDir: string): Promise<DesktopSettings>
 
 export function updateAiConfig(payload: AIConfigUpdatePayload): Promise<DesktopSettings> {
   return apiJson<DesktopSettings>("/api/settings/ai-config", {
+    method: "PATCH",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function updateProcessBoundaryConfig(payload: ProcessBoundaryConfig): Promise<DesktopSettings> {
+  return apiJson<DesktopSettings>("/api/settings/process-boundary", {
     method: "PATCH",
     body: JSON.stringify(payload)
   });

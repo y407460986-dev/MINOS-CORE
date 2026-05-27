@@ -16,10 +16,21 @@
 - `special_characteristic_class` 只表示 `SC/CC/无`，`characteristic_refs` 保存具体特性 ID。
 - CP 生成范围包含 H/M、高严重度，以及带特殊特性或特性引用的 PFMEA 行。
 
+## Company Process Boundary
+- 新增结构化公司能力档案，默认启用并保存到 SQLite `settings.process_boundary_config`，不新增表。
+- PFD prompt 注入公司边界：PFD 是本公司总成制造过程，不展开供应商制程；锻件、铸件、标准件等只能作为外购输入。
+- PFD 生成后执行确定性校验和自动改正，删除加热坯料、锻造成形、热处理锻件、抛丸清理锻件等供应商工序。
+- 如果删除锻件供应商工序，自动把“外购锻件”补入来料检验输入/过程功能，并重排 `process_step_id`、`previous_step_ids`、`next_step_ids`。
+- metadata 记录 `process_boundary_applied` 和 `process_boundary_adjustments`，方便人工复核模型越界情况。
+
 ## Desktop Runtime State
 - 阶段切到 running 必须先持久化，API 返回持久化后的 run。
 - 阶段确认和重生成接口防止重复后台任务写同一个 run。
 - SSE 空通道或重连时查询持久化 chain state，返回真实 done/failed；开启 API token 时 SSE 也必须鉴权。
+
+## Settings UI
+- 设置页在 AI 与数据管理之间新增“公司工艺边界”区块，第一版使用多行文本编辑本厂可做、外购输入和禁止作为本厂工序。
+- “恢复默认”由前端发送默认结构化配置；后端 PATCH 空 payload 返回 422，不把空对象解释为恢复默认。
 
 ## Verification
 - Python 使用 pytest 作为官方入口。

@@ -1,5 +1,22 @@
 ## 当前主目标：AI 图纸驱动三表生成工具
 
+## 公司工艺边界配置当前状态
+
+- 已完成：新增 `minos_core.process_boundary`，包含默认公司能力档案、配置归一化、PFD prompt 构造和生成后自动修正。
+- 已完成：默认配置启用“本公司总成制造过程”边界，外购输入包含锻件/铸件/标准件/外购表面处理件，禁止工序包含加热坯料、锻造成形、热处理锻件、抛丸清理锻件等供应商制程。
+- 已完成：PFD 后处理会删除越界供应商工序，保留冲孔、机加工、装配、铆接、检验等本厂后续工序，并重排 `process_step_id`、`previous_step_ids`、`next_step_ids`。
+- 已完成：当删除锻件供应商工序时，来料检验会补入“外购锻件”输入/功能，metadata 写入 `process_boundary_applied` 和 `process_boundary_adjustments`。
+- 已完成：`DesktopSettingsStore` 复用 SQLite `settings` 表读写 `process_boundary_config`；`GET /api/settings` 返回默认档案；`PATCH /api/settings/process-boundary` 保存完整配置，空 payload 返回 422。
+- 已完成：桌面链式运行从全局 settings 读取工艺边界，并传给 `generate_pfd_from_drawing(..., process_boundary=...)`。
+- 已完成：设置页新增“公司工艺边界”区块，支持查看启用状态、本厂可做、外购输入、禁止作为本厂工序，并提供编辑、保存、恢复默认。
+- 已同步：OpenSpec V1.14.24 proposal/design/tasks/spec 增补公司工艺边界要求、设计和任务；`task_plan.md`、`findings.md`、`project_flow.mmd` 已记录本轮流程。
+- 已验证：`python -m pytest tests/test_process_boundary.py -q`：5 项通过。
+- 已验证：`python -m pytest tests/desktop/test_services.py tests/test_desktop_api_sidecar.py -q`：52 项通过。
+- 已验证：`python -m pytest tests/three_table_workflow/test_chain_generation.py -q`：26 项通过。
+- 已验证：`python -m pytest tests/test_desktop_tauri_app_state.py -q`：36 项通过。
+- 已验证：`npm run build` 在 `apps/desktop-tauri` 通过，完成 TypeScript 检查和 Vite production build。
+- 已验证：`git diff --check` 通过；OpenSpec、根文档和流程图 UTF-8 可读取；`project_flow.mmd` 节点 ID 唯一，共 57 个节点定义。
+
 ## 当前安装版打开/导入报错修复与重新封包状态
 
 - 已定位：旧安装目录 `E:\MINOS-CORE` 的最新失败 run 卡在 PFD 阶段，原始错误是 `MinerUOCRAdapter requires a parser or MinerU command...`，说明当时默认导入路径走到了外部 MinerU，但安装包没有内置或配置 MinerU。

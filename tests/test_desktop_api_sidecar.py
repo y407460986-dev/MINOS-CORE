@@ -16,6 +16,7 @@ from minos_desktop.app_state import (
     StageConfirmState,
 )
 from minos_desktop.services import DesktopProjectStore, DesktopRunService, DesktopSettingsStore
+from minos_core.process_boundary import default_process_boundary_config
 
 pytestmark = pytest.mark.asyncio
 
@@ -222,6 +223,46 @@ async def test_patch_ai_config_persists_overrides_without_returning_secret(tmp_p
     assert ai["api_key_override_set"] is True
     assert "api-secret-from-ui" not in str(body)
     assert DesktopSettingsStore(db_path).get_ai_overrides()["api_key"] == "api-secret-from-ui"
+
+
+async def test_settings_api_returns_and_persists_process_boundary_config(tmp_path):
+    db_path = tmp_path / "desktop.sqlite3"
+    app = create_app(db_path=db_path, output_dir=tmp_path / "out")
+    transport = ASGITransport(app=app)
+    default_config = default_process_boundary_config()
+    updated = {
+        **default_config,
+        "enabled": False,
+        "disallowed_internal_operations": [
+            *default_config["disallowed_internal_operations"],
+            "供应商预加工",
+        ],
+    }
+
+    async with AsyncClient(transport=transport, base_url="http://test") as test_client:
+        initial = await test_client.get("/api/settings")
+        patched = await test_client.patch(
+            "/api/settings/process-boundary",
+            json=updated,
+        )
+        reloaded = await test_client.get("/api/settings")
+
+    assert initial.status_code == 200
+    assert initial.json()["process_boundary_config"] == default_config
+    assert patched.status_code == 200
+    assert patched.json()["process_boundary_config"] == updated
+    assert reloaded.json()["process_boundary_config"] == updated
+    assert DesktopSettingsStore(db_path).get_process_boundary_config() == updated
+
+
+async def test_process_boundary_patch_rejects_empty_payload(tmp_path):
+    app = create_app(db_path=tmp_path / "desktop.sqlite3", output_dir=tmp_path / "out")
+    transport = ASGITransport(app=app)
+
+    async with AsyncClient(transport=transport, base_url="http://test") as test_client:
+        response = await test_client.patch("/api/settings/process-boundary", json={})
+
+    assert response.status_code == 422
 
 
 async def test_patch_ai_config_validation_error_does_not_echo_secret(tmp_path):

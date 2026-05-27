@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Archive, Bot, Database, FolderOpen, Info, RotateCcw, Save, Settings2, ShieldAlert, Trash2 } from "lucide-react";
+import { Archive, Bot, Database, FolderOpen, Info, RotateCcw, Save, Settings2, ShieldAlert, ShieldCheck, Trash2 } from "lucide-react";
 import {
   backupDataManagement,
   clearDataManagement,
@@ -9,22 +9,34 @@ import {
   revealFile,
   selectOutputDir,
   setDefaultOutputDir,
-  updateAiConfig
+  updateAiConfig,
+  updateProcessBoundaryConfig
 } from "../api/client";
 import type {
   BootstrapPayload,
   DesktopDataClearScope,
   DesktopDataManagementStatus,
-  DesktopSettings
+  DesktopSettings,
+  ProcessBoundaryConfig
 } from "../api/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Notice, StatusPill, Surface } from "@/components/ui/experience";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 
 type SettingsPageProps = {
   apiState: "checking" | "online" | "offline";
   bootstrap: BootstrapPayload | null;
+};
+
+const DEFAULT_PROCESS_BOUNDARY_CONFIG: ProcessBoundaryConfig = {
+  enabled: true,
+  process_scope: "本公司总成制造过程",
+  supplier_processes_excluded: true,
+  in_house_processes: ["来料检验", "冲压", "冲孔", "机加工", "装配", "铆接", "检验", "包装", "仓储"],
+  purchased_inputs: ["锻件", "铸件", "标准件", "外购表面处理件"],
+  disallowed_internal_operations: ["加热坯料", "锻造成形", "锻造切边", "热处理锻件", "抛丸清理锻件", "锻压", "锻造模具", "锻压机", "摩擦压力机"]
 };
 
 export default function SettingsPage({ apiState, bootstrap }: SettingsPageProps) {
@@ -38,6 +50,14 @@ export default function SettingsPage({ apiState, bootstrap }: SettingsPageProps)
   const [aiModel, setAiModel] = useState("");
   const [dataMessage, setDataMessage] = useState("");
   const [deleteOutputs, setDeleteOutputs] = useState(true);
+  const [processBoundaryMessage, setProcessBoundaryMessage] = useState("");
+  const [processBoundaryEditing, setProcessBoundaryEditing] = useState(false);
+  const [processBoundaryEnabled, setProcessBoundaryEnabled] = useState(true);
+  const [processBoundaryScope, setProcessBoundaryScope] = useState("");
+  const [supplierProcessesExcluded, setSupplierProcessesExcluded] = useState(true);
+  const [inHouseProcessesText, setInHouseProcessesText] = useState("");
+  const [purchasedInputsText, setPurchasedInputsText] = useState("");
+  const [disallowedOperationsText, setDisallowedOperationsText] = useState("");
 
   useEffect(() => {
     void getSettings()
@@ -46,6 +66,7 @@ export default function SettingsPage({ apiState, bootstrap }: SettingsPageProps)
         setOutputDir(value.default_output_dir);
         setAiBaseUrl(value.ai_config.base_url_override ?? "");
         setAiModel(value.ai_config.model_override ?? "");
+        syncProcessBoundaryForm(value.process_boundary_config);
       })
       .catch((caught) => setMessage(caught instanceof Error ? caught.message : String(caught)));
     void refreshDataStatus();
@@ -83,6 +104,26 @@ export default function SettingsPage({ apiState, bootstrap }: SettingsPageProps)
     setAiModel(value.ai_config.model_override ?? "");
   }
 
+  function syncProcessBoundaryForm(config: ProcessBoundaryConfig) {
+    setProcessBoundaryEnabled(config.enabled);
+    setProcessBoundaryScope(config.process_scope);
+    setSupplierProcessesExcluded(config.supplier_processes_excluded);
+    setInHouseProcessesText(config.in_house_processes.join("\n"));
+    setPurchasedInputsText(config.purchased_inputs.join("\n"));
+    setDisallowedOperationsText(config.disallowed_internal_operations.join("\n"));
+  }
+
+  function processBoundaryPayload(): ProcessBoundaryConfig {
+    return {
+      enabled: processBoundaryEnabled,
+      process_scope: processBoundaryScope.trim() || DEFAULT_PROCESS_BOUNDARY_CONFIG.process_scope,
+      supplier_processes_excluded: supplierProcessesExcluded,
+      in_house_processes: linesFromTextarea(inHouseProcessesText),
+      purchased_inputs: linesFromTextarea(purchasedInputsText),
+      disallowed_internal_operations: linesFromTextarea(disallowedOperationsText)
+    };
+  }
+
   async function saveAiConfig() {
     setAiMessage("正在保存...");
     const payload: { base_url?: string; api_key?: string; model?: string } = {
@@ -108,6 +149,23 @@ export default function SettingsPage({ apiState, bootstrap }: SettingsPageProps)
     } catch (caught) {
       setAiMessage(caught instanceof Error ? caught.message : String(caught));
     }
+  }
+
+  async function saveProcessBoundaryConfig(payload = processBoundaryPayload()) {
+    setProcessBoundaryMessage("正在保存...");
+    try {
+      const value = await updateProcessBoundaryConfig(payload);
+      setSettings(value);
+      syncProcessBoundaryForm(value.process_boundary_config);
+      setProcessBoundaryEditing(false);
+      setProcessBoundaryMessage("公司工艺边界已保存");
+    } catch (caught) {
+      setProcessBoundaryMessage(caught instanceof Error ? caught.message : String(caught));
+    }
+  }
+
+  async function restoreDefaultProcessBoundary() {
+    await saveProcessBoundaryConfig(DEFAULT_PROCESS_BOUNDARY_CONFIG);
   }
 
   async function backupData() {
@@ -162,6 +220,7 @@ export default function SettingsPage({ apiState, bootstrap }: SettingsPageProps)
 
   const ai = settings?.ai_config;
   const serviceState = apiState === "online" ? "已连接" : apiState === "offline" ? "未连接" : "检查中";
+  const processBoundaryConfig = settings?.process_boundary_config ?? DEFAULT_PROCESS_BOUNDARY_CONFIG;
   const lastBackup = dataStatus?.last_backup_path
     ? `${dataStatus.last_backup_path}${dataStatus.last_backup_created_at ? `（${dataStatus.last_backup_created_at}）` : ""}`
     : "暂无备份";
@@ -190,6 +249,7 @@ export default function SettingsPage({ apiState, bootstrap }: SettingsPageProps)
         {[
           ["#settings-general", "通用"],
           ["#settings-ai", "AI"],
+          ["#settings-process-boundary", "公司工艺边界"],
           ["#settings-data", "数据管理"],
           ["#settings-about", "关于"],
         ].map(([href, label]) => (
@@ -280,6 +340,114 @@ export default function SettingsPage({ apiState, bootstrap }: SettingsPageProps)
         </div>
 
         {aiMessage && <StatusText>{aiMessage}</StatusText>}
+      </SettingsSection>
+
+      <SettingsSection
+        id="settings-process-boundary"
+        icon={<ShieldCheck size={18} />}
+        title="公司工艺边界"
+        description="PFD 默认表达本公司总成制造过程；外购件只进入来料检验，不展开供应商制程。"
+        wide
+      >
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusPill tone={processBoundaryConfig.enabled ? "info" : "neutral"}>
+            {processBoundaryConfig.enabled ? "已启用" : "未启用"}
+          </StatusPill>
+          <StatusPill tone={processBoundaryConfig.supplier_processes_excluded ? "info" : "neutral"}>
+            {processBoundaryConfig.supplier_processes_excluded ? "排除供应商制程" : "未排除供应商制程"}
+          </StatusPill>
+          <span className="text-[13px] text-muted-foreground">{processBoundaryConfig.process_scope}</span>
+        </div>
+
+        {!processBoundaryEditing ? (
+          <div className="grid grid-cols-3 gap-3 max-[920px]:grid-cols-1">
+            <BoundaryPreview label="本厂可做" items={processBoundaryConfig.in_house_processes} />
+            <BoundaryPreview label="外购输入" items={processBoundaryConfig.purchased_inputs} />
+            <BoundaryPreview label="禁止作为本厂工序" items={processBoundaryConfig.disallowed_internal_operations} />
+          </div>
+        ) : (
+          <div className="grid gap-3">
+            <div className="grid grid-cols-[minmax(220px,0.8fr)_minmax(260px,1fr)] gap-3 max-[920px]:grid-cols-1">
+              <label className="grid gap-[7px]">
+                <span className="text-[13px] text-muted-foreground">过程范围</span>
+                <Input
+                  value={processBoundaryScope}
+                  onChange={(event) => setProcessBoundaryScope(event.target.value)}
+                  placeholder="本公司总成制造过程"
+                />
+              </label>
+              <div className="flex flex-wrap items-end gap-4">
+                <label className="flex items-center gap-2 text-[13px] text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={processBoundaryEnabled}
+                    onChange={(event) => setProcessBoundaryEnabled(event.target.checked)}
+                  />
+                  启用公司工艺边界
+                </label>
+                <label className="flex items-center gap-2 text-[13px] text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={supplierProcessesExcluded}
+                    onChange={(event) => setSupplierProcessesExcluded(event.target.checked)}
+                  />
+                  不展开供应商制程
+                </label>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3 max-[920px]:grid-cols-1">
+              <BoundaryTextarea
+                label="本厂可做"
+                value={inHouseProcessesText}
+                onChange={setInHouseProcessesText}
+              />
+              <BoundaryTextarea
+                label="外购输入"
+                value={purchasedInputsText}
+                onChange={setPurchasedInputsText}
+              />
+              <BoundaryTextarea
+                label="禁止作为本厂工序"
+                value={disallowedOperationsText}
+                onChange={setDisallowedOperationsText}
+              />
+            </div>
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-2">
+          {!processBoundaryEditing && (
+            <Button variant="outline" size="sm" onClick={() => setProcessBoundaryEditing(true)}>
+              <Settings2 size={16} className="mr-[7px]" />
+              编辑
+            </Button>
+          )}
+          {processBoundaryEditing && (
+            <Button variant="outline" size="sm" onClick={() => saveProcessBoundaryConfig()}>
+              <Save size={16} className="mr-[7px]" />
+              保存
+            </Button>
+          )}
+          {processBoundaryEditing && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                syncProcessBoundaryForm(processBoundaryConfig);
+                setProcessBoundaryEditing(false);
+              }}
+            >
+              取消
+            </Button>
+          )}
+          <Button variant="ghost" size="sm" onClick={restoreDefaultProcessBoundary}>
+            <RotateCcw size={16} className="mr-[7px]" />
+            恢复默认
+          </Button>
+        </div>
+
+        {processBoundaryMessage && <StatusText>{processBoundaryMessage}</StatusText>}
       </SettingsSection>
 
       <SettingsSection
@@ -450,6 +618,53 @@ function Metric({ label, value }: { label: string; value: string | number }) {
       <strong className="text-[15px]">{value}</strong>
     </Surface>
   );
+}
+
+function BoundaryPreview({ label, items }: { label: string; items: string[] }) {
+  return (
+    <div className="rounded-md border bg-muted/20 px-3 py-2">
+      <div className="mb-2 text-[12px] font-semibold text-muted-foreground">{label}</div>
+      <div className="flex flex-wrap gap-1.5">
+        {items.length > 0 ? (
+          items.map((item) => (
+            <span key={item} className="rounded-md border bg-muted/40 px-2 py-1 text-[12px]">
+              {item}
+            </span>
+          ))
+        ) : (
+          <span className="text-[12px] text-muted-foreground">未设置</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function BoundaryTextarea({
+  label,
+  value,
+  onChange
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="grid gap-[7px]">
+      <span className="text-[13px] text-muted-foreground">{label}</span>
+      <Textarea
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="min-h-36 resize-y text-[13px] leading-6"
+      />
+    </label>
+  );
+}
+
+function linesFromTextarea(value: string) {
+  return value
+    .split(/\r?\n|,|，|、|;|；/)
+    .map((item) => item.trim())
+    .filter((item, index, items) => item.length > 0 && items.indexOf(item) === index);
 }
 
 function formatBytes(value: number) {

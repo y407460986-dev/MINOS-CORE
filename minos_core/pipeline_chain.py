@@ -17,6 +17,10 @@ from ._text_utils import float_or_none, string_list, text, flow_type_display
 from .adapters.llm_text import OpenAITextGenerator
 from .aiag_vda_pfmea import normalize_pfmea_row, validate_severity_floor
 from .drawing_to_pfd import normalize_process_flow_steps
+from .process_boundary import (
+    apply_process_boundary_to_pfd,
+    build_process_boundary_prompt,
+)
 from .three_table_result import canonical_three_table_bundle
 
 logger = logging.getLogger(__name__)
@@ -725,6 +729,7 @@ def _infer_flow_type_from_step(step: dict) -> str:
 def generate_pfd_from_drawing(
     drawing_analysis: dict,
     model: str | None = None,
+    process_boundary: dict[str, Any] | None = None,
 ) -> dict:
     """基于图纸分析结果，LLM 推理生成过程流程图。
 
@@ -756,10 +761,16 @@ def generate_pfd_from_drawing(
             if route_summary:
                 context_text += f"\n知识库建议工艺路线: {route_summary}"
 
+    process_boundary_prompt = build_process_boundary_prompt(process_boundary)
+    process_boundary_section = (
+        f"\n\n{process_boundary_prompt}" if process_boundary_prompt else ""
+    )
+
     user_prompt = f"""请基于以下图纸分析结果生成完整的过程流程图 (PFD)。
 
 图纸分析摘要:
 {context_text}
+{process_boundary_section}
 
 请生成完整的 steps 数组。每个工序必须有 process_step_id、flow_type、flow_symbol、operation、input_material、output_result、previous_step_ids、next_step_ids、process_function、equipment。
 每个工序还必须包含 evidence_refs、confidence、ai_inferred、needs_confirmation。
@@ -809,6 +820,21 @@ def generate_pfd_from_drawing(
             evidence_refs=evidence_refs,
             confidence=confidence,
         )
+    metadata = {
+        "chain_stage": "pfd",
+        "chain_stage_status": "generated",
+        "part_family_hint": pfd_result.get("part_family_hint", ""),
+        "process_route_summary": pfd_result.get("process_route_summary", ""),
+        "generated_at": _now_iso(),
+    }
+    if process_boundary:
+        boundary_result = apply_process_boundary_to_pfd(
+            {"steps": pfd_steps, "metadata": metadata},
+            process_boundary,
+        )
+        pfd_steps = _ensure_list(boundary_result, "steps")
+        metadata = boundary_result.get("metadata") or metadata
+
     normalize_process_flow_steps(
         pfd_steps,
         default_input_material=default_input_material,
@@ -820,13 +846,7 @@ def generate_pfd_from_drawing(
         "document_type": "process_flow",
         "schema_version": "minos-core.generated.v1",
         "steps": pfd_steps,
-        "metadata": {
-            "chain_stage": "pfd",
-            "chain_stage_status": "generated",
-            "part_family_hint": pfd_result.get("part_family_hint", ""),
-            "process_route_summary": pfd_result.get("process_route_summary", ""),
-            "generated_at": _now_iso(),
-        },
+        "metadata": metadata,
     }, document_type="process_flow", row_key="steps")
 
 

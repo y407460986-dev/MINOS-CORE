@@ -35,6 +35,41 @@ The system SHALL expose PFD, PFMEA, and Control Plan bundles with canonical docu
 - **THEN** `special_characteristic_class` contains the class such as `SC`
 - **AND** `characteristic_refs` keeps the concrete characteristic identity
 
+### Requirement: Enforce company process boundary in PFD generation
+The system SHALL apply a global structured company process-boundary profile to PFD generation so the generated flow describes the company's assembly/manufacturing scope and does not expand supplier manufacturing processes.
+
+#### Scenario: supplier forging steps are automatically removed
+- **GIVEN** the company process boundary marks forged parts as purchased inputs
+- **AND** a generated PFD contains supplier steps such as heating billet, forging forming, forged-part heat treatment, or shot blasting
+- **WHEN** the PFD is post-processed
+- **THEN** those supplier manufacturing steps are removed from internal PFD steps
+- **AND** the remaining internal steps are relinked with valid `process_step_id`, `previous_step_ids`, and `next_step_ids`
+- **AND** the metadata records that process-boundary adjustments were applied
+
+#### Scenario: purchased forged parts remain as incoming inspection inputs
+- **GIVEN** supplier forging steps were removed
+- **WHEN** the first incoming inspection step is inspected
+- **THEN** the step mentions the purchased forged part as an incoming material or inspection function
+- **AND** downstream in-house steps such as punching, machining, assembly, riveting, inspection, and packaging remain available
+
+### Requirement: Allow editing global company process boundary settings
+The desktop settings API and UI SHALL expose the global company process-boundary profile for viewing and editing without creating project-level overrides.
+
+#### Scenario: settings API returns the default boundary
+- **GIVEN** no process-boundary setting has been saved
+- **WHEN** desktop settings are requested
+- **THEN** the response includes `process_boundary_config` with the default enabled company profile
+
+#### Scenario: process boundary patch persists a full profile
+- **GIVEN** the settings page submits a full process-boundary profile
+- **WHEN** `/api/settings/process-boundary` is patched
+- **THEN** the profile is saved to the existing settings store and returned by subsequent settings requests
+
+#### Scenario: empty patch is rejected
+- **GIVEN** the settings page or caller sends an empty JSON object
+- **WHEN** `/api/settings/process-boundary` is patched
+- **THEN** the API rejects it instead of clearing the structure or treating it as restore default
+
 ### Requirement: Persist desktop chain state across long-running stages
 The desktop API SHALL persist running and terminal stage state so reconnects and duplicate requests cannot misrepresent the current run.
 

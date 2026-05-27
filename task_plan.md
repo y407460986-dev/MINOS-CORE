@@ -1,5 +1,36 @@
 # MINOS-CORE 重建任务计划
 
+## 公司工艺边界配置：结构化能力档案 + PFD prompt 注入 + 生成后校验
+
+### 目标
+让所有项目默认遵守“PFD 只表达本公司总成制造过程，不展开供应商制程”。锻件、铸件、标准件和外购表面处理件作为外购输入进入来料检验；加热坯料、锻造成形、热处理锻件、抛丸清理锻件等供应商制造过程不得作为本厂内部工序出现。若 LLM 仍输出越界工序，系统自动删除/修正并在 metadata 记录调整。
+
+```mermaid
+flowchart TD
+    PB0[确认公司工艺边界方案] --> PB1[建立 process_boundary 核心模块]
+    PB1 --> PB2[默认能力档案<br/>本厂可做 外购输入 禁止工序]
+    PB2 --> PB3[PFD prompt 注入<br/>不展开供应商制程]
+    PB3 --> PB4[生成后校验和自动改正]
+    PB4 --> PB5[补外购锻件来料检验<br/>删除供应商锻造热处理抛丸]
+    PB5 --> PB6[重排 Pxx 编号和前后链路]
+    PB2 --> PB7[SQLite settings 存储<br/>GET/PATCH API]
+    PB7 --> PB8[Settings 页面编辑<br/>编辑 保存 恢复默认]
+    PB6 --> PB9[聚焦测试和前端 build]
+    PB8 --> PB9
+```
+
+/// 1. 意图：实现结构化公司能力档案；输入：用户确认的本厂能力、外购输入和禁止工序；输出：`minos_core/process_boundary.py`；验证：默认配置、prompt 和 PFD 自动修正测试红绿通过。
+/// 2. 意图：持久化全局工艺边界；输入：现有 SQLite `settings` 表和设置 API；输出：`process_boundary_config` GET/PATCH；验证：默认返回、保存读回和空 payload 拒绝测试通过。
+/// 3. 意图：接入 PFD 生成链路；输入：`generate_pfd_from_drawing` 和桌面链式运行；输出：prompt 注入、后处理修正、metadata 调整记录和桌面传参；验证：mock LLM 越界工序测试通过。
+/// 4. 意图：提供设置页编辑入口；输入：SettingsPage、前端 client/types；输出：“公司工艺边界”区块、多行文本编辑、保存和恢复默认；验证：Tauri 静态契约和前端 build 通过。
+
+### OpenSpec 四步闭环
+
+1. Define：默认全局适用，不做项目级覆盖。
+2. Specify：结构化档案是主方案，自由文本提示词不是主方案；后处理自动改正，不阻断生成。
+3. Implement：先核心后端，再 settings API，再 PFD 链路，最后设置页。
+4. Verify：用核心、desktop service/API、three-table workflow、Tauri 静态测试和前端 build 收口。
+
 ## 当前安装版打开/导入报错修复与重新封包
 
 ### 目标

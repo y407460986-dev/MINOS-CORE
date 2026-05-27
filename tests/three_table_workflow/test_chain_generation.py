@@ -38,6 +38,7 @@ from minos_core.pipeline_chain import (
     generate_pfmea_from_confirmed_pfd,
     _family_route_summary,
 )
+from minos_core.process_boundary import default_process_boundary_config
 from minos_core.three_table_result import build_three_table_generation_envelope
 from minos_core.cli import main
 from minos_core.schemas import validate_bundle_schema
@@ -263,6 +264,99 @@ class ChainGenerationTests(unittest.TestCase):
         )
         for expected in ("锻件", "销轴", "衬套"):
             self.assertIn(expected, combined)
+
+    def test_chain_pfd_generation_applies_process_boundary_prompt_and_correction(self):
+        llm_payload = {
+            "steps": [
+                {
+                    "process_step_id": "P10",
+                    "flow_type": "inspection",
+                    "flow_symbol": "inspection",
+                    "operation_type": "检验",
+                    "operation": "来料检验",
+                    "input_material": "毛坯",
+                    "output_result": "来料合格",
+                    "previous_step_ids": [],
+                    "next_step_ids": [],
+                    "process_function": "确认来料状态",
+                    "equipment": "检验台",
+                    "product_characteristics": "",
+                    "product_characteristic_class": "无",
+                    "process_characteristics": "",
+                    "process_characteristic_class": "无",
+                    "special_characteristics": [],
+                    "evidence_refs": ["EV-DRAW"],
+                    "confidence": 0.9,
+                    "ai_inferred": True,
+                    "needs_confirmation": False,
+                },
+                {
+                    "process_step_id": "P20",
+                    "operation_type": "加工",
+                    "operation": "加热坯料",
+                    "output_result": "坯料加热完成",
+                    "process_function": "锻造前加热坯料",
+                    "equipment": "加热炉",
+                    "product_characteristics": "",
+                    "product_characteristic_class": "无",
+                    "process_characteristics": "",
+                    "process_characteristic_class": "无",
+                    "special_characteristics": [],
+                    "needs_confirmation": False,
+                },
+                {
+                    "process_step_id": "P30",
+                    "operation_type": "加工",
+                    "operation": "锻造成形",
+                    "output_result": "锻件成形",
+                    "process_function": "供应商锻造成形",
+                    "equipment": "摩擦压力机",
+                    "product_characteristics": "",
+                    "product_characteristic_class": "无",
+                    "process_characteristics": "",
+                    "process_characteristic_class": "无",
+                    "special_characteristics": [],
+                    "needs_confirmation": False,
+                },
+                {
+                    "process_step_id": "P40",
+                    "operation_type": "加工",
+                    "operation": "冲制轴孔",
+                    "output_result": "轴孔完成",
+                    "process_function": "冲制安装轴孔",
+                    "equipment": "冲床",
+                    "product_characteristics": "",
+                    "product_characteristic_class": "无",
+                    "process_characteristics": "",
+                    "process_characteristic_class": "无",
+                    "special_characteristics": [],
+                    "needs_confirmation": False,
+                },
+            ]
+        }
+        drawing_analysis = {
+            "drawing_identity": {"part_name": "尾门铰链总成"},
+            "evidence": [{"evidence_id": "EV-DRAW", "source": "drawing", "confidence": 0.9}],
+        }
+
+        with patch("minos_core.pipeline_chain.OpenAITextGenerator") as generator:
+            llm = generator.return_value
+            llm.generate_structured.return_value = llm_payload
+
+            pfd = generate_pfd_from_drawing(
+                drawing_analysis,
+                process_boundary=default_process_boundary_config(),
+            )
+
+        user_prompt = llm.generate_structured.call_args.kwargs["user_prompt"]
+        self.assertIn("PFD 是本公司总成制造过程", user_prompt)
+        self.assertIn("不展开供应商制程", user_prompt)
+        operations = [step["operation"] for step in pfd["steps"]]
+        self.assertNotIn("加热坯料", operations)
+        self.assertNotIn("锻造成形", operations)
+        self.assertIn("冲制轴孔", operations)
+        self.assertTrue(pfd["metadata"]["process_boundary_applied"])
+        self.assertTrue(pfd["metadata"]["process_boundary_adjustments"])
 
     def test_family_route_summary_scans_process_inference_steps_and_key_checks(self):
         route_templates = [

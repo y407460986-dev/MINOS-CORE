@@ -18,6 +18,10 @@ from minos_core._paths import user_data_dir
 from minos_core.ai_config import load_openai_responses_config
 from minos_core.knowledge_recommendation import DEFAULT_KNOWLEDGE_RULES
 from minos_core.pipeline import analyze_drawing_for_three_table_chain
+from minos_core.process_boundary import (
+    default_process_boundary_config,
+    normalize_process_boundary_config,
+)
 
 from .chain_state import (
     chain_stages_from_envelope,
@@ -187,6 +191,23 @@ class DesktopSettingsStore:
             api_key_locked_by_env=bool(api_key_env),
             model_locked_by_env=bool(model_env),
         )
+
+    def get_process_boundary_config(self) -> dict[str, Any]:
+        value = self._get("process_boundary_config")
+        if not value:
+            return default_process_boundary_config()
+        try:
+            payload = json.loads(value)
+        except json.JSONDecodeError:
+            return default_process_boundary_config()
+        return normalize_process_boundary_config(payload)
+
+    def set_process_boundary_config(self, payload: dict[str, Any]) -> dict[str, Any]:
+        if not isinstance(payload, dict) or not payload:
+            raise ValueError("工艺边界配置不能为空。")
+        value = normalize_process_boundary_config(payload)
+        self._set("process_boundary_config", json.dumps(value, ensure_ascii=False, sort_keys=True))
+        return value
 
     def _get(self, key: str) -> str:
         with self._store.connect() as connection:
@@ -570,7 +591,13 @@ class DesktopRunService:
             return self.save_chain_run(project.id, state, project.output_dir, result, failure, chain_stages)
 
         try:
-            llm_pfd = generate_pfd_from_drawing(drawing_analysis)
+            process_boundary = DesktopSettingsStore(
+                self._store.db_path
+            ).get_process_boundary_config()
+            llm_pfd = generate_pfd_from_drawing(
+                drawing_analysis,
+                process_boundary=process_boundary,
+            )
         except (OSError, ValueError, TypeError, RuntimeError, KeyError, AttributeError) as exc:
             failure = format_desktop_failure(exc)
             chain_stages = _init_chain_stages("failed")

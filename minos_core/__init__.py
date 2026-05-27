@@ -1,6 +1,6 @@
 """MINOS Core public API."""
 
-__version__ = "2.0.0"
+__version__ = "2.0.1"
 
 from .audit import AuditItem, AuditReport, audit_chain
 from .analyze import analyze_evidence_bundle, analyze_evidence_bundle_with_ai

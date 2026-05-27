@@ -1,6 +1,6 @@
 """MINOS desktop sidecar and business service package."""
 
-__version__ = "2.0.0"
+__version__ = "2.0.1"
 
 from .app_state import (
     DesktopAIConfigState,

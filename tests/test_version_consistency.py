@@ -12,7 +12,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 class VersionConsistencyTests(unittest.TestCase):
-    EXPECTED = "2.0.0"
+    EXPECTED = "2.0.1"
 
     def test_pyproject_version(self):
         data = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))

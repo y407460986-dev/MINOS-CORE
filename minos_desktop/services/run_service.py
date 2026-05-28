@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import json
 import sqlite3
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -41,6 +42,9 @@ from ..table_editor import (
 )
 from .sqlite_store import DesktopSQLiteStore, DEFAULT_DESKTOP_DB_PATH, _utc_now, _to_json
 from .project_store import _from_json_object
+
+MAX_UNDO_STACK_SIZE = 20
+MAX_UNDO_MEMORY_BYTES = 50 * 1024 * 1024  # 50 MB
 
 class DesktopRunService:
     def __init__(
@@ -1106,10 +1110,24 @@ class DesktopRunService:
         current_envelope: dict[str, Any] = {}
         try:
             current_envelope = _stored_payload_for_run(self._store, run_id)
-            self._undo_stack.append(copy.deepcopy(current_envelope))
+            snapshot = copy.deepcopy(current_envelope)
+
+            self._undo_stack.append(snapshot)
             self._redo_stack.clear()
-            if len(self._undo_stack) > 20:
+
+            # Enforce count limit
+            while len(self._undo_stack) > MAX_UNDO_STACK_SIZE:
                 self._undo_stack.pop(0)
+
+            # Enforce memory limit
+            total_size = sum(
+                sys.getsizeof(json.dumps(s)) for s in self._undo_stack
+            )
+            while total_size > MAX_UNDO_MEMORY_BYTES and len(self._undo_stack) > 1:
+                self._undo_stack.pop(0)
+                total_size = sum(
+                    sys.getsizeof(json.dumps(s)) for s in self._undo_stack
+                )
         except KeyError:
             pass  # run does not exist yet; nothing to snapshot
 

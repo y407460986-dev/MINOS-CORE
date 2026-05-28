@@ -199,10 +199,22 @@ class OpenAILLMAdapter:
                 if attempt < attempts and _should_retry_http_status(exc.code):
                     time.sleep(self.retry_delay * attempt)
                     continue
-                # Do not include response body (may contain sensitive information)
+
+                # Redact sensitive data but preserve error structure
+                try:
+                    from minos_core.observability.redaction import redact_sensitive_data
+                    error_data = json.loads(detail)
+                    if isinstance(error_data, dict):
+                        redacted = redact_sensitive_data(error_data)
+                        error_msg = json.dumps(redacted)[:500]  # Truncate to 500 chars
+                    else:
+                        error_msg = str(error_data)[:200]
+                except (json.JSONDecodeError, Exception):
+                    error_msg = detail[:200]  # Fallback: truncate raw text
+
                 raise OpenAILLMError(
                     f"OpenAI Chat Completions API failed after {attempt} attempt(s): "
-                    f"HTTP {exc.code}"
+                    f"HTTP {exc.code}: {error_msg}"
                 ) from exc
             except urllib.error.URLError as exc:
                 if attempt < attempts:

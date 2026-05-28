@@ -22,8 +22,14 @@ from minos_core.adapters.multimodal import (
     _parse_responses_stream,
     is_retryable_responses_stream_error,
 )
+from minos_core.observability.errors import (
+    ConfigurationError,
+    ExternalServiceError,
+)
+from minos_core.observability.logging import get_logger
 
 logger = logging.getLogger(__name__)
+struct_logger = get_logger(__name__)
 
 _DEFAULT_MAX_TOKENS = 4096
 _DEFAULT_TIMEOUT_SECONDS = 240
@@ -63,9 +69,19 @@ class OpenAITextGenerator:
         """调用 Responses API 生成结构化 JSON 输出。"""
         model_name = model or self.model
         logger.info("LLM text: model=%s max_tokens=%d", model_name, max_tokens)
+        struct_logger.info(
+            "llm_text.request",
+            model=model_name,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
 
         if not self._api_key:
-            raise RuntimeError("OpenAI API key is not configured for text generation")
+            raise ConfigurationError(
+                "OpenAI API key is not configured for text generation",
+                user_message_zh="未配置 OpenAI API Key，请在设置中填写后重试。",
+                context={"adapter": "llm_text"},
+            )
 
         payload: dict[str, Any] = {
             "model": model_name,
@@ -148,7 +164,16 @@ class OpenAITextGenerator:
                     time.sleep(2 ** attempt)
                     continue
                 logger.error("LLM Responses HTTP %d", exc.code)
-                raise RuntimeError(f"LLM Responses HTTP {exc.code}") from exc
+                struct_logger.error(
+                    "llm_text.http_error",
+                    status_code=exc.code,
+                    attempt=attempt,
+                )
+                raise ExternalServiceError(
+                    f"LLM Responses HTTP {exc.code}",
+                    context={"status_code": exc.code, "service": "openai_responses"},
+                    cause=exc,
+                ) from exc
             except urllib.error.URLError as exc:
                 if attempt < max_attempts:
                     time.sleep(2 ** attempt)

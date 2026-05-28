@@ -59,7 +59,7 @@ class OpenAITextGeneratorResponsesTests(unittest.TestCase):
         )
         captured = {}
 
-        def fake_urlopen(request, timeout=0):
+        def fake_urlopen(request, timeout=0, context=None):
             captured["url"] = request.full_url
             captured["timeout"] = timeout
             captured["payload"] = json.loads(request.data.decode("utf-8"))
@@ -119,7 +119,7 @@ class OpenAITextGeneratorResponsesTests(unittest.TestCase):
         )
         captured = {}
 
-        def fake_urlopen(request, timeout=0):
+        def fake_urlopen(request, timeout=0, context=None):
             captured["payload"] = json.loads(request.data.decode("utf-8"))
             raw = (
                 b'event: response.output_text.delta\n'
@@ -149,7 +149,7 @@ class OpenAITextGeneratorResponsesTests(unittest.TestCase):
             reasoning_effort="medium",
         )
 
-        def fake_urlopen(_request, timeout=0):
+        def fake_urlopen(_request, timeout=0, context=None):
             raw = (
                 b"event: response.output_text.delta\n"
                 b'data: {"delta":"{\\"ok\\": true}"}\n\n'
@@ -173,7 +173,7 @@ class OpenAITextGeneratorResponsesTests(unittest.TestCase):
             reasoning_effort="medium",
         )
 
-        def fake_urlopen(_request, timeout=0):
+        def fake_urlopen(_request, timeout=0, context=None):
             content = (
                 '{"rows":[{"characteristic_number":"P03-SC-01",'
                 '"control_method":"过程控制"}]}\n'
@@ -216,7 +216,7 @@ class OpenAITextGeneratorResponsesTests(unittest.TestCase):
             responses_path="responses",
         )
 
-        def fake_urlopen(_request, timeout=0):
+        def fake_urlopen(_request, timeout=0, context=None):
             raise TimeoutError("The read operation timed out")
 
         with patch.dict(os.environ, {"MINOS_OPENAI_API_KEY": "secret"}, clear=True):
@@ -238,7 +238,7 @@ class OpenAITextGeneratorResponsesTests(unittest.TestCase):
             responses_path="responses",
         )
 
-        def fake_urlopen(_request, timeout=0):
+        def fake_urlopen(_request, timeout=0, context=None):
             return _TimeoutStreamResponse()
 
         with patch.dict(os.environ, {"MINOS_OPENAI_API_KEY": "secret"}, clear=True):
@@ -260,7 +260,7 @@ class OpenAITextGeneratorResponsesTests(unittest.TestCase):
             responses_path="responses",
         )
 
-        def fake_urlopen(request, timeout=0):
+        def fake_urlopen(request, timeout=0, context=None):
             raise urllib.error.HTTPError(
                 request.full_url,
                 401,
@@ -295,7 +295,7 @@ class OpenAITextGeneratorResponsesTests(unittest.TestCase):
         )
         captured = {}
 
-        def fake_urlopen(request, timeout=0):
+        def fake_urlopen(request, timeout=0, context=None):
             captured["payload"] = json.loads(request.data.decode("utf-8"))
             raw = (
                 b'event: response.output_text.delta\n'
@@ -321,7 +321,7 @@ class OpenAITextGeneratorResponsesTests(unittest.TestCase):
         )
         captured = {}
 
-        def fake_urlopen(request, timeout=0):
+        def fake_urlopen(request, timeout=0, context=None):
             captured["payload"] = json.loads(request.data.decode("utf-8"))
             raw = (
                 b'event: response.output_text.delta\n'
@@ -354,7 +354,7 @@ class OpenAITextGeneratorResponsesTests(unittest.TestCase):
         )
         attempts = {"count": 0}
 
-        def fake_urlopen(_request, timeout=0):
+        def fake_urlopen(_request, timeout=0, context=None):
             attempts["count"] += 1
             if attempts["count"] < 3:
                 raise urllib.error.HTTPError(
@@ -390,7 +390,7 @@ class OpenAITextGeneratorResponsesTests(unittest.TestCase):
         )
         attempts = {"count": 0}
 
-        def fake_urlopen(_request, timeout=0):
+        def fake_urlopen(_request, timeout=0, context=None):
             attempts["count"] += 1
             if attempts["count"] < 3:
                 raw = (

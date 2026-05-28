@@ -202,7 +202,7 @@ class HTTPSuccessTests(unittest.TestCase):
             "usage": {"prompt_tokens": 5, "completion_tokens": 3, "total_tokens": 8},
         }
 
-        def fake_urlopen(request, timeout=0):
+        def fake_urlopen(request, timeout=0, context=None):
             self.assertIn("Authorization", request.headers)
             self.assertEqual(request.headers["Authorization"], "Bearer test-key")
             self.assertEqual(request.headers["Content-type"], "application/json")
@@ -240,7 +240,7 @@ class HTTPSuccessTests(unittest.TestCase):
 
         captured_payload: dict = {}
 
-        def fake_urlopen(request, timeout=0):
+        def fake_urlopen(request, timeout=0, context=None):
             nonlocal captured_payload
             captured_payload = json.loads(request.data.decode("utf-8"))
             return _FakeResponse(fake_api_response)
@@ -290,7 +290,7 @@ class ErrorHandlingTests(unittest.TestCase):
     def test_retries_transient_http_error_then_succeeds(self):
         calls = {"count": 0}
 
-        def fake_urlopen(request, timeout=0):
+        def fake_urlopen(request, timeout=0, context=None):
             calls["count"] += 1
             if calls["count"] == 1:
                 raise urllib.error.HTTPError(
@@ -324,7 +324,7 @@ class ErrorHandlingTests(unittest.TestCase):
     def test_retries_connection_error_then_succeeds(self):
         calls = {"count": 0}
 
-        def fake_urlopen(request, timeout=0):
+        def fake_urlopen(request, timeout=0, context=None):
             calls["count"] += 1
             if calls["count"] == 1:
                 raise urllib.error.URLError("connection refused")
@@ -358,7 +358,7 @@ class ErrorHandlingTests(unittest.TestCase):
             retry_delay=0,
         )
 
-        def fake_urlopen(request, timeout=0):
+        def fake_urlopen(request, timeout=0, context=None):
             raise urllib.error.HTTPError(
                 request.full_url,
                 500,
@@ -381,7 +381,7 @@ class ErrorHandlingTests(unittest.TestCase):
         )
         calls = {"count": 0}
 
-        def fake_urlopen(request, timeout=0):
+        def fake_urlopen(request, timeout=0, context=None):
             calls["count"] += 1
             raise urllib.error.HTTPError(
                 request.full_url,
@@ -398,7 +398,7 @@ class ErrorHandlingTests(unittest.TestCase):
         self.assertEqual(calls["count"], 1)
 
     def test_raises_on_invalid_json_response(self):
-        def fake_urlopen(request, timeout=0):
+        def fake_urlopen(request, timeout=0, context=None):
             return _FakeResponseRaw(b"not json at all")
 
         with patch("urllib.request.urlopen", side_effect=fake_urlopen):

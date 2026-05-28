@@ -99,7 +99,7 @@ class OpenAIResponsesMultimodalDrawingAnalyzerTests(unittest.TestCase):
         )
         calls = {"count": 0}
 
-        def fake_urlopen(request, timeout=0):
+        def fake_urlopen(request, timeout=0, context=None):
             calls["count"] += 1
             self.assertEqual(request.headers["User-agent"], analyzer.user_agent)
             if calls["count"] == 1:
@@ -219,7 +219,7 @@ class OpenAIResponsesMultimodalDrawingAnalyzerTests(unittest.TestCase):
         )
         calls = {"count": 0}
 
-        def fake_urlopen(_request, timeout=0):
+        def fake_urlopen(_request, timeout=0, context=None):
             calls["count"] += 1
             if calls["count"] < 3:
                 raw = (
@@ -268,7 +268,7 @@ class OpenAIResponsesMultimodalDrawingAnalyzerTests(unittest.TestCase):
             max_retries=0,
         )
 
-        def fake_urlopen(request, timeout=0):
+        def fake_urlopen(request, timeout=0, context=None):
             raise urllib.error.HTTPError(
                 request.full_url,
                 401,

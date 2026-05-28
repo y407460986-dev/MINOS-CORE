@@ -158,5 +158,41 @@ class ContextVarBindingTests(unittest.TestCase):
         self.assertNotIn("project_id", payload)
 
 
+class SensitiveDataRedactionTests(unittest.TestCase):
+    """Sensitive data should be redacted before logging."""
+
+    def setUp(self) -> None:
+        obs_logging._CONFIGURED = False
+        clear_request_context()
+        for handler in list(logging.getLogger().handlers):
+            logging.getLogger().removeHandler(handler)
+
+    def tearDown(self) -> None:
+        clear_request_context()
+        obs_logging._CONFIGURED = False
+        for handler in list(logging.getLogger().handlers):
+            logging.getLogger().removeHandler(handler)
+
+    def test_sensitive_data_redacted_in_logs(self) -> None:
+        """Sensitive data should be redacted before logging."""
+        configure_logging(level="INFO", json_format=True)
+        log = get_logger("test.redaction")
+        bind_request_context(request_id="r-1", api_key="sk-secret-key-12345678901234567890")
+
+        buffer = io.StringIO()
+        for handler in logging.getLogger().handlers:
+            if isinstance(handler, logging.StreamHandler):
+                handler.stream = buffer
+        log.info("test.message", token="Bearer abc123def456ghi789jkl012mno345pqr")
+        for handler in logging.getLogger().handlers:
+            handler.flush()
+        output = buffer.getvalue()
+
+        # Verify: api_key should be redacted in log output
+        self.assertNotIn("sk-secret-key", output)
+        self.assertNotIn("abc123def456ghi789jkl012mno345pqr", output)
+        self.assertIn("REDACTED", output)
+
+
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()

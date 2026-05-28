@@ -23,6 +23,8 @@ from structlog.contextvars import (
 )
 from structlog.types import EventDict, Processor
 
+from .redaction import redact_sensitive_data
+
 __all__ = [
     "configure_logging",
     "get_logger",
@@ -78,11 +80,17 @@ def _add_caller_info(_: Any, __: str, event_dict: EventDict) -> EventDict:
     return event_dict
 
 
+def _redact_processor(_: Any, __: str, event_dict: EventDict) -> EventDict:
+    """Redact sensitive information from event dict."""
+    return redact_sensitive_data(event_dict)
+
+
 def _build_processors(json_format: bool) -> list[Processor]:
     """Assemble the structlog processor chain shared across all loggers."""
 
     processors: list[Processor] = [
         merge_contextvars,
+        _redact_processor,
         structlog.stdlib.add_log_level,
         structlog.stdlib.add_logger_name,
         structlog.processors.TimeStamper(fmt="iso", utc=True),

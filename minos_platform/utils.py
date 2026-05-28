@@ -60,10 +60,14 @@ def parse_review_patch(file_path: Path) -> dict | None:
 
 
 def calculate_directory_sha256(dir_path: Path) -> str:
-    """Calculate SHA256 of a directory by hashing all files in sorted order."""
+    """Calculate SHA256 of a directory by hashing all files in sorted order.
+
+    SECURITY FIX v3.1.0: Use direct import instead of __import__.
+    """
+    import hashlib
     from minos_core import sha256_bytes
     files = sorted(dir_path.rglob("*"))
-    hasher = __import__("hashlib").__dict__["sha256"]()
+    hasher = hashlib.sha256()
     for f in files:
         if f.is_file():
             hasher.update(f.read_bytes())

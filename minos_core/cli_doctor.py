@@ -8,6 +8,7 @@ for optimal setup.
 import sys
 import os
 import shutil
+import importlib
 import logging
 from pathlib import Path
 from typing import Any
@@ -189,6 +190,13 @@ def check_dependencies() -> list[DiagnosticCheck]:
     """Check core dependencies."""
     checks = []
 
+    # SECURITY FIX v3.1.0: Whitelist of allowed packages for diagnostics
+    ALLOWED_PACKAGES = {
+        "httpx", "pydantic", "pymupdf", "structlog", "fastapi",
+        "uvicorn", "sqlalchemy", "aiosqlite", "pillow",
+        "rapidocr_onnxruntime", "onnxruntime"
+    }
+
     dependencies = [
         ("httpx", "HTTP client"),
         ("pydantic", "Data validation"),
@@ -196,8 +204,20 @@ def check_dependencies() -> list[DiagnosticCheck]:
     ]
 
     for package, description in dependencies:
+        package_normalized = package.lower().replace("-", "_")
+
+        if package_normalized not in ALLOWED_PACKAGES:
+            checks.append(
+                DiagnosticCheck(
+                    package,
+                    "error",
+                    f"{description} - NOT ALLOWED (security policy)",
+                )
+            )
+            continue
+
         try:
-            module = __import__(package.lower().replace("-", "_"))
+            module = importlib.import_module(package_normalized)
             version = getattr(module, "__version__", "unknown")
             checks.append(
                 DiagnosticCheck(

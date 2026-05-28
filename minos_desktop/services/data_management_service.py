@@ -18,6 +18,7 @@ from .sqlite_store import (
 )
 
 from minos_core._paths import user_data_dir
+from minos_core.validation import InputValidator
 
 DEFAULT_DESKTOP_OUTPUT_DIR = user_data_dir() / "out"
 
@@ -118,7 +119,20 @@ class DesktopDataManagementService:
         return self.get_status()
 
     def _table_count(self, table_name: str) -> int:
+        """Count rows in a table. Only allows whitelisted table names.
+
+        SECURITY FIX v3.1.0: Whitelist validation prevents SQL injection.
+        """
+        # Whitelist of allowed tables
+        ALLOWED_TABLES = {"projects", "runs", "knowledge_rules", "settings"}
+
+        if table_name not in ALLOWED_TABLES:
+            raise ValueError(
+                f"Invalid table name: {table_name}. Allowed: {ALLOWED_TABLES}"
+            )
+
         with self._store.connect() as connection:
+            # Safe to use f-string now that table_name is validated
             row = connection.execute(f"SELECT COUNT(*) AS count FROM {table_name}").fetchone()
         return int(row["count"]) if row else 0
 
@@ -162,11 +176,26 @@ def _zip_directory(archive: zipfile.ZipFile, directory: Path, prefix: str) -> No
 
 
 def _clear_directory_contents(path: Path, *, keep_names: set[str]) -> None:
+    """Clear directory contents with path traversal protection.
+
+    SECURITY FIX v3.1.0: Validates paths to prevent symlink attacks.
+    """
     if not path.exists():
         return
+
+    resolved_base = path.resolve()
+
     for item in path.iterdir():
         if item.name in keep_names:
             continue
+
+        # Validate item is within base directory (防止符号链接攻击)
+        try:
+            InputValidator.validate_path_traversal(item, resolved_base)
+        except Exception:
+            # Skip items outside base directory
+            continue
+
         if item.is_dir():
             shutil.rmtree(item)
         else:

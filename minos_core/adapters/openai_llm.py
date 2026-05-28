@@ -8,10 +8,12 @@ so a single set of environment variables or Codex files drives both paths.
 from __future__ import annotations
 
 import json
+import ssl
 import time
 import urllib.error
 import urllib.request
 from typing import Any
+from urllib.parse import urlparse
 
 from minos_core.adapters.llm import LLMMessage, LLMResult
 from minos_core.ai_config import load_openai_api_key, load_openai_responses_config
@@ -19,6 +21,17 @@ from minos_core.ai_config import load_openai_api_key, load_openai_responses_conf
 
 class OpenAILLMError(RuntimeError):
     """Raised when the OpenAI Chat Completions API call cannot complete."""
+
+
+def _create_ssl_context() -> ssl.SSLContext:
+    """Create SSL context with certificate verification.
+
+    SECURITY FIX v3.1.0: Enables certificate validation for HTTPS requests.
+    """
+    context = ssl.create_default_context()
+    context.check_hostname = True
+    context.verify_mode = ssl.CERT_REQUIRED
+    return context
 
 
 class OpenAILLMAdapter:
@@ -51,11 +64,17 @@ class OpenAILLMAdapter:
         self.api_key = api_key if api_key is not None else load_openai_api_key()
         base_url_value = (base_url or config.base_url).rstrip("/")
 
-        # Validate base_url must use HTTPS to protect API key
-        if not base_url_value.startswith("https://"):
-            raise ValueError(
-                f"base_url must use HTTPS to protect API key, got: {base_url_value}"
-            )
+        # SECURITY FIX v3.1.0: Validate HTTPS and setup SSL context
+        parsed = urlparse(base_url_value)
+        if parsed.scheme != "https":
+            if parsed.scheme == "http" and parsed.hostname in {"127.0.0.1", "localhost", "::1"}:
+                self._ssl_context = None  # No SSL for localhost
+            else:
+                raise ValueError(
+                    f"base_url must use HTTPS to protect API key, got: {base_url_value}"
+                )
+        else:
+            self._ssl_context = _create_ssl_context()
 
         self.base_url = base_url_value
         self.model = model or config.model
@@ -167,8 +186,13 @@ class OpenAILLMAdapter:
                 method="POST",
             )
             try:
-                with urllib.request.urlopen(request, timeout=self.timeout) as response:
-                    raw = response.read().decode("utf-8")
+                # SECURITY FIX v3.1.0: Use SSL context for certificate verification
+                if self._ssl_context:
+                    with urllib.request.urlopen(request, timeout=self.timeout, context=self._ssl_context) as response:
+                        raw = response.read().decode("utf-8")
+                else:
+                    with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                        raw = response.read().decode("utf-8")
                 break
             except urllib.error.HTTPError as exc:
                 detail = exc.read().decode("utf-8", errors="replace")

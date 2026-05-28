@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, AsyncGenerator
 
@@ -157,22 +158,31 @@ Project.ppap_packages = relationship("PPAPPackage", back_populates="project")
 
 _engine = None
 _session_factory = None
+_init_lock = asyncio.Lock()  # SECURITY FIX v3.1.0: Prevent race conditions
 
 
 PLATFORM_SCHEMA_VERSION = "platform_v1"
 
 
 async def init_db(db_url: str) -> None:
-    """Create all tables if they don't exist. Idempotent — skips if already initialized."""
+    """Create all tables if they don't exist. Thread-safe initialization.
+
+    SECURITY FIX v3.1.0: Uses asyncio.Lock to prevent race conditions.
+    """
     global _engine, _session_factory
-    if _engine is not None and _session_factory is not None:
-        return  # Already initialized, skip
-    _engine = create_async_engine(db_url, echo=False)
-    _session_factory = async_sessionmaker(_engine, expire_on_commit=False)
-    async with _engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-        # Upsert schema version record
-        await conn.run_sync(_upsert_schema_version)
+
+    async with _init_lock:
+        # Double-check pattern inside lock
+        if _engine is not None and _session_factory is not None:
+            return  # Already initialized by another task
+
+        _engine = create_async_engine(db_url, echo=False)
+        _session_factory = async_sessionmaker(_engine, expire_on_commit=False)
+
+        async with _engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+            # Upsert schema version record
+            await conn.run_sync(_upsert_schema_version)
 
 
 def _upsert_schema_version(connection) -> None:

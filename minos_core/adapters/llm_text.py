@@ -6,10 +6,12 @@ import json
 import logging
 import os
 import socket
+import ssl
 import time
 import urllib.error
 import urllib.request
 from typing import Any
+from urllib.parse import urlparse
 
 from minos_core.ai_config import (
     AIProviderConfig,
@@ -35,6 +37,17 @@ _DEFAULT_MAX_TOKENS = 4096
 _DEFAULT_TIMEOUT_SECONDS = 240
 
 
+def _create_ssl_context() -> ssl.SSLContext:
+    """Create SSL context with certificate verification.
+
+    SECURITY FIX v3.1.0: Enables certificate validation for HTTPS requests.
+    """
+    context = ssl.create_default_context()
+    context.check_hostname = True
+    context.verify_mode = ssl.CERT_REQUIRED
+    return context
+
+
 class OpenAITextGenerator:
     """Text-only Responses API caller with JSON-schema constrained output."""
 
@@ -43,7 +56,21 @@ class OpenAITextGenerator:
             config = load_openai_responses_config()
         self._config = config
         self._api_key = load_openai_api_key()
-        self._base_url = config.base_url.rstrip("/")
+        base_url_value = config.base_url.rstrip("/")
+
+        # SECURITY FIX v3.1.0: Validate HTTPS and setup SSL context
+        parsed = urlparse(base_url_value)
+        if parsed.scheme != "https":
+            if parsed.scheme == "http" and parsed.hostname in {"127.0.0.1", "localhost", "::1"}:
+                self._ssl_context = None  # No SSL for localhost
+            else:
+                raise ConfigurationError(
+                    f"base_url must use HTTPS to protect API key, got: {base_url_value}"
+                )
+        else:
+            self._ssl_context = _create_ssl_context()
+
+        self._base_url = base_url_value
         self._responses_path = config.responses_path.strip("/")
         self._reasoning_effort = _text_reasoning_effort(config.reasoning_effort)
         self._user_agent = config.user_agent
@@ -134,14 +161,25 @@ class OpenAITextGenerator:
                 method="POST",
             )
             try:
-                with urllib.request.urlopen(req, timeout=self._timeout_seconds) as resp:
-                    if payload.get("stream") is True:
-                        return _parse_responses_stream(
-                            resp,
-                            fallback_model=str(payload.get("model") or ""),
-                            timeout_seconds=self._timeout_seconds,
-                        )
-                    return json.loads(resp.read().decode("utf-8"))
+                # SECURITY FIX v3.1.0: Use SSL context for certificate verification
+                if self._ssl_context:
+                    with urllib.request.urlopen(req, timeout=self._timeout_seconds, context=self._ssl_context) as resp:
+                        if payload.get("stream") is True:
+                            return _parse_responses_stream(
+                                resp,
+                                fallback_model=str(payload.get("model") or ""),
+                                timeout_seconds=self._timeout_seconds,
+                            )
+                        return json.loads(resp.read().decode("utf-8"))
+                else:
+                    with urllib.request.urlopen(req, timeout=self._timeout_seconds) as resp:
+                        if payload.get("stream") is True:
+                            return _parse_responses_stream(
+                                resp,
+                                fallback_model=str(payload.get("model") or ""),
+                                timeout_seconds=self._timeout_seconds,
+                            )
+                        return json.loads(resp.read().decode("utf-8"))
             except (TimeoutError, socket.timeout) as exc:
                 if attempt < max_attempts:
                     time.sleep(2 ** attempt)

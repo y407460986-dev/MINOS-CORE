@@ -6,7 +6,10 @@ import logging
 from typing import Any, AsyncGenerator
 from sse_starlette.sse import ServerSentEvent
 
+from minos_core.observability.logging import get_logger
+
 logger = logging.getLogger(__name__)
+struct_logger = get_logger(__name__)
 
 # Registry of active channels: key = "{run_id}:{stage}"
 _channels: dict[str, "ProgressChannel"] = {}
@@ -38,6 +41,11 @@ class ProgressChannel:
                 self._queue.put_nowait(event)
             except Exception as exc:
                 logger.warning("SSE emit fallback failed for %s: %s", self.key, exc)
+                struct_logger.warning(
+                    "sse.emit_fallback_failed",
+                    channel=self.key,
+                    error=str(exc),
+                )
 
     def close(self) -> None:
         """Signal end of stream."""

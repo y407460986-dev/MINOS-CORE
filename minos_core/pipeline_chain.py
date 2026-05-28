@@ -17,8 +17,11 @@ from ._text_utils import text, flow_type_display
 from .adapters.llm_text import OpenAITextGenerator
 from .aiag_vda_pfmea import normalize_pfmea_row, validate_severity_floor
 from .drawing_to_pfd import normalize_process_flow_steps
+from .observability.errors import PipelineError, ValidationError
+from .observability.logging import get_logger
 
 logger = logging.getLogger(__name__)
+struct_logger = get_logger(__name__)
 
 STAGE_STATUS = ("not_started", "running", "generated", "confirmed", "blocked", "failed")
 
@@ -547,6 +550,7 @@ def generate_pfd_from_drawing(
         process_flow bundle 字典（含 steps 列表和 metadata）
     """
     logger.info("CHAIN [Stage 1] Calling LLM to generate PFD")
+    struct_logger.info("pipeline_chain.stage_start", stage="pfd")
     context_text = _build_drawing_context(drawing_analysis)
 
     # 附加零件族信息
@@ -610,6 +614,11 @@ def generate_pfd_from_drawing(
     )
 
     logger.info("CHAIN [Stage 1] PFD generated: %d steps", len(pfd_steps))
+    struct_logger.info(
+        "pipeline_chain.stage_done",
+        stage="pfd",
+        step_count=len(pfd_steps),
+    )
 
     return {
         "steps": pfd_steps,
@@ -667,7 +676,11 @@ def generate_pfmea_from_confirmed_pfd(
         if isinstance(s, dict) and not s.get("deleted") and not s.get("soft_deleted")
     ]
     if not pfd_steps:
-        raise ValueError("Confirmed PFD has no steps — cannot generate PFMEA")
+        raise PipelineError(
+            "Confirmed PFD has no steps — cannot generate PFMEA",
+            stage="pfmea",
+            user_message_zh="已确认的 PFD 中没有可用的工序，无法生成 PFMEA。",
+        )
 
     context_text = _build_drawing_context(drawing_analysis)
     from minos_core.characteristic_registry import build_characteristic_registry
@@ -792,6 +805,12 @@ def generate_pfmea_from_confirmed_pfd(
         raise ValueError("PFMEA generation returned no rows")
 
     logger.info("CHAIN [Stage 2] PFMEA generated: %d rows (failed steps: %s)", len(pfmea_rows), failed_step_ids)
+    struct_logger.info(
+        "pipeline_chain.stage_done",
+        stage="pfmea",
+        row_count=len(pfmea_rows),
+        failed_step_ids=failed_step_ids,
+    )
 
     return {
         "rows": pfmea_rows,
@@ -938,7 +957,11 @@ def generate_cp_from_confirmed_pfmea(
         if isinstance(r, dict) and not r.get("deleted") and not r.get("soft_deleted")
     ]
     if not pfmea_rows:
-        raise ValueError("Confirmed PFMEA has no rows — cannot generate CP")
+        raise PipelineError(
+            "Confirmed PFMEA has no rows — cannot generate CP",
+            stage="cp",
+            user_message_zh="已确认的 PFMEA 中没有可用的行，无法生成控制计划。",
+        )
 
     high_ap_rows = [r for r in pfmea_rows if r.get("action_priority") in ("H", "M")]
     target_rows = high_ap_rows if high_ap_rows else pfmea_rows
@@ -1046,6 +1069,12 @@ def generate_cp_from_confirmed_pfmea(
         raise ValueError("CP generation returned no rows")
 
     logger.info("CHAIN [Stage 3] CP generated: %d rows (failed rows: %s)", len(cp_rows), failed_row_ids)
+    struct_logger.info(
+        "pipeline_chain.stage_done",
+        stage="cp",
+        row_count=len(cp_rows),
+        failed_row_ids=failed_row_ids,
+    )
 
     return {
         "rows": cp_rows,

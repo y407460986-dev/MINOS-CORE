@@ -42,13 +42,17 @@ class DesktopSettingsStore:
         keystore = SecureAPIKeyStore()
         api_key = None
         if self._get("ai_api_key_configured") == "true":
-            secret_key = keystore.get_api_key("openai")
-            if secret_key is not None:
-                api_key = secret_key.get_secret_value()
+            try:
+                secret_key = keystore.get_api_key("openai")
+                if secret_key is not None:
+                    api_key = secret_key.get_secret_value()
+            except Exception:
+                # Keyring unavailable or error - return None
+                api_key = None
 
         return {
             "base_url": self._get("ai_base_url") or None,
-            "api_key": api_key,
+            "api_key": api_key or None,
             "model": self._get("ai_model") or None,
         }
 

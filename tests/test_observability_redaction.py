@@ -139,3 +139,23 @@ def test_redacts_credentials():
     assert result["credentials"] == "***REDACTED***"
     assert result["secret"] == "***REDACTED***"
     assert result["auth"] == "***REDACTED***"
+
+
+def test_handles_lists_with_sensitive_data():
+    """Sensitive data in lists should be redacted."""
+    event_dict = {
+        "items": [
+            {"api_key": "sk-secret-1"},
+            {"token": "secret-token"}
+        ],
+        "tuple_data": ({"password": "pass123"},)
+    }
+
+    result = redact_sensitive_data(event_dict)
+
+    # Check list items
+    assert result["items"][0]["api_key"] == "***REDACTED***"
+    assert result["items"][1]["token"] == "***REDACTED***"
+
+    # Check tuple items
+    assert result["tuple_data"][0]["password"] == "***REDACTED***"

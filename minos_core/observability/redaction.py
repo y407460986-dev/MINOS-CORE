@@ -34,6 +34,7 @@ def redact_sensitive_data(event_dict: dict[str, Any]) -> dict[str, Any]:
     This function recursively processes event dictionaries and redacts:
     - Fields with sensitive key names (api_key, password, token, etc.)
     - Sensitive patterns in string values (API keys, tokens, credentials in URLs)
+    - Sensitive data in nested lists and tuples
 
     Args:
         event_dict: The event dictionary to redact
@@ -54,9 +55,30 @@ def redact_sensitive_data(event_dict: dict[str, Any]) -> dict[str, Any]:
             result[key] = _redact_patterns(value)
         elif isinstance(value, dict):
             result[key] = redact_sensitive_data(value)
+        elif isinstance(value, (list, tuple)):
+            result[key] = type(value)(_redact_value(item) for item in value)
         else:
             result[key] = value
     return result
+
+
+def _redact_value(value: Any) -> Any:
+    """Redact a single value (used for list/tuple items).
+
+    Args:
+        value: The value to redact
+
+    Returns:
+        The redacted value
+    """
+    if isinstance(value, str):
+        return _redact_patterns(value)
+    elif isinstance(value, dict):
+        return redact_sensitive_data(value)
+    elif isinstance(value, (list, tuple)):
+        return type(value)(_redact_value(item) for item in value)
+    else:
+        return value
 
 
 def _is_sensitive_key(key: str) -> bool:

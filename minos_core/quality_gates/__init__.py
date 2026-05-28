@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 from ..action_closure import action_closure_issues
 from ..audit import AuditReport, audit_chain
@@ -169,7 +172,7 @@ def require_export_gate(chain: APQPChain | dict[str, Any]) -> StageQualityGate:
 
 
 def _export_gate_failure_message(gate: StageQualityGate) -> str:
-    if not gate.validation:
+    if not gate.validation.ok:
         lines = ["APQP chain validation failed:"]
         lines.extend(gate.validation.messages)
         return "\n".join(lines)

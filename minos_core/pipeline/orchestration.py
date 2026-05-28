@@ -9,6 +9,7 @@ from ..exporters.three_table_workbooks import (
     export_split_three_table_workbooks,
     export_three_table_workbook,
 )
+from ..quality_gates import evaluate_export_gate
 from ..three_table_result import (
     build_three_table_generation_envelope,
     dedupe_strings as _dedupe_strings,
@@ -169,7 +170,6 @@ def generate_three_tables_from_drawing(
         evaluate_control_plan_bundle_gate,
         evaluate_pfmea_bundle_gate,
         evaluate_pfd_bundle_gate,
-        evaluate_export_gate,
     )
 
     if export_mode not in {"draft", "final"}:

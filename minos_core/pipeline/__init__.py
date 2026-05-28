@@ -56,7 +56,15 @@ from .review_export import (
 # Re-export internal functions for testing
 from .drawing_analysis import (
     _analyze_drawing_pages_for_mode,
+    _attach_analysis_metadata,
+    _effective_analysis_mode,
     _effective_ocr_engine,
+)
+from .orchestration import _three_table_generation_envelope
+from .family_context import _part_family_context_from_drawing
+from ..three_table_result import (
+    dedupe_strings as _dedupe_strings,
+    three_table_manual_review as _three_table_manual_review,
 )
 
 # Re-export quality gate functions (used by tests and other modules)
@@ -101,7 +109,13 @@ __all__ = [
     "export_draft_fixture",
     # Internal functions (for testing)
     "_analyze_drawing_pages_for_mode",
+    "_attach_analysis_metadata",
+    "_effective_analysis_mode",
     "_effective_ocr_engine",
+    "_dedupe_strings",
+    "_three_table_manual_review",
+    "_three_table_generation_envelope",
+    "_part_family_context_from_drawing",
     # Quality gate functions
     "evaluate_export_gate",
     # Exporter functions (for testing)

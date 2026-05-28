@@ -80,7 +80,7 @@ class TestDesktopShell(unittest.TestCase):
                 )
             )
             with patch(
-                "minos_desktop.services.analyze_drawing_for_three_table_chain",
+                "minos_desktop.services.run_service.analyze_drawing_for_three_table_chain",
                 side_effect=RuntimeError("OPENAI_API_KEY missing"),
             ):
                 run = DesktopRunService(db_path).run_project(project)
@@ -114,7 +114,7 @@ class TestDesktopShell(unittest.TestCase):
                 )
             )
             with patch(
-                "minos_desktop.services.analyze_drawing_for_three_table_chain",
+                "minos_desktop.services.run_service.analyze_drawing_for_three_table_chain",
                 return_value=analysis_result,
             ) as analyze_mock:
                 with patch(

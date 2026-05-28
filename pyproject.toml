@@ -8,7 +8,9 @@ version = "0.0.0"
 description = "Evidence-driven APQP linkage core for PFD, PFMEA, and control plan workflows."
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "structlog>=24.1.0",
+]
 
 [project.optional-dependencies]
 desktop-api = [

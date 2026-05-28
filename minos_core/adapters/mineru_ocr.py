@@ -7,9 +7,9 @@ import re
 import shutil
 import subprocess
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from typing import Any, Callable
 
+from ..observability.resources import temporary_directory
 from .ocr import OCRBlock, OCRDependencyError, OCRPageText, OCRResult
 
 
@@ -52,8 +52,7 @@ class MinerUOCRAdapter:
             )
 
         source_path = Path(str(source_ref))
-        with TemporaryDirectory() as tmpdir:
-            temp_root = Path(tmpdir)
+        with temporary_directory(prefix="mineru-") as temp_root:
             input_path = source_path if source_path.exists() else temp_root / _source_filename(source_ref)
             if not input_path.exists():
                 input_path.write_bytes(content)

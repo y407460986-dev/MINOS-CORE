@@ -1,0 +1,165 @@
+# Quality Gate Configuration for MINOS-CORE
+#
+# This file externalizes business rules for quality gate evaluation,
+# making them configurable without code changes.
+
+# PFD (Process Flow Diagram) Quality Gate
+pfd_gate:
+  # Minimum number of process steps required
+  min_process_steps: 3
+
+  # Required fields for each process step
+  required_fields:
+    - operation
+    - process_function
+
+  # Evidence coverage threshold (0.0 to 1.0)
+  # Percentage of process steps that must have supporting evidence
+  evidence_coverage_threshold: 0.7
+
+  # Optional fields that improve quality but are not required
+  recommended_fields:
+    - equipment
+    - tooling
+    - inspection_method
+
+  # Blocking conditions
+  blocking_conditions:
+    - missing_critical_operations
+    - duplicate_process_step_ids
+    - invalid_process_function_values
+
+# PFMEA (Process Failure Mode and Effects Analysis) Quality Gate
+pfmea_gate:
+  # Minimum number of failure modes required
+  min_failure_modes: 1
+
+  # Valid ranges for risk assessment
+  severity_range: [1, 10]
+  occurrence_range: [1, 10]
+  detection_range: [1, 10]
+
+  # RPN (Risk Priority Number) thresholds
+  rpn_thresholds:
+    high_risk: 200  # RPN >= 200 requires immediate action
+    medium_risk: 100  # RPN >= 100 requires monitoring
+
+  # Required controls for high-risk failure modes
+  required_controls: true
+
+  # Required fields for each failure mode
+  required_fields:
+    - failure_mode
+    - failure_effect
+    - severity
+    - occurrence
+    - detection
+
+  # Recommended fields
+  recommended_fields:
+    - failure_cause
+    - current_controls
+    - recommended_actions
+
+  # Blocking conditions
+  blocking_conditions:
+    - missing_high_risk_controls
+    - invalid_risk_ratings
+    - duplicate_pfmea_ids
+
+# Control Plan Quality Gate
+control_plan_gate:
+  # Minimum number of control items required
+  min_control_items: 1
+
+  # Required fields for each control item
+  required_fields:
+    - control_characteristic
+    - control_method
+    - sample_size
+    - sample_frequency
+    - acceptance_criteria
+
+  # Control method types
+  valid_control_methods:
+    - measurement
+    - visual_inspection
+    - functional_test
+    - statistical_process_control
+    - mistake_proofing
+
+  # Sample frequency types
+  valid_sample_frequencies:
+    - continuous
+    - per_piece
+    - per_lot
+    - per_shift
+    - per_day
+    - first_piece
+    - last_piece
+
+  # Recommended fields
+  recommended_fields:
+    - measurement_technique
+    - reaction_plan
+    - responsible_party
+
+  # Blocking conditions
+  blocking_conditions:
+    - missing_critical_characteristics
+    - invalid_control_methods
+    - missing_acceptance_criteria
+    - duplicate_cp_ids
+
+# Cross-document linkage requirements
+linkage_requirements:
+  # PFD to PFMEA linkage
+  pfd_to_pfmea:
+    # Percentage of PFD process steps that should have PFMEA coverage
+    min_coverage: 0.8
+
+    # Allow PFMEA entries without PFD linkage (for general risks)
+    allow_unlinked_pfmea: true
+
+  # PFMEA to Control Plan linkage
+  pfmea_to_cp:
+    # High-risk failure modes must have control plan items
+    require_controls_for_high_risk: true
+
+    # RPN threshold for requiring controls
+    control_required_rpn: 100
+
+    # Allow control plan items without PFMEA linkage (for general controls)
+    allow_unlinked_controls: true
+
+# Export gate configuration
+export_gate:
+  # Require all quality gates to pass before export
+  require_all_gates_pass: true
+
+  # Allow export with warnings (but not errors)
+  allow_export_with_warnings: true
+
+  # Require evidence attachments for export
+  require_evidence_attachments: false
+
+  # Minimum evidence coverage for export
+  min_evidence_coverage: 0.6
+
+# Reporting configuration
+reporting:
+  # Include detailed findings in reports
+  include_detailed_findings: true
+
+  # Include recommendations in reports
+  include_recommendations: true
+
+  # Report format
+  default_format: json
+
+  # Available formats
+  available_formats:
+    - json
+    - yaml
+    - html
+    - pdf

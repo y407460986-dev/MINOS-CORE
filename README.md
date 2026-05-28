@@ -31,6 +31,18 @@ python -m minos_core.cli generate-three-tables --input path\to\drawing.png --out
 
 旧的 evidence/input_package APQP 链路仍保留，用于兼容已有测试、样本和后续服务层，但主产品路线以 AI 图纸识别三表生成为准。
 
+## 架构
+
+v3.0 采用 4 层结构：Tauri 前端 → FastAPI 桌面 sidecar → Desktop Services（SQLite）→ Core Library（Pipeline）。详见 [架构总览](docs/architecture/README.md)、[模块地图](docs/architecture/modules.md)、[数据流](docs/architecture/data-flow.md) 与各 ADR。
+
+## 插件扩展
+
+`minos_core.plugins` 提供 OCR 引擎与零件族知识源的扩展点，第三方可以通过 `pyproject.toml` 的 entry points 发布扩展，无需 fork 主仓库。使用方式见 [插件指南](docs/plugins.md) 与 [ADR 005](docs/adr/005-extensibility.md)。
+
+## 诊断
+
+环境与依赖检查可使用 `python -m minos_core.cli doctor`；它会报告 Python 版本、可用 OCR 引擎、AI 配置、关键依赖、磁盘空间等，便于快速定位部署问题。
+
 ## 当前已实现范围
 
 当前仓库聚焦 APQP 三表链路的核心编排、规则生成、质量门校验、审计与导出，已覆盖以下阶段：

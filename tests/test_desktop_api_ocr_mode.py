@@ -70,7 +70,7 @@ class DesktopApiOCRModeTests(unittest.TestCase):
             self.assertEqual(project_body["context"]["ocr_engine"], "mineru")
 
             with patch(
-                "minos_desktop.services.analyze_drawing_for_three_table_chain",
+                "minos_desktop.services.run_service.analyze_drawing_for_three_table_chain",
                 side_effect=_capturing_analysis(captured),
             ):
                 with patch(
@@ -126,7 +126,7 @@ class DesktopApiOCRModeTests(unittest.TestCase):
             self.assertEqual(project_body["context"]["analysis_mode"], "ocr_only")
             self.assertEqual(project_body["context"]["ocr_engine"], "mineru")
             with patch(
-                "minos_desktop.services.analyze_drawing_for_three_table_chain",
+                "minos_desktop.services.run_service.analyze_drawing_for_three_table_chain",
                 side_effect=_capturing_analysis(captured),
             ):
                 with patch(

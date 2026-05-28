@@ -1,9 +1,11 @@
-"""Validation rules for APQP chains."""
+"""Validation rules for APQP chains and input validation."""
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, fields, is_dataclass
-from typing import Any
+from pathlib import Path
+from typing import Any, Optional
 
 from .domain import APQPChain
 
@@ -277,3 +279,296 @@ def _string_values(value: Any) -> set[str]:
     else:
         values = [value]
     return {str(item).strip() for item in values if str(item).strip()}
+
+
+# Input Validation Classes
+
+
+class ValidationError(Exception):
+    """Base validation error."""
+    pass
+
+
+class FileValidationError(ValidationError):
+    """File validation error."""
+    pass
+
+
+class PathValidationError(ValidationError):
+    """Path validation error."""
+    pass
+
+
+class InputValidator:
+    """Validates user inputs for security and correctness."""
+
+    # File type magic numbers (first few bytes)
+    MAGIC_NUMBERS = {
+        "pdf": [b"%PDF"],
+        "png": [b"\x89PNG\r\n\x1a\n"],
+        "jpg": [b"\xff\xd8\xff"],
+        "jpeg": [b"\xff\xd8\xff"],
+        "gif": [b"GIF87a", b"GIF89a"],
+        "bmp": [b"BM"],
+        "tiff": [b"II*\x00", b"MM\x00*"],
+        "zip": [b"PK\x03\x04", b"PK\x05\x06", b"PK\x07\x08"],
+        "docx": [b"PK\x03\x04"],  # DOCX is a ZIP
+        "xlsx": [b"PK\x03\x04"],  # XLSX is a ZIP
+        "pptx": [b"PK\x03\x04"],  # PPTX is a ZIP
+    }
+
+    # Default max file size: 100MB
+    DEFAULT_MAX_FILE_SIZE = 100 * 1024 * 1024
+
+    # Allowed file extensions by category
+    ALLOWED_EXTENSIONS = {
+        "image": {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff", ".tif"},
+        "document": {".pdf", ".docx", ".xlsx", ".pptx", ".txt", ".csv"},
+        "drawing": {".pdf", ".dwg", ".dxf", ".png", ".jpg", ".jpeg"},
+        "archive": {".zip", ".tar", ".gz", ".7z"},
+    }
+
+    @classmethod
+    def validate_file_type(
+        cls,
+        file_path: Path | str,
+        allowed_extensions: Optional[set[str]] = None,
+        check_magic: bool = True,
+    ) -> None:
+        """
+        Validate file type by extension and optionally by magic number.
+
+        Args:
+            file_path: Path to the file
+            allowed_extensions: Set of allowed extensions (e.g., {'.pdf', '.png'})
+            check_magic: Whether to verify file magic number
+
+        Raises:
+            FileValidationError: If file type is not allowed or magic number doesn't match
+        """
+        path = Path(file_path)
+
+        if not path.exists():
+            raise FileValidationError(f"File does not exist: {path}")
+
+        if not path.is_file():
+            raise FileValidationError(f"Path is not a file: {path}")
+
+        # Check extension
+        ext = path.suffix.lower()
+        if allowed_extensions and ext not in allowed_extensions:
+            raise FileValidationError(
+                f"File extension '{ext}' not allowed. Allowed: {allowed_extensions}"
+            )
+
+        # Check magic number if requested
+        if check_magic:
+            cls._validate_magic_number(path, ext)
+
+    @classmethod
+    def _validate_magic_number(cls, path: Path, expected_ext: str) -> None:
+        """Validate file magic number matches extension."""
+        # Remove leading dot from extension
+        ext_key = expected_ext.lstrip(".")
+
+        if ext_key not in cls.MAGIC_NUMBERS:
+            # No magic number defined for this type, skip check
+            return
+
+        expected_magics = cls.MAGIC_NUMBERS[ext_key]
+
+        with open(path, "rb") as f:
+            # Read first 16 bytes (enough for most magic numbers)
+            header = f.read(16)
+
+        # Check if any expected magic number matches
+        matches = any(header.startswith(magic) for magic in expected_magics)
+
+        if not matches:
+            raise FileValidationError(
+                f"File magic number does not match extension '{expected_ext}'. "
+                f"File may be corrupted or misnamed."
+            )
+
+    @classmethod
+    def validate_file_size(
+        cls,
+        file_path: Path | str,
+        max_size: int = DEFAULT_MAX_FILE_SIZE,
+    ) -> None:
+        """
+        Validate file size is within limits.
+
+        Args:
+            file_path: Path to the file
+            max_size: Maximum allowed file size in bytes
+
+        Raises:
+            FileValidationError: If file exceeds size limit
+        """
+        path = Path(file_path)
+
+        if not path.exists():
+            raise FileValidationError(f"File does not exist: {path}")
+
+        file_size = path.stat().st_size
+
+        if file_size > max_size:
+            raise FileValidationError(
+                f"File size {file_size} bytes exceeds maximum {max_size} bytes "
+                f"({max_size / (1024 * 1024):.1f} MB)"
+            )
+
+    @classmethod
+    def validate_path_traversal(
+        cls,
+        file_path: Path | str,
+        base_dir: Path | str,
+    ) -> Path:
+        """
+        Validate path does not escape base directory (path traversal attack).
+
+        Args:
+            file_path: Path to validate
+            base_dir: Base directory that path must be within
+
+        Returns:
+            Resolved absolute path
+
+        Raises:
+            PathValidationError: If path escapes base directory
+        """
+        base = Path(base_dir).resolve()
+        target = Path(file_path).resolve()
+
+        # Check if target is within base directory
+        try:
+            target.relative_to(base)
+        except ValueError:
+            raise PathValidationError(
+                f"Path '{file_path}' attempts to escape base directory '{base_dir}'"
+            )
+
+        return target
+
+    @classmethod
+    def validate_filename(
+        cls,
+        filename: str,
+        max_length: int = 255,
+        allow_unicode: bool = True,
+    ) -> None:
+        """
+        Validate filename for security and filesystem compatibility.
+
+        Args:
+            filename: Filename to validate
+            max_length: Maximum filename length
+            allow_unicode: Whether to allow unicode characters
+
+        Raises:
+            ValidationError: If filename is invalid
+        """
+        if not filename:
+            raise ValidationError("Filename cannot be empty")
+
+        if len(filename) > max_length:
+            raise ValidationError(
+                f"Filename too long: {len(filename)} > {max_length} characters"
+            )
+
+        # Check for path separators
+        if "/" in filename or "\\" in filename:
+            raise ValidationError("Filename cannot contain path separators")
+
+        # Check for null bytes
+        if "\x00" in filename:
+            raise ValidationError("Filename cannot contain null bytes")
+
+        # Check for dangerous patterns
+        dangerous_patterns = ["..", "~", "$"]
+        for pattern in dangerous_patterns:
+            if pattern in filename:
+                raise ValidationError(
+                    f"Filename cannot contain dangerous pattern: {pattern}"
+                )
+
+        # Check unicode if not allowed
+        if not allow_unicode:
+            try:
+                filename.encode("ascii")
+            except UnicodeEncodeError:
+                raise ValidationError("Filename must be ASCII only")
+
+    @classmethod
+    def validate_file(
+        cls,
+        file_path: Path | str,
+        allowed_extensions: Optional[set[str]] = None,
+        max_size: int = DEFAULT_MAX_FILE_SIZE,
+        base_dir: Optional[Path | str] = None,
+        check_magic: bool = True,
+    ) -> Path:
+        """
+        Comprehensive file validation.
+
+        Args:
+            file_path: Path to the file
+            allowed_extensions: Set of allowed extensions
+            max_size: Maximum file size in bytes
+            base_dir: Base directory for path traversal check
+            check_magic: Whether to verify file magic number
+
+        Returns:
+            Validated absolute path
+
+        Raises:
+            ValidationError: If any validation fails
+        """
+        path = Path(file_path)
+
+        # Validate filename
+        cls.validate_filename(path.name)
+
+        # Validate path traversal if base_dir provided
+        if base_dir:
+            path = cls.validate_path_traversal(path, base_dir)
+
+        # Validate file type
+        cls.validate_file_type(path, allowed_extensions, check_magic)
+
+        # Validate file size
+        cls.validate_file_size(path, max_size)
+
+        return path
+
+    @classmethod
+    def sanitize_filename(cls, filename: str, replacement: str = "_") -> str:
+        """
+        Sanitize filename by replacing dangerous characters.
+
+        Args:
+            filename: Original filename
+            replacement: Character to replace dangerous chars with
+
+        Returns:
+            Sanitized filename
+        """
+        # Replace path separators
+        sanitized = filename.replace("/", replacement).replace("\\", replacement)
+
+        # Replace null bytes
+        sanitized = sanitized.replace("\x00", replacement)
+
+        # Replace dangerous patterns
+        sanitized = sanitized.replace("..", replacement)
+        sanitized = sanitized.replace("~", replacement)
+        sanitized = sanitized.replace("$", replacement)
+
+        # Limit length
+        if len(sanitized) > 255:
+            name, ext = os.path.splitext(sanitized)
+            max_name_len = 255 - len(ext)
+            sanitized = name[:max_name_len] + ext
+
+        return sanitized

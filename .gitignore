@@ -13,6 +13,30 @@ venv/
 env/
 ENV/
 
+# Certificates and private keys
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# Credential and secret files
+secrets.json
+credentials.json
+auth.json
+*.credentials
+
+# Cloud provider configurations
+.aws/
+.gcp/
+.azure/
+
+# Database files (exclude test databases)
+*.sqlite3
+*.db
+!test*.db
+!*test.db
+
 # Claude Code local-only configuration
 .claude/settings.local.json
 .claude/*.local.json

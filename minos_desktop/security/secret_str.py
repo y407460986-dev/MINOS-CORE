@@ -2,6 +2,13 @@
 
 from typing import Any
 
+try:
+    from pydantic import GetCoreSchemaHandler
+    from pydantic_core import core_schema
+    HAS_PYDANTIC = True
+except ImportError:
+    HAS_PYDANTIC = False
+
 
 class SecretStr:
     """
@@ -56,3 +63,29 @@ class SecretStr:
     def __bool__(self) -> bool:
         """Return True if secret is non-empty."""
         return bool(self._secret)
+
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls, source_type: Any, handler: "GetCoreSchemaHandler"
+    ) -> "core_schema.CoreSchema":
+        """Pydantic v2 schema generation."""
+        if not HAS_PYDANTIC:
+            raise ImportError("Pydantic is required for schema generation")
+
+        return core_schema.no_info_after_validator_function(
+            cls._validate,
+            core_schema.str_schema(),
+            serialization=core_schema.plain_serializer_function_ser_schema(
+                lambda instance: instance.get_secret_value(),
+                return_schema=core_schema.str_schema(),
+            ),
+        )
+
+    @classmethod
+    def _validate(cls, value: Any) -> "SecretStr":
+        """Validate and convert input to SecretStr."""
+        if isinstance(value, cls):
+            return value
+        if isinstance(value, str):
+            return cls(value)
+        raise TypeError(f"SecretStr requires str, got {type(value).__name__}")

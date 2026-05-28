@@ -9,6 +9,7 @@ from fastapi import HTTPException
 from pydantic import BaseModel, Field
 
 from minos_desktop.app_state import DesktopProjectRecord, DesktopRunRecord
+from minos_desktop.security.secret_str import SecretStr
 from minos_desktop.services import format_desktop_failure
 
 
@@ -41,7 +42,7 @@ class DefaultOutputDirRequest(BaseModel):
 
 class AIConfigUpdateRequest(BaseModel):
     base_url: str | None = None
-    api_key: str | None = None
+    api_key: SecretStr | None = None
     model: str | None = None
 
 

@@ -279,12 +279,19 @@ def run_diagnostics() -> list[DiagnosticCheck]:
     return checks
 
 
-def print_diagnostics(checks: list[DiagnosticCheck]) -> None:
+def print_diagnostics(
+    checks: list[DiagnosticCheck],
+    *,
+    exit_on_complete: bool = True,
+) -> None:
     """
     Print diagnostic results to console.
 
     Args:
         checks: List of diagnostic check results
+        exit_on_complete: When True (default) the function calls ``sys.exit``
+            so this function is suitable as a CLI entry point. Pass False when
+            additional sections will be printed after the summary.
     """
     print("\n" + "=" * 60)
     print("MINOS-CORE Environment Diagnostics")
@@ -305,19 +312,52 @@ def print_diagnostics(checks: list[DiagnosticCheck]) -> None:
 
     if error_checks:
         print("\n[!] Critical issues found. Please address errors above.")
-        sys.exit(1)
+        if exit_on_complete:
+            sys.exit(1)
     elif warning_checks:
         print("\n[!] Some warnings found. System should work but may not be optimal.")
-        sys.exit(0)
+        if exit_on_complete:
+            sys.exit(0)
     else:
         print("\n[OK] All checks passed!")
-        sys.exit(0)
+        if exit_on_complete:
+            sys.exit(0)
 
 
 def doctor_command() -> None:
     """Main entry point for the doctor command."""
     checks = run_diagnostics()
-    print_diagnostics(checks)
+    print_diagnostics(checks, exit_on_complete=False)
+    print_config_sources()
+    _exit_after_diagnostics(checks)
+
+
+def print_config_sources() -> None:
+    """Print configuration provenance information."""
+
+    try:
+        from minos_core.observability.config_diagnostics import (
+            describe_config_sources,
+            format_config_sources,
+        )
+    except Exception as exc:  # pragma: no cover - defensive guard
+        print(f"\n[WARN] Configuration sources unavailable: {exc}")
+        return
+
+    sources = describe_config_sources()
+    print("\n" + "-" * 60)
+    print("Configuration Sources")
+    print("-" * 60)
+    print(format_config_sources(sources))
+
+
+def _exit_after_diagnostics(checks: list[DiagnosticCheck]) -> None:
+    """Apply the original diagnostic exit codes after extra sections print."""
+
+    error_checks = [c for c in checks if c.status == "error"]
+    if error_checks:
+        sys.exit(1)
+    sys.exit(0)
 
 
 if __name__ == "__main__":

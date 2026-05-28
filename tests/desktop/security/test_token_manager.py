@@ -38,3 +38,17 @@ def test_regenerate_token_creates_new_token():
     manager3 = TokenManager()
     token3 = manager3.get_or_create_token()
     assert token3 == token2, "New token should persist"
+
+
+def test_get_or_create_token_handles_keyring_failure(monkeypatch):
+    """Should raise clear error when keyring is unavailable."""
+    from minos_desktop.security.api_key_store import SecureAPIKeyStore
+
+    def mock_get_api_key(*args, **kwargs):
+        raise RuntimeError("Keyring unavailable")
+
+    monkeypatch.setattr(SecureAPIKeyStore, "get_api_key", mock_get_api_key)
+
+    manager = TokenManager()
+    with pytest.raises(RuntimeError, match="Failed to access system keyring"):
+        manager.get_or_create_token()

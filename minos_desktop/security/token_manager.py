@@ -19,13 +19,22 @@ class TokenManager:
 
         Returns:
             Persistent authentication token
+
+        Raises:
+            RuntimeError: If keyring is unavailable
         """
-        secret_token = self.keystore.get_api_key(self.TOKEN_PROVIDER)
-        if secret_token is None:
-            token = secrets.token_urlsafe(32)
-            self.keystore.store_api_key(self.TOKEN_PROVIDER, token)
-            return token
-        return secret_token.get_secret_value()
+        try:
+            secret_token = self.keystore.get_api_key(self.TOKEN_PROVIDER)
+            if secret_token is None:
+                token = secrets.token_urlsafe(32)
+                self.keystore.store_api_key(self.TOKEN_PROVIDER, token)
+                return token
+            return secret_token.get_secret_value()
+        except Exception as e:
+            raise RuntimeError(
+                f"Failed to access system keyring: {e}. "
+                "Ensure keyring backend is available and unlocked."
+            ) from e
 
     def regenerate_token(self) -> str:
         """
@@ -33,7 +42,16 @@ class TokenManager:
 
         Returns:
             New authentication token
+
+        Raises:
+            RuntimeError: If keyring is unavailable
         """
-        token = secrets.token_urlsafe(32)
-        self.keystore.store_api_key(self.TOKEN_PROVIDER, token)
-        return token
+        try:
+            token = secrets.token_urlsafe(32)
+            self.keystore.store_api_key(self.TOKEN_PROVIDER, token)
+            return token
+        except Exception as e:
+            raise RuntimeError(
+                f"Failed to store token in keyring: {e}. "
+                "Ensure keyring backend is available and unlocked."
+            ) from e

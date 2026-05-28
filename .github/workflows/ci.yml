@@ -35,23 +35,29 @@ jobs:
   real-acceptance:
     name: Real API acceptance
     runs-on: ubuntu-latest
+    # Security: Scope secrets to acceptance-testing environment to limit exposure
+    # Only workflow_dispatch and release events can access these secrets
+    environment: acceptance-testing
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'release'
     env:
       MINOS_RUN_REAL_ACCEPTANCE: "1"
+      # API keys: Only one of these three is required (fallback chain: MINOS_OPENAI_API_KEY → OPENAI_API_KEY → ARK_API_KEY)
       MINOS_OPENAI_API_KEY: ${{ secrets.MINOS_OPENAI_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ARK_API_KEY: ${{ secrets.ARK_API_KEY }}
+      # Model configuration (non-sensitive)
       MINOS_OPENAI_MODEL: ${{ vars.MINOS_OPENAI_MODEL }}
       MINOS_OPENAI_BASE_URL: ${{ vars.MINOS_OPENAI_BASE_URL }}
       MINOS_OPENAI_REASONING_EFFORT: ${{ vars.MINOS_OPENAI_REASONING_EFFORT }}
-      MINOS_REAL_DRAWING_PATH: ${{ vars.MINOS_REAL_DRAWING_PATH }}
-      MINOS_REAL_ACCEPTANCE_OUTPUT_DIR: ${{ vars.MINOS_REAL_ACCEPTANCE_OUTPUT_DIR }}
-      MINOS_REAL_PART_FAMILY: ${{ vars.MINOS_REAL_PART_FAMILY }}
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       OPENAI_MODEL: ${{ vars.OPENAI_MODEL }}
       OPENAI_BASE_URL: ${{ vars.OPENAI_BASE_URL }}
       OPENAI_REASONING_EFFORT: ${{ vars.OPENAI_REASONING_EFFORT }}
-      ARK_API_KEY: ${{ secrets.ARK_API_KEY }}
       ARK_MODEL: ${{ vars.ARK_MODEL }}
       ARK_BASE_URL: ${{ vars.ARK_BASE_URL }}
+      # Test configuration
+      MINOS_REAL_DRAWING_PATH: ${{ vars.MINOS_REAL_DRAWING_PATH }}
+      MINOS_REAL_ACCEPTANCE_OUTPUT_DIR: ${{ vars.MINOS_REAL_ACCEPTANCE_OUTPUT_DIR }}
+      MINOS_REAL_PART_FAMILY: ${{ vars.MINOS_REAL_PART_FAMILY }}
 
     steps:
       - name: Checkout

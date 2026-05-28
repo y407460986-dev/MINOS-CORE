@@ -97,3 +97,18 @@ def test_other_overrides_still_work(tmp_path: Path) -> None:
 
     # Cleanup
     SecureAPIKeyStore.delete_api_key("openai")
+
+
+def test_api_key_flag_not_set_on_storage_failure(tmp_path: Path) -> None:
+    """If keyring storage fails, the configured flag should NOT be set."""
+    store = DesktopSettingsStore(db_path=tmp_path / "test.db")
+
+    # Try to store empty API key (should raise ValueError)
+    with pytest.raises(ValueError, match="API key cannot be empty"):
+        store.set_ai_overrides(api_key="")
+
+    # Verify: Flag should NOT be set
+    assert store._get("ai_api_key_configured") == ""
+
+    # Verify: No key in keyring
+    assert SecureAPIKeyStore.get_api_key("openai") is None

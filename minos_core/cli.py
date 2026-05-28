@@ -7,10 +7,14 @@ import json
 from pathlib import Path
 from typing import Any
 
+import structlog
+
 from .adapters.fixture_json import load_fixture_payload
 from .config import list_samples
 from .domain import APQPChain
 from .validation import validate_chain
+
+logger = structlog.get_logger(__name__)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -360,17 +364,14 @@ def main(argv: list[str] | None = None) -> int:
 
 def _list_samples(samples_dir: str | None = None) -> int:
     for sample in list_samples(samples_dir):
-        print(
-            "\t".join(
-                [
-                    sample.sample_id,
-                    sample.display_name,
-                    sample.product_family,
-                    sample.apqp_phase,
-                    sample.language,
-                    sample.workbook_name,
-                ]
-            )
+        logger.info(
+            "sample_metadata",
+            sample_id=sample.sample_id,
+            display_name=sample.display_name,
+            product_family=sample.product_family,
+            apqp_phase=sample.apqp_phase,
+            language=sample.language,
+            workbook_name=sample.workbook_name,
         )
     return 0
 
@@ -379,7 +380,7 @@ def _ai_config() -> int:
     from .ai_config import load_openai_responses_config
 
     config = load_openai_responses_config().model_dump()
-    print(json.dumps(config, ensure_ascii=False, indent=2))
+    logger.info("ai_config", config=json.dumps(config, ensure_ascii=False, indent=2))
     return 0 if config["api_key_configured"] else 2
 
 
@@ -447,7 +448,7 @@ def _analyze_drawing(
         RuntimeError,
         ValueError,
     ) as exc:
-        print(f"图纸分析失败：{exc}")
+        logger.error("drawing_analysis_failed", error=str(exc))
         return 2
 
     text = json.dumps(bundle, ensure_ascii=False, indent=2)
@@ -455,9 +456,9 @@ def _analyze_drawing(
         destination = Path(output)
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_text(text, encoding="utf-8")
-        print(f"图纸分析结果已保存：{destination}")
+        logger.info("drawing_analysis_saved", path=str(destination))
     else:
-        print(text)
+        logger.info("drawing_analysis_result", result=text)
     return 0
 
 
@@ -481,7 +482,7 @@ def _compare_ocr_engines(
         source = load_drawing_source(drawing_input)
         pages = render_drawing_pages(source)
     except (DrawingInputError, FileNotFoundError, ValueError) as exc:
-        print(f"OCR 引擎比较失败：{exc}")
+        logger.error("ocr_comparison_failed", error=str(exc))
         return 2
 
     target_dir = Path(output).resolve().parent if output else Path(drawing_input).resolve().parent
@@ -504,7 +505,7 @@ def _compare_ocr_engines(
         destination = Path(output)
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_text(text, encoding="utf-8")
-    print(text)
+    logger.info("ocr_comparison_result", result=text)
     return 0
 
 
@@ -621,7 +622,7 @@ def _generate_three_tables(
         json.JSONDecodeError,
         ValueError,
     ) as exc:
-        print(f"三表生成失败：{exc}")
+        logger.error("three_tables_generation_failed", error=str(exc))
         return 2
 
     destination = Path(result_output) if result_output else Path(output_dir) / "three_table_generation_result.json"
@@ -630,15 +631,15 @@ def _generate_three_tables(
         json.dumps(result, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
-    print(f"三表生成结果已保存：{destination}")
-    print(f"状态：{result.get('status_display') or result.get('status')}")
+    logger.info("three_tables_saved", path=str(destination))
+    logger.info("three_tables_status", status=result.get('status_display') or result.get('status'))
     manual_review = result.get("manual_review")
     if isinstance(manual_review, dict):
         summary = manual_review.get("summary")
         if isinstance(summary, dict) and summary.get("message"):
-            print(str(summary["message"]))
+            logger.info("three_tables_summary", message=str(summary["message"]))
     if result.get("exports"):
-        print(json.dumps(result["exports"], ensure_ascii=False, indent=2))
+        logger.info("three_tables_exports", exports=json.dumps(result["exports"], ensure_ascii=False, indent=2))
     return 0 if result.get("status") != "blocked" else 2
 
 
@@ -646,7 +647,7 @@ def _write_demo_drawing(output: str) -> int:
     from .demo_acceptance import write_safe_demo_drawing_png
 
     path = write_safe_demo_drawing_png(output)
-    print(f"安全演示图纸已保存：{path}")
+    logger.info("demo_drawing_saved", path=str(path))
     return 0
 
 
@@ -658,7 +659,7 @@ def _accept_three_tables(result_path: str) -> int:
         payload = read_json_object(result_path)
         summary = summarize_three_table_acceptance(payload)
     except (OSError, ValueError, json.JSONDecodeError) as exc:
-        print(f"三表验收检查失败：{exc}")
+        logger.error("three_tables_acceptance_failed", error=str(exc))
         return 2
     payload = {
         "ok": summary.ok,
@@ -674,7 +675,7 @@ def _accept_three_tables(result_path: str) -> int:
             for name, check in summary.workbook_checks.items()
         },
     }
-    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    logger.info("three_tables_acceptance_result", result=json.dumps(payload, ensure_ascii=False, indent=2))
     return 0 if summary.ok else 2
 
 
@@ -684,9 +685,9 @@ def _validate(fixture: str) -> int:
     chain = APQPChain(**load_fixture_payload(fixture))
     result = validate_chain(chain)
     if not result:
-        print(str(result))
+        logger.error("validation_failed", result=str(result))
         return 2
-    print(f"OK: {chain.slug}")
+    logger.info("validation_success", slug=chain.slug)
     return 0
 
 
@@ -704,9 +705,9 @@ def _export(fixture: str, output: str, label: str, manifest_output: str | None) 
     try:
         result = export_fixture(payload, output, manifest_output)
     except ExportGateError as exc:
-        print(str(exc))
+        logger.error("export_failed", error=str(exc))
         return 2
-    print(f"Exported: {result}")
+    logger.info("export_success", result=str(result))
     return 0
 
 
@@ -723,7 +724,7 @@ def _export_draft(
     if label:
         payload["label"] = label
     result = export_draft_fixture(payload, output, manifest_output)
-    print(f"Draft exported: {result}")
+    logger.info("draft_export_success", result=str(result))
     return 0
 
 
@@ -733,7 +734,7 @@ def _audit(fixture: str, as_json: bool) -> int:
     from .audit import audit_chain, audit_report_json
 
     report = audit_chain(load_fixture_payload(fixture))
-    print(audit_report_json(report) if as_json else report.to_text())
+    logger.info("audit_report", report=audit_report_json(report) if as_json else report.to_text())
     return 0
 
 
@@ -743,7 +744,7 @@ def _generate_draft(
     from .pipeline import generate_draft
 
     result = generate_draft(evidence_input, output, manifest_output)
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+    logger.info("draft_generation_result", result=json.dumps(result, ensure_ascii=False, indent=2))
     return 0 if result.get("status") == "draft_ready" else 2
 
 
@@ -761,9 +762,9 @@ def _apply_review(
     try:
         result = apply_review(review_input, review_patch, output, manifest_output)
     except (ReviewPatchError, TypeError, ValueError) as exc:
-        print(f"人工复核应用失败：{exc}")
+        logger.error("review_application_failed", error=str(exc))
         return 2
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+    logger.info("review_application_result", result=json.dumps(result, ensure_ascii=False, indent=2))
     return 0
 
 
@@ -777,7 +778,7 @@ def _review_template(draft_result: str, output: str) -> int:
     destination.write_text(
         json.dumps(template, ensure_ascii=False, indent=2), encoding="utf-8"
     )
-    print(json.dumps(template, ensure_ascii=False, indent=2))
+    logger.info("review_template_created", template=json.dumps(template, ensure_ascii=False, indent=2))
     return 0
 
 
@@ -794,7 +795,7 @@ def _convert_legacy(
         workbook, output_dir, sample_id, display_name, profile
     )
     for name, path in paths.items():
-        print(f"{name}: {path}")
+        logger.info("legacy_conversion_output", name=name, path=str(path))
     return 0
 
 

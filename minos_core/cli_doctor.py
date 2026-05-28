@@ -13,7 +13,9 @@ import logging
 from pathlib import Path
 from typing import Any
 
-logger = logging.getLogger(__name__)
+import structlog
+
+logger = structlog.get_logger(__name__)
 
 
 class DiagnosticCheck:
@@ -313,9 +315,9 @@ def print_diagnostics(
             so this function is suitable as a CLI entry point. Pass False when
             additional sections will be printed after the summary.
     """
-    print("\n" + "=" * 60)
-    print("MINOS-CORE Environment Diagnostics")
-    print("=" * 60 + "\n")
+    logger.info("diagnostics_header", separator="=" * 60)
+    logger.info("diagnostics_title", title="MINOS-CORE Environment Diagnostics")
+    logger.info("diagnostics_header", separator="=" * 60)
 
     # Group by status
     ok_checks = [c for c in checks if c.status == "ok"]
@@ -324,22 +326,22 @@ def print_diagnostics(
 
     # Print all checks
     for check in checks:
-        print(check)
+        logger.info("diagnostic_check", check=str(check))
 
     # Summary
-    print("\n" + "-" * 60)
-    print(f"Summary: {len(ok_checks)} OK, {len(warning_checks)} warnings, {len(error_checks)} errors")
+    logger.info("diagnostics_separator", separator="-" * 60)
+    logger.info("diagnostics_summary", ok=len(ok_checks), warnings=len(warning_checks), errors=len(error_checks))
 
     if error_checks:
-        print("\n[!] Critical issues found. Please address errors above.")
+        logger.error("diagnostics_critical_issues", message="Critical issues found. Please address errors above.")
         if exit_on_complete:
             sys.exit(1)
     elif warning_checks:
-        print("\n[!] Some warnings found. System should work but may not be optimal.")
+        logger.warning("diagnostics_warnings_found", message="Some warnings found. System should work but may not be optimal.")
         if exit_on_complete:
             sys.exit(0)
     else:
-        print("\n[OK] All checks passed!")
+        logger.info("diagnostics_all_passed", message="All checks passed!")
         if exit_on_complete:
             sys.exit(0)
 
@@ -361,14 +363,14 @@ def print_config_sources() -> None:
             format_config_sources,
         )
     except Exception as exc:  # pragma: no cover - defensive guard
-        print(f"\n[WARN] Configuration sources unavailable: {exc}")
+        logger.warning("config_sources_unavailable", error=str(exc))
         return
 
     sources = describe_config_sources()
-    print("\n" + "-" * 60)
-    print("Configuration Sources")
-    print("-" * 60)
-    print(format_config_sources(sources))
+    logger.info("config_sources_separator", separator="-" * 60)
+    logger.info("config_sources_title", title="Configuration Sources")
+    logger.info("config_sources_separator", separator="-" * 60)
+    logger.info("config_sources_details", sources=format_config_sources(sources))
 
 
 def _exit_after_diagnostics(checks: list[DiagnosticCheck]) -> None:

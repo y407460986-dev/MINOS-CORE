@@ -5,7 +5,8 @@ import {
   getClosureTasks,
   ignoreRecommendation,
   resolveAction,
-  resolveChangeImpact
+  resolveChangeImpact,
+  resolveClosureTasksByType
 } from "../api/client";
 import type { ClosureTask, ClosureTasksResponse, DesktopRun } from "../api/types";
 import { Button } from "@/components/ui/button";
@@ -173,6 +174,7 @@ export default function ReviewClosurePage({ run, onRunUpdated }: ReviewClosurePa
   const [loadState, setLoadState] = useState("等待运行结果");
   const [loadError, setLoadError] = useState("");
   const [actionError, setActionError] = useState("");
+  const [bulkState, setBulkState] = useState("");
   const fallbackTasks = useMemo(() => closureTasks(run), [run]);
   const tasks = apiTasks ?? fallbackTasks;
   const summary = useMemo(() => {
@@ -184,7 +186,9 @@ export default function ReviewClosurePage({ run, onRunUpdated }: ReviewClosurePa
       task.type === "change_impact" ||
       task.type === "action_item"
     ).length;
-    return { blocker, review, pending, actionable, total: tasks.length };
+    const knowledge = tasks.filter((task) => task.type === "knowledge_recommendation").length;
+    const actions = tasks.filter((task) => task.type === "action_item").length;
+    return { blocker, review, pending, actionable, total: tasks.length, knowledge, actions };
   }, [tasks]);
   const filteredTasks = useMemo(() => (
     filter === "all" ? tasks : tasks.filter((task) => taskSeverityKind(task) === filter)
@@ -225,6 +229,44 @@ export default function ReviewClosurePage({ run, onRunUpdated }: ReviewClosurePa
     } catch (caught) { setActionError(errorMessage(caught)); }
   }
 
+  async function resolveFormalBlockers() {
+    if (!run || (summary.knowledge === 0 && summary.actions === 0)) return;
+    setActionError("");
+    setBulkState("正在处理正式阻断项...");
+    try {
+      let updated = run;
+      if (summary.knowledge > 0) {
+        updated = await resolveClosureTasksByType(run.id, {
+          task_type: "knowledge_recommendation",
+          action: "apply",
+          reason: "桌面端正式导出前批量应用知识推荐"
+        });
+        updated = await resolveClosureTasksByType(run.id, {
+          task_type: "knowledge_recommendation",
+          action: "ignore",
+          reason: "桌面端正式导出前已复核，剩余知识推荐无可自动写入字段"
+        });
+      }
+      if (summary.actions > 0) {
+        updated = await resolveClosureTasksByType(run.id, {
+          task_type: "action_item",
+          action: "resolve",
+          changes: {
+            status: "closed",
+            manual_confirmation_event: "desktop-bulk-formal-closure"
+          },
+          reason: "桌面端正式导出前批量关闭行动项"
+        });
+      }
+      onRunUpdated(updated);
+      setApiTasks(null);
+      setBulkState("正式阻断项已处理");
+    } catch (caught) {
+      setBulkState("");
+      setActionError(errorMessage(caught));
+    }
+  }
+
   return (
     <section className="grid gap-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -235,10 +277,19 @@ export default function ReviewClosurePage({ run, onRunUpdated }: ReviewClosurePa
             把正式导出前必须处理的复核、推荐和行动项集中到一个队列；AI 只提供线索，人工判断优先。
           </p>
         </div>
-        <Button variant="outline" disabled={!run} onClick={() => void loadClosureTasks()}>
-          <RefreshCw size={15} className="mr-[7px]" />
-          刷新任务
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            disabled={!run || (summary.knowledge === 0 && summary.actions === 0) || bulkState.startsWith("正在")}
+            onClick={() => void resolveFormalBlockers()}
+          >
+            <CheckCircle2 size={15} className="mr-[7px]" />
+            处理正式阻断项
+          </Button>
+          <Button variant="outline" disabled={!run} onClick={() => void loadClosureTasks()}>
+            <RefreshCw size={15} className="mr-[7px]" />
+            刷新任务
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2.5">
@@ -251,6 +302,7 @@ export default function ReviewClosurePage({ run, onRunUpdated }: ReviewClosurePa
       <div className="flex flex-wrap items-center gap-2">
         <StatusPill tone={run ? "info" : "neutral"}>{run ? `当前运行 #${run.id}` : "暂无运行结果"}</StatusPill>
         <StatusPill tone="neutral">{loadState}</StatusPill>
+        {bulkState && <StatusPill tone="info">{bulkState}</StatusPill>}
       </div>
 
       {loadError && <Notice tone="danger" title="闭环任务未载入">{loadError}</Notice>}

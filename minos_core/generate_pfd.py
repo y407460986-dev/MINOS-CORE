@@ -7,7 +7,6 @@ from typing import Any
 
 from minos_core._text_utils import sequence_links, string_list, text
 
-
 _STEP_CHARACTERISTIC_RULES = {
     "P10": ("material", "thickness"),
     "P20": ("rivet", "height", "push-out", "push out", "force"),

@@ -30,6 +30,7 @@ class APIError(HTTPException):
 class CreateProjectRequest(BaseModel):
     project_name: str = Field(..., min_length=1, max_length=256)
     drawing_path: str = ""
+    component_drawings: list[str] = Field(default_factory=list)
     output_dir: str = ""
     analysis_mode: str = Field(default="hybrid", pattern="^(ocr_only|vision_only|hybrid)$")
     ocr_engine: str = Field(default="mineru", pattern="^(auto|pdf_text|rapidocr|mineru)$")
@@ -126,6 +127,12 @@ class ClosureTaskResolveRequest(BaseModel):
     evidence_refs: list[str] = Field(default_factory=list)
 
 
+class ClosureTasksBulkResolveRequest(ClosureTaskResolveRequest):
+    task_type: str = Field(..., min_length=1)
+    task_ids: list[str] = Field(default_factory=list)
+    target_row_ids: list[str] = Field(default_factory=list)
+
+
 class LinkageApplySyncRequest(BaseModel):
     edit_patch: dict[str, Any] = Field(default_factory=dict)
     selected_impact_ids: list[str] = Field(default_factory=list)
@@ -155,6 +162,7 @@ def project_to_dict(record: DesktopProjectRecord) -> dict[str, Any]:
         "id": record.id,
         "project_name": record.project_name,
         "drawing_path": record.drawing_path,
+        "component_drawings": list(record.component_drawings),
         "output_dir": record.output_dir,
         "analysis_mode": analysis_mode,
         "ocr_engine": ocr_engine,

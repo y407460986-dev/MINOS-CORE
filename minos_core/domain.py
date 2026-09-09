@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from collections.abc import Mapping
-from enum import Enum
+from dataclasses import dataclass, field
+from enum import StrEnum
 from typing import Any
 
 from ._text_utils import string_list
 
 
-class EntityType(str, Enum):
+class EntityType(StrEnum):
     PROCESS_STEP = "process_step"
     FAILURE_MODE_CANDIDATE = "failure_mode_candidate"
     FAILURE_MODE = "failure_mode"
@@ -21,7 +21,7 @@ class EntityType(str, Enum):
     PRODUCT = "product"
 
 
-class TraceLinkType(str, Enum):
+class TraceLinkType(StrEnum):
     PFD_TO_PFMEA = "pfd_to_pfmea"
     PFMEA_TO_CP = "pfmea_to_control_plan"
     CANDIDATE_TO_PFMEA = "candidate_to_pfmea"
@@ -31,12 +31,11 @@ class TraceLinkType(str, Enum):
     DRAWING_TO_EVIDENCE = "drawing_to_evidence"
 
 
-@dataclass
+@dataclass(frozen=True)
 class Product:
     """产品信息。
 
-    注意：虽然字段技术上可变，但应视为不可变对象。
-    创建后不应修改字段值。如需修改，使用 dataclasses.replace()。
+    不可变对象。如需修改，使用 dataclasses.replace()。
     """
     sample_id: str = ""
     part_number: str = ""
@@ -45,7 +44,15 @@ class Product:
     phase: str = ""
 
     @classmethod
-    def from_mapping(cls, data: Any) -> "Product":
+    def from_mapping(cls, data: Any) -> Product:
+        """Construct a Product from a mapping (dict or existing Product).
+
+        Args:
+            data: A dict or Product instance.
+
+        Returns:
+            A new Product instance.
+        """
         if isinstance(data, Product):
             return data
         data = _require_mapping(data, cls.__name__)
@@ -58,7 +65,7 @@ class Product:
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class ProcessStep:
     process_step_id: str
     sequence: int = 0
@@ -86,22 +93,34 @@ class ProcessStep:
 
     @property
     def id(self) -> str:
+        """Return the process step identifier."""
         return self.process_step_id
 
     @property
     def step_no(self) -> str:
+        """Return the process step number (alias for id)."""
         return self.process_step_id
 
     @property
     def name(self) -> str:
+        """Return the operation name."""
         return self.operation
 
     @property
     def description(self) -> str:
+        """Return the process function description."""
         return self.process_function
 
     @classmethod
-    def from_mapping(cls, data: Any) -> "ProcessStep":
+    def from_mapping(cls, data: Any) -> ProcessStep:
+        """Construct a ProcessStep from a mapping (dict or existing ProcessStep).
+
+        Args:
+            data: A dict or ProcessStep instance.
+
+        Returns:
+            A new ProcessStep instance.
+        """
         if isinstance(data, ProcessStep):
             return data
         data = _require_mapping(data, cls.__name__)
@@ -149,7 +168,7 @@ class ProcessStep:
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class Drawing:
     drawing_id: str = ""
     title: str = ""
@@ -157,7 +176,15 @@ class Drawing:
     source_ref: str = ""
 
     @classmethod
-    def from_mapping(cls, data: Any) -> "Drawing":
+    def from_mapping(cls, data: Any) -> Drawing:
+        """Construct a Drawing from a mapping (dict or existing Drawing).
+
+        Args:
+            data: A dict or Drawing instance.
+
+        Returns:
+            A new Drawing instance.
+        """
         if isinstance(data, Drawing):
             return data
         data = _require_mapping(data, cls.__name__)
@@ -169,7 +196,7 @@ class Drawing:
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class Characteristic:
     characteristic_id: str = ""
     name: str = ""
@@ -178,7 +205,15 @@ class Characteristic:
     source_ref: str = ""
 
     @classmethod
-    def from_mapping(cls, data: Any) -> "Characteristic":
+    def from_mapping(cls, data: Any) -> Characteristic:
+        """Construct a Characteristic from a mapping (dict or existing).
+
+        Args:
+            data: A dict or Characteristic instance.
+
+        Returns:
+            A new Characteristic instance.
+        """
         if isinstance(data, Characteristic):
             return data
         data = _require_mapping(data, cls.__name__)
@@ -191,7 +226,7 @@ class Characteristic:
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class FailureModeCandidate:
     candidate_id: str = ""
     process_step_id: str = ""
@@ -212,7 +247,15 @@ class FailureModeCandidate:
     ai_reasoning: str = ""
 
     @classmethod
-    def from_mapping(cls, data: Any) -> "FailureModeCandidate":
+    def from_mapping(cls, data: Any) -> FailureModeCandidate:
+        """Construct a FailureModeCandidate from a mapping (dict or existing).
+
+        Args:
+            data: A dict or FailureModeCandidate instance.
+
+        Returns:
+            A new FailureModeCandidate instance.
+        """
         if isinstance(data, FailureModeCandidate):
             return data
         data = _require_mapping(data, cls.__name__)
@@ -239,7 +282,7 @@ class FailureModeCandidate:
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class FailureMode:
     pfmea_id: str
     process_step_id: str
@@ -298,26 +341,32 @@ class FailureMode:
 
     @property
     def step_no(self) -> str:
+        """Return the process step identifier."""
         return self.process_step_id
 
     @property
     def process(self) -> str:
+        """Return the process function."""
         return self.process_function
 
     @property
     def effect(self) -> str:
+        """Return the failure effect."""
         return self.failure_effect
 
     @property
     def cause(self) -> str:
+        """Return the failure cause."""
         return self.failure_cause
 
     @property
     def is_high_risk(self) -> bool:
+        """Check whether this failure mode is high risk (AP=H or severity >=9)."""
         return self.action_priority.upper() == "H" or self.severity >= 9
 
     @property
     def is_mandatory_control(self) -> bool:
+        """Check whether this failure mode requires mandatory control."""
         return (
             self.is_high_risk
             or bool(self.classification.strip())
@@ -325,7 +374,18 @@ class FailureMode:
         )
 
     @classmethod
-    def from_mapping(cls, data: Any) -> "FailureMode":
+    def from_mapping(cls, data: Any) -> FailureMode:
+        """Construct a FailureMode from a mapping (dict or existing).
+
+        Args:
+            data: A dict or FailureMode instance.
+
+        Returns:
+            A new FailureMode instance.
+
+        Raises:
+            TypeError: If data is not a mapping.
+        """
         if isinstance(data, FailureMode):
             return data
         data = _require_mapping(data, cls.__name__)
@@ -388,7 +448,7 @@ class FailureMode:
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class ControlItem:
     control_plan_id: str
     process_step_id: str
@@ -426,18 +486,32 @@ class ControlItem:
 
     @property
     def step_no(self) -> str:
+        """Return the process step identifier."""
         return self.process_step_id
 
     @property
     def characteristic(self) -> str:
+        """Return the product/process characteristic."""
         return self.product_process_characteristic
 
     @property
     def measurement(self) -> str:
+        """Return the measurement method."""
         return self.measurement_method
 
     @classmethod
-    def from_mapping(cls, data: Any) -> "ControlItem":
+    def from_mapping(cls, data: Any) -> ControlItem:
+        """Construct a ControlItem from a mapping (dict or existing).
+
+        Args:
+            data: A dict or ControlItem instance.
+
+        Returns:
+            A new ControlItem instance.
+
+        Raises:
+            TypeError: If data is not a mapping.
+        """
         if isinstance(data, ControlItem):
             return data
         data = _require_mapping(data, cls.__name__)
@@ -486,7 +560,7 @@ class ControlItem:
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class Evidence:
     evidence_id: str = ""
     source: str = ""
@@ -496,7 +570,15 @@ class Evidence:
     needs_confirmation: bool = False
 
     @classmethod
-    def from_mapping(cls, data: Any) -> "Evidence":
+    def from_mapping(cls, data: Any) -> Evidence:
+        """Construct an Evidence from a mapping (dict or existing).
+
+        Args:
+            data: A dict or Evidence instance.
+
+        Returns:
+            A new Evidence instance.
+        """
         if isinstance(data, Evidence):
             return data
         data = _require_mapping(data, cls.__name__)
@@ -515,7 +597,7 @@ class Evidence:
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class TraceLink:
     from_id: str
     to_id: str
@@ -530,7 +612,15 @@ class TraceLink:
     needs_confirmation: bool = False
 
     @classmethod
-    def from_mapping(cls, data: Any) -> "TraceLink":
+    def from_mapping(cls, data: Any) -> TraceLink:
+        """Construct a TraceLink from a mapping (dict or existing).
+
+        Args:
+            data: A dict or TraceLink instance.
+
+        Returns:
+            A new TraceLink instance.
+        """
         if isinstance(data, TraceLink):
             return data
         data = _require_mapping(data, cls.__name__)
@@ -554,7 +644,7 @@ class TraceLink:
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class APQPChain:
     product: Product = field(default_factory=Product)
     drawings: list[Drawing] = field(default_factory=list)
@@ -590,71 +680,78 @@ class APQPChain:
         if "product" not in normalized:
             raise ValueError("APQPChain requires 'product' field")
 
-        self.product = Product.from_mapping(normalized.get("product", {}))
-        self.drawings = [
+        object.__setattr__(self, "product", Product.from_mapping(normalized.get("product", {})))
+        object.__setattr__(self, "drawings", [
             Drawing.from_mapping(item) for item in normalized.get("drawings", [])
-        ]
-        self.characteristics = [
+        ])
+        object.__setattr__(self, "characteristics", [
             Characteristic.from_mapping(item)
             for item in normalized.get("characteristics", [])
-        ]
-        self.process_steps = [
+        ])
+        object.__setattr__(self, "process_steps", [
             ProcessStep.from_mapping(item)
             for item in normalized.get("process_steps", [])
-        ]
-        self.failure_mode_candidates = [
+        ])
+        object.__setattr__(self, "failure_mode_candidates", [
             FailureModeCandidate.from_mapping(item)
             for item in normalized.get("failure_mode_candidates", [])
-        ]
-        self.failure_modes = [
-            FailureMode.from_mapping(item)
-            for item in normalized.get("failure_modes", [])
-        ]
-        self.controls = [
+        ])
+        object.__setattr__(self, "failure_modes", [
+            FailureMode.from_mapping(item) for item in normalized.get("failure_modes", [])
+        ])
+        object.__setattr__(self, "controls", [
             ControlItem.from_mapping(item) for item in normalized.get("controls", [])
-        ]
-        self.evidence = [
+        ])
+        object.__setattr__(self, "evidence", [
             Evidence.from_mapping(item) for item in normalized.get("evidence", [])
-        ]
-        self.links = [
+        ])
+        object.__setattr__(self, "links", [
             TraceLink.from_mapping(item) for item in normalized.get("links", [])
-        ]
-        self.pending_fields = list(normalized.get("pending_fields", []))
-        self.ai_inferred_items = list(normalized.get("ai_inferred_items", []))
-        self.metadata = dict(normalized.get("metadata", {}))
-        self.schema_version = str(normalized.get("schema_version", ""))
-        self.document_type = str(normalized.get("document_type", "apqp_chain"))
+        ])
+        object.__setattr__(self, "pending_fields", list(normalized.get("pending_fields", [])))
+        object.__setattr__(self, "ai_inferred_items", list(normalized.get("ai_inferred_items", [])))
+        object.__setattr__(self, "metadata", dict(normalized.get("metadata", {})))
+        object.__setattr__(self, "schema_version", str(normalized.get("schema_version", "")))
+        object.__setattr__(self, "document_type", str(normalized.get("document_type", "apqp_chain")))
 
     @property
     def slug(self) -> str:
+        """Return a human-readable slug derived from the product identity."""
         return self.product.sample_id or self.product.part_number or "apqp_chain"
 
     @property
     def display_name(self) -> str:
+        """Return the display name (part name)."""
         return self.product.part_name
 
     @property
     def part_number(self) -> str:
+        """Return the part number."""
         return self.product.part_number
 
     @property
     def stage(self) -> str:
+        """Return the current development phase."""
         return self.product.phase
 
     @property
     def steps(self) -> list[ProcessStep]:
+        """Alias for process_steps."""
         return self.process_steps
 
     @property
     def pfmea_items(self) -> list[FailureMode]:
+        """Alias for failure_modes."""
         return self.failure_modes
 
     @property
     def control_plan_items(self) -> list[ControlItem]:
+        """Alias for controls."""
         return self.controls
 
     @property
     def critical_characteristics(self) -> list[str]:
+        """Collect all special/classification characteristics across steps and failure modes."""
         values = [step.special_characteristics for step in self.process_steps]
         values.extend(
             [
@@ -667,6 +764,7 @@ class APQPChain:
 
     @property
     def traceability_matrix(self) -> list[dict[str, str]]:
+        """Build a traceability matrix linking process steps, PFMEA, and control plans."""
         controls_by_pfmea = {
             item.pfmea_id: item.control_plan_id
             for item in self.controls
@@ -690,14 +788,31 @@ class APQPChain:
         return rows
 
     @classmethod
-    def model_validate(cls, payload: dict[str, Any]) -> "APQPChain":
+    def model_validate(cls, payload: dict[str, Any]) -> APQPChain:
+        """Pydantic-compatible validation alias for APQPChain construction.
+
+        Args:
+            payload: A dict with APQP chain data.
+
+        Returns:
+            A new APQPChain instance.
+        """
         return cls(**payload)
 
     @classmethod
-    def parse_obj(cls, payload: dict[str, Any]) -> "APQPChain":
+    def parse_obj(cls, payload: dict[str, Any]) -> APQPChain:
+        """Pydantic-compatible parse alias for APQPChain construction.
+
+        Args:
+            payload: A dict with APQP chain data.
+
+        Returns:
+            A new APQPChain instance.
+        """
         return cls(**payload)
 
     def model_dump(self) -> dict[str, Any]:
+        """Serialize the APQPChain to a plain dict."""
         return {
             "document_type": self.document_type,
             "schema_version": self.schema_version,
@@ -719,6 +834,17 @@ class APQPChain:
 
 
 def normalize_fixture_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    """Normalize a fixture payload into the canonical APQPChain structure.
+
+    Supports both the combined format (with process_flow/pfmea/control_plan
+    keys) and the flat per-document format.
+
+    Args:
+        payload: Raw fixture dict.
+
+    Returns:
+        Normalized dict with consistent top-level keys.
+    """
     if "process_flow" in payload or "pfmea" in payload or "control_plan" in payload:
         return _normalize_combined_payload(payload)
 
@@ -751,6 +877,7 @@ def normalize_fixture_payload(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def _normalize_combined_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    """Normalize a combined three-table payload into canonical APQPChain structure."""
     process_flow = payload.get("process_flow") or {}
     pfmea = payload.get("pfmea") or {}
     control_plan = payload.get("control_plan") or {}
@@ -793,6 +920,7 @@ def _normalize_combined_payload(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def _first_list(*values: Any) -> list[Any]:
+    """Return the first argument that is a list, or an empty list if none match."""
     for value in values:
         if isinstance(value, list):
             return value
@@ -800,6 +928,7 @@ def _first_list(*values: Any) -> list[Any]:
 
 
 def _require_mapping(data: Any, class_name: str) -> Mapping[str, Any]:
+    """Verify data is a Mapping and return it, or raise TypeError."""
     if isinstance(data, Mapping):
         return data
     raise TypeError(f"{class_name}.from_mapping expected a mapping, got {type(data).__name__}")
@@ -819,8 +948,24 @@ def load_apqp_chain(fixture: Any) -> dict[str, Any]:
 
 
 def load_chain(fixture: Any) -> dict[str, Any]:
+    """Load an APQP chain from a fixture (convenience alias).
+
+    Args:
+        fixture: A file path, URL, or dict payload.
+
+    Returns:
+        A normalized APQP chain dict.
+    """
     return load_apqp_chain(fixture)
 
 
 def load_domain_bundle(fixture: Any) -> dict[str, Any]:
+    """Load a domain bundle from a fixture (convenience alias).
+
+    Args:
+        fixture: A file path, URL, or dict payload.
+
+    Returns:
+        A normalized APQP chain dict.
+    """
     return load_apqp_chain(fixture)

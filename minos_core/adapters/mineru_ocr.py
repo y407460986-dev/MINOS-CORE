@@ -6,11 +6,19 @@ import os
 import re
 import shutil
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from ..observability.resources import temporary_directory
 from .ocr import OCRBlock, OCRDependencyError, OCRPageText, OCRResult
+
+
+def _no_window_creationflags() -> int:
+    """Suppress the cmd.exe console window when spawning MinerU on Windows."""
+    if os.name != "nt":
+        return 0
+    return int(getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000))
 
 
 MinerUParser = Callable[[str, bytes], Any]
@@ -60,14 +68,20 @@ class MinerUOCRAdapter:
             output_dir.mkdir(parents=True, exist_ok=True)
             try:
                 subprocess.run(
-                    [mineru_command, "-p", str(input_path), "-o", str(output_dir)],
+                    [mineru_command, "-p", str(input_path), "-o", str(output_dir), "-b", "pipeline"],
                     check=True,
                     capture_output=True,
                     text=True,
+                    creationflags=_no_window_creationflags(),
                 )
-            except (OSError, subprocess.CalledProcessError) as exc:
+            except subprocess.CalledProcessError as exc:
+                markdown = _read_first_markdown(output_dir)
+                if markdown is not None:
+                    return markdown
                 message = getattr(exc, "stderr", "") or str(exc)
                 raise OCRDependencyError(f"MinerU OCR failed: {message}") from exc
+            except OSError as exc:
+                raise OCRDependencyError(f"MinerU OCR failed: {exc}") from exc
             markdown = _read_first_markdown(output_dir)
             if markdown is None:
                 raise OCRDependencyError(

@@ -1,34 +1,10 @@
 import os
-import sqlite3
 import tempfile
 import unittest
-import zipfile
-from unittest.mock import patch
 
-from minos_desktop.app_state import (
-    ChainStageStates,
-    DesktopProjectState,
-    DesktopRunState,
-    StageConfirmState,
-    desktop_run_state_from_result,
-    summarize_generation_result,
-)
-from minos_desktop.api.schemas import settings_to_dict
 from minos_desktop.services import (
-    DesktopDataManagementService,
     DesktopKnowledgeStore,
-    DesktopProjectStore,
-    DesktopRunService,
-    DesktopSQLiteStore,
-    DesktopSettingsStore,
-    format_desktop_failure,
 )
-from minos_desktop.table_editor import (
-    ROW_STATUS_COLUMN,
-    build_edit_patch,
-    three_table_to_table_model,
-)
-from minos_core._paths import user_data_dir
 
 
 class TestKnowledgeStoreIntegration(unittest.TestCase):

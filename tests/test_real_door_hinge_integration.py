@@ -91,7 +91,7 @@ def _assert_xlsx_valid(path: Path) -> None:
             for xml_part in ("xl/workbook.xml", "[Content_Types].xml"):
                 ElementTree.fromstring(archive.read(xml_part))
     except zipfile.BadZipFile:
-        raise AssertionError(f"Not a valid zip/xlsx: {path}")
+        raise AssertionError(f"Not a valid zip/xlsx: {path}") from None
 
 
 def _xlsx_sheet_names(path: Path) -> list[str]:
@@ -314,7 +314,7 @@ class RealDoorHingeChainPipelineTests(_BaseRealIntegration):
 
         for row in cp_rows:
             self.assertTrue(row.get("control_plan_id"),
-                            f"CP row missing control_plan_id")
+                            "CP row missing control_plan_id")
 
         meta = cp.get("metadata") or {}
         failed = meta.get("failed_row_ids", [])

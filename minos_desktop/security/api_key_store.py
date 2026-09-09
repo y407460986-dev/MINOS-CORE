@@ -1,7 +1,9 @@
 """Secure API key storage using system keyring."""
 
+
+from contextlib import suppress
+
 import keyring
-from typing import Optional
 
 from .secret_str import SecretStr
 
@@ -27,10 +29,7 @@ class SecureAPIKeyStore:
             provider: Provider name (e.g., "openai", "anthropic")
             api_key: API key to store (string or SecretStr)
         """
-        if isinstance(api_key, SecretStr):
-            key_value = api_key.get_secret_value()
-        else:
-            key_value = api_key
+        key_value = api_key.get_secret_value() if isinstance(api_key, SecretStr) else api_key
 
         if not key_value:
             raise ValueError("API key cannot be empty")
@@ -38,7 +37,7 @@ class SecureAPIKeyStore:
         keyring.set_password(cls.SERVICE_NAME, provider, key_value)
 
     @classmethod
-    def get_api_key(cls, provider: str) -> Optional[SecretStr]:
+    def get_api_key(cls, provider: str) -> SecretStr | None:
         """
         Retrieve an API key securely.
 
@@ -63,11 +62,8 @@ class SecureAPIKeyStore:
         Args:
             provider: Provider name (e.g., "openai", "anthropic")
         """
-        try:
+        with suppress(Exception):
             keyring.delete_password(cls.SERVICE_NAME, provider)
-        except Exception:
-            # Key doesn't exist or other error, ignore
-            pass
 
     @classmethod
     def list_providers(cls) -> list[str]:

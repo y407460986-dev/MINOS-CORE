@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from minos_core.adapters.ocr import OCRBlock, OCRPageText, OCRResult
+from minos_core.adapters.ocr import OCRPageText, OCRResult
 from minos_core.drawing_ocr_analysis import build_drawing_analysis_bundle_from_ocr
 
 
@@ -61,6 +61,38 @@ class TestExtractSurfaceTreatmentFromOcrText(unittest.TestCase):
         bundle = _bundle("图号: S-002\n表面处理: 镀锌")
         treatments = bundle["surface_treatments"]
         self.assertTrue(any("镀锌" in t["name"] for t in treatments))
+
+
+class TestSpecialCharacteristicExtractionFromOcrText(unittest.TestCase):
+    def test_ocr_bundle_attaches_declared_special_characteristic_counts(self):
+        bundle = _bundle(
+            "关键特性 CC (Critical Characteristic) 2\n"
+            "重要特性 SC (Special Characteristic) 1"
+        )
+
+        self.assertEqual(bundle["declared_totals"], {"CC": 2, "SC": 1})
+        self.assertEqual(
+            bundle["declared_special_characteristics"][0]["classification"],
+            "CC",
+        )
+
+    def test_numeric_requirement_is_not_special_characteristic_without_marker(self):
+        bundle = _bundle(
+            "按GB/T10125进行中性盐雾试验，红锈出现时间不低于120h。"
+        )
+
+        self.assertTrue(bundle["numeric_specifications"])
+        self.assertEqual(bundle["special_characteristics"], [])
+
+    def test_explicit_special_characteristic_marker_is_preserved(self):
+        bundle = _bundle("SC 孔径 10.0 +/- 0.1 mm")
+
+        self.assertEqual(bundle["special_characteristics"][0]["classification"], "SC")
+
+    def test_ptc_marker_is_not_promoted_to_supported_special_characteristic(self):
+        bundle = _bundle("PTC 菱形 图例定义项")
+
+        self.assertEqual(bundle["special_characteristics"], [])
 
 
 class TestConfidenceCalculationForHighQualityOcr(unittest.TestCase):

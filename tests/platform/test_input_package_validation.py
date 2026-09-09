@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import tempfile
-
 import pytest
 
 pytestmark = pytest.mark.asyncio

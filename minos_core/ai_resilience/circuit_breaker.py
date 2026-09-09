@@ -6,12 +6,14 @@ allowing them time to recover.
 """
 
 import time
-import logging
-from enum import Enum
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, TypeVar, Any
+from enum import Enum
+from typing import Any, TypeVar
 
-logger = logging.getLogger(__name__)
+from minos_core.observability.logging import get_logger
+
+logger = get_logger(__name__)
 
 T = TypeVar("T")
 
@@ -98,8 +100,10 @@ class CircuitBreaker:
         self._last_state_change = time.time()
 
         logger.info(
-            f"Circuit breaker '{self.name}' transitioned: "
-            f"{old_state.value} -> {new_state.value}"
+            "circuit_breaker_transitioned",
+            name=self.name,
+            old_state=old_state.value,
+            new_state=new_state.value,
         )
 
         # Reset counters on state change
@@ -124,8 +128,10 @@ class CircuitBreaker:
         if self._state == CircuitState.HALF_OPEN:
             self._success_count += 1
             logger.debug(
-                f"Circuit breaker '{self.name}': "
-                f"success {self._success_count}/{self.config.success_threshold}"
+                "circuit_breaker_success_progress",
+                name=self.name,
+                success_count=self._success_count,
+                success_threshold=self.config.success_threshold,
             )
 
             if self._success_count >= self.config.success_threshold:
@@ -139,21 +145,23 @@ class CircuitBreaker:
         if self._state == CircuitState.HALF_OPEN:
             # Any failure in half-open state reopens the circuit
             logger.warning(
-                f"Circuit breaker '{self.name}': "
-                f"failure in half-open state, reopening circuit"
+                "circuit_breaker_half_open_failure",
+                name=self.name,
             )
             self._transition_to(CircuitState.OPEN)
 
         elif self._state == CircuitState.CLOSED:
             logger.debug(
-                f"Circuit breaker '{self.name}': "
-                f"failure {self._failure_count}/{self.config.failure_threshold}"
+                "circuit_breaker_failure_progress",
+                name=self.name,
+                failure_count=self._failure_count,
+                failure_threshold=self.config.failure_threshold,
             )
 
             if self._failure_count >= self.config.failure_threshold:
                 logger.warning(
-                    f"Circuit breaker '{self.name}': "
-                    f"threshold reached, opening circuit"
+                    "circuit_breaker_threshold_reached",
+                    name=self.name,
                 )
                 self._transition_to(CircuitState.OPEN)
 
@@ -179,18 +187,19 @@ class CircuitBreaker:
         # Check if we should attempt reset
         if self._state == CircuitState.OPEN and self._should_attempt_reset():
             logger.info(
-                f"Circuit breaker '{self.name}': "
-                f"attempting reset after timeout"
+                "circuit_breaker_attempting_reset",
+                name=self.name,
             )
             self._transition_to(CircuitState.HALF_OPEN)
 
         # Block if circuit is open
         if self._state == CircuitState.OPEN:
             logger.warning(
-                f"Circuit breaker '{self.name}': circuit is open, blocking call"
+                "circuit_breaker_blocking_call",
+                name=self.name,
             )
             if fallback:
-                logger.info(f"Circuit breaker '{self.name}': using fallback")
+                logger.info("circuit_breaker_using_fallback", name=self.name)
                 return fallback()
             else:
                 raise CircuitBreakerOpenError(
@@ -215,7 +224,7 @@ class CircuitBreaker:
 
     def reset(self) -> None:
         """Manually reset the circuit breaker to closed state."""
-        logger.info(f"Circuit breaker '{self.name}': manual reset")
+        logger.info("circuit_breaker_manual_reset", name=self.name)
         self._transition_to(CircuitState.CLOSED)
 
     def get_status(self) -> dict[str, Any]:

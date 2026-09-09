@@ -1,18 +1,21 @@
 """SSE streaming infrastructure for long-running generation tasks."""
 from __future__ import annotations
+
 import asyncio
+import contextlib
 import json
-import logging
-from typing import Any, AsyncGenerator
-from sse_starlette.sse import ServerSentEvent
+from collections.abc import AsyncGenerator
+from typing import Any
+
+from sse_starlette.event import ServerSentEvent
 
 from minos_core.observability.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 struct_logger = get_logger(__name__)
 
 # Registry of active channels: key = "{run_id}:{stage}"
-_channels: dict[str, "ProgressChannel"] = {}
+_channels: dict[str, ProgressChannel] = {}
 
 
 class ProgressChannel:
@@ -40,7 +43,7 @@ class ProgressChannel:
             try:
                 self._queue.put_nowait(event)
             except Exception as exc:
-                logger.warning("SSE emit fallback failed for %s: %s", self.key, exc)
+                logger.warning("sse_emit_fallback_failed", channel=self.key, error=str(exc))
                 struct_logger.warning(
                     "sse.emit_fallback_failed",
                     channel=self.key,
@@ -53,17 +56,20 @@ class ProgressChannel:
         if self._loop and self._loop.is_running():
             self._loop.call_soon_threadsafe(self._queue.put_nowait, None)
         else:
-            try:
+            with contextlib.suppress(Exception):
                 self._queue.put_nowait(None)
-            except Exception:
-                pass
 
     async def drain(self) -> AsyncGenerator[ServerSentEvent, None]:
         """Async generator that yields SSE events until channel is closed."""
+        idle_heartbeats = 0
         while True:
             try:
                 event = await asyncio.wait_for(self._queue.get(), timeout=self._heartbeat_interval)
-            except asyncio.TimeoutError:
+            except TimeoutError:
+                idle_heartbeats += 1
+                if idle_heartbeats > 20:
+                    self.close()
+                    break
                 yield ServerSentEvent(
                     data=json.dumps(
                         {
@@ -77,6 +83,7 @@ class ProgressChannel:
                     event="heartbeat",
                 )
                 continue
+            idle_heartbeats = 0
             if event is None:
                 break
             event_type = event.get("type", "progress")

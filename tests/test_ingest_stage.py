@@ -6,7 +6,6 @@ from minos_core.adapters.ocr import FakeOCRAdapter
 from minos_core.ingest import ingest_evidence_bundle
 from minos_core.stage import run_stage
 
-
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE_DIR = ROOT / "tests" / "fixtures" / "apqp_chain"
 

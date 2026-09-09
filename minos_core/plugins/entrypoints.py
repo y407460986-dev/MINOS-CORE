@@ -17,7 +17,8 @@ host process.
 from __future__ import annotations
 
 import importlib.metadata as importlib_metadata
-from typing import Any, Iterable
+from collections.abc import Iterable
+from typing import Any
 
 from ..observability.logging import get_logger
 from .registry import (

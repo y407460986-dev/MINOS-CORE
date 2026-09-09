@@ -1,17 +1,15 @@
 """Integration tests for security and validation modules."""
 
-import tempfile
-from pathlib import Path
 
 import pytest
-from fastapi import FastAPI, Request, Depends
+from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 
-from minos_core.validation import InputValidator, FileValidationError
+from minos_core.validation import FileValidationError, InputValidator
 from minos_desktop.security import (
-    SecureAPIKeyStore,
-    SecretStr,
     AuthMiddleware,
+    SecretStr,
+    SecureAPIKeyStore,
     require_auth,
 )
 

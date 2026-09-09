@@ -12,7 +12,6 @@ from minos_core.observability.config_diagnostics import (
     format_config_sources,
 )
 
-
 _RESET_ENV = {
     "MINOS_LOG_LEVEL",
     "MINOS_LOG_JSON",
@@ -64,7 +63,7 @@ class DescribeConfigSourcesTests(unittest.TestCase):
 
         ai_base = self._by_key(sources, "ai_base_url")
         self.assertEqual(ai_base.source, "default")
-        self.assertIn("allincoding", ai_base.value)
+        self.assertIn("allincode.top", ai_base.value)
 
         api_key = self._by_key(sources, "ai_api_key")
         self.assertEqual(api_key.source, "unset")
@@ -91,7 +90,7 @@ class DescribeConfigSourcesTests(unittest.TestCase):
     def test_secret_env_value_is_redacted(self) -> None:
         with mock.patch.dict(
             os.environ,
-            {"MINOS_OPENAI_API_KEY": "sk-supersecretkey1234567890"},
+            {"MINOS_OPENAI_API_KEY": "redaction-test-value-1234567890"},
         ):
             sources = describe_config_sources()
 

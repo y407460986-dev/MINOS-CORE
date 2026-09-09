@@ -3,6 +3,7 @@ import types
 import unittest
 from unittest.mock import patch
 
+from minos_core.adapters.mineru_ocr import MinerUOCRAdapter
 from minos_core.adapters.ocr import (
     OCRBlock,
     OCRDependencyError,
@@ -11,11 +12,12 @@ from minos_core.adapters.ocr import (
     PyMuPDFTextLayerOCRAdapter,
     RapidOCRPageAdapter,
 )
-from minos_core.adapters.mineru_ocr import MinerUOCRAdapter
 from minos_core.drawing_input import DrawingPageEvidence
-from minos_core.drawing_ocr_analysis import build_drawing_analysis_bundle_from_ocr
-from minos_core.drawing_ocr_analysis import analyze_drawing_with_ocr
-from minos_core.drawing_ocr_analysis import _ocr_adapter_for_engine
+from minos_core.drawing_ocr_analysis import (
+    _ocr_adapter_for_engine,
+    analyze_drawing_with_ocr,
+    build_drawing_analysis_bundle_from_ocr,
+)
 from minos_core.part_family_classifier import classify_part_family
 from minos_core.schemas import validate_bundle_schema
 

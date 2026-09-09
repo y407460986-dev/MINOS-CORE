@@ -23,6 +23,7 @@ import {
   createProject,
   getDrawingAnalysis,
   getPartFamily,
+  selectComponentDrawings,
   selectDrawingFile,
   selectOutputDir
 } from "../api/client";
@@ -31,7 +32,6 @@ import { Input } from "@/components/ui/input";
 import { Notice, StatusPill, Surface } from "@/components/ui/experience";
 import type {
   DesktopRun,
-  DrawingAnalysisMode,
   DrawingAnalysisResponse,
   LinkageApplySyncResponse,
   PartFamilyResponse
@@ -70,8 +70,6 @@ type ImportInsights = {
   };
 };
 
-const analysisMode: DrawingAnalysisMode = "ocr_only";
-
 const analysisBlockKeys = [
   "materials",
   "surface_treatments",
@@ -97,6 +95,7 @@ type StatusStory = {
 
 export default function DrawingImportPage({ activeRun, onRunCreated, onRunUpdated, onOpenWorkbench }: DrawingImportPageProps) {
   const [drawingPath, setDrawingPath] = useState("");
+  const [componentDrawings, setComponentDrawings] = useState<string[]>([]);
   const [outputDir, setOutputDir] = useState("");
   const [runState, setRunState] = useState<"idle" | "running" | "failed" | "blocked" | "chain_active">("idle");
   const [completedRun, setCompletedRun] = useState<DesktopRun | null>(null);
@@ -132,6 +131,17 @@ export default function DrawingImportPage({ activeRun, onRunCreated, onRunUpdate
     if (path) setDrawingPath(path);
   }
 
+  async function chooseComponentDrawings() {
+    const paths = await selectComponentDrawings();
+    if (paths && paths.length > 0) {
+      setComponentDrawings((prev) => [...new Set([...prev, ...paths])]);
+    }
+  }
+
+  function removeComponentDrawing(index: number) {
+    setComponentDrawings((prev) => prev.filter((_, i) => i !== index));
+  }
+
   async function chooseOutput() {
     const path = await selectOutputDir();
     if (path) setOutputDir(path);
@@ -159,7 +169,8 @@ export default function DrawingImportPage({ activeRun, onRunCreated, onRunUpdate
       const project = await createProject({
         project_name: autoProjectName, drawing_path: drawingPath,
         output_dir: outputDir,
-        context: { source: "tauri-react-desktop", analysis_mode: analysisMode, ocr_engine: "auto" },
+        component_drawings: componentDrawings.length > 0 ? componentDrawings : undefined,
+        context: { source: "tauri-react-desktop", ocr_engine: "auto" },
       });
       updateStory("running", "正在分析图纸", "第一阶段会生成过程流程图，完成后进入工作台确认。", "生成中");
       const run = await startChainRun(project.id);
@@ -171,7 +182,7 @@ export default function DrawingImportPage({ activeRun, onRunCreated, onRunUpdate
       updateStory(feedback.error ? "failed" : "active", feedback.status, feedback.error || resumeContextMessage(run, cs, buildImportInsights(run, null, null)), feedback.error ? "失败" : "已启动");
     } catch (caught) {
       setRunState("failed");
-      updateStory("failed", isLocalServiceProblem(caught) ? "本地服务未连接" : "链式启动失败", errorMessage(caught), "失败");
+      updateStory("failed", isLocalServiceProblem(caught) ? "本地服务未连接" : "链式启动失败", isLocalServiceProblem(caught) ? "请确认 MINOS 本地服务已启动后重试。" : errorMessage(caught) + "。可返回上一步重新导入。", "失败");
     }
   }
 
@@ -275,9 +286,9 @@ export default function DrawingImportPage({ activeRun, onRunCreated, onRunUpdate
               </Button>
             </div>
 
-            <div className="grid gap-3 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+            <div className="grid gap-3">
               <label className="grid gap-[7px]">
-                <span className="text-[13px] text-muted-foreground">图纸文件</span>
+                <span className="text-[13px] text-muted-foreground">总成图（必填）</span>
                 <div className="flex gap-2 items-center">
                   <Input value={drawingPath} onChange={(event) => setDrawingPath(event.target.value)} placeholder="选择 PDF、PNG、JPG 或 JPEG" className="flex-1" />
                   <Button variant="outline" size="sm" onClick={chooseDrawing}>
@@ -286,6 +297,27 @@ export default function DrawingImportPage({ activeRun, onRunCreated, onRunUpdate
                   </Button>
                 </div>
               </label>
+
+              <label className="grid gap-[7px]">
+                <span className="text-[13px] text-muted-foreground">子零件图纸（可选，可多选）</span>
+                <div className="flex gap-2 items-center">
+                  <Button variant="outline" size="sm" onClick={chooseComponentDrawings}>
+                    <Upload size={16} className="mr-[7px]" />
+                    {componentDrawings.length > 0 ? `已选 ${componentDrawings.length} 个文件` : "选择子零件图纸"}
+                  </Button>
+                </div>
+                {componentDrawings.length > 0 && (
+                  <ul className="text-xs text-muted-foreground space-y-1 mt-1">
+                    {componentDrawings.map((path, i) => (
+                      <li key={i} className="flex items-center gap-1">
+                        <span className="truncate flex-1">{path.split(/[/\\]/).pop()}</span>
+                        <button type="button" className="text-destructive hover:underline" onClick={() => removeComponentDrawing(i)}>×</button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </label>
+
               <label className="grid gap-[7px]">
                 <span className="text-[13px] text-muted-foreground">输出目录</span>
                 <div className="flex gap-2 items-center">
@@ -554,7 +586,7 @@ function buildImportInsights(
   const linkageIssues = firstNonEmptyArray(linkageReport.sync_issues, result.linkage_gaps, linkageMap.gaps);
   const failureMessage = text(run?.failure_message);
   const visionStreamError = isVisionStreamReadError(failureMessage);
-  const analysisMode = text(context.analysis_mode ?? metadata.analysis_mode ?? analysisMetadata.analysis_mode, "hybrid");
+  const analysisMode = text(analysisMetadata.analysis_mode ?? metadata.analysis_mode ?? context.analysis_mode, "hybrid");
   const ocrStatus = recognitionStatusLabel(
     firstStatusText(
       analysisMetadata.ocr_status,
@@ -595,6 +627,8 @@ function buildImportInsights(
       resultRecognition.source,
       metadataRecognition.source,
       analysisRecognition.source,
+      analysisMetadata.analysis_mode,
+      metadata.analysis_mode,
       context.analysis_mode
     ) || analysisMode
   );

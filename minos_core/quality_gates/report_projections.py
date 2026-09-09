@@ -19,6 +19,7 @@ __all__ = [
 
 
 def _dict_manual_review_items(items: list[dict[str, Any]]) -> list[AuditItem]:
+    """Convert a list of dicts into AuditItem objects for manual review tracking."""
     return [
         AuditItem(
             str(item.get("item_id", "")),
@@ -31,6 +32,7 @@ def _dict_manual_review_items(items: list[dict[str, Any]]) -> list[AuditItem]:
 
 
 def _recommendation_manual_review_items(items: list[dict[str, Any]]) -> list[AuditItem]:
+    """Convert knowledge-recommendation blocker dicts into AuditItem objects."""
     return [
         AuditItem(
             str(item.get("recommendation_id", item.get("item_id", ""))),
@@ -50,6 +52,7 @@ def _review_issues_from_gate_debts(
     change_blockers: list[dict[str, Any]],
     existing_review_issues: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
+    """Build a deduplicated list of review issues from all gate-level debts."""
     issues: list[dict[str, Any]] = []
     for item in manual_review_items:
         issues.append(review_issue_from_manual_item(item))
@@ -91,6 +94,7 @@ def _review_issues_from_gate_debts(
 
 
 def _dedupe_review_issues(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Remove duplicate review issues by issue_id, preserving first occurrence."""
     result: list[dict[str, Any]] = []
     seen: set[str] = set()
     for item in items:
@@ -105,6 +109,7 @@ def _dedupe_review_issues(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def _row_needs_confirmation_manual_review_items(items: list[str]) -> list[AuditItem]:
+    """Convert row-level needs-confirmation strings into AuditItem objects."""
     return [
         AuditItem(
             item,

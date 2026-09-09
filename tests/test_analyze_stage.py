@@ -7,7 +7,6 @@ from minos_core.analyze import analyze_evidence_bundle_with_ai
 from minos_core.quality_gates import evaluate_analysis_bundle_gate
 from minos_core.stage import run_stage
 
-
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE_DIR = ROOT / "tests" / "fixtures" / "apqp_chain"
 
@@ -390,7 +389,10 @@ class AnalyzeStageTests(unittest.TestCase):
                 {
                     "evidence_id": "EV-REAL-001",
                     "source": "manual",
-                    "content": "Drawing DRW-500 Rev A defines material thickness 2.00 +/- 0.10 mm and rivet height 1.50 +0.50/-0.00 mm.",
+                    "content": (
+                        "Drawing DRW-500 Rev A defines material thickness 2.00 +/- 0.10 mm "
+                        "and rivet height 1.50 +0.50/-0.00 mm."
+                    ),
                 }
             ],
             "drawings": [

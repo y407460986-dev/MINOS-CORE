@@ -96,3 +96,16 @@ MINOS-CORE 在三表生成链路上有两个高频被定制的环节：
 
 - ADR 001: Module Restructuring
 - ADR 004: Observability（提供 `MinosError` 与 structured logging）
+
+### Status Update (2026-06-26)
+
+Phase 3 of the MINOS-CORE remediation plan reviewed this ADR:
+
+| Item | Status | Notes |
+|------|--------|-------|
+| `registry.py` (registration + query + protocol) | ✅ Done | Registration, query, iteration, and reset support present |
+| `entrypoints.py` (entry point discovery) | ✅ Done | `load_entry_point_plugins()` uses `importlib.metadata.entry_points()` for `minos_core.ocr_engines` and `minos_core.knowledge_sources` groups |
+| Plugin unit tests | ✅ Done | `tests/test_plugins_registry.py` and `tests/test_plugins_entrypoints.py` exist |
+| `docs/plugins.md` user guide | ✅ Done | Plugin documentation exists |
+| Wire plugins into `pipeline.drawing_analysis` & `part_family_knowledge` runtime selection | ⏳ Still pending | No references to `load_entry_point_plugins`, `get_ocr_engine`, or `get_knowledge_source` in `pipeline_chain.py`, `drawing_to_pfd.py`, or `part_family_knowledge.py` |
+| Plugin status in `minos-core doctor` | ⏳ Still pending | No "plugin" reference found in `cli_doctor.py` |

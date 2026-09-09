@@ -166,3 +166,15 @@ This ensures:
 ## Date
 
 2026-05-28
+
+### Status Update (2026-06-26)
+
+Phase 3 of the MINOS-CORE remediation plan reviewed this ADR:
+
+| Item | Status | Notes |
+|------|--------|-------|
+| Split `quality_gates/_support.py` into 4 focused modules | ✅ Done | `core_evaluators.py`, `evidence_coverage.py`, `export_gate.py`, `report_projections.py` created; `_support.py` now a 94-line facade |
+| Create `pipeline/` sub-package | ✅ Done | `minos_core/pipeline/` exists with 7 modules (orchestration, drawing_analysis, family_context, hybrid_fusion, review_export, utilities) |
+| Split `edit_patch.py` (now 1444 lines) | 🔄 Partially done | Actually grew from 1339 to 1444 lines; splitting deferred |
+| Monitor and refactor large modules | 🔄 Partially done | `table_editor.py` (2103), `run_service.py` (2085), `part_family_knowledge.py` (1373), `drawing_to_pfd.py` (1292) all still exceed 800-line limit |
+| Enforce 800-line limit via automated checks | ⏳ Still pending | No pre-commit hook or CI check found for module size |

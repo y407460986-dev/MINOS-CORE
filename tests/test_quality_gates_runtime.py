@@ -5,9 +5,8 @@ Tests that verify critical runtime bugs are fixed:
 - Validation logic correctness
 """
 
-import pytest
-from minos_core.quality_gates import evaluate_stage_gate
 from minos_core.domain import APQPChain
+from minos_core.quality_gates import evaluate_stage_gate
 
 
 def test_logger_available_when_linkage_fails(monkeypatch):
@@ -36,10 +35,10 @@ def test_validation_check_uses_ok_attribute():
 
     Regression test for line 172 inverted logic.
     """
-    from minos_core.quality_gates import _export_gate_failure_message, StageQualityGate
-    from minos_core.validation import ChainValidationResult
-    from minos_core.domain import APQPChain
     from minos_core.audit import AuditReport
+    from minos_core.domain import APQPChain
+    from minos_core.quality_gates import StageQualityGate, _export_gate_failure_message
+    from minos_core.validation import ChainValidationResult
 
     # Create a gate with failed validation
     chain = APQPChain()

@@ -2094,7 +2094,7 @@ dependencies = [
 
 [[package]]
 name = "minos-core-desktop"
-version = "1.14.0"
+version = "3.8.6"
 dependencies = [
  "once_cell",
  "rand 0.8.6",

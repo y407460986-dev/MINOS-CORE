@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 TABLE_ROW_FIELDS: dict[str, tuple[str, ...]] = {
     "process_flow": ("steps", "process_steps"),
     "pfmea": ("rows", "failure_modes"),

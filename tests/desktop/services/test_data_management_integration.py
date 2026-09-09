@@ -4,9 +4,14 @@ import tempfile
 import unittest
 import zipfile
 
-from minos_desktop.services import DesktopDataManagementService, DesktopProjectStore, DesktopRunService, DesktopSettingsStore
-from minos_desktop.app_state import DesktopProjectState
 from minos_core._paths import user_data_dir
+from minos_desktop.app_state import DesktopProjectState
+from minos_desktop.services import (
+    DesktopDataManagementService,
+    DesktopProjectStore,
+    DesktopRunService,
+    DesktopSettingsStore,
+)
 
 
 class TestDataManagementServiceIntegration(unittest.TestCase):

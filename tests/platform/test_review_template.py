@@ -37,3 +37,11 @@ async def test_review_template_blocked_from_wrong_state(test_client):
 
     resp = await test_client.post(f"/api/projects/{project_id}/review-template")
     assert resp.status_code == 409
+
+
+async def test_review_template_on_nonexistent_project(test_client):
+    """POST /api/projects/{id}/review-template for non-existent project returns 404."""
+    resp = await test_client.post(
+        "/api/projects/00000000-0000-0000-0000-000000000000/review-template"
+    )
+    assert resp.status_code == 404

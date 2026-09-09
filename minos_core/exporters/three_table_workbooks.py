@@ -18,7 +18,21 @@ def export_three_table_workbook(
     quality_gate: Any | None = None,
     manual_review_items: list[Any] | None = None,
 ) -> Path:
-    """Export the unified three-table workbook."""
+    """Export the unified three-table workbook.
+
+    Delegates to :func:`export_apqp_workbook` for the actual export.
+
+    Args:
+        chain: APQP chain data (dict, APQPChain, or similar).
+        path: Output file path.
+        export_mode: \"draft\" or \"final\".
+        require_gate: Whether to enforce quality gate for final export.
+        quality_gate: Pre-computed quality gate result.
+        manual_review_items: List of manual review items to include.
+
+    Returns:
+        Path to the saved workbook.
+    """
 
     return export_apqp_workbook(
         chain,
@@ -38,7 +52,21 @@ def export_split_three_table_workbooks(
     require_gate: bool = False,
     quality_gate: Any | None = None,
 ) -> dict[str, Path]:
-    """Export PFD, PFMEA and CP into three independent workbooks."""
+    """Export PFD, PFMEA and CP into three independent workbooks.
+
+    Args:
+        chain: APQP chain data (dict, APQPChain, or similar).
+        output_dir: Directory to write the three workbook files into.
+        export_mode: \"draft\" or \"final\".
+        require_gate: Whether to enforce quality gate for final export.
+        quality_gate: Pre-computed quality gate result.
+
+    Returns:
+        Dict mapping table name to output Path.
+
+    Raises:
+        ValueError: If export_mode is not \"draft\" or \"final\".
+    """
 
     if export_mode not in {"draft", "final"}:
         raise ValueError(f"unsupported export_mode: {export_mode!r}")
@@ -149,7 +177,16 @@ def _pfmea_rows(chain: Any, export_mode: str, quality_gate: Any | None = None) -
                 _first(row, "detection", default=""),
                 _first(row, "action_priority", default=""),
                 _first(row, "control_logic_review", default=""),
-                _join(_first(row, "special_characteristics", "special_characteristic", "special_characteristic_class", "classification", default=[])),
+                _join(
+                    _first(
+                        row,
+                        "special_characteristics",
+                        "special_characteristic",
+                        "special_characteristic_class",
+                        "classification",
+                        default=[],
+                    )
+                ),
                 _first(row, "optimization_action", "recommended_action", default=""),
                 _first(row, "responsible_person", "responsibility", default=""),
                 _first(row, "target_date", default=""),

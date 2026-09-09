@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "MINOS-CORE",
-  "version": "1.14.0",
+  "version": "3.8.6",
   "identifier": "com.minos.core.desktop",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -33,6 +33,14 @@
     "externalBin": ["binaries/minos-desktop-api"],
     "resources": {
       "binaries/minos-desktop-api-x86_64-pc-windows-msvc/_internal": "_internal"
+    },
+    "windows": {
+      "digestAlgorithm": "sha256",
+      "timestampUrl": "http://timestamp.digicert.com",
+      "tsp": true,
+      "nsis": {
+        "template": "nsis/installer.nsi"
+      }
     }
   }
 }

@@ -10,45 +10,32 @@ from minos_core.closure_tasks import apply_closure_action, build_closure_tasks
 from minos_desktop.services import DesktopProjectStore, DesktopRunService
 from minos_desktop.table_editor import build_edit_patch
 
+RunServiceSource = DesktopRunService | str | Path
 
-def run_project(
-    db_path: str | Path,
-    project_id: int,
-):
-    """兼容旧调用名，但行为已收口为链式流程。"""
+
+def _run_service(source: RunServiceSource) -> DesktopRunService:
+    return source if isinstance(source, DesktopRunService) else DesktopRunService(source)
+
+
+def start_chain_run(db_path: str | Path, project_id: int) -> Any:
+    """Start a chain run through the replaceable background-job seam."""
     project = DesktopProjectStore(db_path).get_project(project_id)
     return DesktopRunService(db_path).start_chain_run(project)
 
 
-def start_chain_run(db_path: str | Path, project_id: int):
-    """启动链式流程，仅生成 PFD。"""
-    project = DesktopProjectStore(db_path).get_project(project_id)
-    return DesktopRunService(db_path).start_chain_run(project)
-
-
-def restore_run(db_path: str | Path, run_id: int):
-    return DesktopRunService(db_path).restore_run(run_id)
-
-
-def apply_edit_patch(db_path: str | Path, run_id: int, patch: dict[str, Any]):
-    return DesktopRunService(db_path).apply_edit_patch_to_run(run_id, patch)
-
-
-def export_run(db_path: str | Path, run_id: int, output_dir: str | Path, export_mode: str):
-    return DesktopRunService(db_path).export_run(run_id, output_dir, export_mode)
-
-
-def accept_recommendation(db_path: str | Path, run_id: int, recommendation_id: str):
-    return DesktopRunService(db_path).apply_recommendation_to_run(run_id, recommendation_id)
+def accept_recommendation(
+    source: RunServiceSource, run_id: int, recommendation_id: str
+) -> Any:
+    return _run_service(source).apply_recommendation_to_run(run_id, recommendation_id)
 
 
 def ignore_recommendation(
-    db_path: str | Path,
+    source: RunServiceSource,
     run_id: int,
     recommendation_id: str,
     reason: str,
-):
-    return DesktopRunService(db_path).ignore_recommendation_in_run(
+) -> Any:
+    return _run_service(source).ignore_recommendation_in_run(
         run_id,
         recommendation_id,
         reason,
@@ -56,23 +43,23 @@ def ignore_recommendation(
 
 
 def resolve_action(
-    db_path: str | Path,
+    source: RunServiceSource,
     run_id: int,
     action_id: str,
     changes: dict[str, Any],
     reason: str,
-):
-    return DesktopRunService(db_path).resolve_action_in_run(run_id, action_id, changes, reason)
+) -> Any:
+    return _run_service(source).resolve_action_in_run(run_id, action_id, changes, reason)
 
 
 def resolve_change_impact(
-    db_path: str | Path,
+    source: RunServiceSource,
     run_id: int,
     item_id: str,
     status: str,
     reason: str,
-):
-    return DesktopRunService(db_path).resolve_change_impact(
+) -> Any:
+    return _run_service(source).resolve_change_impact(
         run_id,
         item_id,
         status=status,
@@ -80,21 +67,23 @@ def resolve_change_impact(
     )
 
 
-def batch_confirm_automation_review(db_path: str | Path, run_id: int):
-    return DesktopRunService(db_path).batch_confirm_automation_review(run_id)
+def batch_confirm_automation_review(source: RunServiceSource, run_id: int) -> Any:
+    return _run_service(source).batch_confirm_automation_review(run_id)
 
 
-def accept_automation_fix(db_path: str | Path, run_id: int, row: dict[str, Any]):
-    return DesktopRunService(db_path).accept_automation_fix_suggestion(run_id, row)
+def accept_automation_fix(
+    source: RunServiceSource, run_id: int, row: dict[str, Any]
+) -> Any:
+    return _run_service(source).accept_automation_fix_suggestion(run_id, row)
 
 
-def closure_tasks(db_path: str | Path, run_id: int) -> list[dict[str, Any]]:
-    record = DesktopRunService(db_path).get_run(run_id)
+def closure_tasks(source: RunServiceSource, run_id: int) -> list[dict[str, Any]]:
+    record = _run_service(source).get_run(run_id)
     return build_closure_tasks(record.current_result)
 
 
-def part_family_context(db_path: str | Path, run_id: int) -> dict[str, Any]:
-    record = DesktopRunService(db_path).get_run(run_id)
+def part_family_context(source: RunServiceSource, run_id: int) -> dict[str, Any]:
+    record = _run_service(source).get_run(run_id)
     context = _part_family_context(record.current_result)
     family_key = str(context.get("family_key") or context.get("key") or "").strip()
     return {
@@ -109,7 +98,7 @@ def part_family_context(db_path: str | Path, run_id: int) -> dict[str, Any]:
 
 
 def update_part_family_context(
-    db_path: str | Path,
+    source: RunServiceSource,
     run_id: int,
     *,
     family_key: str,
@@ -117,7 +106,7 @@ def update_part_family_context(
     confirmed: bool = True,
     reason: str = "",
 ) -> dict[str, Any]:
-    service = DesktopRunService(db_path)
+    service = _run_service(source)
     record = service.get_run(run_id)
     key = str(family_key or "").strip()
     if not key:
@@ -144,27 +133,27 @@ def update_part_family_context(
 
 
 def resolve_closure_task(
-    db_path: str | Path,
+    source: RunServiceSource,
     run_id: int,
     task_id: str,
     action: dict[str, Any],
-):
-    service = DesktopRunService(db_path)
+) -> Any:
+    service = _run_service(source)
     record = service.get_run(run_id)
     patch = apply_closure_action(record.current_result, task_id, action)
     return service.apply_edit_patch_to_run(run_id, patch)
 
 
 def resolve_closure_tasks_by_type(
-    db_path: str | Path,
+    source: RunServiceSource,
     run_id: int,
     task_type: str,
     action: dict[str, Any],
     *,
     task_ids: list[str] | None = None,
     target_row_ids: list[str] | None = None,
-):
-    service = DesktopRunService(db_path)
+) -> Any:
+    service = _run_service(source)
     record = service.get_run(run_id)
     tasks = [
         task
@@ -178,7 +167,7 @@ def resolve_closure_tasks_by_type(
         selected_targets = set(target_row_ids)
         tasks = [task for task in tasks if task.get("target_row_id") in selected_targets]
     if not tasks:
-        return record
+        return service.refresh_run_result(run_id)
 
     items: list[dict[str, Any]] = []
     for task in tasks:
@@ -190,15 +179,15 @@ def resolve_closure_tasks_by_type(
 
 
 def apply_linkage_sync(
-    db_path: str | Path,
+    source: RunServiceSource,
     run_id: int,
     edit_patch: dict[str, Any],
     selected_impact_ids: list[str],
     *,
     apply_all: bool = False,
     reason: str = "",
-):
-    service = DesktopRunService(db_path)
+) -> Any:
+    service = _run_service(source)
     if not isinstance(edit_patch.get("items"), list) or not edit_patch.get("items"):
         if not apply_all and not selected_impact_ids:
             return service.get_run(run_id)
@@ -374,60 +363,60 @@ def _row_id_for_table(row: dict[str, Any], table: str) -> str:
 # 链式确认流程 jobs
 # ---------------------------------------------------------------------------
 
-def chain_state(db_path: str | Path, run_id: int) -> dict[str, Any]:
+def chain_state(source: RunServiceSource, run_id: int) -> dict[str, Any]:
     """获取链式阶段状态。"""
-    return DesktopRunService(db_path).get_chain_state(run_id)
+    return _run_service(source).get_chain_state(run_id)
 
 
 def confirm_pfd_stage(
-    db_path: str | Path,
+    source: RunServiceSource,
     run_id: int,
     confirmed_by: str = "",
     edit_patch: dict[str, Any] | None = None,
-):
+) -> Any:
     """确认 PFD，自动生成 PFMEA。"""
-    return DesktopRunService(db_path).confirm_pfd_stage(
+    return _run_service(source).confirm_pfd_stage(
         run_id, confirmed_by, edit_patch
     )
 
 
-def generate_pfmea_for_confirmed_pfd(db_path: str | Path, run_id: int):
+def generate_pfmea_for_confirmed_pfd(db_path: str | Path, run_id: int) -> Any:
     """后台为已确认 PFD 生成 PFMEA。"""
     return DesktopRunService(db_path).generate_pfmea_for_confirmed_pfd(run_id)
 
 
-def regenerate_pfmea_stage(db_path: str | Path, run_id: int):
+def regenerate_pfmea_stage(db_path: str | Path, run_id: int) -> Any:
     """重新生成 PFMEA。"""
     return DesktopRunService(db_path).regenerate_pfmea_stage(run_id)
 
 
 def confirm_pfmea_stage(
-    db_path: str | Path,
+    source: RunServiceSource,
     run_id: int,
     confirmed_by: str = "",
     edit_patch: dict[str, Any] | None = None,
-):
+) -> Any:
     """确认 PFMEA，自动生成 CP。"""
-    return DesktopRunService(db_path).confirm_pfmea_stage(
+    return _run_service(source).confirm_pfmea_stage(
         run_id, confirmed_by, edit_patch
     )
 
 
-def generate_cp_for_confirmed_pfmea(db_path: str | Path, run_id: int):
+def generate_cp_for_confirmed_pfmea(db_path: str | Path, run_id: int) -> Any:
     """后台为已确认 PFMEA 生成 CP。"""
     return DesktopRunService(db_path).generate_cp_for_confirmed_pfmea(run_id)
 
 
-def regenerate_cp_stage(db_path: str | Path, run_id: int):
+def regenerate_cp_stage(db_path: str | Path, run_id: int) -> Any:
     """重新生成 CP。"""
     return DesktopRunService(db_path).regenerate_cp_stage(run_id)
 
 
 def confirm_cp_stage(
-    db_path: str | Path,
+    source: RunServiceSource,
     run_id: int,
     confirmed_by: str = "",
     edit_patch: dict[str, Any] | None = None,
-):
+) -> Any:
     """确认 CP，完成链式流程。"""
-    return DesktopRunService(db_path).confirm_cp_stage(run_id, confirmed_by, edit_patch)
+    return _run_service(source).confirm_cp_stage(run_id, confirmed_by, edit_patch)

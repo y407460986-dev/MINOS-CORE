@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest
@@ -17,6 +16,8 @@ from minos_desktop.app_state import (
 from minos_desktop.services import DesktopProjectStore, DesktopRunService, DesktopSettingsStore
 
 pytestmark = pytest.mark.asyncio
+
+TEST_API_TOKEN = "test-token"
 
 
 def _fake_result() -> dict:
@@ -60,8 +61,32 @@ def _fake_result() -> dict:
     }
 
 
+def _write_test_pdf(tmp_path: Path, name: str = "drawing.pdf") -> str:
+    drawing = tmp_path / name
+    drawing.write_bytes(b"%PDF-1.7\n% test drawing\n")
+    return str(drawing)
+
+
+async def _create_test_run(
+    client: AsyncClient, tmp_path: Path, project_name: str
+) -> int:
+    project_response = await client.post(
+        "/api/projects",
+        json={
+            "project_name": project_name,
+            "drawing_path": _write_test_pdf(tmp_path, f"{project_name}.pdf"),
+        },
+    )
+    assert project_response.status_code == 201
+    project_id = int(project_response.json()["id"])
+    run_response = await client.post(f"/api/projects/{project_id}/runs")
+    assert run_response.status_code == 201
+    return int(run_response.json()["id"])
+
+
 @pytest.fixture
 async def client(tmp_path, monkeypatch):
+    monkeypatch.setenv("MINOS_DESKTOP_API_TOKEN", TEST_API_TOKEN)
     db_path = tmp_path / "desktop.sqlite3"
     output_dir = tmp_path / "out"
     app = create_app(db_path=db_path, output_dir=output_dir)
@@ -97,17 +122,42 @@ async def client(tmp_path, monkeypatch):
 
     monkeypatch.setattr(jobs, "start_chain_run", fake_start_chain_run)
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as test_client:
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        headers={"Authorization": f"Bearer {TEST_API_TOKEN}"},
+    ) as test_client:
         yield test_client
 
 
-async def test_health_allows_no_token_when_env_token_is_absent(client, monkeypatch):
+async def test_health_requires_bearer_token_when_env_token_is_absent(tmp_path, monkeypatch):
     monkeypatch.delenv("MINOS_DESKTOP_API_TOKEN", raising=False)
+    app = create_app(db_path=tmp_path / "auth.sqlite3", output_dir=tmp_path / "out")
+    transport = ASGITransport(app=app)
 
-    response = await client.get("/api/health")
+    async with AsyncClient(transport=transport, base_url="http://test") as test_client:
+        response = await test_client.get("/api/health")
 
-    assert response.status_code == 200
-    assert response.json()["status"] == "ok"
+    assert response.status_code == 401
+    assert response.json()["code"] == "UNAUTHORIZED"
+
+
+async def test_tauri_sidecar_lifecycle_has_rust_unit_contracts() -> None:
+    rust_source = (
+        Path(__file__).resolve().parents[1]
+        / "apps"
+        / "desktop-tauri"
+        / "src-tauri"
+        / "src"
+        / "lib.rs"
+    ).read_text(encoding="utf-8")
+
+    assert "enum SidecarPhase" in rust_source
+    assert "Barrier::new(8)" in rust_source
+    assert "AtomicUsize" in rust_source
+    assert "fn concurrent_ensure_spawns_only_once" in rust_source
+    assert "fn terminated_old_pid_does_not_clear_new_pid" in rust_source
+    assert "fn readiness_timeout_returns_error_and_cleans_up_registered_pid" in rust_source
 
 
 async def test_token_auth_requires_bearer_token_when_configured(tmp_path, monkeypatch):
@@ -127,7 +177,27 @@ async def test_token_auth_requires_bearer_token_when_configured(tmp_path, monkey
     assert accepted.status_code == 200
 
 
+async def test_tauri_https_origin_preflight_is_allowed(tmp_path, monkeypatch):
+    monkeypatch.setenv("MINOS_DESKTOP_API_TOKEN", TEST_API_TOKEN)
+    app = create_app(db_path=tmp_path / "cors.sqlite3", output_dir=tmp_path / "out")
+    transport = ASGITransport(app=app)
+
+    async with AsyncClient(transport=transport, base_url="http://test") as test_client:
+        response = await test_client.options(
+            "/api/projects/1/chain-runs",
+            headers={
+                "Origin": "https://tauri.localhost",
+                "Access-Control-Request-Method": "POST",
+                "Access-Control-Request-Headers": "authorization,content-type",
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "https://tauri.localhost"
+
+
 async def test_patch_ai_config_persists_overrides_without_returning_secret(tmp_path, monkeypatch):
+    monkeypatch.setenv("MINOS_DESKTOP_API_TOKEN", TEST_API_TOKEN)
     monkeypatch.delenv("MINOS_OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("ARK_API_KEY", raising=False)
@@ -136,7 +206,11 @@ async def test_patch_ai_config_persists_overrides_without_returning_secret(tmp_p
     app = create_app(db_path=db_path, output_dir=tmp_path / "out")
     transport = ASGITransport(app=app)
 
-    async with AsyncClient(transport=transport, base_url="http://test") as test_client:
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        headers={"Authorization": f"Bearer {TEST_API_TOKEN}"},
+    ) as test_client:
         response = await test_client.patch(
             "/api/settings/ai-config",
             json={
@@ -160,11 +234,16 @@ async def test_patch_ai_config_persists_overrides_without_returning_secret(tmp_p
     assert DesktopSettingsStore(db_path).get_ai_overrides()["api_key"] == "api-secret-from-ui"
 
 
-async def test_patch_ai_config_validation_error_does_not_echo_secret(tmp_path):
+async def test_patch_ai_config_validation_error_does_not_echo_secret(tmp_path, monkeypatch):
+    monkeypatch.setenv("MINOS_DESKTOP_API_TOKEN", TEST_API_TOKEN)
     app = create_app(db_path=tmp_path / "desktop.sqlite3", output_dir=tmp_path / "out")
     transport = ASGITransport(app=app)
 
-    async with AsyncClient(transport=transport, base_url="http://test") as test_client:
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        headers={"Authorization": f"Bearer {TEST_API_TOKEN}"},
+    ) as test_client:
         response = await test_client.patch(
             "/api/settings/ai-config",
             json={"api_key": {"plain": "api-secret-from-ui"}},
@@ -174,7 +253,8 @@ async def test_patch_ai_config_validation_error_does_not_echo_secret(tmp_path):
     assert "api-secret-from-ui" not in response.text
 
 
-async def test_data_management_api_reports_backup_and_clear(tmp_path):
+async def test_data_management_api_reports_backup_and_clear(tmp_path, monkeypatch):
+    monkeypatch.setenv("MINOS_DESKTOP_API_TOKEN", TEST_API_TOKEN)
     db_path = tmp_path / "desktop.sqlite3"
     output_dir = tmp_path / "out"
     output_dir.mkdir()
@@ -196,7 +276,11 @@ async def test_data_management_api_reports_backup_and_clear(tmp_path):
     )
 
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as test_client:
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        headers={"Authorization": f"Bearer {TEST_API_TOKEN}"},
+    ) as test_client:
         status = await test_client.get("/api/settings/data-management")
         backup = await test_client.post("/api/settings/data-management/backup")
         rejected = await test_client.post(
@@ -233,12 +317,12 @@ async def test_data_management_api_reports_backup_and_clear(tmp_path):
     assert not (output_dir / "artifact.txt").exists()
 
 
-async def test_project_run_recent_restore_edit_and_export_flow(client):
+async def test_project_run_recent_restore_edit_and_export_flow(client, tmp_path):
     project_response = await client.post(
         "/api/projects",
         json={
             "project_name": "API 项目",
-            "drawing_path": "drawing.pdf",
+            "drawing_path": _write_test_pdf(tmp_path),
             "context": {"part_no": "A-001"},
         },
     )
@@ -301,7 +385,7 @@ async def test_project_run_recent_restore_edit_and_export_flow(client):
 
 
 async def test_chain_pfd_confirm_applies_edit_patch_before_generating_pfmea(
-    client, monkeypatch
+    client, monkeypatch, tmp_path
 ):
     def fake_generate_pfmea(_drawing_analysis, confirmed_pfd, model=None, on_progress=None):
         operation = confirmed_pfd["steps"][0]["operation"]
@@ -323,7 +407,10 @@ async def test_chain_pfd_confirm_applies_edit_patch_before_generating_pfmea(
     project = (
         await client.post(
             "/api/projects",
-            json={"project_name": "链式确认项目", "drawing_path": "drawing.pdf"},
+            json={
+                "project_name": "链式确认项目",
+                "drawing_path": _write_test_pdf(tmp_path),
+            },
         )
     ).json()
     run = (await client.post(f"/api/projects/{project['id']}/runs")).json()
@@ -361,11 +448,14 @@ async def test_chain_pfd_confirm_applies_edit_patch_before_generating_pfmea(
     assert restored["chain_stages"]["pfmea"]["status"] == "generated"
 
 
-async def test_closure_routes_update_run_metadata(client):
+async def test_closure_routes_update_run_metadata(client, tmp_path):
     project = (
         await client.post(
             "/api/projects",
-            json={"project_name": "闭环项目", "drawing_path": "drawing.pdf"},
+            json={
+                "project_name": "闭环项目",
+                "drawing_path": _write_test_pdf(tmp_path),
+            },
         )
     ).json()
     run = (await client.post(f"/api/projects/{project['id']}/runs")).json()
@@ -385,7 +475,10 @@ async def test_closure_routes_update_run_metadata(client):
     project_for_batch = (
         await client.post(
             "/api/projects",
-            json={"project_name": "批量确认项目", "drawing_path": "drawing.pdf"},
+            json={
+                "project_name": "批量确认项目",
+                "drawing_path": _write_test_pdf(tmp_path, "batch-drawing.pdf"),
+            },
         )
     ).json()
     run_for_batch = (
@@ -421,11 +514,14 @@ async def test_missing_run_returns_structured_failure(client):
     assert "failure_message" in body
 
 
-async def test_linkage_sync_does_not_create_pfmea_placeholder_for_chain_run(client):
+async def test_linkage_sync_does_not_create_pfmea_placeholder_for_chain_run(client, tmp_path):
     project = (
         await client.post(
             "/api/projects",
-            json={"project_name": "PFMEA占位防护项目", "drawing_path": "drawing.pdf"},
+            json={
+                "project_name": "PFMEA占位防护项目",
+                "drawing_path": _write_test_pdf(tmp_path),
+            },
         )
     ).json()
     run = (await client.post(f"/api/projects/{project['id']}/runs")).json()
@@ -438,3 +534,176 @@ async def test_linkage_sync_does_not_create_pfmea_placeholder_for_chain_run(clie
     assert response.status_code == 200
     body = response.json()
     assert body["current_result"]["pfmea"]["rows"] == []
+
+
+# ---------------------------------------------------------------------------
+#  Error path tests for routes_runs.py
+# ---------------------------------------------------------------------------
+
+
+async def test_recent_runs_empty(client):
+    """Test that recent-runs returns an empty list when no runs exist (uses
+    a high run_id that can't collide with the fixture's run)."""
+    response = await client.get("/api/runs/recent?limit=5")
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+async def test_get_run_not_found(client):
+    response = await client.get("/api/runs/999999")
+    assert response.status_code == 404
+    body = response.json()
+    assert body["code"] == "NOT_FOUND"
+
+
+async def test_drawing_analysis_not_found(client):
+    response = await client.get("/api/runs/999999/drawing-analysis")
+    assert response.status_code == 404
+    assert response.json()["code"] == "NOT_FOUND"
+
+
+async def test_restore_run_not_found(client):
+    response = await client.post("/api/runs/999999/restore")
+    assert response.status_code == 404
+    assert response.json()["code"] == "NOT_FOUND"
+
+
+async def test_edit_patch_run_not_found(client):
+    response = await client.patch(
+        "/api/runs/999999/edit-patch",
+        json={"patch": {}},
+    )
+    assert response.status_code == 404
+    assert response.json()["code"] == "NOT_FOUND"
+
+
+async def test_drawing_confirmations_run_not_found(client):
+    response = await client.patch(
+        "/api/runs/999999/drawing-confirmations",
+        json={},
+    )
+    assert response.status_code == 404
+    assert response.json()["code"] == "NOT_FOUND"
+
+
+async def test_part_family_run_not_found(client):
+    response = await client.get("/api/runs/999999/part-family")
+    assert response.status_code == 404
+    assert response.json()["code"] == "NOT_FOUND"
+
+
+async def test_update_part_family_run_not_found(client):
+    response = await client.patch(
+        "/api/runs/999999/part-family",
+        json={},
+    )
+    assert response.status_code == 404
+    assert response.json()["code"] == "NOT_FOUND"
+
+
+async def test_process_flow_confirmations_run_not_found(client):
+    response = await client.patch(
+        "/api/runs/999999/process-flow-confirmations",
+        json={},
+    )
+    assert response.status_code == 404
+    assert response.json()["code"] == "NOT_FOUND"
+
+
+async def test_chain_state_not_found(client):
+    response = await client.get("/api/runs/999999/chain/state")
+    assert response.status_code == 404
+    assert response.json()["code"] == "NOT_FOUND"
+
+
+async def test_undo_no_operations(client, tmp_path):
+    """undo on a run without undo history returns a ValueError (422)."""
+    run_id = await _create_test_run(client, tmp_path, "undo-empty")
+    response = await client.post(f"/api/runs/{run_id}/undo")
+    assert response.status_code == 422
+    body = response.json()
+    assert body["code"] == "VALUE_ERROR"
+    assert "没有可以撤销的操作" in body["detail"]
+
+
+async def test_redo_no_operations(client, tmp_path):
+    """redo on a run without redo history returns a ValueError (422)."""
+    run_id = await _create_test_run(client, tmp_path, "redo-empty")
+    response = await client.post(f"/api/runs/{run_id}/redo")
+    assert response.status_code == 422
+    body = response.json()
+    assert body["code"] == "VALUE_ERROR"
+    assert "没有可以重做的操作" in body["detail"]
+
+
+# ---------------------------------------------------------------------------
+#  Error path tests for routes_closure.py
+# ---------------------------------------------------------------------------
+
+
+async def test_accept_recommendation_not_found(client):
+    response = await client.post(
+        "/api/runs/999999/recommendations/KR-999/accept",
+    )
+    assert response.status_code == 404
+    assert response.json()["code"] == "NOT_FOUND"
+
+
+async def test_ignore_recommendation_not_found(client):
+    response = await client.post(
+        "/api/runs/999999/recommendations/KR-999/ignore",
+        json={"reason": "test"},
+    )
+    assert response.status_code == 404
+    assert response.json()["code"] == "NOT_FOUND"
+
+
+async def test_resolve_action_not_found(client):
+    response = await client.post(
+        "/api/runs/999999/actions/ACT-999/resolve",
+        json={},
+    )
+    assert response.status_code == 404
+    assert response.json()["code"] == "NOT_FOUND"
+
+
+async def test_resolve_change_impact_not_found(client):
+    response = await client.post(
+        "/api/runs/999999/change-impacts/CI-999/resolve",
+        json={"status": "已处理"},
+    )
+    assert response.status_code == 404
+    assert response.json()["code"] == "NOT_FOUND"
+
+
+async def test_closure_tasks_not_found(client):
+    response = await client.get("/api/runs/999999/closure-tasks")
+    assert response.status_code == 404
+    assert response.json()["code"] == "NOT_FOUND"
+
+
+async def test_resolve_closure_tasks_by_type_not_found(client):
+    response = await client.post(
+        "/api/runs/999999/closure-tasks/resolve-by-type",
+        json={"task_type": "drawing_review"},
+    )
+    assert response.status_code == 404
+    assert response.json()["code"] == "NOT_FOUND"
+
+
+async def test_resolve_closure_task_not_found(client):
+    response = await client.post(
+        "/api/runs/999999/closure-tasks/TASK-999/resolve",
+        json={},
+    )
+    assert response.status_code == 404
+    assert response.json()["code"] == "NOT_FOUND"
+
+
+async def test_apply_linkage_sync_not_found(client):
+    response = await client.post(
+        "/api/runs/999999/linkage/apply-sync",
+        json={"apply_all": True},
+    )
+    assert response.status_code == 404
+    assert response.json()["code"] == "NOT_FOUND"

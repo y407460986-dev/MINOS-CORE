@@ -1,19 +1,15 @@
 """Tests for minos_core.domain module."""
 
+
 import pytest
-from dataclasses import replace
 
 from minos_core.domain import (
-    FailureMode,
-    Product,
-    ProcessStep,
-    Drawing,
-    Characteristic,
-    FailureModeCandidate,
-    ControlItem,
-    Evidence,
-    TraceLink,
     APQPChain,
+    Evidence,
+    FailureMode,
+    ProcessStep,
+    Product,
+    TraceLink,
 )
 
 

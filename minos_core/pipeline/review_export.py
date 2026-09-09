@@ -5,19 +5,18 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from ..exporters import export_apqp_workbook
 from ..quality_gates import evaluate_export_gate, require_export_gate
 from ..review_patch import REVIEW_CONFIRMATIONS_KEY, apply_review_patch
-from ..exporters import export_apqp_workbook
 from .utilities import (
-    _load_review_source_payload,
-    _load_review_patch_payload,
-    _write_json_file,
-    _write_manifest_file,
-    _dump_json_value,
     _build_chain,
     _default_output_path,
+    _dump_json_value,
+    _load_review_patch_payload,
+    _load_review_source_payload,
+    _write_json_file,
+    _write_manifest_file,
 )
-
 
 # Warning messages
 DRAFT_WARNING = (

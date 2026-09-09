@@ -19,7 +19,6 @@ from xml.etree import ElementTree as ET
 
 from ..quality_matching import overlap_score, quality_tokens
 
-
 SCHEMA_VERSION = "minos-core.fixture.v1"
 
 
@@ -247,6 +246,17 @@ def convert_legacy_workbook(
 
 
 def read_workbook(path: str | Path) -> Workbook:
+    """Read a legacy Excel (.xlsx) file into a structured Workbook object.
+
+    Parses shared strings, sheet targets, and cell data directly from the
+    OpenXML archive using only the standard library.
+
+    Args:
+        path: Path to the .xlsx file.
+
+    Returns:
+        A Workbook containing all parsed sheets with their rows and cell values.
+    """
     xlsx_path = Path(path)
     with zipfile.ZipFile(xlsx_path) as archive:
         shared_strings = _read_shared_strings(archive)
@@ -259,6 +269,7 @@ def read_workbook(path: str | Path) -> Workbook:
 
 
 def _read_shared_strings(archive: zipfile.ZipFile) -> list[str]:
+    """Parse the shared string table from the OpenXML archive."""
     if "xl/sharedStrings.xml" not in archive.namelist():
         return []
     root = ET.fromstring(archive.read("xl/sharedStrings.xml"))
@@ -272,6 +283,7 @@ def _read_shared_strings(archive: zipfile.ZipFile) -> list[str]:
 
 
 def _read_sheet_targets(archive: zipfile.ZipFile) -> list[tuple[str, str]]:
+    """Resolve sheet names to their XML part paths via workbook relationships."""
     workbook = ET.fromstring(archive.read("xl/workbook.xml"))
     rels = ET.fromstring(archive.read("xl/_rels/workbook.xml.rels"))
     rel_targets = {
@@ -296,6 +308,7 @@ def _read_sheet_rows(
     part_name: str,
     shared_strings: list[str],
 ) -> dict[int, dict[str, str]]:
+    """Parse cell values from a single worksheet XML part, applying merged cell propagation."""
     root = ET.fromstring(archive.read(part_name))
     rows: dict[int, dict[str, str]] = defaultdict(dict)
 
@@ -327,6 +340,7 @@ def _read_sheet_rows(
 
 
 def _cell_value(cell: ET.Element, shared_strings: list[str]) -> str:
+    """Extract the text value from a cell element, resolving shared string references."""
     cell_type = cell.attrib.get("t", "")
     if cell_type == "inlineStr":
         return _clean(
@@ -349,6 +363,7 @@ def _cell_value(cell: ET.Element, shared_strings: list[str]) -> str:
 
 
 def _merge_refs(root: ET.Element) -> list[str]:
+    """Collect merged cell range references from a worksheet XML tree."""
     refs: list[str] = []
     for node in root.iter():
         if _local_name(node.tag) == "mergeCell" and node.attrib.get("ref"):
@@ -359,6 +374,7 @@ def _merge_refs(root: ET.Element) -> list[str]:
 def _parse_process_flow(
     workbook: Workbook, spec: dict[str, Any]
 ) -> list[dict[str, Any]]:
+    """Extract process-flow steps from the legacy worksheet according to the profile spec."""
     sheet = _select_sheet(workbook, spec["sheets"], "process_flow")
     steps: list[dict[str, Any]] = []
     generated_index = 1
@@ -394,6 +410,7 @@ def _parse_process_flow(
 
 
 def _parse_pfmea(workbook: Workbook, spec: dict[str, Any]) -> list[dict[str, Any]]:
+    """Extract PFMEA rows from the legacy worksheet according to the profile spec."""
     sheet = _select_sheet(workbook, spec["sheets"], "pfmea")
     state: dict[str, str] = {}
     counters: dict[str, int] = defaultdict(int)
@@ -439,6 +456,7 @@ def _parse_pfmea(workbook: Workbook, spec: dict[str, Any]) -> list[dict[str, Any
 def _parse_control_plan(
     workbook: Workbook, spec: dict[str, Any]
 ) -> list[dict[str, Any]]:
+    """Extract Control Plan rows from the legacy worksheet according to the profile spec."""
     sheet = _select_sheet(workbook, spec["sheets"], "control_plan")
     state: dict[str, str] = {}
     counters: dict[str, int] = defaultdict(int)
@@ -491,6 +509,7 @@ def _parse_control_plan(
 def _reconcile_process_steps(
     steps: list[dict[str, Any]], failures: list[dict[str, Any]]
 ) -> list[dict[str, Any]]:
+    """Synchronize process-flow steps with PFMEA steps, adding any missing steps from the PFMEA."""
     if not failures:
         return steps
     steps_by_id = {step["process_step_id"]: step for step in steps}
@@ -533,6 +552,7 @@ def _reconcile_process_steps(
 def _link_controls(
     failures: list[dict[str, Any]], controls: list[dict[str, Any]]
 ) -> None:
+    """Link PFMEA failures to Control Plan rows by scoring semantic and structural similarity."""
     controls_by_step: dict[str, list[dict[str, Any]]] = defaultdict(list)
     failures_by_step: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for control in controls:
@@ -586,6 +606,7 @@ def _best_failure_match(
     failures: list[dict[str, Any]],
     used: set[str],
 ) -> dict[str, Any] | None:
+    """Find the best-scoring unlinked failure that matches the given control."""
     available = [failure for failure in failures if failure["pfmea_id"] not in used]
     if not available:
         return None
@@ -598,6 +619,7 @@ def _best_failure_match(
 def _best_control_match(
     failure: dict[str, Any], controls: list[dict[str, Any]]
 ) -> dict[str, Any]:
+    """Pick the highest-scoring control for a failure, preferring unlinked ones."""
     return sorted(
         controls,
         key=lambda control: (
@@ -611,6 +633,7 @@ def _best_control_match(
 def _preferred_existing_control(
     failure: dict[str, Any], controls: list[dict[str, Any]]
 ) -> dict[str, Any] | None:
+    """Return the control already linked to this failure, if any."""
     linked_control_id = failure.get("linked_control_plan_id", "")
     if not linked_control_id:
         return None
@@ -629,6 +652,7 @@ def _candidate_controls_for_failure(
     controls_by_step: dict[str, list[dict[str, Any]]],
     all_controls: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
+    """Gather candidate controls for a failure, widening the search across steps if justified."""
     same_step = controls_by_step.get(failure["process_step_id"], [])
     if _can_match_across_steps(failure):
         cross_step = [
@@ -639,6 +663,7 @@ def _candidate_controls_for_failure(
 
 
 def _can_match_across_steps(failure: dict[str, Any]) -> bool:
+    """Determine whether a failure may match controls from different process steps (SC/CC or torque/key terms)."""
     classification = str(failure.get("classification", "")).upper()
     if classification in {"SC", "CC"}:
         return True
@@ -656,6 +681,7 @@ def _ensure_reverse_pfmea_link(
     control: dict[str, Any],
     controls: list[dict[str, Any]],
 ) -> None:
+    """Ensure a bidirectional PFMEA-to-control link exists, duplicating the control row if already linked."""
     pfmea_id = failure["pfmea_id"]
     if any(item.get("pfmea_id") == pfmea_id for item in controls):
         return
@@ -675,6 +701,7 @@ def _ensure_reverse_pfmea_link(
 def _derived_control_id(
     base_id: str, pfmea_id: str, controls: list[dict[str, Any]]
 ) -> str:
+    """Generate a unique control plan ID by appending the PFMEA suffix, avoiding collisions."""
     suffix = pfmea_id.replace("PFMEA-", "")
     candidate = f"{base_id}-{suffix}"
     existing = {control.get("control_plan_id", "") for control in controls}
@@ -687,6 +714,7 @@ def _derived_control_id(
 
 
 def _link_score(failure: dict[str, Any], control: dict[str, Any]) -> int:
+    """Score the semantic match quality between a PFMEA failure and a Control Plan row."""
     failure_terms = _search_text(
         failure.get("classification", ""),
         failure.get("process_function", ""),
@@ -714,6 +742,7 @@ def _link_score(failure: dict[str, Any], control: dict[str, Any]) -> int:
 
 
 def _resolve_profile(workbook: Workbook, sample_id: str, profile: str | None) -> str:
+    """Determine which extraction profile to use by checking explicit name, sheet names, and heuristics."""
     candidates = [profile or "", sample_id]
     for candidate in candidates:
         key = _profile_key(candidate)
@@ -731,6 +760,7 @@ def _resolve_profile(workbook: Workbook, sample_id: str, profile: str | None) ->
 
 
 def _infer_sample_id(xlsx_path: str | Path, profile: str | None) -> str:
+    """Guess the sample identifier from the filename or explicit profile name."""
     if profile:
         return _profile_key(profile)
     name = str(Path(xlsx_path).name)
@@ -744,6 +774,7 @@ def _infer_sample_id(xlsx_path: str | Path, profile: str | None) -> str:
 
 
 def _display_name_from_profile(profile_name: str) -> str:
+    """Map a profile key to a human-readable Chinese display name."""
     return {
         "door_hinge": "门铰链",
         "stamping": "冲压件",
@@ -752,11 +783,13 @@ def _display_name_from_profile(profile_name: str) -> str:
 
 
 def _profile_key(value: str) -> str:
+    """Normalize a profile name string into a canonical profile key, resolving aliases."""
     key = _compact(value).lower().replace("-", "_")
     return PROFILE_ALIASES.get(key, key)
 
 
 def _select_sheet(workbook: Workbook, names: list[str], kind: str) -> Worksheet:
+    """Match a sheet by profile name candidates, falling back to heuristic keyword detection."""
     normalized = {_compact(name): sheet for name, sheet in workbook.sheets.items()}
     for candidate in names:
         compact_candidate = _compact(candidate)
@@ -781,6 +814,7 @@ def _select_sheet(workbook: Workbook, names: list[str], kind: str) -> Worksheet:
 def _data_rows(
     sheet: Worksheet, spec: dict[str, Any]
 ) -> list[tuple[int, dict[str, str]]]:
+    """Return the row range (index, cell-data) specified by the profile spec."""
     start = int(spec.get("start", 1))
     end = int(spec.get("end") or max(sheet.rows or {0: {}}))
     return [(index, sheet.rows.get(index, {})) for index in range(start, end + 1)]
@@ -789,6 +823,7 @@ def _data_rows(
 def _update_state(
     state: dict[str, str], row: dict[str, str], columns: list[str]
 ) -> None:
+    """Propagate inherited column values into the state dict for subsequent rows."""
     for column in columns:
         value = _value(row, column)
         if value:
@@ -798,6 +833,7 @@ def _update_state(
 def _combine_with_state(
     row: dict[str, str], state: dict[str, str], columns: list[str]
 ) -> str:
+    """Join column values from the row or inherited state, deduplicated."""
     values = []
     for column in columns:
         values.append(_value(row, column) or state.get(column, ""))
@@ -805,33 +841,39 @@ def _combine_with_state(
 
 
 def _combine(row: dict[str, str], columns: str | list[str]) -> str:
+    """Join non-empty values from one or more columns, deduplicated."""
     return "；".join(_unique(_values(row, columns)))
 
 
 def _values(row: dict[str, str], columns: str | list[str]) -> list[str]:
+    """Collect non-empty cell values for the given column(s)."""
     if isinstance(columns, str):
         columns = [columns]
     return [_value(row, column) for column in columns if _value(row, column)]
 
 
 def _value(row: dict[str, str], column: str) -> str:
+    """Get a single cleaned cell value by column letter."""
     if not column:
         return ""
     return _clean(row.get(column, ""))
 
 
 def _has_any(row: dict[str, str], spec: dict[str, Any], keys: list[str]) -> bool:
+    """Check whether any of the spec-mapped columns have a non-empty value in the row."""
     return any(_value(row, spec[key]) for key in keys if spec.get(key))
 
 
 def _process_links(steps: list[dict[str, Any]]) -> list[dict[str, str]]:
+    """Build sequential from/to links between ordered process steps."""
     links = []
-    for left, right in zip(steps, steps[1:]):
+    for left, right in zip(steps, steps[1:], strict=False):
         links.append({"from": left["process_step_id"], "to": right["process_step_id"]})
     return links
 
 
 def _dedupe_steps(steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Remove consecutive duplicate process steps by ID while preserving order."""
     seen: set[str] = set()
     result: list[dict[str, Any]] = []
     for step in steps:
@@ -844,6 +886,7 @@ def _dedupe_steps(steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def _step_id(text: str, fallback_index: int) -> str:
+    """Extract or generate a process step ID (e.g. P10) from step text or a fallback index."""
     match = re.search(r"(?<!\d)(\d{1,3})(?!\d)", text or "")
     if match:
         number = int(match.group(1))
@@ -853,19 +896,23 @@ def _step_id(text: str, fallback_index: int) -> str:
 
 
 def _sequence_from_id(step_id: str, default: int) -> int:
+    """Parse the numeric sequence value from a step ID (e.g., P10 -> 10)."""
     match = re.search(r"\d+", step_id)
     return int(match.group(0)) if match else default
 
 
 def _make_id(prefix: str, step_id: str, counter: int) -> str:
+    """Build a structured ID like PFMEA-P10-001 for entities within a step."""
     return f"{prefix}-{step_id}-{counter:03d}"
 
 
 def _operation_from_step(text: str) -> str:
+    """Strip leading numbering from step text to extract the operation description."""
     return _clean(re.sub(r"^\s*\d+\s*[-_.、:]?\s*", "", text or ""))
 
 
 def _is_data_text(text: str) -> bool:
+    """Check whether a cell value represents actual data content rather than a header or noise."""
     value = _clean(text)
     if not value:
         return False
@@ -875,6 +922,7 @@ def _is_data_text(text: str) -> bool:
 
 
 def _is_mandatory_failure(failure: dict[str, Any]) -> bool:
+    """Determine if a PFMEA row demands a Control Plan link (high severity, classification, or priority)."""
     return (
         int(failure.get("severity", 0) or 0) >= 9
         or bool(str(failure.get("classification", "")).strip())
@@ -883,11 +931,13 @@ def _is_mandatory_failure(failure: dict[str, Any]) -> bool:
 
 
 def _integer(value: str) -> int:
+    """Parse the first integer from a string, defaulting to 0."""
     match = re.search(r"-?\d+", value or "")
     return int(match.group(0)) if match else 0
 
 
 def _unique(values: list[str]) -> list[str]:
+    """Deduplicate a list while preserving order, skipping empty entries."""
     result: list[str] = []
     seen: set[str] = set()
     for value in values:
@@ -899,6 +949,7 @@ def _unique(values: list[str]) -> list[str]:
 
 
 def _first_nonempty(*values: str) -> str:
+    """Return the first non-empty string from the given values."""
     for value in values:
         if value:
             return value
@@ -906,14 +957,17 @@ def _first_nonempty(*values: str) -> str:
 
 
 def _search_text(*values: str) -> set[str]:
+    """Tokenize text values into a set of quality terms for matching."""
     return quality_tokens(*values)
 
 
 def _overlap_score(left: set[str], right: set[str]) -> int:
+    """Compute the overlap score between two quality-token sets."""
     return overlap_score(left, right)
 
 
 def _clean(value: Any) -> str:
+    """Normalize whitespace and strip leading/trailing whitespace from a value."""
     if value is None:
         return ""
     text = str(value).replace("\r", "\n")
@@ -923,17 +977,20 @@ def _clean(value: Any) -> str:
 
 
 def _compact(value: str) -> str:
+    """Remove all whitespace from a string for fuzzy comparison."""
     return re.sub(r"\s+", "", value or "")
 
 
 def _local_name(tag: str) -> str:
+    """Strip the XML namespace from a tag name."""
     return tag.rsplit("}", 1)[-1]
 
 
 def _normalize_part_path(base: str, target: str) -> str:
+    """Resolve a relative OpenXML part path against its base directory."""
     if target.startswith("/"):
         return target.lstrip("/")
-    parts = []
+    parts: list[str] = []
     for part in f"{base}/{target}".split("/"):
         if part in {"", "."}:
             continue
@@ -946,6 +1003,7 @@ def _normalize_part_path(base: str, target: str) -> str:
 
 
 def _split_cell_ref(ref: str) -> tuple[int, str]:
+    """Split an Excel cell reference (e.g., 'B10') into a (row, column_letter) tuple."""
     match = re.match(r"([A-Z]+)(\d+)", ref or "")
     if not match:
         return 0, ""
@@ -953,6 +1011,7 @@ def _split_cell_ref(ref: str) -> tuple[int, str]:
 
 
 def _parse_range(ref: str) -> tuple[int, int, int, int]:
+    """Parse a merged-cell range (e.g., 'A1:B2') into a (start_row, start_col, end_row, end_col) tuple."""
     parts = ref.split(":")
     if len(parts) == 1:
         parts.append(parts[0])
@@ -962,11 +1021,13 @@ def _parse_range(ref: str) -> tuple[int, int, int, int]:
 
 
 def _cell_position(ref: str) -> tuple[int, int]:
+    """Convert a cell reference to a (row_number, column_index) pair (1-based)."""
     row, column = _split_cell_ref(ref)
     return row, _column_index(column)
 
 
 def _column_index(column: str) -> int:
+    """Convert a column letter (e.g., 'AB') to a 1-based numeric index."""
     index = 0
     for char in column:
         index = index * 26 + ord(char) - ord("A") + 1
@@ -974,6 +1035,7 @@ def _column_index(column: str) -> int:
 
 
 def _column_name(index: int) -> str:
+    """Convert a 1-based numeric column index back to a column letter (e.g., 28 -> 'AB')."""
     chars = []
     while index:
         index, remainder = divmod(index - 1, 26)
@@ -982,6 +1044,7 @@ def _column_name(index: int) -> str:
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
+    """Write a JSON payload to disk with consistent formatting."""
     path.write_text(
         json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )

@@ -6,7 +6,6 @@ from typing import Any
 
 from ..audit import AuditItem
 from ._support import (
-    _flagged_evidence_ids,
     _pending_field_paths,
 )
 
@@ -14,6 +13,7 @@ from ._support import (
 def _failure_mode_candidates_report(
     candidates_bundle: dict[str, Any],
 ) -> dict[str, Any]:
+    """Analyse the failure mode candidates bundle and return a coverage report."""
     process_steps = candidates_bundle.get(
         "process_steps", candidates_bundle.get("steps", [])
     )
@@ -167,6 +167,7 @@ def _check_candidate_evidence_refs(
     referenced_evidence_ids: set[str],
     referenced_non_ai_evidence_ids: set[str],
 ) -> None:
+    """Validate evidence references for a single failure mode candidate."""
     evidence_refs = [str(ref).strip() for ref in refs or [] if str(ref).strip()]
     if not evidence_refs:
         pending_fields.append(f"{label}.evidence_refs")
@@ -194,6 +195,7 @@ def _check_candidate_evidence_refs(
 def _failure_mode_candidates_manual_review_items(
     report: dict[str, Any],
 ) -> list[AuditItem]:
+    """Convert a failure-mode-candidates report into AuditItem objects."""
     items: list[AuditItem] = []
     for value in report["uncovered_items"]:
         items.append(
@@ -244,6 +246,7 @@ def _failure_mode_candidates_manual_review_items(
 
 
 def _analysis_bundle_report(analysis_bundle: dict[str, Any]) -> dict[str, Any]:
+    """Analyse the analysis bundle and return a coverage report."""
     required_blocks = [
         "evidence",
         "drawings",
@@ -361,6 +364,7 @@ def _analysis_bundle_report(analysis_bundle: dict[str, Any]) -> dict[str, Any]:
 def _analysis_manual_review_items(
     report: dict[str, Any], analysis_bundle: dict[str, Any]
 ) -> list[AuditItem]:
+    """Convert an analysis report into AuditItem objects for manual review."""
     items: list[AuditItem] = []
     for value in report["uncovered_items"]:
         items.append(

@@ -6,7 +6,6 @@ from pathlib import Path
 from minos_core.adapters.fixture_json import load_fixture_payload
 from minos_core.stage import run_stage
 
-
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE_DIR = ROOT / "tests" / "fixtures" / "apqp_chain"
 

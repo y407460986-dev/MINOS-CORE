@@ -10,8 +10,9 @@ the documented subclasses rather than inventing new ones for one-off cases.
 from __future__ import annotations
 
 import traceback
-from dataclasses import dataclass, field
-from typing import Any, Mapping
+from collections.abc import Mapping
+from dataclasses import dataclass
+from typing import Any
 
 __all__ = [
     "MinosError",
@@ -79,7 +80,7 @@ class MinosError(Exception):
 
         return self.args[0] if self.args else ""
 
-    def with_context(self, **extra: Any) -> "MinosError":
+    def with_context(self, **extra: Any) -> MinosError:
         """Return ``self`` after merging additional context entries."""
 
         self.context.update(extra)

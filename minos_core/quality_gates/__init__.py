@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-logger = logging.getLogger(__name__)
+from minos_core.observability.logging import get_logger
 
 from ..action_closure import action_closure_issues
 from ..audit import AuditReport, audit_chain
@@ -15,9 +15,29 @@ from ..domain import APQPChain
 from ..knowledge_recommendation import unresolved_recommendations
 from ..review_issues import unresolved_review_issues
 from ..validation import ChainValidationResult
-
-from ._support import *  # noqa: F403  # support/utility leaf functions
-
+from ._support import (
+    _ai_inferred_items,
+    _confirmed_field_paths,
+    _confirmed_targets,
+    _dedupe_preserve_order,
+    _dedupe_review_issues,
+    _dict_manual_review_items,
+    _evidence_coverage_report,
+    _evidence_manual_review_items,
+    _ingest_evidence_report,
+    _is_confirmed,
+    _metadata_list,
+    _pending_fields,
+    _recommendation_manual_review_items,
+    _review_issues_from_gate_debts,
+    _row_needs_confirmation_items,
+    _row_needs_confirmation_manual_review_items,
+    _stage_validation,
+    _strict_aiag_vda_pfmea_gate_enabled,
+    _unsafe_ai_batch_review_issues,
+    _with_safe_ai_batch_confirmations,
+    _without_confirmed,
+)
 from .evaluators import (
     evaluate_analysis_bundle_gate,
     evaluate_brainstorm_failure_modes_input_gate,
@@ -27,6 +47,23 @@ from .evaluators import (
     evaluate_pfmea_bundle_gate,
 )
 
+logger = get_logger(__name__)
+
+__all__ = [
+    "StageQualityGate",
+    "ExportGateError",
+    "evaluate_analysis_bundle_gate",
+    "evaluate_brainstorm_failure_modes_input_gate",
+    "evaluate_control_plan_bundle_gate",
+    "evaluate_failure_mode_candidates_gate",
+    "evaluate_pfd_bundle_gate",
+    "evaluate_pfmea_bundle_gate",
+    "evaluate_export_gate",
+    "require_export_gate",
+    "evaluate_stage_gate",
+]
+
+evaluate_three_table_linkage: Callable[[dict[str, Any]], dict[str, Any]] | None
 try:
     from ..three_table_linkage import evaluate_three_table_linkage
 except ImportError:
@@ -56,18 +93,22 @@ class StageQualityGate:
 
     @property
     def ok(self) -> bool:
+        """Return True if the gate allows the pipeline to continue."""
         return self.can_continue
 
     @property
     def needs_human_review(self) -> bool:
+        """Return True if any items require manual human review."""
         return bool(self.manual_review_items or self.needs_confirmation_items)
 
     @property
     def allow_formal_release(self) -> bool:
+        """Return True if the gate permits a formal (non-draft) export."""
         return self.allow_user_export
 
     @property
     def draft_only(self) -> bool:
+        """Return True if the chain can continue but only as a draft (not formally released)."""
         return bool(
             self.can_continue
             and not self.allow_formal_release
@@ -75,6 +116,12 @@ class StageQualityGate:
         )
 
     def model_dump(self) -> dict[str, Any]:
+        """Serialize the gate state to a plain dictionary.
+
+        Returns:
+            dict[str, Any]: A dictionary with all gate fields suitable for
+                JSON serialization or logging.
+        """
         return {
             "stage": self.stage,
             "can_continue": self.can_continue,
@@ -111,13 +158,15 @@ class ExportGateError(ValueError):
         super().__init__(_export_gate_failure_message(gate))
 
 
-def _unresolved_live_linkage_issues(chain: dict | APQPChain) -> list[dict]:
+def _unresolved_live_linkage_issues(
+    chain: dict[str, Any] | APQPChain,
+) -> list[dict[str, Any]]:
     """Check for unresolved live-linkage impacts that block final export.
 
     Returns blocker issues for rows whose review_status indicates an
     unconfirmed live-linkage sync or a stub that still needs human review.
     """
-    issues: list[dict] = []
+    issues: list[dict[str, Any]] = []
     for table_key, row_key in [
         ("process_steps", "process_step_id"),
         ("failure_modes", "pfmea_id"),
@@ -211,8 +260,42 @@ def _export_gate_failure_message(gate: StageQualityGate) -> str:
 
 
 def _append_gate_detail(lines: list[str], label: str, values: list[Any]) -> None:
+    """Append a non-empty labelled list line to the gate message."""
     if values:
         lines.append(f"{label}: " + ", ".join(str(value) for value in values))
+
+
+def _drawing_risk_review_items(chain: APQPChain) -> list[dict[str, Any]]:
+    """Collect unconfirmed drawing-analysis risks as manual review items."""
+    confirmed = _confirmed_targets(chain)
+    risks = _metadata_list(chain, "drawing_analysis_risks") + _metadata_list(
+        chain, "ocr_identity_risks"
+    )
+    items: list[dict[str, Any]] = []
+    indexes: dict[str, int] = {}
+    for risk in risks:
+        risk_id = str(risk.get("risk_id", risk.get("item_id", ""))).strip()
+        target = str(risk.get("target", "")).strip()
+        if not risk_id:
+            continue
+        if _is_confirmed(risk_id, confirmed) or (target and _is_confirmed(target, confirmed)):
+            continue
+        item = dict(risk)
+        item["item_id"] = risk_id
+        item.setdefault("category", "drawing_analysis")
+        item.setdefault("severity", "review")
+        item.setdefault("message", "图纸识别风险需要人工复核。")
+        if risk_id in indexes:
+            existing_index = indexes[risk_id]
+            if (
+                item.get("severity") == "blocker"
+                and items[existing_index].get("severity") != "blocker"
+            ):
+                items[existing_index] = item
+            continue
+        indexes[risk_id] = len(items)
+        items.append(item)
+    return items
 
 
 def evaluate_stage_gate(
@@ -225,6 +308,11 @@ def evaluate_stage_gate(
         chain = APQPChain(**chain)
     validation = _stage_validation(chain, stage)
     audit = audit_chain(chain)
+    audit_blockers = [
+        item
+        for item in audit.manual_review_items
+        if getattr(item, "severity", "") == "blocker"
+    ]
     confirmed_targets = _confirmed_targets(chain)
     confirmed_field_paths = _confirmed_field_paths(chain)
     pending_fields = _without_confirmed(_pending_fields(chain), confirmed_field_paths)
@@ -266,6 +354,10 @@ def evaluate_stage_gate(
     review_issue_blockers = unresolved_review_issues(
         _metadata_list(chain, "review_issues")
     )
+    drawing_risk_items = _drawing_risk_review_items(chain)
+    [
+        item for item in drawing_risk_items if item.get("severity") == "blocker"
+    ]
     linkage_gaps: list[dict[str, Any]] = []
     linkage_summary: dict[str, Any] = {}
     sync_issues: list[dict[str, Any]] = []
@@ -317,11 +409,13 @@ def evaluate_stage_gate(
         and not recommendation_blockers
         and not review_issue_blockers
         and not unsafe_ai_batch_issues
+        and not audit_blockers
+        and not drawing_risk_items
         and not linkage_blockers
         and not sync_blockers
         and not live_linkage_blockers
     )
-    manual_review_items = list(audit.manual_review_items)
+    manual_review_items: list[Any] = list(audit.manual_review_items)
     manual_review_items.extend(_evidence_manual_review_items(evidence_coverage))
     manual_review_items.extend(
         _row_needs_confirmation_manual_review_items(
@@ -332,6 +426,7 @@ def evaluate_stage_gate(
     )
     manual_review_items.extend(_dict_manual_review_items(action_issues))
     manual_review_items.extend(_dict_manual_review_items(change_blockers))
+    manual_review_items.extend(_dict_manual_review_items(drawing_risk_items))
     manual_review_items.extend(_recommendation_manual_review_items(recommendation_blockers))
     # manual_review_items.extend(_dict_manual_review_items(unresolved_action_review_items))
     manual_review_items.extend(linkage_review_items)

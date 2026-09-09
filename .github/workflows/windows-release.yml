@@ -1,0 +1,164 @@
+name: Windows release
+
+"on":
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: Installer channel
+        required: true
+        default: internal
+        type: choice
+        options:
+          - internal
+          - production
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  internal-unsigned:
+    if: github.event_name == 'workflow_dispatch' && inputs.channel == 'internal'
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/desktop-tauri/package-lock.json
+
+      - name: Set up Rust MSVC
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Install release test dependencies
+        run: python -m pip install -e ".[test,desktop-api,ocr]"
+
+      - name: Run release contract tests
+        run: python -m pytest tests/test_desktop_installer_nsis.py tests/test_release_version_sync.py -q
+
+      - name: Build internal unsigned installer
+        shell: pwsh
+        run: ./scripts/build_release.ps1 -Channel Internal
+
+      - name: Verify installed application
+        shell: pwsh
+        run: ./scripts/verify_installer.ps1 -Installer "dist/build/out/*internal-unsigned*.exe"
+
+      - name: Upload internal unsigned installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: minos-core-internal-unsigned
+          path: dist/build/out/*internal-unsigned*.exe
+          if-no-files-found: error
+
+  production-signed:
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.channel == 'production')
+    runs-on: windows-latest
+    environment: windows-release-signing
+    env:
+      WINDOWS_CERT_PFX_BASE64: ${{ secrets.WINDOWS_CERT_PFX_BASE64 }}
+      WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/desktop-tauri/package-lock.json
+
+      - name: Set up Rust MSVC
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Validate signing secrets
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERT_PFX_BASE64)) { exit 1 }
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERT_PASSWORD)) { exit 1 }
+
+      - name: Import Authenticode certificate
+        id: certificate
+        shell: pwsh
+        run: |
+          $pfxPath = Join-Path $env:RUNNER_TEMP "minos-signing.pfx"
+          [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:WINDOWS_CERT_PFX_BASE64))
+          try {
+            $password = ConvertTo-SecureString $env:WINDOWS_CERT_PASSWORD -AsPlainText -Force
+            $certificate = Import-PfxCertificate -FilePath $pfxPath -CertStoreLocation Cert:\CurrentUser\My -Password $password
+            if (-not $certificate) { exit 1 }
+            "thumbprint=$($certificate.Thumbprint)" >> $env:GITHUB_OUTPUT
+          } finally {
+            Remove-Item -LiteralPath $pfxPath -Force -ErrorAction SilentlyContinue
+          }
+
+      - name: Install release test dependencies
+        run: python -m pip install -e ".[test,desktop-api,ocr]"
+
+      - name: Run release contract tests
+        run: python -m pytest tests/test_desktop_installer_nsis.py tests/test_release_version_sync.py -q
+
+      - name: Build signed installer
+        shell: pwsh
+        run: ./scripts/build_release.ps1 -Channel Production -CertificateThumbprint "${{ steps.certificate.outputs.thumbprint }}"
+
+      - name: Verify Authenticode signature
+        shell: pwsh
+        run: |
+          $installer = @(Get-ChildItem dist/build/out/*.exe)
+          if ($installer.Count -ne 1) { exit 1 }
+          $signature = Get-AuthenticodeSignature $installer[0].FullName
+          $signature | ConvertTo-Json -Depth 4
+          if ($signature.Status -ne 'Valid') { exit 1 }
+          Get-FileHash $installer[0].FullName -Algorithm SHA256
+
+      - name: Verify installed application
+        shell: pwsh
+        run: ./scripts/verify_installer.ps1 -Installer "dist/build/out/*.exe" -RequireSignature
+
+      - name: Create draft release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $installer = @(Get-ChildItem dist/build/out/*.exe)
+          if ($installer.Count -ne 1) { exit 1 }
+          gh release create "${{ github.ref_name }}" $installer[0].FullName --draft --verify-tag --title "MINOS-CORE ${{ github.ref_name }}"
+
+      - name: Upload signed installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: minos-core-production-signed
+          path: dist/build/out/*.exe
+          if-no-files-found: error
+
+      - name: Remove signing certificate
+        if: always() && steps.certificate.outputs.thumbprint != ''
+        shell: pwsh
+        run: |
+          $path = "Cert:\CurrentUser\My\${{ steps.certificate.outputs.thumbprint }}"
+          if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path -Force }

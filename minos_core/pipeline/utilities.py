@@ -8,7 +8,6 @@ from typing import Any
 
 from ..adapters.fixture_json import load_fixture_payload, read_json_object
 from ..run_manifest import build_run_manifest, write_run_manifest
-from .._text_utils import string_list
 
 
 def _as_dict(value: Any) -> dict[str, Any]:

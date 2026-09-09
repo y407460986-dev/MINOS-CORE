@@ -6,7 +6,7 @@ from typing import Any
 
 from ..review_issues import build_review_issue
 from ..review_patch import REVIEW_CONFIRMATIONS_KEY
-from .core_evaluators import _float_value, _row_mapping_id, _dedupe_preserve_order
+from .core_evaluators import _dedupe_preserve_order, _float_value, _row_mapping_id
 
 __all__ = [
     "_safe_ai_batch_confirmation_targets",
@@ -17,6 +17,7 @@ __all__ = [
 
 
 def _with_safe_ai_batch_confirmations(payload: dict[str, Any]) -> dict[str, Any]:
+    """Auto-confirm low-risk AI-batch rows by injecting review confirmations into metadata."""
     targets = _safe_ai_batch_confirmation_targets(payload)
     if not targets:
         return payload
@@ -46,6 +47,7 @@ def _with_safe_ai_batch_confirmations(payload: dict[str, Any]) -> dict[str, Any]
 
 
 def _unsafe_ai_batch_review_issues(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    """Find AI-batch rows that do not meet low-risk criteria and create blocker issues."""
     issues: list[dict[str, Any]] = []
     for table, chain_key, id_fields, target_type in (
         ("process_flow", "process_steps", ("process_step_id", "id", "step_no"), "process_step"),
@@ -80,6 +82,7 @@ def _unsafe_ai_batch_review_issues(payload: dict[str, Any]) -> list[dict[str, An
 
 
 def _safe_ai_batch_confirmation_targets(payload: dict[str, Any]) -> list[str]:
+    """Collect target identifiers of all AI-batch rows that pass the safety check."""
     targets: list[str] = []
     for table, chain_key, id_fields, target_type in (
         ("process_flow", "process_steps", ("process_step_id", "id", "step_no"), "process_step"),
@@ -101,6 +104,7 @@ def _safe_ai_batch_confirmation_targets(payload: dict[str, Any]) -> list[str]:
 
 
 def _safe_ai_batch_row(payload: dict[str, Any], table: str, row: dict[str, Any]) -> bool:
+    """Return True if the AI-batch row meets low-risk, high-confidence auto-confirm criteria."""
     if row.get("deleted") or row.get("soft_deleted"):
         return False
     refs = [str(ref).strip() for ref in row.get("evidence_refs", []) if str(ref).strip()]

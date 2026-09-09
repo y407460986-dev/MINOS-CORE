@@ -15,13 +15,17 @@ DEMO_PACKAGE = ROOT / "tests" / "fixtures" / "demo_input_package"
 
 
 @pytest.fixture
-async def test_client():
+async def test_client(monkeypatch):
     """Provide an AsyncClient wired to a test platform app with a temp DB.
 
     Initializes a temporary SQLite DB before the client is available and
     cleans up the engine after the test completes.
     """
     with tempfile.TemporaryDirectory() as tmpdir:
+        monkeypatch.delenv("MINOS_PLATFORM_API_TOKEN", raising=False)
+        # Platform auth is fail-closed by default; opt out explicitly for
+        # endpoint tests that are not exercising authentication.
+        monkeypatch.setenv("MINOS_PLATFORM_AUTH_REQUIRED", "0")
         db_path = Path(tmpdir) / "test_platform.sqlite3"
         db_url = f"sqlite+aiosqlite:///{db_path}"
         # Initialize the test DB before the client starts its lifespan
@@ -59,10 +63,10 @@ def realistic_package_path():
 @pytest.fixture
 def demo_sha256():
     # Real SHA256 of tests/fixtures/demo_input_package (directory hash)
-    return "f96b1b7a734767929e90d07430de96fb5e6362553af424141cc37a3d4ed40442"
+    return "7a53372d8492b7922fe1d1cd62684dc74632735cfe0c5973b2428425b129ed93"
 
 
 @pytest.fixture
 def realistic_sha256():
-    # Placeholder — real value depends on realistic_input_package content
-    return "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3"
+    # Real SHA256 of tests/fixtures/realistic_input_package (directory hash)
+    return "d404f6a3714bf7f0c6bb6f1cef0c442d9d4b58b76946ceaffe6b4e7a0ceb62ff"

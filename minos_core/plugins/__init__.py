@@ -31,6 +31,11 @@ look up plugins by name.
 
 from __future__ import annotations
 
+from .entrypoints import (
+    KNOWLEDGE_SOURCES_GROUP,
+    OCR_ENGINES_GROUP,
+    load_entry_point_plugins,
+)
 from .registry import (
     KnowledgeSourcePlugin,
     OCREnginePlugin,
@@ -42,11 +47,6 @@ from .registry import (
     register_knowledge_source,
     register_ocr_engine,
     reset_registry,
-)
-from .entrypoints import (
-    OCR_ENGINES_GROUP,
-    KNOWLEDGE_SOURCES_GROUP,
-    load_entry_point_plugins,
 )
 
 __all__ = [

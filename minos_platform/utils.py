@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 from minos_core.run_manifest import sha256_file
 
 if TYPE_CHECKING:
-    from minos_platform.errors import APIError
+    pass
 
 
 def safe_copy_input_file_or_dir(source_path: str, dest_dir: Path) -> Path:
@@ -53,7 +53,7 @@ def calculate_json_sha256(data: dict) -> str:
 def parse_review_patch(file_path: Path) -> dict | None:
     """Parse a review patch JSON file and return the dict, or None if parsing fails."""
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             return json.load(f)
     except (json.JSONDecodeError, OSError):
         return None
@@ -65,7 +65,7 @@ def calculate_directory_sha256(dir_path: Path) -> str:
     SECURITY FIX v3.1.0: Use direct import instead of __import__.
     """
     import hashlib
-    from minos_core import sha256_bytes
+
     files = sorted(dir_path.rglob("*"))
     hasher = hashlib.sha256()
     for f in files:

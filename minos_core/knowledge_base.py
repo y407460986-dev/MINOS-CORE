@@ -77,7 +77,7 @@ def load_knowledge_base(path: str | Path | None = None) -> list[dict[str, Any]]:
 
     if path == default_path and not path.exists():
         warnings.warn(
-            f"默认知识库 {path} 不存在，使用内置种子规则"
+            f"默认知识库 {path} 不存在，使用内置种子规则", stacklevel=2
         )
         return [
             normalize_knowledge_item(dict(rule), index=i)
@@ -187,10 +187,7 @@ def normalize_knowledge_item(
 
     # ---- source ----
     source = item.get("source")
-    if source and str(source).strip():
-        source = str(source).strip()
-    else:
-        source = "local_seed"
+    source = str(source).strip() if source and str(source).strip() else "local_seed"
 
     # ---- version ----
     version = str(item.get("version", "1.0")).strip() or "1.0"

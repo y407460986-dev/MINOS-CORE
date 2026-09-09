@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 import json
-import logging
 import sqlite3
 from pathlib import Path
 from typing import Any
 
 from minos_core._paths import configs_dir
+from minos_core.observability.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def _default_rules_path() -> Path:
@@ -52,6 +52,22 @@ def recommend_from_knowledge(
     rules: list[dict[str, Any]] | None = None,
     family_context: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
+    """Generate knowledge-based recommendations for PFMEA rows.
+
+    Matches each PFMEA row against knowledge rules and family context
+    patterns to produce actionable recommendations.
+
+    Args:
+        source: The full three-table data source containing process_flow
+            and pfmea tables.
+        rules: List of knowledge rules to match against. If None, loads
+            rules via :func:`load_knowledge_rules`.
+        family_context: Optional part-family context for family-based
+            pattern matching.
+
+    Returns:
+        A deduplicated list of recommendation dicts.
+    """
     if rules is None:
         rules = load_knowledge_rules()
     recommendations: list[dict[str, Any]] = []
@@ -90,10 +106,36 @@ def recommend_from_local_knowledge(
     source: dict[str, Any],
     path: str | Path | None = None,
 ) -> list[dict[str, Any]]:
+    """Generate recommendations using local knowledge rules from a file path.
+
+    Convenience wrapper that loads rules from *path* (or the default
+    location) and passes them to :func:`recommend_from_knowledge`.
+
+    Args:
+        source: The full three-table data source.
+        path: Optional path to a knowledge rules file. Falls back to
+            the default rules path if omitted.
+
+    Returns:
+        A deduplicated list of recommendation dicts.
+    """
     return recommend_from_knowledge(source, load_knowledge_rules(path))
 
 
 def unresolved_recommendations(recommendations: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Filter recommendations that are still unresolved (blocking).
+
+    A recommendation is considered unresolved unless it is:
+    - applied (lifecycle_status="applied" or status="已应用")
+    - ignored with a non-empty ignore_reason
+    Expired recommendations are always considered unresolved.
+
+    Args:
+        recommendations: List of recommendation dicts to filter.
+
+    Returns:
+        List of unresolved recommendation dicts.
+    """
     result = []
     for item in recommendations:
         status = str(item.get("status", "待确认")).strip()
@@ -102,9 +144,8 @@ def unresolved_recommendations(recommendations: list[dict[str, Any]]) -> list[di
         if lifecycle == "applied" or status == "已应用":
             continue
         # ignored with reason: does not block
-        if lifecycle == "ignored" or status == "已忽略":
-            if str(item.get("ignore_reason", "")).strip():
-                continue
+        if (lifecycle == "ignored" or status == "已忽略") and str(item.get("ignore_reason", "")).strip():
+            continue
         # expired: always blocks
         if lifecycle == "expired":
             result.append(item)
@@ -115,6 +156,7 @@ def unresolved_recommendations(recommendations: list[dict[str, Any]]) -> list[di
 
 
 def _matches_rule(row: dict[str, Any], step: dict[str, Any], rule: dict[str, Any]) -> bool:
+    """Check whether a PFMEA row matches a single knowledge rule."""
     # --- requires_high_ap (old format; also supported in new format) ---
     if rule.get("requires_high_ap") and str(row.get("action_priority", row.get("AP", ""))).upper() != "H":
         return False
@@ -187,6 +229,7 @@ def _matches_rule(row: dict[str, Any], step: dict[str, Any], rule: dict[str, Any
 
 
 def _recommendation(row: dict[str, Any], step: dict[str, Any], rule: dict[str, Any]) -> dict[str, Any]:
+    """Build a single recommendation dict from a matched rule."""
     pfmea_id = str(row.get("pfmea_id", "")).strip()
     rule_id = str(rule.get("knowledge_id", rule.get("rule_id", ""))).strip()
 
@@ -255,10 +298,7 @@ def _recommendation(row: dict[str, Any], step: dict[str, Any], rule: dict[str, A
 
     # --- recommendation_id: new format with knowledge_id, old format fallback ---
     rec_type_str = str(rec_type).strip()
-    if rule.get("knowledge_id"):
-        recommendation_id = f"{rule_id}:{rec_type_str}:{pfmea_id}"
-    else:
-        recommendation_id = f"{rule_id}:{pfmea_id}"
+    recommendation_id = f"{rule_id}:{rec_type_str}:{pfmea_id}" if rule.get("knowledge_id") else f"{rule_id}:{pfmea_id}"
 
     return {
         "recommendation_id": recommendation_id,
@@ -338,7 +378,7 @@ def _recommendations_from_rule(
     rule_id = str(rule.get("knowledge_id", rule.get("rule_id", ""))).strip()
 
     # Field subsets for each recommendation type.
-    _TYPE_FIELDS: dict[str, set[str]] = {
+    type_fields: dict[str, set[str]] = {
         "failure_mode": {"failure_mode", "failure_effect"},
         "failure_cause": {"failure_cause"},
         "prevention_control": {"prevention_control"},
@@ -369,7 +409,7 @@ def _recommendations_from_rule(
             rec["recommendation_id"] = f"{rule_id}:{rec_type}:{pfmea_id}"
 
         # Filter suggested_fields to only the fields relevant to this type.
-        allowed = _TYPE_FIELDS.get(dim_type)
+        allowed = type_fields.get(dim_type)
         if allowed is not None:
             sf = rec.get("suggested_fields", {})
             if isinstance(sf, dict):
@@ -381,6 +421,7 @@ def _recommendations_from_rule(
 
 
 def _dedupe_recommendations(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Deduplicate and keep the highest-scoring recommendation per key."""
     result: list[dict[str, Any]] = []
     indexes: dict[tuple[str, str, tuple[str, ...]], int] = {}
     for item in items:
@@ -402,6 +443,7 @@ def _recommendations_from_family_context(
     pfd_by_step: dict[str, dict[str, Any]],
     family_context: dict[str, Any] | None,
 ) -> list[dict[str, Any]]:
+    """Generate recommendations from part-family context patterns."""
     if not isinstance(family_context, dict) or not family_context:
         return []
     if _family_key(family_context) == "unknown":
@@ -432,6 +474,7 @@ def _family_pfmea_recommendation(
     pattern: dict[str, Any],
     family_context: dict[str, Any],
 ) -> dict[str, Any] | None:
+    """Build a PFMEA pattern recommendation from a family match."""
     match = _family_match(row, step, pattern, family_context)
     if match is None:
         return None
@@ -497,6 +540,7 @@ def _family_control_plan_recommendation(
     pattern: dict[str, Any],
     family_context: dict[str, Any],
 ) -> dict[str, Any] | None:
+    """Build a control-plan pattern recommendation from a family match."""
     match = _family_match(row, step, pattern, family_context)
     if match is None:
         return None
@@ -563,6 +607,7 @@ def _family_match(
     pattern: dict[str, Any],
     family_context: dict[str, Any],
 ) -> dict[str, Any] | None:
+    """Score how well a PFMEA row matches a family pattern."""
     same_family = _same_family_context(family_context)
     operation_match = _operation_matches(row, step, pattern)
     characteristic_match = _characteristic_matches(row, step, pattern)
@@ -583,6 +628,7 @@ def _operation_matches(
     step: dict[str, Any],
     pattern: dict[str, Any],
 ) -> bool:
+    """Check whether a pattern's operation text matches the row or step."""
     pattern_step = str(pattern.get("process_step_id", "")).strip()
     row_step = str(row.get("process_step_id", step.get("process_step_id", ""))).strip()
     if pattern_step and row_step and pattern_step == row_step:
@@ -603,6 +649,7 @@ def _characteristic_matches(
     step: dict[str, Any],
     pattern: dict[str, Any],
 ) -> bool:
+    """Check whether a pattern's characteristic text matches the row or step."""
     pattern_texts = _texts(
         pattern,
         ("characteristic", "classification", "failure_mode", "product_process_characteristic"),
@@ -631,6 +678,7 @@ def _characteristic_matches(
 
 
 def _is_global_pattern(pattern: dict[str, Any]) -> bool:
+    """Check whether a pattern has no operation or characteristic fields."""
     operation_fields = _texts(pattern, ("process_step_id", "operation", "process_function"))
     characteristic_fields = _texts(
         pattern,
@@ -640,6 +688,7 @@ def _is_global_pattern(pattern: dict[str, Any]) -> bool:
 
 
 def _same_family_context(family_context: dict[str, Any]) -> bool:
+    """Check whether the family context identifies a known part family."""
     key = _family_key(family_context)
     if key and key != "unknown":
         return True
@@ -648,10 +697,12 @@ def _same_family_context(family_context: dict[str, Any]) -> bool:
 
 
 def _family_key(family_context: dict[str, Any]) -> str:
+    """Extract the family key identifier from a family context dict."""
     return str(family_context.get("family_key") or family_context.get("key") or "").strip()
 
 
 def _pattern_id(pattern: dict[str, Any], family_context: dict[str, Any], kind: str) -> str:
+    """Derive a stable pattern identifier from the pattern or family context."""
     value = str(pattern.get("pattern_id") or pattern.get("knowledge_id") or pattern.get("id") or "").strip()
     if value:
         return value
@@ -660,6 +711,7 @@ def _pattern_id(pattern: dict[str, Any], family_context: dict[str, Any], kind: s
 
 
 def _normalize_recommendation(item: dict[str, Any]) -> dict[str, Any]:
+    """Normalize a recommendation dict by adding computed fields."""
     normalized = dict(item)
     normalized["target_field_keys"] = _target_field_keys(normalized)
     normalized.setdefault("source_refs", _source_refs(normalized))
@@ -670,6 +722,7 @@ def _normalize_recommendation(item: dict[str, Any]) -> dict[str, Any]:
 
 
 def _target_field_keys(item: dict[str, Any]) -> list[str]:
+    """Extract field key strings from suggested_fields and linked_control_plan_suggestion."""
     keys: list[str] = []
     target_table = str(item.get("target_table", "")).strip()
     suggested_fields = item.get("suggested_fields", {})
@@ -686,6 +739,7 @@ def _target_field_keys(item: dict[str, Any]) -> list[str]:
 
 
 def _recommendation_dedupe_key(item: dict[str, Any]) -> tuple[str, str, tuple[str, ...]]:
+    """Compute a deduplication key from target_id, recommendation_type, and field_keys."""
     target_id = str(item.get("target_id", "")).strip()
     rec_type = str(item.get("recommendation_type", "")).strip()
     field_keys = tuple(item.get("target_field_keys", []))
@@ -696,6 +750,7 @@ def _recommendation_dedupe_key(item: dict[str, Any]) -> tuple[str, str, tuple[st
 
 
 def _recommendation_score(item: dict[str, Any]) -> float:
+    """Extract the numeric score from a recommendation item."""
     try:
         return float(item.get("score", 0.0) or 0.0)
     except (TypeError, ValueError):
@@ -705,6 +760,7 @@ def _recommendation_score(item: dict[str, Any]) -> float:
 def _limit_special_characteristic_recommendations(
     items: list[dict[str, Any]]
 ) -> list[dict[str, Any]]:
+    """Keep only the highest-scoring special-characteristic recommendation per target."""
     best_index_by_target: dict[str, int] = {}
     best_score_by_target: dict[str, float] = {}
     for index, item in enumerate(items):
@@ -729,6 +785,7 @@ def _limit_special_characteristic_recommendations(
 
 
 def _rule_is_special_characteristic_rule(rule: dict[str, Any]) -> bool:
+    """Check whether a rule targets special characteristics."""
     return bool(
         rule.get("requires_special_characteristic")
         or rule.get("special_characteristic_required")
@@ -736,18 +793,21 @@ def _rule_is_special_characteristic_rule(rule: dict[str, Any]) -> bool:
 
 
 def _rule_is_generic_special_characteristic_rule(rule: dict[str, Any]) -> bool:
+    """Check whether a rule is a generic special-characteristic rule (no terms)."""
     if not _rule_is_special_characteristic_rule(rule):
         return False
     return not bool(rule.get("process_terms") or rule.get("operation_terms") or rule.get("characteristic_terms"))
 
 
 def _rule_is_generic_high_ap_rule(rule: dict[str, Any]) -> bool:
+    """Check whether a rule is a generic high-AP rule (no terms)."""
     if not rule.get("requires_high_ap"):
         return False
     return not bool(rule.get("process_terms") or rule.get("operation_terms") or rule.get("characteristic_terms"))
 
 
 def _source_refs(*items: dict[str, Any]) -> list[dict[str, Any]]:
+    """Collect deduplicated source references from one or more dicts."""
     refs: list[dict[str, Any]] = []
     for item in items:
         if not isinstance(item, dict):
@@ -769,15 +829,16 @@ def _source_refs(*items: dict[str, Any]) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
     seen: set[tuple[tuple[str, str], ...]] = set()
     for ref in refs:
-        key = tuple(sorted((name, str(value)) for name, value in ref.items()))
-        if key in seen:
+        ref_key = tuple(sorted((name, str(value)) for name, value in ref.items()))
+        if ref_key in seen:
             continue
-        seen.add(key)
+        seen.add(ref_key)
         result.append(ref)
     return result
 
 
 def _source_ref(value: Any) -> dict[str, Any]:
+    """Normalize a single source reference value into a dict."""
     if isinstance(value, dict):
         return {str(key): item for key, item in value.items() if _has_value(item)}
     if isinstance(value, str) and value.strip():
@@ -786,10 +847,12 @@ def _source_ref(value: Any) -> dict[str, Any]:
 
 
 def _dict_items(value: Any) -> list[dict[str, Any]]:
+    """Extract a list of dicts from a value, or return an empty list."""
     return [item for item in value if isinstance(item, dict)] if isinstance(value, list) else []
 
 
 def _texts(row: dict[str, Any], keys: tuple[str, ...]) -> list[str]:
+    """Collect non-empty string values for the given keys from a dict."""
     values: list[str] = []
     for key in keys:
         values.extend(_string_values(row.get(key)))
@@ -797,6 +860,7 @@ def _texts(row: dict[str, Any], keys: tuple[str, ...]) -> list[str]:
 
 
 def _string_values(value: Any) -> list[str]:
+    """Flatten a nested value (list, dict, or scalar) into a list of stripped strings."""
     if value is None:
         return []
     if isinstance(value, (list, tuple, set)):
@@ -814,10 +878,12 @@ def _string_values(value: Any) -> list[str]:
 
 
 def _text_lists_match(left: list[str], right: list[str]) -> bool:
+    """Check whether any string in *left* is related to any string in *right*."""
     return any(_texts_related(a, b) for a in left for b in right)
 
 
 def _texts_related(left: str, right: str) -> bool:
+    """Check whether two texts are related by substring or token overlap."""
     a = _normalize_match_text(left)
     b = _normalize_match_text(right)
     if not a or not b:
@@ -830,6 +896,7 @@ def _texts_related(left: str, right: str) -> bool:
 
 
 def _normalize_match_text(value: Any) -> str:
+    """Normalize text for fuzzy matching by lowercasing and splitting punctuation."""
     text = str(value or "").lower().strip()
     for char in ("，", "。", "；", ";", ",", "/", "\\", "|", "、", ":", "：", "-", "_", "(", ")", "（", "）"):
         text = text.replace(char, " ")
@@ -837,6 +904,7 @@ def _normalize_match_text(value: Any) -> str:
 
 
 def _has_value(value: Any) -> bool:
+    """Check whether a value is non-empty (not None, not blank string, not empty collection)."""
     if value is None:
         return False
     if isinstance(value, str):
@@ -847,6 +915,7 @@ def _has_value(value: Any) -> bool:
 
 
 def _load_json_rules(path: Path) -> list[dict[str, Any]]:
+    """Load knowledge rules from a JSON file."""
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
@@ -861,6 +930,7 @@ def _load_json_rules(path: Path) -> list[dict[str, Any]]:
 
 
 def _load_sqlite_rules(path: Path) -> list[dict[str, Any]]:
+    """Load knowledge rules from a SQLite database."""
     with sqlite3.connect(path) as connection:
         connection.row_factory = sqlite3.Row
         rows = connection.execute(
@@ -886,6 +956,7 @@ def _load_sqlite_rules(path: Path) -> list[dict[str, Any]]:
 
 
 def _rows(source: dict[str, Any], table: str, chain_key: str, table_key: str) -> list[Any]:
+    """Extract rows from a source dict by trying table.table_key then chain_key."""
     if table in source and isinstance(source.get(table), dict):
         rows = source[table].get(table_key)
         if isinstance(rows, list):

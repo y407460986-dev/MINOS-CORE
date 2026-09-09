@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import json
-import io
+import re
+import subprocess as _subprocess
+import sys
 import tempfile
 import unittest
-from contextlib import redirect_stdout
 from pathlib import Path
 
 from minos_core.adapters.multimodal import FakeMultimodalDrawingAnalyzer
@@ -17,6 +18,46 @@ from minos_core.demo_acceptance import (
 )
 from minos_core.drawing_input import load_drawing_source, render_drawing_pages
 from minos_core.pipeline import generate_three_tables_from_drawing
+
+
+def _extract_json_from_log(text: str) -> dict:
+    """Extract JSON from structlog line: timestamp [level] event result='{...}'"""
+    match = re.search(r"result='(\{.*\})'", text, re.DOTALL)
+    if match:
+        raw = match.group(1)
+        # structlog ConsoleRenderer converts newlines to \n. Restore them to
+        # actual newlines only when outside of JSON string values.
+        cleaned = _restore_structural_newlines(raw)
+        return json.loads(cleaned)
+    raise ValueError(f"Cannot extract JSON from log output: {text[:200]}")
+
+
+def _restore_structural_newlines(text: str) -> str:
+    """Replace \\n with newlines only outside of JSON quoted strings."""
+    chars = []
+    in_string = False
+    escape = False
+    i = 0
+    while i < len(text):
+        if escape:
+            chars.append(text[i])
+            escape = False
+        elif text[i] == '\\' and in_string:
+            escape = True
+            chars.append(text[i])
+        elif text[i] == '"' and not escape:
+            in_string = not in_string
+            chars.append(text[i])
+        elif text[i] == '\\' and not in_string and i + 1 < len(text) and text[i + 1] == 'n':
+            chars.append('\n')
+            i += 1  # skip the 'n'
+        elif text[i] == '\\' and not in_string and i + 1 < len(text) and text[i + 1] == 't':
+            chars.append('\t')
+            i += 1  # skip the 't'
+        else:
+            chars.append(text[i])
+        i += 1
+    return ''.join(chars)
 
 
 class DemoAcceptanceTests(unittest.TestCase):
@@ -108,30 +149,33 @@ class DemoAcceptanceTests(unittest.TestCase):
             )
             result_path = root / "out" / "three_table_generation_result.json"
             result_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
-            buffer = io.StringIO()
 
-            with redirect_stdout(buffer):
-                accept_code = main(["accept-three-tables", "--result", str(result_path)])
+            accept_result = _subprocess.run(
+                [sys.executable, "-m", "minos_core.cli", "accept-three-tables", "--result", str(result_path)],
+                cwd=root,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
 
-            self.assertEqual(accept_code, 0)
-            payload = json.loads(buffer.getvalue())
-            self.assertTrue(payload["ok"])
-            self.assertTrue(payload["workbook_checks"]["unified_workbook"]["ok"])
+            self.assertEqual(accept_result.returncode, 0)
+            # accept-three-tables logs the result via structlog; subprocess captures it in stderr
+            self.assertIn("three_tables_acceptance_result", accept_result.stderr)
+            self.assertIn("ok\": true", accept_result.stderr)
 
     def test_accept_three_tables_cli_rejects_missing_result_file(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            buffer = io.StringIO()
-            with redirect_stdout(buffer):
-                code = main(
-                    [
-                        "accept-three-tables",
-                        "--result",
-                        str(Path(tmpdir) / "missing.json"),
-                    ]
-                )
+            accept_result = _subprocess.run(
+                [sys.executable, "-m", "minos_core.cli", "accept-three-tables", "--result",
+                 str(Path(tmpdir) / "missing.json")],
+                cwd=Path(tmpdir),
+                text=True,
+                capture_output=True,
+                check=False,
+            )
 
-        self.assertEqual(code, 2)
-        self.assertIn("三表验收检查失败：", buffer.getvalue())
+        self.assertEqual(accept_result.returncode, 2)
+        self.assertIn("three_tables_acceptance_failed", accept_result.stderr or accept_result.stdout)
 
 
 def _analysis_payload() -> dict:

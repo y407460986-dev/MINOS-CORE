@@ -3,21 +3,21 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from minos_platform import db
-from minos_platform.errors import NotFoundError, InvalidStateError
+from minos_platform.errors import InvalidStateError, NotFoundError
 from minos_platform.models import (
-    PPAPElementDetail,
+    LinkArtifactToElementRequest,
     PPAPElementArtifactResponse,
+    PPAPElementDetail,
+    PPAPElementStatus,
     PPAPElementSummary,
     UpdatePPAPElementRequest,
-    LinkArtifactToElementRequest,
-    PPAPElementStatus,
 )
 
 router = APIRouter()
@@ -59,7 +59,7 @@ def _build_element_summary(elem) -> PPAPElementSummary:
 @router.get("/ppap-packages/{package_id}/elements")
 async def list_elements(
     package_id: str,
-    session: AsyncSession = Depends(db.get_session),
+    session: AsyncSession = Depends(db.get_session),  # noqa: B008
 ) -> list[PPAPElementSummary]:
     """List all elements in a PPAP package."""
     result = await session.execute(
@@ -73,7 +73,7 @@ async def list_elements(
 async def get_element(
     package_id: str,
     element_id: str,
-    session: AsyncSession = Depends(db.get_session),
+    session: AsyncSession = Depends(db.get_session),  # noqa: B008
 ) -> PPAPElementDetail:
     """Get a single element with its artifact links."""
     result = await session.execute(
@@ -98,7 +98,7 @@ async def update_element(
     package_id: str,
     element_id: str,
     req: UpdatePPAPElementRequest,
-    session: AsyncSession = Depends(db.get_session),
+    session: AsyncSession = Depends(db.get_session),  # noqa: B008
 ) -> PPAPElementSummary:
     """Update element status and/or notes."""
     result = await session.execute(
@@ -111,7 +111,7 @@ async def update_element(
     if elem is None:
         raise NotFoundError("ppap_element", element_id)
 
-    now = datetime.now(timezone.utc).replace(microsecond=0)
+    now = datetime.now(UTC).replace(microsecond=0)
     if req.status is not None:
         elem.status = req.status.value
     if req.notes is not None:
@@ -127,7 +127,7 @@ async def link_artifact_to_element(
     package_id: str,
     element_id: str,
     req: LinkArtifactToElementRequest,
-    session: AsyncSession = Depends(db.get_session),
+    session: AsyncSession = Depends(db.get_session),  # noqa: B008
 ) -> PPAPElementArtifactResponse:
     """Link a platform artifact to a PPAP element."""
     elem_result = await session.execute(
@@ -161,7 +161,7 @@ async def link_artifact_to_element(
     if run is None or pkg is None or run.project_id != pkg.project_id:
         raise InvalidStateError("cross_project_artifact", "same_project")
 
-    now = datetime.now(timezone.utc).replace(microsecond=0)
+    now = datetime.now(UTC).replace(microsecond=0)
     link = db.PPAPElementArtifact(
         id=str(uuid.uuid4()),
         element_id=element_id,
@@ -186,7 +186,7 @@ async def link_artifact_to_element(
 @router.post("/ppap-packages/{package_id}/refresh-from-project")
 async def refresh_package_from_project(
     package_id: str,
-    session: AsyncSession = Depends(db.get_session),
+    session: AsyncSession = Depends(db.get_session),  # noqa: B008
 ) -> dict:
     """Auto-link project artifacts to PFD, PFMEA, and Control Plan elements.
 
@@ -217,7 +217,7 @@ async def refresh_package_from_project(
             if art.artifact_type in ("pfmea_xlsx", "final_xlsx"):
                 artifact_map[art.artifact_type] = art
 
-    now = datetime.now(timezone.utc).replace(microsecond=0)
+    now = datetime.now(UTC).replace(microsecond=0)
     linked = []
 
     pfmea_art = artifact_map.get("pfmea_xlsx")

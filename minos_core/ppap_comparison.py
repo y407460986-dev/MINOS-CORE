@@ -175,7 +175,10 @@ def _compare_collection(
                     review={
                         "required": True,
                         "reason": "approved baseline item is not covered by generated draft",
-                        "suggested_action": "confirm whether this approved PPAP item should be added or intentionally excluded",
+                        "suggested_action": (
+                            "confirm whether this approved PPAP item should be added "
+                            "or intentionally excluded"
+                        ),
                     },
                 )
             )

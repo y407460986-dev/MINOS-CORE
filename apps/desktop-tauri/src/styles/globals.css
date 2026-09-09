@@ -4,59 +4,78 @@
 
 @layer base {
   :root {
-    --background: 240 8% 97%;
-    --foreground: 240 6% 10%;
-    --card: 0 0% 100%;
-    --card-foreground: 240 6% 10%;
+    /* Vercel canvas system — ink-on-paper */
+    --background: 0 0% 98%;          /* canvas-soft #fafafa */
+    --foreground: 0 0% 9%;           /* ink #171717 */
+    --card: 0 0% 100%;               /* canvas #ffffff */
+    --card-foreground: 0 0% 9%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 6% 10%;
-    --primary: 212 93% 42%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 240 6% 93%;
-    --secondary-foreground: 240 6% 16%;
-    --muted: 240 6% 93%;
-    --muted-foreground: 240 5% 42%;
-    --accent: 212 100% 96%;
-    --accent-foreground: 212 93% 32%;
-    --destructive: 0 72% 42%;
+    --popover-foreground: 0 0% 9%;
+
+    /* Primary = black ink CTA (Vercel's signature) */
+    --primary: 0 0% 9%;              /* ink #171717 */
+    --primary-foreground: 0 0% 100%; /* on-primary */
+
+    --secondary: 0 0% 96%;           /* canvas-soft-2 #f5f5f5 */
+    --secondary-foreground: 0 0% 9%;
+    --muted: 0 0% 98%;
+    --muted-foreground: 0 0% 30%;    /* body #4d4d4d */
+
+    /* Accent = link blue */
+    --accent: 214 100% 91%;           /* link-bg-soft #d3e5ff */
+    --accent-foreground: 212 100% 48%; /* link #0070f3 */
+
+    --destructive: 0 100% 47%;        /* error #ee0000 */
     --destructive-foreground: 0 0% 100%;
-    --border: 240 6% 86%;
-    --input: 240 6% 86%;
-    --ring: 212 93% 42%;
-    --radius: 0.5rem;
-    --chart-1: 212 93% 42%;
-    --chart-2: 170 60% 40%;
-    --chart-3: 40 80% 50%;
-    --chart-4: 280 50% 50%;
-    --chart-5: 0 70% 50%;
-    --sidebar: 0 0% 99%;
-    --sidebar-foreground: 240 6% 10%;
-    --sidebar-primary: 212 93% 42%;
+
+    --border: 0 0% 92%;              /* hairline #ebebeb */
+    --input: 0 0% 92%;
+    --ring: 212 100% 48%;            /* link focus ring */
+
+    --radius: 0.375rem;              /* Vercel 6px base */
+
+    /* Chart — Vercel gradient palette */
+    --chart-1: 210 100% 47%;         /* develop-start #007cf0 */
+    --chart-2: 163 80% 60%;          /* cyan #50e3c2 */
+    --chart-3: 276 68% 47%;          /* violet #7928ca */
+    --chart-4: 330 100% 50%;         /* magenta #ff0080 */
+    --chart-5: 43 95% 57%;           /* amber #f9cb28 */
+
+    /* Sidebar */
+    --sidebar: 0 0% 100%;
+    --sidebar-foreground: 0 0% 9%;
+    --sidebar-primary: 0 0% 9%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 6% 93%;
-    --sidebar-accent-foreground: 240 6% 16%;
-    --sidebar-border: 240 6% 86%;
-    --sidebar-ring: 212 93% 42%;
-    --shell: 240 11% 96%;
+    --sidebar-accent: 0 0% 96%;
+    --sidebar-accent-foreground: 0 0% 9%;
+    --sidebar-border: 0 0% 92%;
+    --sidebar-ring: 212 100% 48%;
+
+    /* Surface lift */
+    --shell: 0 0% 98%;
     --surface: 0 0% 100%;
-    --surface-foreground: 240 6% 10%;
-    --surface-muted: 240 7% 98%;
-    --surface-hover: 240 8% 99%;
-    --surface-border: 240 6% 86%;
-    --surface-shadow: 0 1px 2px hsl(var(--foreground) / 0.04);
-    --surface-shadow-hover: 0 8px 24px hsl(var(--foreground) / 0.07);
-    --info-surface: 212 100% 96%;
-    --info-border: 212 75% 82%;
-    --success: 160 84% 32%;
-    --success-foreground: 160 86% 24%;
-    --success-surface: 160 84% 96%;
-    --success-border: 160 60% 78%;
-    --warning: 38 92% 44%;
-    --warning-foreground: 34 90% 26%;
+    --surface-foreground: 0 0% 9%;
+    --surface-muted: 0 0% 98%;
+    --surface-hover: 0 0% 96%;
+    --surface-border: 0 0% 92%;
+    --surface-shadow: 0 1px 1px hsl(0 0% 9% / 0.02), 0 2px 2px hsl(0 0% 9% / 0.04);
+    --surface-shadow-hover: 0 8px 24px hsl(0 0% 9% / 0.08);
+
+    /* Semantic */
+    --info-surface: 214 100% 96%;
+    --info-border: 214 70% 82%;
+    --success: 212 100% 48%;
+    --success-foreground: 212 100% 35%;
+    --success-surface: 214 100% 96%;
+    --success-border: 214 80% 80%;
+    --warning: 39 89% 55%;            /* #f5a623 */
+    --warning-foreground: 33 89% 34%;
     --warning-surface: 42 100% 96%;
-    --warning-border: 38 82% 76%;
-    --danger-surface: 0 86% 97%;
-    --danger-border: 0 75% 82%;
+    --warning-border: 39 80% 74%;
+    --danger-surface: 0 80% 97%;
+    --danger-border: 0 70% 82%;
+
+    /* Motion */
     --motion-reduced: 1ms;
     --motion-fast: 100ms;
     --motion-base: 150ms;
@@ -65,68 +84,13 @@
     --motion-ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
   }
 
-  .dark {
-    --background: 0 0% 0%;
-    --foreground: 240 4% 96%;
-    --card: 0 0% 11%;
-    --card-foreground: 240 4% 96%;
-    --popover: 0 0% 11%;
-    --popover-foreground: 240 4% 96%;
-    --primary: 211 100% 58%;
-    --primary-foreground: 0 0% 0%;
-    --secondary: 0 0% 17%;
-    --secondary-foreground: 240 4% 96%;
-    --muted: 0 0% 17%;
-    --muted-foreground: 240 4% 58%;
-    --accent: 211 100% 12%;
-    --accent-foreground: 211 100% 68%;
-    --destructive: 0 78% 56%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 0 0% 22%;
-    --input: 0 0% 22%;
-    --ring: 211 100% 58%;
-    --chart-1: 211 100% 58%;
-    --chart-2: 170 60% 50%;
-    --chart-3: 40 80% 55%;
-    --chart-4: 280 50% 55%;
-    --chart-5: 0 70% 55%;
-    --sidebar: 0 0% 11%;
-    --sidebar-foreground: 240 4% 96%;
-    --sidebar-primary: 211 100% 58%;
-    --sidebar-primary-foreground: 0 0% 0%;
-    --sidebar-accent: 0 0% 17%;
-    --sidebar-accent-foreground: 240 4% 96%;
-    --sidebar-border: 0 0% 22%;
-    --sidebar-ring: 211 100% 58%;
-    --shell: 0 0% 7%;
-    --surface: 0 0% 11%;
-    --surface-foreground: 240 4% 96%;
-    --surface-muted: 0 0% 14%;
-    --surface-hover: 0 0% 16%;
-    --surface-border: 0 0% 22%;
-    --surface-shadow: 0 1px 2px hsl(0 0% 0% / 0.2);
-    --surface-shadow-hover: 0 10px 30px hsl(0 0% 0% / 0.28);
-    --info-surface: 211 72% 12%;
-    --info-border: 211 62% 30%;
-    --success: 154 68% 45%;
-    --success-foreground: 154 68% 72%;
-    --success-surface: 154 64% 12%;
-    --success-border: 154 46% 30%;
-    --warning: 42 92% 56%;
-    --warning-foreground: 42 98% 74%;
-    --warning-surface: 42 74% 12%;
-    --warning-border: 42 58% 32%;
-    --danger-surface: 0 58% 13%;
-    --danger-border: 0 56% 34%;
-  }
-
   * {
     @apply border-border;
   }
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    font-family: "Geist", "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text",
       "Segoe UI", sans-serif;
     margin: 0;
     min-width: 1080px;

@@ -7,7 +7,6 @@ from minos_core.schemas import (
     validate_bundle_schema,
 )
 
-
 BASE_EVIDENCE = [
     {
         "evidence_id": "EV-001",

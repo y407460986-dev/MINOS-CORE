@@ -5,7 +5,6 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-
 CLOSED_STATUSES = {"已关闭", "已验证"}
 DONE_STATUSES = {"已完成", "已验证", "已关闭"}
 

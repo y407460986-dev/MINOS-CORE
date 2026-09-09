@@ -13,6 +13,7 @@ class ClosureTaskTests(unittest.TestCase):
         self.assertTrue(
             {
                 "drawing_review",
+                "evidence_confirmation",
                 "family_confirmation",
                 "process_flow_confirmation",
                 "knowledge_recommendation",
@@ -71,6 +72,23 @@ class ClosureTaskTests(unittest.TestCase):
         self.assertEqual(patch["items"][0]["action"], "resolve_review_issue")
         self.assertEqual(patch["items"][0]["target_id"], drawing_task["task_id"])
 
+    def test_apply_evidence_confirmation_records_review_target(self) -> None:
+        result = _result()
+        evidence_task = next(
+            task
+            for task in build_closure_tasks(result)
+            if task["task_type"] == "evidence_confirmation"
+        )
+        patch = apply_closure_action(
+            result,
+            evidence_task["task_id"],
+            {"action": "resolve", "reason": "OCR 证据已复核"},
+        )
+
+        self.assertEqual(patch["items"][0]["action"], "confirm_review_target")
+        self.assertEqual(patch["items"][0]["table"], "metadata")
+        self.assertEqual(patch["items"][0]["target_id"], "evidence:EV-1")
+
 
 def _result() -> dict:
     return {
@@ -85,7 +103,13 @@ def _result() -> dict:
                     "evidence_refs": ["EV-1"],
                 }
             ],
-            "evidence": [{"evidence_id": "EV-1", "content": "material callout"}],
+            "evidence": [
+                {
+                    "evidence_id": "EV-1",
+                    "content": "material callout",
+                    "needs_confirmation": True,
+                }
+            ],
         },
         "process_flow": {
             "metadata": {

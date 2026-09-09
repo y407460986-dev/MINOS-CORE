@@ -14,11 +14,12 @@ import copy
 from typing import Any
 
 from minos_core._table_constants import TABLE_ID_FIELDS as _ID_FIELDS
-
-from .change_management import _rows as _cm_rows, _group
 from minos_core._text_utils import text
-from .three_table_linkage import build_three_table_linkage_map
+
+from .change_management import _group
+from .change_management import _rows as _cm_rows
 from .edit_patch import EDIT_PATCH_VERSION
+from .three_table_linkage import build_three_table_linkage_map
 
 # ---------------------------------------------------------------------------
 # Table-to-row-key mapping
@@ -96,7 +97,9 @@ _PFD_TO_CP_SYNC_FIELDS = [
 # 1. build_live_edit_events
 # ===================================================================
 
-def build_live_edit_events(before: dict, edit_patch: dict) -> list[dict]:
+def build_live_edit_events(
+    before: dict[str, Any], edit_patch: dict[str, Any]
+) -> list[dict[str, Any]]:
     """Extract actionable linkage events from an edit_patch.
 
     The *before* payload uses the standard three-table shape recognised by
@@ -106,7 +109,7 @@ def build_live_edit_events(before: dict, edit_patch: dict) -> list[dict]:
     ``source_id``, ``action``, ``changed_fields``, ``before``, ``after``.
     """
     items = _patch_items(edit_patch)
-    events: list[dict] = []
+    events: list[dict[str, Any]] = []
     for idx, item in enumerate(items):
         action = item.get("action", "")
         table = item.get("table", "")
@@ -176,14 +179,16 @@ def build_live_edit_events(before: dict, edit_patch: dict) -> list[dict]:
 # 2. preview_live_linkage_impacts
 # ===================================================================
 
-def preview_live_linkage_impacts(before: dict, edit_patch: dict) -> dict:
+def preview_live_linkage_impacts(
+    before: dict[str, Any], edit_patch: dict[str, Any]
+) -> dict[str, Any]:
     """Preview downstream impacts caused by edit events against current state.
 
     Returns a dict with ``document_type``, ``schema_version``, ``events``,
     ``impacts``, and ``summary``.
     """
     events = build_live_edit_events(before, edit_patch)
-    impacts: list[dict] = []
+    impacts: list[dict[str, Any]] = []
 
     # State after applying the edit patch (for active-row lookups)
     after_state = _apply_patch_safe(before, edit_patch)
@@ -264,20 +269,22 @@ def preview_live_linkage_impacts(before: dict, edit_patch: dict) -> dict:
 # ===================================================================
 
 def build_live_sync_patch(
-    before: dict, edit_patch: dict, selected_impact_ids: list[str],
-) -> dict:
+    before: dict[str, Any],
+    edit_patch: dict[str, Any],
+    selected_impact_ids: list[str],
+) -> dict[str, Any]:
     """Generate edit-patch items for user-selected impacts.
 
     Returns a standards-compliant edit patch dict
     (version ``minos-core.edit_patch.v1``).
     """
     preview = preview_live_linkage_impacts(before, edit_patch)
-    impacts_by_id: dict[str, dict] = {
+    impacts_by_id: dict[str, dict[str, Any]] = {
         i["impact_id"]: i for i in preview.get("impacts", [])
     }
     events_by_source = _events_by_source(preview.get("events", []))
 
-    items: list[dict] = []
+    items: list[dict[str, Any]] = []
     after_state = _apply_patch_safe(before, edit_patch)
 
     for impact_id in selected_impact_ids:
@@ -318,15 +325,17 @@ def build_live_sync_patch(
 # Internal: row reading and indexing
 # ===================================================================
 
-def _read_rows(source: dict, table: str) -> list[dict]:
+def _read_rows(source: dict[str, Any], table: str) -> list[dict[str, Any]]:
     chain_key = _TABLE_CHAIN_KEY.get(table, "")
     table_key = _TABLE_ROWS_KEY.get(table, "")
     rows = _cm_rows(source, table, chain_key, table_key)
     return [r for r in rows if isinstance(r, dict)]
 
 
-def _index_by_id(rows: list[dict], table: str) -> dict[str, dict]:
-    result: dict[str, dict] = {}
+def _index_by_id(
+    rows: list[dict[str, Any]], table: str
+) -> dict[str, dict[str, Any]]:
+    result: dict[str, dict[str, Any]] = {}
     for row in rows:
         rid = _row_id(row, table)
         if rid:
@@ -334,7 +343,7 @@ def _index_by_id(rows: list[dict], table: str) -> dict[str, dict]:
     return result
 
 
-def _row_id(row: dict, table: str) -> str:
+def _row_id(row: dict[str, Any], table: str) -> str:
     for f in _ID_FIELDS.get(table, ()):
         v = text(row.get(f))
         if v:
@@ -347,15 +356,17 @@ def _row_id(row: dict, table: str) -> str:
 # Internal: patch helpers
 # ===================================================================
 
-def _patch_items(patch: dict) -> list[dict]:
+def _patch_items(patch: dict[str, Any]) -> list[dict[str, Any]]:
     items = patch.get("items")
     if not isinstance(items, list):
         return []
     return [it for it in items if isinstance(it, dict)]
 
 
-def _events_by_source(events: list[dict]) -> dict[tuple[str, str], dict]:
-    result: dict[tuple[str, str], dict] = {}
+def _events_by_source(
+    events: list[dict[str, Any]],
+) -> dict[tuple[str, str], dict[str, Any]]:
+    result: dict[tuple[str, str], dict[str, Any]] = {}
     for ev in events:
         key = (ev.get("source_table", ""), ev.get("source_id", ""))
         result[key] = ev
@@ -366,7 +377,9 @@ def _events_by_source(events: list[dict]) -> dict[tuple[str, str], dict]:
 # Internal: safe patch application (for after-state)
 # ===================================================================
 
-def _apply_patch_safe(before: dict, edit_patch: dict) -> dict:
+def _apply_patch_safe(
+    before: dict[str, Any], edit_patch: dict[str, Any]
+) -> dict[str, Any]:
     """Deep-copy *before* and apply add/update/soft_delete actions."""
     payload = copy.deepcopy(before)
     for item in _patch_items(edit_patch):
@@ -419,7 +432,7 @@ def _mk_impact(
     recommended_action: str,
     message: str,
     requires_user_choice: bool,
-) -> dict:
+) -> dict[str, Any]:
     if target_id:
         impact_id = (
             f"LIVE-{source_table.upper().replace('_', '')}"
@@ -448,13 +461,13 @@ def _mk_impact(
 # ===================================================================
 
 def _pfd_update_impacts(
-    impacts: list[dict],
-    event: dict,
+    impacts: list[dict[str, Any]],
+    event: dict[str, Any],
     step_id: str,
     changed_fields: list[str],
-    pfmea_by_step: dict[str, list[dict]],
-    cp_by_step: dict[str, list[dict]],
-    cp_by_pfmea: dict[str, list[dict]],
+    pfmea_by_step: dict[str, list[dict[str, Any]]],
+    cp_by_step: dict[str, list[dict[str, Any]]],
+    cp_by_pfmea: dict[str, list[dict[str, Any]]],
 ) -> None:
     inherited_hit = bool(set(changed_fields) & _PFD_INHERITED_FIELDS)
     if not inherited_hit:
@@ -498,14 +511,14 @@ def _pfd_update_impacts(
 
 
 def _pfd_soft_delete_impacts(
-    impacts: list[dict],
-    event: dict,
+    impacts: list[dict[str, Any]],
+    event: dict[str, Any],
     step_id: str,
-    before_pfmea_by_step: dict[str, list[dict]],
-    before_cp_by_step: dict[str, list[dict]],
-    before_cp_by_pfmea: dict[str, list[dict]],
-    after_pfmea_rows: list[dict],
-    after_cp_rows: list[dict],
+    before_pfmea_by_step: dict[str, list[dict[str, Any]]],
+    before_cp_by_step: dict[str, list[dict[str, Any]]],
+    before_cp_by_pfmea: dict[str, list[dict[str, Any]]],
+    after_pfmea_rows: list[dict[str, Any]],
+    after_cp_rows: list[dict[str, Any]],
 ) -> None:
     # Active downstream rows in the after state
     active_pfmea_ids = {
@@ -560,7 +573,10 @@ def _pfd_soft_delete_impacts(
 
 
 def _pfd_add_impacts(
-    impacts: list[dict], event: dict, step_id: str, after: dict,
+    impacts: list[dict[str, Any]],
+    event: dict[str, Any],
+    step_id: str,
+    after: dict[str, Any],
 ) -> None:
     impacts.append(_mk_impact(
         "process_flow", step_id, "pfmea", "",
@@ -587,11 +603,11 @@ def _pfd_add_impacts(
 
 
 def _pfmea_update_impacts(
-    impacts: list[dict],
-    event: dict,
+    impacts: list[dict[str, Any]],
+    event: dict[str, Any],
     pfmea_id_s: str,
     changed_fields: list[str],
-    cp_by_pfmea: dict[str, list[dict]],
+    cp_by_pfmea: dict[str, list[dict[str, Any]]],
 ) -> None:
     if not set(changed_fields) & _PFMEA_CP_RELEVANT_FIELDS:
         return
@@ -607,11 +623,11 @@ def _pfmea_update_impacts(
 
 
 def _pfmea_soft_delete_impacts(
-    impacts: list[dict],
-    event: dict,
+    impacts: list[dict[str, Any]],
+    event: dict[str, Any],
     pfmea_id_s: str,
-    before_cp_by_pfmea: dict[str, list[dict]],
-    after_cp_rows: list[dict],
+    before_cp_by_pfmea: dict[str, list[dict[str, Any]]],
+    after_cp_rows: list[dict[str, Any]],
 ) -> None:
     active_cp_ids = {
         text(r.get("control_plan_id"))
@@ -632,7 +648,10 @@ def _pfmea_soft_delete_impacts(
 
 
 def _pfmea_add_impacts(
-    impacts: list[dict], event: dict, pfmea_id_s: str, after: dict,
+    impacts: list[dict[str, Any]],
+    event: dict[str, Any],
+    pfmea_id_s: str,
+    after: dict[str, Any],
 ) -> None:
     ap = text(after.get("action_priority"), after.get("AP")).upper()
     sev = _int_val(after.get("severity"), after.get("S"))
@@ -656,13 +675,13 @@ _LINKAGE_META = {
 
 
 def _build_sync_inherited_items(
-    before: dict,
-    after_state: dict,
-    impact: dict,
+    before: dict[str, Any],
+    after_state: dict[str, Any],
+    impact: dict[str, Any],
     link_event_id: str,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Generate update items for inherited-field sync (PFD->PFMEA or PFD->CP)."""
-    items: list[dict] = []
+    items: list[dict[str, Any]] = []
     target_table = impact.get("target_table", "")
     target_id = impact.get("target_id", "")
     source_id = impact.get("source_id", "")
@@ -737,12 +756,14 @@ def _build_sync_inherited_items(
 
 
 def _build_cp_stub(
-    impact: dict, link_event_id: str, after_state: dict,
-) -> dict | None:
+    impact: dict[str, Any],
+    link_event_id: str,
+    after_state: dict[str, Any],
+) -> dict[str, Any] | None:
     """Generate a CP add item from a create_cp_stub recommendation."""
     source_table = impact.get("source_table", "")
     source_id = impact.get("source_id", "")
-    target_table = impact.get("target_table", "")
+    impact.get("target_table", "")
 
     if source_table == "process_flow":
         step_id = source_id
@@ -808,8 +829,10 @@ def _build_cp_stub(
 
 
 def _build_mark_review_item(
-    before: dict, impact: dict, link_event_id: str,
-) -> dict | None:
+    before: dict[str, Any],
+    impact: dict[str, Any],
+    link_event_id: str,
+) -> dict[str, Any] | None:
     """Set review_status on a downstream row to mark it needs review."""
     target_table = impact.get("target_table", "")
     target_id = impact.get("target_id", "")

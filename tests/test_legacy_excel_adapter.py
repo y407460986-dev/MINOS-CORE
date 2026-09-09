@@ -10,7 +10,6 @@ from minos_core.domain import load_apqp_chain
 from minos_core.pipeline import export_fixture
 from minos_core.validation import validate_chain
 
-
 ROOT = Path(__file__).resolve().parents[1]
 NS = {"main": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
 REQUIRED_SHEETS = [

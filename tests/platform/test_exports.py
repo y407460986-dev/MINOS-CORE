@@ -27,7 +27,12 @@ async def _run_full_chain(client, project_id, demo_package_path, sha256):
 
     template_data = json.loads(open(template_path, encoding="utf-8").read())
 
-    patch_data = {**template_data, "confirmed_by": "qa.engineer", "confirmed_at": "2026-04-25T10:00:00Z", "reason": "test"}
+    patch_data = {
+        **template_data,
+        "confirmed_by": "qa.engineer",
+        "confirmed_at": "2026-04-25T10:00:00Z",
+        "reason": "test",
+    }
     patch_data.pop("template_status", None)
     for item in patch_data.get("items", []):
         item["confirmed_by"] = "qa.engineer"
@@ -131,3 +136,25 @@ async def test_draft_export_does_not_change_project_status(test_client, demo_pac
     status_after = proj_detail_after.json()["status"]
     assert status_after == status_before
     assert status_after != "final_export_ready"
+
+
+async def test_export_on_nonexistent_project(test_client):
+    """POST /api/projects/{id}/exports for non-existent project returns 404."""
+    fake_id = "00000000-0000-0000-0000-000000000000"
+    export_resp = await test_client.post(
+        f"/api/projects/{fake_id}/exports",
+        json={"export_mode": "draft"},
+    )
+    assert export_resp.status_code == 404
+
+
+async def test_export_invalid_mode(test_client):
+    """POST /api/projects/{project_id}/exports with invalid export_mode returns 422."""
+    proj = await test_client.post("/api/projects", json={"name": "Export Invalid Mode Test"})
+    project_id = proj.json()["id"]
+
+    export_resp = await test_client.post(
+        f"/api/projects/{project_id}/exports",
+        json={"export_mode": "invalid"},
+    )
+    assert export_resp.status_code == 422

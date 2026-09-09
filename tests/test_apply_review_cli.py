@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import copy
 import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from io import StringIO
@@ -12,8 +14,8 @@ from minos_core.cli import main
 from minos_core.pipeline import apply_review
 from minos_core.review_patch import REVIEW_PATCH_VERSION
 
-
 ROOT_FIXTURE = "D:/MINOS-CORE/tests/fixtures/apqp_chain"
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def _review_patch(*targets: str, evidence_refs: list[str] | None = None) -> dict:
@@ -120,19 +122,15 @@ class ApplyReviewCliTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            with patch("sys.stdout", new_callable=StringIO) as stdout:
-                exit_code = main(
-                    [
-                        "apply-review",
-                        "--input",
-                        ROOT_FIXTURE,
-                        "--review-patch",
-                        str(patch_path),
-                    ]
-                )
+            result = subprocess.run(
+                [sys.executable, "-m", "minos_core.cli", "apply-review",
+                 "--input", ROOT_FIXTURE, "--review-patch", str(patch_path)],
+                cwd=str(ROOT),
+                text=True, capture_output=True, check=False,
+            )
 
-            self.assertEqual(exit_code, 2)
-            self.assertIn("references missing evidence", stdout.getvalue())
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("references missing evidence", result.stderr)
 
 
 def _fixture_with_pending_review() -> dict:

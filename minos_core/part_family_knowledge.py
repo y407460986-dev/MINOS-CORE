@@ -14,23 +14,27 @@ from typing import Any
 
 from minos_core._paths import configs_dir
 
-
 SCHEMA_VERSION = "minos-core.part_family_knowledge.v1"
 INDEX_SCHEMA_VERSION = "minos-core.part_family_index.v1"
 
+
 def _config_dir() -> Path:
+    """Return the part-families config directory."""
     return configs_dir() / "knowledge" / "part_families"
 
 
 def _knowledge_root() -> Path:
+    """Return the parent of the part-families config directory."""
     return _config_dir().parent
 
 
 def _process_inference_dir() -> Path:
+    """Return the process-inference knowledge directory."""
     return _knowledge_root() / "process_inference"
 
 
 def _index_path() -> Path:
+    """Return the path to the part-family index JSON."""
     return _config_dir() / "index.json"
 
 
@@ -39,7 +43,9 @@ KNOWLEDGE_ROOT = _knowledge_root()
 PROCESS_INFERENCE_DIR = _process_inference_dir()
 INDEX_PATH = _index_path()
 
+
 def _default_seed_dir() -> Path:
+    """Return the default seed directory, overridable via env var MINOS_KNOWLEDGE_SEED_DIR."""
     env = os.environ.get("MINOS_KNOWLEDGE_SEED_DIR")
     if env:
         return Path(env)
@@ -47,6 +53,7 @@ def _default_seed_dir() -> Path:
 
 
 def _default_seed_directories() -> dict[str, Path]:
+    """Return a mapping of family keys to their default seed directories."""
     seed = _default_seed_dir()
     return {
         "stamping": seed / "冲压件",
@@ -293,6 +300,22 @@ def convert_seed_workbook_to_family_knowledge(
     ``path`` may point directly to a workbook or to a directory containing one
     ``.xlsx``/``.xlsm`` seed workbook. ``openpyxl`` is required and no fallback
     parser is used.
+
+    Args:
+        path: Path to a workbook file or a directory containing one seed workbook.
+        family_key: Normalised key identifying the part family (e.g. ``stamping``).
+        family_name: Optional human-readable family name; defaults from
+            ``DEFAULT_FAMILY_NAMES``.
+
+    Returns:
+        A knowledge payload dict with schema_version, family_key, family_name,
+        process_route_templates, pfmea_patterns, control_plan_patterns,
+        special_characteristic_patterns, and source_refs.
+
+    Raises:
+        FileNotFoundError: If the workbook path does not exist.
+        ValueError: If the workbook format or profile is unsupported.
+        ImportError: If ``openpyxl`` is not installed.
     """
     workbook_path = _resolve_workbook_path(path)
     openpyxl = _require_openpyxl()
@@ -430,6 +453,19 @@ def load_part_family_knowledge(
     - A known family key (for example ``stamping`` or ``门铰链``) loads that family.
     - A JSON file loads and normalizes the payload.
     - A workbook file or seed directory is converted in memory.
+
+    Args:
+        family_key_or_path: One of ``None``, a family key string, a JSON path,
+            or a workbook / seed-directory path.
+
+    Returns:
+        A single knowledge payload dict, or a dict of family_key -> payload
+        when ``family_key_or_path`` is ``None``.
+
+    Raises:
+        FileNotFoundError: If the given path does not exist.
+        KeyError: If the family key is unknown and no seed directory is found.
+        ValueError: If the file type is unsupported.
     """
     if family_key_or_path is None:
         index = load_part_family_index()
@@ -491,7 +527,19 @@ def load_part_family_knowledge(
 
 
 def load_part_family_index(path: str | Path | None = None) -> dict[str, Any]:
-    """Load the part-family index or build one from default configuration."""
+    """Load the part-family index or build one from default configuration.
+
+    Args:
+        path: Optional explicit path to an index JSON file or directory
+            containing ``index.json``. Defaults to the standard index path.
+
+    Returns:
+        An index dict with ``schema_version`` and a ``families`` list.
+
+    Raises:
+        FileNotFoundError: If an explicit path is given but does not exist.
+        ValueError: If the JSON content is malformed.
+    """
     index_path = Path(path) if path is not None else _index_path()
     if index_path.is_dir():
         index_path = index_path / "index.json"
@@ -521,6 +569,7 @@ def load_part_family_index(path: str | Path | None = None) -> dict[str, Any]:
 
 
 def _load_index_entry(entry: dict[str, Any], base_dir: Path) -> dict[str, Any]:
+    """Load a single index entry by resolving its knowledge_path or seed directory."""
     knowledge_path = str(entry.get("knowledge_path", "")).strip()
     if knowledge_path:
         candidate = Path(knowledge_path)
@@ -546,6 +595,7 @@ def _load_index_entry(entry: dict[str, Any], base_dir: Path) -> dict[str, Any]:
 
 
 def _normalize_family_payload(payload: Any, path: Path) -> dict[str, Any]:
+    """Normalize a raw JSON family payload into a consistent structure."""
     if not isinstance(payload, dict):
         raise ValueError(f"零件族知识库必须是 JSON 对象: {path}")
 
@@ -651,6 +701,7 @@ def _load_process_inference_payload(
     family_key: str,
     family_payload_path: Path,
 ) -> dict[str, Any]:
+    """Load the process-inference JSON for a family, if one exists under the config tree."""
     config_dir = _config_dir()
     if not family_payload_path.resolve().is_relative_to(config_dir.resolve()):
         return {}
@@ -686,6 +737,7 @@ def _process_inference_route_templates(
     process_inference: dict[str, Any],
     family_key: str,
 ) -> list[dict[str, Any]]:
+    """Convert process-inference variants into route-template dicts."""
     variants = _variant_items(process_inference.get("process_flow_variants"))
     variants.extend(_variant_items(process_inference.get("process_flow_variants_extended")))
     source_refs = _ensure_list(process_inference.get("source_refs"))
@@ -715,6 +767,7 @@ def _process_inference_route_templates(
 
 
 def _variant_items(value: Any) -> list[tuple[str, dict[str, Any]]]:
+    """Extract (variant_id, variant_dict) pairs from a raw value."""
     if not isinstance(value, dict):
         return []
     items: list[tuple[str, dict[str, Any]]] = []
@@ -725,6 +778,7 @@ def _variant_items(value: Any) -> list[tuple[str, dict[str, Any]]]:
 
 
 def _process_inference_step(step: dict[str, Any], index: int) -> dict[str, Any]:
+    """Build a single route-template step dict from a process-inference entry."""
     seq = _integer(str(step.get("seq", ""))) or index * 10
     operation = _clean(step.get("operation"))
     key_check = _clean(step.get("key_check"))
@@ -750,6 +804,7 @@ def _parse_process_route(
     workbook_path: Path,
     source_id: str,
 ) -> list[dict[str, Any]]:
+    """Parse process-flow rows from an openpyxl worksheet using a column spec."""
     merges = _merged_ranges(worksheet)
     items: list[dict[str, Any]] = []
     generated_index = 1
@@ -793,6 +848,7 @@ def _parse_pfmea_patterns(
     workbook_path: Path,
     source_id: str,
 ) -> list[dict[str, Any]]:
+    """Parse PFMEA pattern rows from an openpyxl worksheet using a column spec."""
     merges = _merged_ranges(worksheet)
     state: dict[str, str] = {}
     items: list[dict[str, Any]] = []
@@ -859,6 +915,7 @@ def _parse_control_plan_patterns(
     workbook_path: Path,
     source_id: str,
 ) -> list[dict[str, Any]]:
+    """Parse control-plan pattern rows from an openpyxl worksheet using a column spec."""
     merges = _merged_ranges(worksheet)
     state: dict[str, str] = {}
     items: list[dict[str, Any]] = []
@@ -929,6 +986,7 @@ def _collect_special_characteristics(
     pfmea_items: list[dict[str, Any]],
     control_items: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
+    """Aggregate special-characteristic patterns from all three knowledge sources."""
     items: list[dict[str, Any]] = []
     for route in route_items:
         for value in _ensure_string_list(route.get("special_characteristics")):
@@ -969,8 +1027,9 @@ def _collect_special_characteristics(
 
 
 def _require_openpyxl() -> Any:
+    """Import and return the ``openpyxl`` module, raising a user-friendly error if missing."""
     try:
-        import openpyxl  # type: ignore[import-not-found]
+        import openpyxl
     except ImportError as exc:
         raise ImportError(
             "解析 XLSX 零件族知识库需要安装 openpyxl；请安装 openpyxl 后重试。"
@@ -979,6 +1038,7 @@ def _require_openpyxl() -> Any:
 
 
 def _resolve_workbook_path(path: str | Path) -> Path:
+    """Resolve a path to a single .xlsx/.xlsm workbook, expanding directories."""
     candidate = Path(path)
     if candidate.is_dir():
         workbooks = sorted(
@@ -999,6 +1059,7 @@ def _resolve_workbook_path(path: str | Path) -> Path:
 
 
 def _resolve_profile(family_key: str, workbook_path: Path) -> str:
+    """Resolve the profile name for a family key, inferring from path if needed."""
     key = _normalize_family_key(family_key)
     if key in PROFILES:
         return key
@@ -1009,6 +1070,7 @@ def _resolve_profile(family_key: str, workbook_path: Path) -> str:
 
 
 def _infer_family_key_from_path(path: Path) -> str:
+    """Guess a family key from a path by matching against FAMILY_ALIASES."""
     text = f"{path.parent.name} {path.stem} {path.name}"
     for alias, key in FAMILY_ALIASES.items():
         if alias.lower() in text.lower() or alias in text:
@@ -1018,11 +1080,13 @@ def _infer_family_key_from_path(path: Path) -> str:
 
 
 def _normalize_family_key(value: str) -> str:
+    """Normalise a family key string by compacting whitespace and resolving aliases."""
     compact = _compact(value).lower().replace("-", "_")
     return FAMILY_ALIASES.get(compact, FAMILY_ALIASES.get(value, compact))
 
 
 def _select_sheet(workbook: Any, names: list[str], kind: str) -> Any:
+    """Select the best-matching worksheet from a workbook by name or kind."""
     compact_to_name = {_compact(name): name for name in workbook.sheetnames}
     for candidate in names:
         compact_candidate = _compact(candidate)
@@ -1045,14 +1109,17 @@ def _select_sheet(workbook: Any, names: list[str], kind: str) -> Any:
 
 
 def _row_range(worksheet: Any, spec: dict[str, Any]) -> range:
+    """Return the integer row range for parsing based on the column spec."""
     start = int(spec.get("start", 1))
     end = int(spec.get("end") or worksheet.max_row or start)
     return range(start, min(end, int(worksheet.max_row or end)) + 1)
 
 
 def _merged_ranges(worksheet: Any) -> list[tuple[int, int, int, int, Any]]:
+    """Extract merged-cell ranges and their values from an openpyxl worksheet."""
     ranges: list[tuple[int, int, int, int, Any]] = []
-    for merged in getattr(worksheet, "merged_cells", ()).ranges:
+    merged_cells = getattr(worksheet, "merged_cells", None)
+    for merged in getattr(merged_cells, "ranges", ()):
         min_col, min_row, max_col, max_row = merged.bounds
         value = worksheet.cell(min_row, min_col).value
         ranges.append((min_row, min_col, max_row, max_col, value))
@@ -1065,6 +1132,7 @@ def _value(
     column: str,
     merges: list[tuple[int, int, int, int, Any]],
 ) -> str:
+    """Read a single cell value, falling back to merged-cell values."""
     if not column:
         return ""
     col_index = _column_index(column)
@@ -1083,6 +1151,7 @@ def _values(
     columns: str | list[str],
     merges: list[tuple[int, int, int, int, Any]],
 ) -> list[str]:
+    """Read multiple cell values for a given row."""
     if isinstance(columns, str):
         columns = [columns]
     return [
@@ -1098,6 +1167,7 @@ def _combine(
     columns: str | list[str],
     merges: list[tuple[int, int, int, int, Any]],
 ) -> str:
+    """Combine multiple column values into a single semicolon-separated string."""
     return "；".join(_unique(_values(worksheet, row_index, columns, merges)))
 
 
@@ -1108,6 +1178,7 @@ def _combine_with_state(
     merges: list[tuple[int, int, int, int, Any]],
     state: dict[str, str],
 ) -> str:
+    """Combine column values with inherited state fallback."""
     if isinstance(columns, str):
         columns = [columns]
     values = []
@@ -1123,6 +1194,7 @@ def _update_state(
     merges: list[tuple[int, int, int, int, Any]],
     state: dict[str, str],
 ) -> None:
+    """Update an inherited-state dict from the specified columns of the current row."""
     for column in columns:
         value = _value(worksheet, row_index, column, merges)
         if value:
@@ -1136,6 +1208,7 @@ def _has_any(
     keys: list[str],
     merges: list[tuple[int, int, int, int, Any]],
 ) -> bool:
+    """Check whether any of the specified spec keys have a non-empty value in the current row."""
     return any(_value(worksheet, row_index, spec[key], merges) for key in keys if spec.get(key))
 
 
@@ -1144,6 +1217,7 @@ def _assign_ids(
     field: str,
     prefix: str,
 ) -> list[dict[str, Any]]:
+    """Assign sequential IDs to items that do not already have one."""
     result: list[dict[str, Any]] = []
     for index, item in enumerate(items, start=1):
         copy = dict(item)
@@ -1156,6 +1230,7 @@ def _dedupe_items(
     items: list[dict[str, Any]],
     keys: tuple[str, ...],
 ) -> list[dict[str, Any]]:
+    """Deduplicate items by a tuple of key fields, merging source_refs on duplicates."""
     result: list[dict[str, Any]] = []
     seen: dict[tuple[Any, ...], dict[str, Any]] = {}
     for item in items:
@@ -1179,6 +1254,7 @@ def _dedupe_items(
 
 
 def _dedupe_source_refs(refs: list[Any]) -> list[dict[str, Any]]:
+    """Deduplicate a list of source-ref dicts, removing empty fields."""
     result: list[dict[str, Any]] = []
     seen: set[tuple[tuple[str, str], ...]] = set()
     for ref in refs:
@@ -1194,6 +1270,7 @@ def _dedupe_source_refs(refs: list[Any]) -> list[dict[str, Any]]:
 
 
 def _collect_refs(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Collect all source_ref entries from a list of item dicts."""
     refs: list[dict[str, Any]] = []
     for item in items:
         refs.extend(_ensure_list(item.get("source_refs")))
@@ -1201,6 +1278,7 @@ def _collect_refs(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def _workbook_source_ref(path: Path, source_id: str) -> dict[str, Any]:
+    """Build a top-level source-ref dict for a workbook."""
     return {
         "source_id": source_id,
         "path": str(path),
@@ -1214,6 +1292,7 @@ def _row_source_ref(
     row: int,
     source_id: str,
 ) -> dict[str, Any]:
+    """Build a row-level source-ref dict for a workbook cell."""
     return {
         "source_id": source_id,
         "path": str(path),
@@ -1224,6 +1303,7 @@ def _row_source_ref(
 
 
 def _normalize_index_entry(entry: dict[str, Any]) -> dict[str, Any]:
+    """Normalise a single index entry by resolving aliases and stripping empty fields."""
     key = _normalize_family_key(str(entry.get("family_key", "")))
     normalized = {
         "family_key": key,
@@ -1237,6 +1317,7 @@ def _normalize_index_entry(entry: dict[str, Any]) -> dict[str, Any]:
 
 
 def _build_default_index() -> dict[str, Any]:
+    """Build the default part-family index from built-in profiles and seed directories."""
     families: list[dict[str, Any]] = []
     for key in ("stamping", "limiter", "door_hinge"):
         entry: dict[str, Any] = {
@@ -1259,15 +1340,18 @@ def _build_default_index() -> dict[str, Any]:
 
 
 def _read_json(path: Path) -> Any:
+    """Read and parse a UTF-8 JSON file."""
     with path.open("r", encoding="utf-8") as handle:
         return json.load(handle)
 
 
 def _looks_like_path(value: str) -> bool:
+    """Check whether a string looks like a filesystem path."""
     return bool(re.search(r"[\\/]", value) or Path(value).suffix)
 
 
 def _hashable_value(value: Any) -> Any:
+    """Convert a value into a hashable form for deduplication."""
     if isinstance(value, dict):
         return tuple(sorted((str(k), _hashable_value(v)) for k, v in value.items()))
     if isinstance(value, list):
@@ -1278,6 +1362,7 @@ def _hashable_value(value: Any) -> Any:
 
 
 def _step_id(text: str, fallback_index: int) -> str:
+    """Extract a step ID (e.g. P10) from text, generating a fallback if none is found."""
     match = re.search(r"(?<!\d)(\d{1,3})(?!\d)", text or "")
     if match:
         number = int(match.group(1))
@@ -1287,15 +1372,18 @@ def _step_id(text: str, fallback_index: int) -> str:
 
 
 def _sequence_from_id(step_id: str, default: int) -> int:
+    """Extract the numeric sequence from a step ID string."""
     match = re.search(r"\d+", step_id)
     return int(match.group(0)) if match else default
 
 
 def _operation_from_step(text: str) -> str:
+    """Strip leading numbering from a step text to extract the operation name."""
     return _clean(re.sub(r"^\s*\d+\s*[-_.、:]?\s*", "", text or ""))
 
 
 def _is_data_text(text: str) -> bool:
+    """Check whether a text value looks like meaningful data rather than a header/noise."""
     value = _clean(text)
     if not value:
         return False
@@ -1316,11 +1404,13 @@ def _is_data_text(text: str) -> bool:
 
 
 def _integer(value: str) -> int:
+    """Parse the first integer out of a string, returning 0 if none is found."""
     match = re.search(r"-?\d+", value or "")
     return int(match.group(0)) if match else 0
 
 
 def _column_index(column: str) -> int:
+    """Convert an Excel column letter (e.g. 'AB') to a 1-based integer index."""
     index = 0
     for char in column.upper():
         if not ("A" <= char <= "Z"):
@@ -1330,10 +1420,12 @@ def _column_index(column: str) -> int:
 
 
 def _ensure_list(value: Any) -> list[Any]:
+    """Return the value if it is a list, otherwise an empty list."""
     return value if isinstance(value, list) else []
 
 
 def _ensure_string_list(value: Any) -> list[str]:
+    """Coerce a value to a list of cleaned non-empty strings."""
     if isinstance(value, list):
         return [_clean(item) for item in value if _clean(item)]
     if value:
@@ -1342,6 +1434,7 @@ def _ensure_string_list(value: Any) -> list[str]:
 
 
 def _unique(values: list[str]) -> list[str]:
+    """Deduplicate a list of strings while preserving order."""
     result: list[str] = []
     seen: set[str] = set()
     for value in values:
@@ -1353,6 +1446,7 @@ def _unique(values: list[str]) -> list[str]:
 
 
 def _first_nonempty(*values: str) -> str:
+    """Return the first non-empty string from a sequence of values."""
     for value in values:
         if value:
             return value
@@ -1360,15 +1454,17 @@ def _first_nonempty(*values: str) -> str:
 
 
 def _clean(value: Any) -> str:
+    """Normalise whitespace and convert a value to a stripped string."""
     if value is None:
         return ""
     if isinstance(value, float) and value.is_integer():
         value = int(value)
     text = str(value).replace("\r", "\n")
-    text = re.sub(r"[ \t\u3000]+", " ", text)
+    text = re.sub(r"[ \t　]+", " ", text)
     text = re.sub(r"\n+", "\n", text)
     return text.strip()
 
 
 def _compact(value: str) -> str:
+    """Remove all whitespace from a string."""
     return re.sub(r"\s+", "", value or "")

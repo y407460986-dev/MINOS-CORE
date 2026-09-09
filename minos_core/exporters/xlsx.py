@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
+import html
+import re
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from pathlib import Path
-from typing import Iterable, Sequence
 from zipfile import ZIP_DEFLATED, ZipFile
-import html
-import re
-import re
 
 INVALID_SHEET_CHARS = re.compile(r"[\[\]:*?/\\]")
 MAX_SHEET_NAME_LEN = 31
@@ -165,10 +164,12 @@ class WorkbookWriter:
             '<font><b/><sz val="11"/><name val="Calibri"/></font></fonts>'
             '<fills count="3"><fill><patternFill patternType="none"/></fill>'
             '<fill><patternFill patternType="gray125"/></fill>'
-            '<fill><patternFill patternType="solid"><fgColor rgb="FFE2F0D9"/><bgColor indexed="64"/></patternFill></fill></fills>'
+            '<fill><patternFill patternType="solid"><fgColor rgb="FFE2F0D9"/>'
+            '<bgColor indexed="64"/></patternFill></fill></fills>'
             '<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>'
             '<border><left style="thin"><color auto="1"/></left><right style="thin"><color auto="1"/></right>'
-            '<top style="thin"><color auto="1"/></top><bottom style="thin"><color auto="1"/></bottom><diagonal/></border></borders>'
+            '<top style="thin"><color auto="1"/></top><bottom style="thin"><color auto="1"/></bottom>'
+            '<diagonal/></border></borders>'
             '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
             '<cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="1" borderId="1" xfId="0" applyBorder="1"/>'
             '<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>'

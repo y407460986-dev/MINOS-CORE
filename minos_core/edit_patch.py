@@ -6,23 +6,26 @@ import copy
 from pathlib import Path
 from typing import Any
 
-from minos_core._table_constants import TABLE_ROW_FIELDS as _TABLE_ROW_FIELDS, TABLE_ID_FIELDS as _ID_FIELDS, row_id as _row_id
-
+from minos_core._table_constants import TABLE_ROW_FIELDS as _TABLE_ROW_FIELDS
+from minos_core._table_constants import row_id as _row_id
 from minos_core._text_utils import float_or_none
 
 from .change_management import analyze_change_impacts
+from .edit_patch_reports import (
+    build_manual_review_payload as _manual_review_payload,
+)
+from .edit_patch_reports import (
+    build_review_dashboard as _build_review_dashboard,
+)
+from .edit_patch_reports import (
+    manual_review_items_from_edit_gate as _manual_review_items_from_edit_gate,
+)
 from .exporters.three_table_workbooks import (
     export_split_three_table_workbooks,
     export_three_table_workbook,
 )
 from .knowledge_recommendation import recommend_from_knowledge
 from .quality_gates import evaluate_export_gate
-from .edit_patch_reports import (
-    build_manual_review_payload as _manual_review_payload,
-    build_review_dashboard as _build_review_dashboard,
-    manual_review_items_from_edit_gate as _manual_review_items_from_edit_gate,
-)
-
 
 EDIT_PATCH_VERSION = "minos-core.edit_patch.v1"
 EDIT_HISTORY_KEY = "edit_history"
@@ -36,6 +39,7 @@ _ACTIONS = {
     "accept_recommendation",
     "apply_recommendation",
     "ignore_recommendation",
+    "confirm_review_target",
     "resolve_change_impact",
     "resolve_review_issue",
     "resolve_action_item",
@@ -62,7 +66,20 @@ class EditPatchError(ValueError):
 
 
 def apply_edit_patch(source: dict[str, Any], patch: dict[str, Any]) -> dict[str, Any]:
-    """Apply add/update/soft-delete/confirm edits without mutating the source."""
+    """Apply add/update/soft-delete/confirm edits without mutating the source.
+
+    Args:
+        source: The original three-table generation result or APQP chain payload.
+        patch: The edit patch containing items to apply.
+
+    Returns:
+        A new payload dictionary with all edits applied.
+
+    Raises:
+        TypeError: If source or patch are not dicts.
+        EditPatchError: If the patch version is mismatched, items are malformed,
+            or the target is not found.
+    """
 
     if not isinstance(source, dict):
         raise TypeError("source must be a JSON object")
@@ -95,6 +112,7 @@ def apply_edit_patch(source: dict[str, Any], patch: dict[str, Any]) -> dict[str,
 
 
 def _unresolved_action_items(source: dict[str, Any]) -> list[dict[str, Any]]:
+    """Return unresolved action items from metadata."""
     from .action_tracking import unresolved_action_items
 
     items = source.get("metadata", {}).get("action_items", [])
@@ -102,7 +120,20 @@ def _unresolved_action_items(source: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def evaluate_edit_export_gate(source: dict[str, Any]) -> dict[str, Any]:
-    """Evaluate the stricter edited-three-table export gate."""
+    """Evaluate the stricter edited-three-table export gate.
+
+    Checks quality gate results, unconfirmed items, soft-deleted items,
+    review issues, knowledge recommendations, change impacts, and action items
+    to determine whether final export is allowed.
+
+    Args:
+        source: The three-table generation result or APQP chain payload.
+
+    Returns:
+        A dict with keys: final_export_allowed, unconfirmed_items,
+        soft_deleted_items, review_issues, knowledge_recommendations,
+        change_impacts, action_items, and quality_gate.
+    """
 
     chain = _filtered_chain_for_export(source)
     gate = evaluate_export_gate(chain)
@@ -113,9 +144,10 @@ def evaluate_edit_export_gate(source: dict[str, Any]) -> dict[str, Any]:
     recommendation_items = _unresolved_recommendation_items(source, gate)
     change_impact_items = _unresolved_change_impact_items(source, gate)
     action_items = _unresolved_action_items(source)
+    quality_gate_allowed = _edit_gate_quality_gate_allowed(gate)
     return {
         "final_export_allowed": bool(
-            gate.allow_user_export
+            quality_gate_allowed
             and not unconfirmed_items
             and not review_issues
             and not recommendation_items
@@ -131,12 +163,62 @@ def evaluate_edit_export_gate(source: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _edit_gate_quality_gate_allowed(gate: Any) -> bool:
+    """Check whether the quality gate allows user export."""
+    if bool(getattr(gate, "allow_user_export", False)):
+        return True
+    if not bool(getattr(gate, "can_continue", False)):
+        return False
+    if not bool(getattr(gate, "evidence_sufficient", True)):
+        return False
+    for field in (
+        "pending_fields",
+        "ai_inferred_items",
+        "missing_evidence_refs",
+        "uncovered_evidence_items",
+    ):
+        if getattr(gate, field, []):
+            return False
+    for field in (
+        "manual_review_items",
+        "review_issues",
+        "linkage_gaps",
+        "sync_issues",
+        "live_linkage_issues",
+    ):
+        if any(_gate_item_blocks_export(item) for item in getattr(gate, field, [])):
+            return False
+    return True
+
+
+def _gate_item_blocks_export(item: Any) -> bool:
+    """Check whether a single gate item has a blocking severity."""
+    if isinstance(item, dict):
+        severity = _optional_text(item.get("severity")).lower()
+    else:
+        severity = _optional_text(getattr(item, "severity", "")).lower()
+    return severity in {"blocker", "critical", "high"}
+
+
 def export_edited_three_tables(
     source: dict[str, Any],
     output_dir: str | Path,
     export_mode: str = "draft",
 ) -> dict[str, Any]:
-    """Export edited PFD/PFMEA/CP workbooks, filtering soft-deleted rows."""
+    """Export edited PFD/PFMEA/CP workbooks, filtering soft-deleted rows.
+
+    Args:
+        source: The three-table generation result or APQP chain payload.
+        output_dir: Directory to write exported workbooks into.
+        export_mode: Either 'draft' or 'final'.
+
+    Returns:
+        A dict with export_mode, final_export_allowed flag, gate info,
+        and paths to the exported workbooks.
+
+    Raises:
+        EditPatchError: If export_mode is invalid.
+    """
 
     if export_mode not in {"draft", "final"}:
         raise EditPatchError("export_mode must be 'draft' or 'final'")
@@ -188,6 +270,7 @@ def _normalize_item(
     item: Any,
     index: int,
 ) -> dict[str, Any]:
+    """Normalize a single edit-patch item into a standard record."""
     if not isinstance(item, dict):
         raise EditPatchError(f"edit patch item {index} must be an object")
     action = _required_text(item.get("action"), f"items[{index}].action")
@@ -204,6 +287,7 @@ def _normalize_item(
         "accept_recommendation",
         "apply_recommendation",
         "ignore_recommendation",
+        "confirm_review_target",
         "resolve_change_impact",
         "resolve_review_issue",
         "resolve_action_item",
@@ -259,6 +343,7 @@ def _normalize_item(
 
 
 def _apply_normalized_item(payload: dict[str, Any], record: dict[str, Any]) -> None:
+    """Apply a single normalized edit record to the payload in-place."""
     action = record["action"]
     table = record["table"]
     target_id = record["target_id"]
@@ -266,6 +351,7 @@ def _apply_normalized_item(payload: dict[str, Any], record: dict[str, Any]) -> N
         "accept_recommendation",
         "apply_recommendation",
         "ignore_recommendation",
+        "confirm_review_target",
         "resolve_change_impact",
         "resolve_review_issue",
         "resolve_action_item",
@@ -340,6 +426,7 @@ def _apply_normalized_item(payload: dict[str, Any], record: dict[str, Any]) -> N
 
 
 def _normalized_item_metadata(patch: dict[str, Any], item: dict[str, Any]) -> dict[str, Any]:
+    """Merge metadata from the patch and the individual item."""
     metadata: dict[str, Any] = {}
     patch_metadata = patch.get("metadata")
     item_metadata = item.get("metadata")
@@ -354,11 +441,13 @@ def _normalized_item_metadata(patch: dict[str, Any], item: dict[str, Any]) -> di
 
 
 def _record_source(patch: dict[str, Any], item: dict[str, Any]) -> str:
+    """Extract the source field from merged item metadata."""
     metadata = _normalized_item_metadata(patch, item)
     return _optional_text(metadata.get("source"))
 
 
 def _apply_metadata_action(payload: dict[str, Any], record: dict[str, Any]) -> None:
+    """Dispatch a metadata-only action (recommendation, review, etc.) to the appropriate handler."""
     metadata = payload.setdefault("metadata", {})
     if not isinstance(metadata, dict):
         raise EditPatchError("metadata must be an object")
@@ -368,6 +457,7 @@ def _apply_metadata_action(payload: dict[str, Any], record: dict[str, Any]) -> N
         "accept_recommendation": _apply_metadata_accept_recommendation,
         "apply_recommendation": _apply_metadata_apply_recommendation,
         "ignore_recommendation": _apply_metadata_ignore_recommendation,
+        "confirm_review_target": _apply_metadata_confirm_review_target,
         "resolve_change_impact": _apply_metadata_resolve_change_impact,
         "resolve_review_issue": _apply_metadata_resolve_review_issue,
         "resolve_action_item": _apply_metadata_resolve_action_item,
@@ -380,6 +470,7 @@ def _apply_metadata_action(payload: dict[str, Any], record: dict[str, Any]) -> N
 def _apply_metadata_accept_recommendation(
     payload: dict[str, Any], metadata: dict[str, Any], record: dict[str, Any], target_id: str
 ) -> None:
+    """Mark a knowledge recommendation as accepted."""
     rec = _find_recommendation(payload, target_id)
     if rec is None:
         raise EditPatchError(f"recommendation not found: {target_id}")
@@ -393,6 +484,7 @@ def _apply_metadata_accept_recommendation(
 def _apply_metadata_apply_recommendation(
     payload: dict[str, Any], metadata: dict[str, Any], record: dict[str, Any], target_id: str
 ) -> None:
+    """Apply a knowledge recommendation's suggested fields to the target row."""
     rec = _find_recommendation(payload, record["target_id"])
     if rec is None:
         raise EditPatchError(f"recommendation not found: {record['target_id']}")
@@ -412,6 +504,7 @@ def _apply_metadata_apply_recommendation(
 def _apply_metadata_ignore_recommendation(
     payload: dict[str, Any], metadata: dict[str, Any], record: dict[str, Any], target_id: str
 ) -> None:
+    """Mark a knowledge recommendation as ignored with a reason."""
     reason = record.get("reason", "").strip()
     if not reason:
         raise EditPatchError("ignore_recommendation requires reason")
@@ -425,9 +518,29 @@ def _apply_metadata_ignore_recommendation(
     rec["ignored_at"] = record.get("edited_at", "")
 
 
+def _apply_metadata_confirm_review_target(
+    payload: dict[str, Any], metadata: dict[str, Any], record: dict[str, Any], target_id: str
+) -> None:
+    """Record a review-target confirmation in metadata."""
+    confirmations = metadata.setdefault("review_confirmations", [])
+    _ensure_list(confirmations, "metadata.review_confirmations")
+    confirmation = {
+        "target": target_id,
+        "source": record.get("source") or "edit_patch",
+        "reason": record.get("reason", ""),
+    }
+    if record.get("edited_by"):
+        confirmation["confirmed_by"] = record.get("edited_by", "")
+    if record.get("edited_at"):
+        confirmation["confirmed_at"] = record.get("edited_at", "")
+    if confirmation not in confirmations:
+        confirmations.append(confirmation)
+
+
 def _apply_metadata_resolve_change_impact(
     payload: dict[str, Any], metadata: dict[str, Any], record: dict[str, Any], target_id: str
 ) -> None:
+    """Resolve a change-impact item by updating its status."""
     items = metadata.setdefault("change_impacts", [])
     _ensure_list(items, "metadata.change_impacts")
     item = _find_metadata_item(items, "item_id", target_id)
@@ -446,6 +559,7 @@ def _apply_metadata_resolve_change_impact(
 def _apply_metadata_resolve_review_issue(
     payload: dict[str, Any], metadata: dict[str, Any], record: dict[str, Any], target_id: str
 ) -> None:
+    """Resolve a review-issue item by updating its status."""
     items = metadata.setdefault("review_issues", [])
     _ensure_list(items, "metadata.review_issues")
     item = _find_metadata_item(items, "issue_id", target_id)
@@ -468,6 +582,7 @@ def _apply_metadata_resolve_review_issue(
 def _apply_metadata_resolve_action_item(
     payload: dict[str, Any], metadata: dict[str, Any], record: dict[str, Any], target_id: str
 ) -> None:
+    """Resolve an action item by updating its status and tracking fields."""
     action_id = record["target_id"]
     items = metadata.setdefault("action_items", [])
     _ensure_list(items, "metadata.action_items")
@@ -483,18 +598,29 @@ def _apply_metadata_resolve_action_item(
     changes = record.get("changes", {})
     new_status = changes.get("status", "")
 
-    if new_status == "closed":
-        if not changes.get("closure_evidence_refs") and not changes.get("manual_confirmation_event"):
-            raise EditPatchError(
-                f"close action {action_id} requires closure_evidence_refs or manual_confirmation_event"
-            )
+    if (
+        new_status == "closed"
+        and not changes.get("closure_evidence_refs")
+        and not changes.get("manual_confirmation_event")
+    ):
+        raise EditPatchError(
+            f"close action {action_id} requires closure_evidence_refs or manual_confirmation_event"
+        )
     if new_status == "ignored":
         reason = record.get("reason", "").strip()
         if not reason:
             raise EditPatchError(f"ignore action {action_id} requires reason")
         target["ignore_reason"] = reason
 
-    for key in ("status", "owner", "due_date", "closure_evidence_refs", "manual_confirmation_event", "closed_at", "closed_by"):
+    for key in (
+        "status",
+        "owner",
+        "due_date",
+        "closure_evidence_refs",
+        "manual_confirmation_event",
+        "closed_at",
+        "closed_by",
+    ):
         if key in changes:
             target[key] = changes[key]
 
@@ -526,9 +652,17 @@ def _apply_recommendation_fields(
                     continue
                 existing = target_row.get(field)
                 # For FMEA score fields, treat 0, "0", None, "" as empty.
-                _FMEA_SCORE_FIELDS = {"severity", "occurrence", "detection", "rpn",
-                                       "after_severity", "after_occurrence", "after_detection", "after_rpn"}
-                if field in _FMEA_SCORE_FIELDS:
+                fmea_score_fields = {
+                    "severity",
+                    "occurrence",
+                    "detection",
+                    "rpn",
+                    "after_severity",
+                    "after_occurrence",
+                    "after_detection",
+                    "after_rpn",
+                }
+                if field in fmea_score_fields:
                     if existing is not None and existing != "" and existing != 0 and existing != "0":
                         continue
                 else:
@@ -573,6 +707,7 @@ def _find_cp_row_by_pfmea_id(rows: list[Any], pfmea_id: str) -> dict[str, Any] |
 
 
 def _field_changes(row: dict[str, Any], changes: dict[str, Any]) -> list[dict[str, Any]]:
+    """Build a list of field-change records showing before/after values."""
     return [
         {"field": field_name, "before": row.get(field_name, ""), "after": value}
         for field_name, value in changes.items()
@@ -580,6 +715,7 @@ def _field_changes(row: dict[str, Any], changes: dict[str, Any]) -> list[dict[st
 
 
 def _is_restore_soft_delete_update(changes: dict[str, Any]) -> bool:
+    """Check whether the changes only restore a previously soft-deleted row."""
     if not changes:
         return False
     delete_keys = {"deleted", "soft_deleted"}
@@ -592,11 +728,13 @@ def _is_restore_soft_delete_update(changes: dict[str, Any]) -> bool:
 
 
 def _ensure_list(value: Any, label: str) -> None:
+    """Validate that value is a list, raising EditPatchError otherwise."""
     if not isinstance(value, list):
         raise EditPatchError(f"{label} must be a list")
 
 
 def _find_metadata_item(items: list[Any], key: str, value: str) -> dict[str, Any] | None:
+    """Find a dict in a list where item[key] == value."""
     for item in items:
         if isinstance(item, dict) and str(item.get(key, "")).strip() == value:
             return item
@@ -615,10 +753,12 @@ def _find_recommendation(payload: dict[str, Any], target_id: str) -> dict[str, A
 
 
 def _refresh_three_table_result(payload: dict[str, Any]) -> dict[str, Any]:
+    """Refresh quality gates, linkage, risk structure, and review dashboard after edits."""
     _refresh_change_impacts(payload)
     _refresh_action_items(payload)
     chain = _assemble_chain_from_three_table_result(payload)
     payload["chain"] = chain
+    payload["metadata"] = copy.deepcopy(chain.get("metadata") or {})
     from .risk_structure import build_risk_structure
 
     payload["risk_structure"] = build_risk_structure(payload)
@@ -653,6 +793,7 @@ def _refresh_three_table_result(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def _refresh_change_impacts(payload: dict[str, Any]) -> None:
+    """Regenerate change impacts and merge with any persisted manual resolutions."""
     metadata = payload.setdefault("metadata", {})
     if not isinstance(metadata, dict):
         raise EditPatchError("metadata must be an object")
@@ -692,7 +833,7 @@ def _refresh_change_impacts(payload: dict[str, Any]) -> None:
 
 def _refresh_action_items(payload: dict[str, Any]) -> None:
     """Regenerate action items from PFMEA rows and merge with existing resolved ones."""
-    from .action_tracking import build_action_items, action_items_summary
+    from .action_tracking import action_items_summary, build_action_items
 
     metadata = payload.setdefault("metadata", {})
     if not isinstance(metadata, dict):
@@ -705,7 +846,48 @@ def _refresh_action_items(payload: dict[str, Any]) -> None:
         existing=existing,
         generated=generated,
     )
+    _sync_closed_action_items_to_pfmea(payload, metadata["action_items"])
     metadata["action_items_summary"] = action_items_summary(metadata["action_items"])
+
+
+def _sync_closed_action_items_to_pfmea(
+    payload: dict[str, Any],
+    action_items: list[dict[str, Any]],
+) -> None:
+    """Synchronise closed action-item status back to the corresponding PFMEA rows."""
+    rows = _table_rows(payload, "pfmea")
+    if not rows:
+        return
+    for item in action_items:
+        if not isinstance(item, dict) or item.get("status") != "closed":
+            continue
+        pfmea_id = _optional_text(item.get("source_pfmea_id"))
+        if not pfmea_id:
+            continue
+        row = _find_row(rows, "pfmea", pfmea_id)
+        if row is None:
+            continue
+        row["action_status"] = "已关闭"
+        _fill_missing_after_action_scores(row)
+
+
+def _fill_missing_after_action_scores(row: dict[str, Any]) -> None:
+    """Copy before-action scores to after-action fields if the latter are empty."""
+    field_pairs = (
+        ("severity", "after_severity"),
+        ("occurrence", "after_occurrence"),
+        ("detection", "after_detection"),
+    )
+    for source_field, after_field in field_pairs:
+        if row.get(after_field) not in {None, ""}:
+            continue
+        value = row.get(source_field)
+        if value not in {None, ""}:
+            row[after_field] = value
+    if row.get("after_ap") in {None, ""}:
+        ap = _optional_text(row.get("action_priority", row.get("AP")))
+        if ap:
+            row["after_ap"] = ap
 
 
 def _merge_action_items(
@@ -748,6 +930,7 @@ def _merge_action_items(
 
 
 def _assemble_chain_from_three_table_result(payload: dict[str, Any]) -> dict[str, Any]:
+    """Reassemble an APQP chain dict from the three-table generation result."""
     process_flow = payload.get("process_flow") or {}
     pfmea = payload.get("pfmea") or {}
     control_plan = payload.get("control_plan") or {}
@@ -817,6 +1000,7 @@ def _assemble_chain_from_three_table_result(payload: dict[str, Any]) -> dict[str
 
 
 def _filtered_chain_for_export(source: dict[str, Any]) -> dict[str, Any]:
+    """Build an APQP chain for export, filtering out deleted/inactive rows."""
     if _is_three_table_result(source):
         return _assemble_chain_from_three_table_result(source)
     if _is_apqp_chain(source):
@@ -849,6 +1033,7 @@ def _filtered_chain_for_export(source: dict[str, Any]) -> dict[str, Any]:
 
 
 def _editable_rows(payload: dict[str, Any], table: str) -> list[dict[str, Any]]:
+    """Get the mutable row list for a given table from the payload."""
     if _is_three_table_result(payload):
         document = payload.setdefault(table, {})
         if not isinstance(document, dict):
@@ -868,6 +1053,7 @@ def _editable_rows(payload: dict[str, Any], table: str) -> list[dict[str, Any]]:
 
 
 def _table_rows(source: dict[str, Any], table: str) -> list[Any]:
+    """Return the raw row list for a table, or an empty list."""
     if _is_three_table_result(source):
         document = source.get(table) or {}
         if not isinstance(document, dict):
@@ -884,26 +1070,28 @@ def _table_rows(source: dict[str, Any], table: str) -> list[Any]:
 
 
 def _find_row(rows: list[Any], table: str, target_id: str) -> dict[str, Any] | None:
+    """Locate a row in a list by its row ID for the given table."""
     for row in rows:
         if isinstance(row, dict) and _row_id(table, row) == target_id:
             return row
     return None
 
 
-
-
 def _filtered_rows(rows: Any) -> list[Any]:
+    """Return a deep-copied list of rows excluding deleted ones."""
     if not isinstance(rows, list):
         return []
     return [copy.deepcopy(row) for row in rows if not _is_deleted(row)]
 
 
 def _sort_process_flow_rows_in_place(payload: dict[str, Any]) -> None:
+    """Sort process-flow rows by their sequence number."""
     rows = _editable_rows(payload, "process_flow")
     rows.sort(key=_process_flow_sort_key)
 
 
 def _process_flow_sort_key(item: Any) -> tuple[int, float, int]:
+    """Sort key for process-flow rows: valid-sequence items before invalid ones."""
     if not isinstance(item, dict):
         return (1, 0, 0)
     sequence = float_or_none(item.get("sequence"))
@@ -913,6 +1101,7 @@ def _process_flow_sort_key(item: Any) -> tuple[int, float, int]:
 
 
 def _filtered_rows_for_active_steps(rows: Any, active_step_ids: set[str]) -> list[Any]:
+    """Filter rows to those belonging to active (non-deleted) process steps."""
     result = []
     for row in _filtered_rows(rows):
         if not isinstance(row, dict):
@@ -929,6 +1118,7 @@ def _filtered_controls(
     active_step_ids: set[str],
     active_pfmea_ids: set[str],
 ) -> list[Any]:
+    """Filter control-plan rows to those belonging to active steps and PFMEA rows."""
     result = []
     for row in _filtered_rows(rows):
         if not isinstance(row, dict):
@@ -944,6 +1134,7 @@ def _filtered_controls(
 
 
 def _filtered_links(links: Any, process_rows: Any) -> list[Any]:
+    """Filter links to those whose endpoints belong to active process steps."""
     if not isinstance(links, list):
         return []
     active_steps = {
@@ -964,6 +1155,7 @@ def _filtered_links(links: Any, process_rows: Any) -> list[Any]:
 
 
 def _is_deleted(row: Any) -> bool:
+    """Check whether a row is flagged as deleted or soft-deleted."""
     return isinstance(row, dict) and bool(row.get("deleted") or row.get("soft_deleted"))
 
 
@@ -972,6 +1164,7 @@ def _remove_confirmation_debt(
     table: str,
     target_id: str,
 ) -> None:
+    """Remove the target row from ai_inferred_items and pending_fields across all containers."""
     candidates = _confirmation_candidates(table, target_id)
     for container in _debt_containers(payload):
         _remove_ai_items(container, candidates)
@@ -984,6 +1177,7 @@ def _resolve_matching_review_issues(
     target_id: str,
     record: dict[str, Any],
 ) -> None:
+    """Mark review issues that reference this target as resolved."""
     candidates = _confirmation_candidates(table, target_id)
     for container in _debt_containers(payload):
         metadata = container.get("metadata", {}) if isinstance(container, dict) else {}
@@ -1006,6 +1200,7 @@ def _resolve_matching_review_issues(
 
 
 def _debt_containers(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    """Return all dict containers in the payload that may hold debt metadata."""
     containers = [payload]
     for key in ("process_flow", "pfmea", "control_plan", "chain"):
         value = payload.get(key)
@@ -1015,6 +1210,7 @@ def _debt_containers(payload: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _remove_ai_items(container: dict[str, Any], candidates: set[str]) -> None:
+    """Remove matching entries from ai_inferred_items in a container."""
     items = container.get("ai_inferred_items")
     if isinstance(items, list):
         container["ai_inferred_items"] = [
@@ -1025,6 +1221,7 @@ def _remove_ai_items(container: dict[str, Any], candidates: set[str]) -> None:
 
 
 def _remove_pending_fields(container: dict[str, Any], candidates: set[str]) -> None:
+    """Remove matching entries from pending_fields in a container."""
     items = container.get("pending_fields")
     if isinstance(items, list):
         container["pending_fields"] = [
@@ -1035,6 +1232,7 @@ def _remove_pending_fields(container: dict[str, Any], candidates: set[str]) -> N
 
 
 def _debt_item_matches(item: Any, candidates: set[str]) -> bool:
+    """Check whether a single ai_inferred_item matches any candidate."""
     if isinstance(item, str):
         return item.strip() in candidates
     if isinstance(item, dict):
@@ -1053,6 +1251,7 @@ def _debt_item_matches(item: Any, candidates: set[str]) -> bool:
 
 
 def _pending_item_matches(item: Any, candidates: set[str]) -> bool:
+    """Check whether a single pending_fields entry matches any candidate."""
     if isinstance(item, str):
         return _pending_text_matches(item, candidates)
     if isinstance(item, dict):
@@ -1066,6 +1265,7 @@ def _pending_item_matches(item: Any, candidates: set[str]) -> bool:
 
 
 def _pending_text_matches(value: str, candidates: set[str]) -> bool:
+    """Check whether a pending-field text string matches any candidate."""
     text = value.strip()
     if not text:
         return False
@@ -1079,6 +1279,7 @@ def _pending_text_matches(value: str, candidates: set[str]) -> bool:
 
 
 def _confirmation_candidates(table: str, target_id: str) -> set[str]:
+    """Build a set of candidate identifiers for a confirmed table row."""
     target_type = _TARGET_TYPES[table]
     return {
         target_id,
@@ -1091,6 +1292,7 @@ def _record_edit_history(
     payload: dict[str, Any],
     records: list[dict[str, Any]],
 ) -> None:
+    """Append edit records to the edit history in metadata."""
     metadata = payload.setdefault("metadata", {})
     if not isinstance(metadata, dict):
         raise EditPatchError("metadata must be an object")
@@ -1109,6 +1311,7 @@ def _record_edit_history(
 
 
 def _unconfirmed_row_items(source: dict[str, Any]) -> list[str]:
+    """Collect identifiers of rows that still need human confirmation."""
     items: list[str] = []
     for table in ("process_flow", "pfmea", "control_plan"):
         for row in _table_rows(source, table):
@@ -1122,6 +1325,7 @@ def _unconfirmed_row_items(source: dict[str, Any]) -> list[str]:
 
 
 def _ai_batch_confirmation_blockers(source: dict[str, Any]) -> list[str]:
+    """Identify AI-batch-confirmed rows that still require a human override."""
     items: list[str] = []
     for table in ("process_flow", "pfmea", "control_plan"):
         for row in _table_rows(source, table):
@@ -1141,6 +1345,7 @@ def _ai_batch_confirmed_row_requires_human(
     table: str,
     row: dict[str, Any],
 ) -> bool:
+    """Check whether a batch-confirmed row needs a human review (no evidence, low confidence, etc.)."""
     if not _row_evidence_refs(row):
         return True
     confidence = float_or_none(row.get("confidence"))
@@ -1148,12 +1353,11 @@ def _ai_batch_confirmed_row_requires_human(
         return True
     if _row_has_high_ap(row):
         return True
-    if _row_has_special_characteristic(source, table, row):
-        return True
-    return False
+    return bool(_row_has_special_characteristic(source, table, row))
 
 
 def _row_evidence_refs(row: dict[str, Any]) -> list[str]:
+    """Get the list of non-empty evidence reference strings for a row."""
     refs = row.get("evidence_refs", [])
     if not isinstance(refs, list):
         return []
@@ -1161,6 +1365,7 @@ def _row_evidence_refs(row: dict[str, Any]) -> list[str]:
 
 
 def _row_has_high_ap(row: dict[str, Any]) -> bool:
+    """Check whether the row has a high action priority (AP)."""
     return _optional_text(row.get("action_priority", row.get("AP", ""))).upper() == "H"
 
 
@@ -1169,6 +1374,7 @@ def _row_has_special_characteristic(
     table: str,
     row: dict[str, Any],
 ) -> bool:
+    """Check whether a row references any special characteristic."""
     if (
         row.get("classification")
         or row.get("characteristic_refs")
@@ -1187,9 +1393,8 @@ def _row_has_special_characteristic(
     return False
 
 
-
-
 def _soft_deleted_row_items(source: dict[str, Any]) -> list[str]:
+    """Collect identifiers of soft-deleted or inactive rows."""
     items: list[str] = []
     for table in ("process_flow", "pfmea", "control_plan"):
         for row in _table_rows(source, table):
@@ -1200,6 +1405,7 @@ def _soft_deleted_row_items(source: dict[str, Any]) -> list[str]:
 
 
 def _row_active_for_export(source: dict[str, Any], table: str, row: dict[str, Any]) -> bool:
+    """Determine whether a row is still active (non-deleted and linked to active parents)."""
     if table == "process_flow":
         return not _is_deleted(row)
     process_rows = _table_rows(source, "process_flow")
@@ -1233,17 +1439,29 @@ def _unresolved_review_issue_items(
     source: dict[str, Any],
     gate: Any,
 ) -> list[str]:
+    """Collect unresolved review issue identifiers from source metadata and the quality gate."""
     items: list[str] = []
     for issue in _metadata_items_from_source(source, "review_issues"):
         if _metadata_debt_is_unresolved(issue):
             items.append(_optional_text(issue.get("issue_id")) or "review_issue")
     for issue in getattr(gate, "review_issues", []):
-        if isinstance(issue, dict) and _metadata_debt_is_unresolved(issue):
+        if (
+            isinstance(issue, dict)
+            and _gate_review_issue_blocks_export(issue)
+            and _metadata_debt_is_unresolved(issue)
+        ):
             items.append(_optional_text(issue.get("issue_id")) or "review_issue")
     return _dedupe_strings(items)
 
 
+def _gate_review_issue_blocks_export(issue: dict[str, Any]) -> bool:
+    """Check whether a gate-level review issue has a non-trivial severity."""
+    severity = _optional_text(issue.get("severity")).lower()
+    return severity not in {"warning", "warn", "review", "info"}
+
+
 def _unresolved_recommendation_items(source: dict[str, Any], gate: Any) -> list[str]:
+    """Collect unresolved knowledge recommendation identifiers."""
     items: list[str] = []
     for recommendation in _metadata_items_from_source(source, "knowledge_recommendations"):
         if _metadata_debt_is_unresolved(recommendation):
@@ -1256,6 +1474,7 @@ def _unresolved_recommendation_items(source: dict[str, Any], gate: Any) -> list[
 
 
 def _unresolved_change_impact_items(source: dict[str, Any], gate: Any) -> list[str]:
+    """Collect unresolved change-impact identifiers."""
     items: list[str] = []
     for impact in _metadata_items_from_source(source, "change_impacts"):
         if _metadata_debt_is_unresolved(impact):
@@ -1268,6 +1487,7 @@ def _unresolved_change_impact_items(source: dict[str, Any], gate: Any) -> list[s
 
 
 def _metadata_items_from_source(source: dict[str, Any], key: str) -> list[dict[str, Any]]:
+    """Extract all metadata items for a given key from source and its chain."""
     items: list[dict[str, Any]] = []
     for container in _metadata_source_containers(source):
         metadata = container.get("metadata", {}) if isinstance(container, dict) else {}
@@ -1280,6 +1500,7 @@ def _metadata_items_from_source(source: dict[str, Any], key: str) -> list[dict[s
 
 
 def _metadata_source_containers(source: dict[str, Any]) -> list[dict[str, Any]]:
+    """Return the payload dicts that may contain metadata (source and its chain)."""
     containers = [source]
     chain = source.get("chain") if isinstance(source, dict) else None
     if isinstance(chain, dict):
@@ -1288,6 +1509,7 @@ def _metadata_source_containers(source: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _metadata_debt_is_unresolved(item: dict[str, Any]) -> bool:
+    """Check whether a metadata item (recommendation, issue, impact) remains unresolved."""
     status = _optional_text(item.get("status", "待处理"))
     lifecycle = _optional_text(item.get("lifecycle_status", ""))
     # applied / 已应用: resolved regardless of other state
@@ -1297,17 +1519,16 @@ def _metadata_debt_is_unresolved(item: dict[str, Any]) -> bool:
     if status in {"已处理", "已确认", "已采纳", "无影响"}:
         return False
     # ignored with reason: resolved
-    if lifecycle == "ignored" or status == "已忽略":
-        if _optional_text(item.get("ignore_reason")):
-            return False
-    return True
+    return not ((lifecycle == "ignored" or status == "已忽略") and _optional_text(item.get("ignore_reason")))
 
 
 def _is_three_table_result(payload: dict[str, Any]) -> bool:
+    """Check whether the payload is a three-table generation result."""
     return payload.get("document_type") == "three_table_generation_result"
 
 
 def _is_apqp_chain(payload: dict[str, Any]) -> bool:
+    """Check whether the payload is an APQP chain or contains its required keys."""
     return payload.get("document_type") == "apqp_chain" or {
         "process_steps",
         "failure_modes",
@@ -1316,6 +1537,7 @@ def _is_apqp_chain(payload: dict[str, Any]) -> bool:
 
 
 def _required_text(value: Any, field_name: str) -> str:
+    """Return stripped text or raise EditPatchError if empty."""
     text = _optional_text(value)
     if not text:
         raise EditPatchError(f"{field_name} must be a non-empty string")
@@ -1323,12 +1545,14 @@ def _required_text(value: Any, field_name: str) -> str:
 
 
 def _optional_text(value: Any) -> str:
+    """Coerce a value to a stripped string, returning '' for None."""
     if value is None:
         return ""
     return str(value).strip()
 
 
 def _dedupe_strings(values: list[Any]) -> list[str]:
+    """Deduplicate a list of strings while preserving order."""
     result: list[str] = []
     seen: set[str] = set()
     for value in values:

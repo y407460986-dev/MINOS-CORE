@@ -1,4 +1,5 @@
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -10,8 +11,18 @@ from minos_core.domain import APQPChain
 from minos_core.stage import run_stage
 from minos_core.validation import validate_chain
 
-
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def _extract_json_from_log(text: str) -> dict:
+    """Extract JSON from structlog line: timestamp [level] event result='{...}'"""
+    match = re.search(r"result='(\{.*\})'", text, re.DOTALL)
+    if match:
+        raw = match.group(1)
+        # structlog ConsoleRenderer escapes \n → \\n; restore for valid JSON
+        cleaned = raw.replace('\\n', '\n').replace('\\t', '\t')
+        return json.loads(cleaned)
+    raise ValueError(f"Cannot extract JSON from log output: {text[:200]}")
 
 
 EVIDENCE_INPUT = {
@@ -236,20 +247,19 @@ class GeneratedChainStageTests(unittest.TestCase):
                 capture_output=True,
                 check=False,
             )
-            stdout_payload = json.loads(cli_result.stdout)
             saved_payload = json.loads(output_path.read_text(encoding="utf-8"))
 
         self.assertEqual(cli_result.returncode, 0, cli_result.stderr)
-        self.assertEqual(stdout_payload, saved_payload)
-        self.assertEqual(stdout_payload["status"], "draft_ready")
-        self.assertEqual(stdout_payload["draft"]["document_type"], "apqp_chain")
-        self.assertFalse(stdout_payload["draft_is_formal_export"])
-        self.assertFalse(stdout_payload["quality_gate"]["allow_user_export"])
-        self.assertTrue(stdout_payload["manual_review"]["required"])
+        self.assertEqual(saved_payload["status"], "draft_ready")
+        self.assertEqual(saved_payload["draft"]["document_type"], "apqp_chain")
+        self.assertFalse(saved_payload["draft_is_formal_export"])
+        self.assertFalse(saved_payload["quality_gate"]["allow_user_export"])
+        self.assertTrue(saved_payload["manual_review"]["required"])
 
     def test_cli_run_pipeline_alias_remains_available(self):
         with tempfile.TemporaryDirectory() as tmp:
             input_path = Path(tmp) / "evidence.json"
+            output_path = Path(tmp) / "draft-result.json"
             input_path.write_text(
                 json.dumps(EVIDENCE_INPUT, ensure_ascii=False), encoding="utf-8"
             )
@@ -261,6 +271,8 @@ class GeneratedChainStageTests(unittest.TestCase):
                     "run-pipeline",
                     "--input",
                     str(input_path),
+                    "--output",
+                    str(output_path),
                 ],
                 cwd=ROOT,
                 text=True,
@@ -268,10 +280,10 @@ class GeneratedChainStageTests(unittest.TestCase):
                 check=False,
             )
 
-        self.assertEqual(cli_result.returncode, 0, cli_result.stderr)
-        payload = json.loads(cli_result.stdout)
-        self.assertEqual(payload["status"], "draft_ready")
-        self.assertEqual(payload["draft"]["document_type"], "apqp_chain")
+            self.assertEqual(cli_result.returncode, 0, cli_result.stderr)
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["status"], "draft_ready")
+            self.assertEqual(payload["draft"]["document_type"], "apqp_chain")
 
 
 if __name__ == "__main__":

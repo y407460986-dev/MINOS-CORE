@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from .run_manifest import sha256_file
-
 
 SUPPORTED_IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg"}
 SUPPORTED_DRAWING_SUFFIXES = SUPPORTED_IMAGE_SUFFIXES | {".pdf"}
@@ -91,7 +90,7 @@ def load_drawing_source(path: str | Path) -> DrawingSource:
         file_name=source_path.name,
         file_type=suffix.lstrip("."),
         sha256=digest,
-        imported_at=datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+        imported_at=datetime.now(UTC).replace(microsecond=0).isoformat(),
     )
 
 
@@ -163,7 +162,7 @@ def _render_pdf_pages(
     output_dir: str | Path | None,
 ) -> list[DrawingPageEvidence]:
     try:
-        import fitz  # type: ignore[import-not-found]
+        import fitz
     except ImportError as exc:
         raise DrawingInputError(
             "PDF rendering requires PyMuPDF (fitz); install the PDF renderer before importing PDF drawings"

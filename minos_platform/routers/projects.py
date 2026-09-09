@@ -1,9 +1,7 @@
 """POST /api/projects and GET /api/projects."""
 
-from typing import List
-
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
@@ -24,7 +22,7 @@ router = APIRouter()
 @router.post("/projects", response_model=ProjectSummary, status_code=201)
 async def create_project(
     req: CreateProjectRequest,
-    session: AsyncSession = Depends(db.get_session),
+    session: AsyncSession = Depends(db.get_session),  # noqa: B008
 ) -> ProjectSummary:
     """Create a new PPAP project."""
     project = db.Project(
@@ -33,7 +31,7 @@ async def create_project(
         project_code=req.project_code,
         part_number=req.part_number,
         status="created",
-        created_at=datetime.now(timezone.utc).replace(microsecond=0),
+        created_at=datetime.now(UTC).replace(microsecond=0),
     )
     session.add(project)
     await session.commit()
@@ -41,10 +39,10 @@ async def create_project(
     return ProjectSummary.model_validate(project)
 
 
-@router.get("/projects", response_model=List[ProjectSummary])
+@router.get("/projects", response_model=list[ProjectSummary])
 async def list_projects(
-    session: AsyncSession = Depends(db.get_session),
-) -> List[ProjectSummary]:
+    session: AsyncSession = Depends(db.get_session),  # noqa: B008
+) -> list[ProjectSummary]:
     """List all PPAP projects."""
     result = await session.execute(select(db.Project).order_by(db.Project.created_at.desc()))
     projects = result.scalars().all()
@@ -54,7 +52,7 @@ async def list_projects(
 @router.get("/projects/{project_id}", response_model=ProjectDetail)
 async def get_project(
     project_id: str,
-    session: AsyncSession = Depends(db.get_session),
+    session: AsyncSession = Depends(db.get_session),  # noqa: B008
 ) -> ProjectDetail:
     """Get a single PPAP project with its input packages and latest run."""
     result = await session.execute(select(db.Project).where(db.Project.id == project_id))

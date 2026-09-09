@@ -1,22 +1,23 @@
 """Tests for AI resilience module."""
 
-import pytest
 import time
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
+
+import pytest
 
 from minos_core.ai_resilience import (
     AIEndpoint,
     AIServicePool,
-    ExponentialBackoffRetry,
-    RetryConfig,
-    CircuitBreaker,
-    CircuitState,
-    CircuitBreakerConfig,
-    CircuitBreakerOpenError,
-    LocalKnowledgeFallback,
-    RuleBasedFallback,
     CachedResponseFallback,
     ChainedFallback,
+    CircuitBreaker,
+    CircuitBreakerConfig,
+    CircuitBreakerOpenError,
+    CircuitState,
+    ExponentialBackoffRetry,
+    LocalKnowledgeFallback,
+    RetryConfig,
+    RuleBasedFallback,
 )
 
 

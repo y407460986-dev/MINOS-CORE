@@ -10,7 +10,6 @@ from minos_core.change_management import (
     compare_three_table_baseline,
 )
 
-
 # ---------------------------------------------------------------------------
 # Shared payload builders
 # ---------------------------------------------------------------------------
@@ -321,7 +320,7 @@ class AnalyzeLinkedChangeImpactsWithBaselineTests(unittest.TestCase):
         after = _copy_payload(before)
         after["process_flow"]["steps"] = []  # P10 removed
 
-        impacts = analyze_linked_change_impacts(after, baseline=before)
+        analyze_linked_change_impacts(after, baseline=before)
 
         # The linkage map on *after* won't have P10 links, so no transitive
         # PFMEA/CP impacts via the linkage map. Deletion impacts come from
@@ -452,7 +451,7 @@ class AnalyzeLinkedChangeImpactsBackwardCompatTests(unittest.TestCase):
         new_result = analyze_linked_change_impacts(payload)
 
         self.assertEqual(len(old_result), len(new_result))
-        for i, (old_item, new_item) in enumerate(zip(old_result, new_result)):
+        for i, (old_item, new_item) in enumerate(zip(old_result, new_result, strict=False)):
             with self.subTest(index=i):
                 self.assertEqual(old_item["item_id"], new_item["item_id"])
                 self.assertEqual(old_item["category"], new_item["category"])
@@ -468,7 +467,7 @@ class AnalyzeLinkedChangeImpactsBackwardCompatTests(unittest.TestCase):
         new_result = analyze_linked_change_impacts(payload)
 
         self.assertEqual(len(old_result), len(new_result))
-        for old_item, new_item in zip(old_result, new_result):
+        for old_item, new_item in zip(old_result, new_result, strict=False):
             self.assertEqual(old_item["item_id"], new_item["item_id"])
             self.assertEqual(old_item["message"], new_item["message"])
 

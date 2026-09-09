@@ -3,7 +3,7 @@
  * Connects to GET /api/runs/{runId}/chain/{stage}/stream
  */
 
-import { getApiBaseUrl } from "./client";
+import { getApiBaseUrl, getStreamToken } from "./client";
 
 export type StepCompleteEvent = {
   type: "step_complete";
@@ -73,7 +73,6 @@ export function subscribeToChainStream(
   handlers: StreamHandlers,
 ): () => void {
   const baseUrl = getApiBaseUrl();
-  const url = `${baseUrl}/api/runs/${runId}/chain/${stage}/stream`;
   const MAX_RETRIES = 5;
   let closed = false;
   let retryCount = 0;
@@ -84,8 +83,11 @@ export function subscribeToChainStream(
     retryCount = 0;
   }
 
-  function connect() {
+  async function connect() {
     if (closed) return;
+    const streamToken = await getStreamToken();
+    const url = new URL(`${baseUrl}/api/runs/${runId}/chain/${stage}/stream`);
+    url.searchParams.set("stream_token", streamToken);
     const es = new EventSource(url);
     currentEs = es;
 
@@ -126,6 +128,13 @@ export function subscribeToChainStream(
     es.addEventListener("done", (e: MessageEvent) => {
       try {
         const data = JSON.parse(e.data) as DoneEvent;
+        if (data.status === "not_running") {
+          if (!closed) {
+            es.close();
+            retryTimer = window.setTimeout(() => void connect(), 1000);
+          }
+          return;
+        }
         handlers.onDone(data);
       } catch { /* ignore */ }
       closed = true;
@@ -134,7 +143,10 @@ export function subscribeToChainStream(
     });
 
     es.addEventListener("error", (e: MessageEvent) => {
-      if (!e.data) return;
+      if (!e.data) {
+        es.close();
+        return;
+      }
       closed = true;
       try {
         const data = JSON.parse(e.data) as ErrorEvent;
@@ -152,7 +164,7 @@ export function subscribeToChainStream(
       if (retryCount < MAX_RETRIES) {
         retryCount += 1;
         handlers.onConnectionStateChange?.("reconnecting", retryCount);
-        retryTimer = window.setTimeout(connect, Math.min(1000 * 2 ** (retryCount - 1), 10000));
+        retryTimer = window.setTimeout(() => void connect(), Math.min(1000 * 2 ** (retryCount - 1), 10000));
         return;
       }
       closed = true;
@@ -161,7 +173,7 @@ export function subscribeToChainStream(
     };
   }
 
-  connect();
+  void connect();
 
   return () => {
     closed = true;

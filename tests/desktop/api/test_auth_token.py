@@ -1,7 +1,8 @@
 """Tests for authentication with TokenManager."""
 
 import pytest
-from minos_desktop.api.auth import require_api_token, _token_manager
+
+from minos_desktop.api.auth import _token_manager, require_api_token
 from minos_desktop.api.schemas import APIError
 
 

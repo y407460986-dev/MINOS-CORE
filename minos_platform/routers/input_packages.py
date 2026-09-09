@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import APIRouter, Depends
@@ -28,7 +28,7 @@ router = APIRouter()
 async def register_input_package(
     project_id: str,
     req: RegisterInputPackageRequest,
-    session: AsyncSession = Depends(db.get_session),
+    session: AsyncSession = Depends(db.get_session),  # noqa: B008
 ) -> InputPackageSummary:
     """Register and copy an input_package into the platform artifact area."""
     result = await session.execute(select(db.Project).where(db.Project.id == project_id))
@@ -55,11 +55,12 @@ async def register_input_package(
         raise APIError(str(e), code="INPUT_PACKAGE_NOT_FOUND", status_code=404) from e
 
     # Verify sha256 of the copy
-    if src.is_file():
-        actual_hash = calculate_file_sha256(copied_path)
-    else:
-        # For directories, compute hash of all files inside copied_path in sorted order
-        actual_hash = calculate_directory_sha256(copied_path)
+    # For directories, compute hash of all files inside copied_path in sorted order.
+    actual_hash = (
+        calculate_file_sha256(copied_path)
+        if src.is_file()
+        else calculate_directory_sha256(copied_path)
+    )
 
     if actual_hash != req.sha256:
         raise APIError(
@@ -74,7 +75,7 @@ async def register_input_package(
         package_path=str(copied_path),
         sha256=actual_hash,
         redacted=req.redacted,
-        created_at=datetime.now(timezone.utc).replace(microsecond=0),
+        created_at=datetime.now(UTC).replace(microsecond=0),
     )
     session.add(pkg)
     project.status = "input_registered"

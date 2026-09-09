@@ -256,6 +256,98 @@ class DrawingToPfdTests(unittest.TestCase):
         blanking_step = next(s for s in pfd["steps"] if "落料" in s["operation"])
         self.assertIn("SC-001", blanking_step["special_characteristics"])
 
+    def test_unconfirmed_top_level_special_characteristic_does_not_become_formal(self):
+        """显式待复核的顶层特殊特性不能传播为正式 PFD 特性"""
+        bundle = _minimal_bundle()
+        bundle["manufacturing_clues"] = [
+            {
+                "operation": "blanking",
+                "evidence_refs": ["EV-001"],
+                "special_characteristics": ["SC-001"],
+            },
+        ]
+        bundle["special_characteristics"] = [
+            {
+                "id": "SC-001",
+                "name": "安装孔位置度",
+                "classification": "SC",
+                "confirmation_status": "needs_human_review",
+                "needs_confirmation": False,
+            }
+        ]
+
+        pfd = infer_process_flow_from_drawing(bundle)
+
+        blanking_step = next(s for s in pfd["steps"] if "落料" in s["operation"])
+        self.assertNotIn("SC-001", blanking_step["special_characteristics"])
+
+    def test_unconfirmed_special_characteristic_candidates_are_visible_but_not_formal(self):
+        """未确认特殊特性候选只进入候选展示字段"""
+        bundle = _minimal_bundle()
+        bundle["manufacturing_clues"] = [
+            {"operation": "process inspection", "evidence_refs": ["EV-001"]},
+            {"operation": "final inspection", "evidence_refs": ["EV-001"]},
+        ]
+        bundle["special_characteristic_candidates"] = [
+            {
+                "candidate_id": "symbol_candidate_1",
+                "candidate_type": "SC",
+                "symbol_text_or_shape": "三角形符号",
+                "linked_feature": "螺栓（零件1）",
+                "evidence_refs": ["EV-001"],
+                "needs_confirmation": True,
+                "confirmation_status": "needs_human_review",
+            },
+            {
+                "candidate_id": "symbol_candidate_2",
+                "candidate_type": "CC",
+                "symbol_text_or_shape": "菱形符号",
+                "linked_feature": "销子（零件2）",
+                "evidence_refs": ["EV-001"],
+                "needs_confirmation": True,
+                "confirmation_status": "needs_human_review",
+            },
+            {
+                "candidate_id": "symbol_candidate_3",
+                "candidate_type": "PTC",
+                "symbol_text_or_shape": "五角星符号",
+                "linked_feature": "图例定义项",
+                "evidence_refs": ["EV-001"],
+                "needs_confirmation": True,
+                "confirmation_status": "needs_human_review",
+            },
+        ]
+
+        pfd = infer_process_flow_from_drawing(bundle)
+        candidate_steps = [
+            step for step in pfd["steps"]
+            if step.get("special_characteristic_candidates")
+        ]
+
+        self.assertTrue(candidate_steps)
+        self.assertTrue(
+            any(
+                "SC候选: 三角形符号 / 螺栓（零件1）"
+                in step["special_characteristic_candidates"]
+                for step in candidate_steps
+            )
+        )
+        self.assertTrue(
+            any(
+                "CC候选: 菱形符号 / 销子（零件2）"
+                in step["special_characteristic_candidates"]
+                for step in candidate_steps
+            )
+        )
+        self.assertFalse(
+            any(
+                "PTC候选" in label
+                for step in candidate_steps
+                for label in step["special_characteristic_candidates"]
+            )
+        )
+        self.assertTrue(all(not step["special_characteristics"] for step in candidate_steps))
+
     # ========== 边界情况 ==========
 
     def test_single_step_process_flow(self):

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-import os
+import secrets
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -32,12 +32,16 @@ async def lifespan(app: FastAPI):
     """Initialize the async SQLite engine on startup, close it on shutdown."""
     db_url = config.get_db_url()
     await db.init_db(db_url)
-    token = os.getenv("MINOS_PLATFORM_API_TOKEN")
-    if not token:
+    token = config.get_platform_api_token()
+    if config.platform_auth_required() and not token:
+        logger.error(
+            "Platform API authentication is required but "
+            "MINOS_PLATFORM_API_TOKEN is missing; requests will be rejected."
+        )
+    elif not config.platform_auth_required() and not token:
         logger.warning(
-            "MINOS_PLATFORM_API_TOKEN is not set — platform API is running "
-            "without authentication. Set the environment variable to enable "
-            "Bearer token auth."
+            "Platform API authentication is explicitly disabled; set "
+            "MINOS_PLATFORM_AUTH_REQUIRED=1 before exposing this service."
         )
     yield
     if db._engine is not None:
@@ -56,8 +60,6 @@ app.add_middleware(
     allow_origins=[
         "http://127.0.0.1:1420",
         "http://localhost:1420",
-        "http://127.0.0.1:*",
-        "http://localhost:*",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -67,11 +69,25 @@ app.add_middleware(
 
 @app.middleware("http")
 async def platform_auth_middleware(request: Request, call_next):
-    token = os.getenv("MINOS_PLATFORM_API_TOKEN")
+    if (
+        request.method == "OPTIONS"
+        and request.headers.get("access-control-request-method")
+    ):
+        return await call_next(request)
+
+    token = config.get_platform_api_token()
+    if config.platform_auth_required() and not token:
+        return JSONResponse(
+            status_code=401,
+            content={
+                "detail": "platform authentication is required but no API token is configured",
+                "code": "UNAUTHORIZED",
+            },
+        )
     if token:
         authorization = request.headers.get("Authorization")
         expected = f"Bearer {token}"
-        if authorization != expected:
+        if not authorization or not secrets.compare_digest(authorization, expected):
             return JSONResponse(
                 status_code=401,
                 content={

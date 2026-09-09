@@ -19,6 +19,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { ArrowDown, ArrowUp, ClipboardCheck, GripVertical, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
+import { StickyHorizontalScrollbar } from "./StickyHorizontalScrollbar";
+import { useDragScroll } from "../hooks/useDragScroll";
+import { specialCharacteristicColumnText } from "../state/special-characteristic-display";
 
 type DraftCell = {
   rowId: string;
@@ -46,6 +49,8 @@ export type PfdNewRowDraft = {
 type WorkbenchColumnDef = ColumnDef<WorkbenchRow> & {
   editableField?: string;
 };
+
+type RawColumnFormatter = (row: WorkbenchRow, fields: string[]) => string;
 
 type TableWorkspaceState = {
   activeRowId: string | null;
@@ -106,12 +111,13 @@ function rawColumn(
   id: string,
   header: string,
   fields: string[],
-  editableField?: string
+  editableField?: string,
+  valueFormatter?: RawColumnFormatter
 ): WorkbenchColumnDef {
   return {
     id,
     header,
-    accessorFn: (row) => firstText(row, fields),
+    accessorFn: (row) => valueFormatter ? valueFormatter(row, fields) : firstText(row, fields),
     editableField,
   };
 }
@@ -141,7 +147,7 @@ function columnsForTable(table: TableKind): WorkbenchColumnDef[] {
       { ...rawColumn("detection", "探测度", ["detection"]), header: "探测度" },
       { ...rawColumn("ap", "AP", ["action_priority", "ap"]), header: "AP" },
       { ...rawColumn("control_logic_review", "控制逻辑复核", ["control_logic_review"], "control_logic_review"), header: "控制逻辑复核" },
-      { ...rawColumn("special_characteristics", "特殊特性", ["special_characteristics", "special_characteristic", "special_characteristic_class", "classification"]), header: "特殊特性" },
+      { ...rawColumn("special_characteristics", "特殊特性", ["special_characteristics", "special_characteristic", "special_characteristic_class", "classification"], undefined, specialCharacteristicColumnText), header: "特殊特性" },
       { ...rawColumn("preventive_action", "预防措施", ["preventive_action"], "preventive_action"), header: "预防措施" },
       { ...rawColumn("detection_action", "探测措施", ["detection_action"], "detection_action"), header: "探测措施" },
       { ...rawColumn("responsible_person", "责任人", ["responsible_person", "responsibility", "owner"], "responsible_person"), header: "责任人" },
@@ -156,7 +162,7 @@ function columnsForTable(table: TableKind): WorkbenchColumnDef[] {
       rawColumn("process_step", "过程步骤", ["process_name", "process_step_name", "operation", "process_step", "process_step_id"]),
       rawColumn("pfmea_id", "PFMEA 来源", ["pfmea_id"]),
       rawColumn("characteristic", "产品/过程特性", ["product_process_characteristic", "product_characteristic", "process_characteristic"], "product_process_characteristic"),
-      rawColumn("special_characteristic_class", "特殊特性分类", ["special_characteristic_class", "classification", "special_characteristics"]),
+      rawColumn("special_characteristic_class", "特殊特性分类", ["special_characteristic_class", "classification", "special_characteristics"], undefined, specialCharacteristicColumnText),
       rawColumn("specification", "规范/公差", ["specification_tolerance", "specification", "tolerance"], "specification_tolerance"),
       rawColumn("process_parameter", "过程参数", ["process_parameter"], "process_parameter"),
       rawColumn("parameter_specification", "参数规格", ["parameter_specification"], "parameter_specification"),
@@ -182,7 +188,7 @@ function columnsForTable(table: TableKind): WorkbenchColumnDef[] {
     rawColumn("equipment", "设备/工装", ["equipment", "machine", "tooling"], "equipment"),
     rawColumn("product_characteristic", "产品特性", ["product_characteristic", "product_characteristics"], "product_characteristic"),
     rawColumn("process_characteristic", "过程特性", ["process_characteristic", "process_characteristics"], "process_characteristic"),
-    rawColumn("special_characteristic", "特殊特性", ["special_characteristics", "special_characteristic", "classification"]),
+    rawColumn("special_characteristic", "特殊特性", ["special_characteristics", "special_characteristic", "special_characteristic_class", "classification"], undefined, specialCharacteristicColumnText),
     rawColumn("owner", "责任", ["owner", "responsibility"], "responsibility"),
     { accessorKey: "status", header: "复核状态", cell: ({ row }) => rowStatusLabel(row.original.status) },
   ];
@@ -224,6 +230,25 @@ export function WorkbenchTable({
   const [draggedRowId, setDraggedRowId] = useState<string | null>(null);
   const draggedRowIdRef = useRef<string | null>(null);
   const pointerDragRowIdRef = useRef<string | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Shift+drag to scroll horizontally (like Figma)
+  useDragScroll(scrollContainerRef, { requireShiftKey: true });
+
+  // Keyboard shortcuts for horizontal scrolling
+  useEffect(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === "ArrowLeft") { el.scrollLeft -= e.shiftKey ? 200 : 50; e.preventDefault(); }
+      if (e.key === "ArrowRight") { el.scrollLeft += e.shiftKey ? 200 : 50; e.preventDefault(); }
+      if (e.key === "Home") { el.scrollLeft = 0; e.preventDefault(); }
+      if (e.key === "End") { el.scrollLeft = el.scrollWidth; e.preventDefault(); }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
   const columns = useMemo(() => columnsForRows(rows, tableKind), [rows, tableKind]);
   const table = useReactTable({
     data: rows,
@@ -539,7 +564,10 @@ export function WorkbenchTable({
           </Button>
         </div>
       )}
-      <div className="max-h-[calc(100vh-330px)] min-h-[440px] overflow-auto">
+      <div
+        ref={scrollContainerRef}
+        className="max-h-[calc(100vh-330px)] min-h-[440px] overflow-auto"
+      >
         <Table className="min-w-max">
           <TableHeader className="sticky top-0 z-10 bg-white shadow-[0_1px_0_rgba(15,23,42,0.08)]">
             {table.getHeaderGroups().map((headerGroup) => (
@@ -675,6 +703,7 @@ export function WorkbenchTable({
           </TableBody>
         </Table>
       </div>
+      <StickyHorizontalScrollbar targetRef={scrollContainerRef} />
     </div>
   );
 }

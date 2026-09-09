@@ -29,7 +29,7 @@ class SampleMetadata:
     path: Path
 
     @classmethod
-    def from_mapping(cls, data: dict[str, Any], path: Path) -> "SampleMetadata":
+    def from_mapping(cls, data: dict[str, Any], path: Path) -> SampleMetadata:
         deliverable = data.get("deliverable", {})
         return cls(
             sample_id=str(data.get("sample_id", "")),

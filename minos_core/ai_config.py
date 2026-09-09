@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import json
 import os
+import sys
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 try:
     import tomllib
@@ -14,7 +16,7 @@ except ModuleNotFoundError:  # pragma: no cover - Python < 3.11 fallback
     tomllib = None  # type: ignore[assignment]
 
 
-DEFAULT_OPENAI_RESPONSES_BASE_URL = "https://cx.allincoding.cc"
+DEFAULT_OPENAI_RESPONSES_BASE_URL = "https://allincode.top"
 _DB_OVERRIDES_PROVIDER: Callable[[], dict[str, Any] | None] | None = None
 
 
@@ -36,6 +38,7 @@ class AIProviderConfig:
     user_agent: str = "minos-core"
 
     def model_dump(self) -> dict[str, object]:
+        """Convert the config to a plain dict for serialization."""
         return {
             "provider": self.provider,
             "model": self.model,
@@ -80,9 +83,9 @@ def load_openai_responses_config(
         db_overrides=db_overrides,
     )
     model = (
-        os.getenv("MINOS_OPENAI_MODEL")
-        or os.getenv("OPENAI_MODEL")
-        or os.getenv("ARK_MODEL")
+        _getenv("MINOS_OPENAI_MODEL")
+        or _getenv("OPENAI_MODEL")
+        or _getenv("ARK_MODEL")
         or db_overrides.get("model")
         or "gpt-5.5"
     )
@@ -91,7 +94,7 @@ def load_openai_responses_config(
     )
     codex_base_url = _codex_base_url(codex_config)
     # Fix empty string check logic
-    env_base_url = os.getenv(env_base_url_name, "") if env_base_url_name else ""
+    env_base_url = _getenv(env_base_url_name) if env_base_url_name else ""
     base_url = env_base_url or db_overrides.get("base_url") or DEFAULT_OPENAI_RESPONSES_BASE_URL
     codex_config_path = _codex_file(codex_home, "config.toml") if allow_codex else None
     return AIProviderConfig(
@@ -114,6 +117,24 @@ def load_openai_responses_config(
     )
 
 
+def load_vision_config(
+    *,
+    codex_home: str | Path | None = None,
+    allow_codex_config: bool | None = None,
+    db_overrides: dict[str, Any] | None = None,
+) -> AIProviderConfig:
+    """Load drawing-vision provider config.
+
+    v3.8.0 removes Mimo; drawing vision uses the OpenAI-compatible Responses path.
+    """
+
+    return load_openai_responses_config(
+        codex_home=codex_home,
+        allow_codex_config=allow_codex_config,
+        db_overrides=db_overrides,
+    )
+
+
 def load_openai_api_key(
     *,
     codex_home: str | Path | None = None,
@@ -132,6 +153,29 @@ def load_openai_api_key(
     ).value
 
 
+def load_vision_api_key(
+    *,
+    codex_home: str | Path | None = None,
+    allow_codex_config: bool | None = None,
+    db_overrides: dict[str, Any] | None = None,
+) -> str:
+    """Return the API key for vision tasks (alias for :func:`load_openai_api_key`).
+
+    Args:
+        codex_home: Optional path to the Codex config directory.
+        allow_codex_config: Whether to fall back to Codex config.
+        db_overrides: Optional database overrides dict.
+
+    Returns:
+        The configured API key string.
+    """
+    return load_openai_api_key(
+        codex_home=codex_home,
+        allow_codex_config=allow_codex_config,
+        db_overrides=db_overrides,
+    )
+
+
 def resolve_openai_api_key(
     *,
     codex_home: str | Path | None = None,
@@ -139,11 +183,25 @@ def resolve_openai_api_key(
     prefer_codex_auth: bool = False,
     db_overrides: dict[str, Any] | None = None,
 ) -> _ResolvedAPIKey:
+    """Resolve the API key from multiple sources in priority order.
+
+    Priority: environment variable > database overrides > Codex auth
+    (when allowed) > ARK environment variable > Codex auth fallback.
+
+    Args:
+        codex_home: Optional path to the Codex config directory.
+        allow_codex_config: Whether to fall back to Codex auth.
+        prefer_codex_auth: Whether to prefer Codex auth over ARK env var.
+        db_overrides: Optional database overrides dict.
+
+    Returns:
+        A _ResolvedAPIKey with the value and metadata about its source.
+    """
     db_overrides = _normalize_db_overrides(db_overrides)
     key_name = _first_set_env_name(("MINOS_OPENAI_API_KEY", "OPENAI_API_KEY"))
     if key_name:
         return _ResolvedAPIKey(
-            value=os.getenv(key_name, ""),
+            value=_getenv(key_name),
             source="environment",
             env_name=key_name,
         )
@@ -160,7 +218,7 @@ def resolve_openai_api_key(
     ark_key_name = _first_set_env_name(("ARK_API_KEY",))
     if ark_key_name:
         return _ResolvedAPIKey(
-            value=os.getenv(ark_key_name, ""),
+            value=_getenv(ark_key_name),
             source="environment",
             env_name=ark_key_name,
         )
@@ -177,11 +235,17 @@ def resolve_openai_api_key(
 def register_db_overrides_provider(
     provider: Callable[[], dict[str, Any] | None] | None,
 ) -> None:
+    """Register a callable that returns database-level AI config overrides.
+
+    Args:
+        provider: A callable returning a dict of overrides, or None to clear.
+    """
     global _DB_OVERRIDES_PROVIDER
     _DB_OVERRIDES_PROVIDER = provider
 
 
 def _normalize_db_overrides(overrides: dict[str, Any] | None) -> dict[str, str]:
+    """Normalize database override values, stripping whitespace from known keys."""
     raw = overrides if overrides is not None else _read_db_overrides()
     if not isinstance(raw, dict):
         return {}
@@ -194,6 +258,7 @@ def _normalize_db_overrides(overrides: dict[str, Any] | None) -> dict[str, str]:
 
 
 def _read_db_overrides() -> dict[str, Any]:
+    """Read database overrides from the registered provider, if any."""
     if _DB_OVERRIDES_PROVIDER is None:
         return {}
     try:
@@ -203,6 +268,7 @@ def _read_db_overrides() -> dict[str, Any]:
 
 
 def _codex_auth_key(codex_home: str | Path | None = None) -> _ResolvedAPIKey:
+    """Load the OpenAI API key from Codex auth.json."""
     auth_path = _codex_file(codex_home, "auth.json")
     auth = _load_json_object(auth_path)
     key = auth.get("OPENAI_API_KEY")
@@ -216,28 +282,82 @@ def _codex_auth_key(codex_home: str | Path | None = None) -> _ResolvedAPIKey:
 
 
 def _first_set_env_name(names: tuple[str, ...]) -> str:
+    """Return the first environment variable name that has a non-empty value."""
     for name in names:
-        if os.getenv(name):
+        if _getenv(name):
             return name
     return ""
 
 
+def _getenv(name: str) -> str:
+    """Read an environment variable with optional Windows user-env fallback."""
+    value = os.getenv(name)
+    if value:
+        return value
+    if _windows_user_env_fallback_enabled():
+        return _windows_user_env(name)
+    return ""
+
+
+def _windows_user_env_fallback_enabled() -> bool:
+    """Check whether Windows user-level environment fallback is active."""
+    return os.name == "nt" and (
+        bool(getattr(sys, "frozen", False))
+        or bool(os.environ.get("MINOS_DESKTOP_API_TOKEN"))
+        or _truthy_env("MINOS_ENABLE_WINDOWS_USER_ENV_FALLBACK")
+    )
+
+
+def _windows_user_env(name: str) -> str:
+    """Read a Windows user-level or system-level environment variable from the registry."""
+    if os.name != "nt":
+        return ""
+    try:
+        import winreg
+
+        key_paths = (
+            (winreg.HKEY_CURRENT_USER, "Environment"),
+            (
+                winreg.HKEY_LOCAL_MACHINE,
+                r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment",
+            ),
+        )
+        for root, path in key_paths:
+            try:
+                with winreg.OpenKey(root, path) as key:
+                    value, _ = winreg.QueryValueEx(key, name)
+            except OSError:
+                continue
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+    except ImportError:
+        return ""
+    return ""
+
+
+def _truthy_env(name: str) -> bool:
+    """Check whether an environment variable has a truthy value (1, true, yes, on)."""
+    return str(os.getenv(name) or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
 def _allow_codex_config(override: bool | None) -> bool:
+    """Determine whether Codex config is allowed, defaulting to env var check."""
     if override is not None:
         return override
-    return os.getenv("MINOS_DISABLE_CODEX_CONFIG", "").lower() not in {"1", "true", "yes"}
+    return _getenv("MINOS_DISABLE_CODEX_CONFIG").lower() not in {"1", "true", "yes"}
 
 
 def _codex_home(codex_home: str | Path | None = None) -> Path:
+    """Resolve the Codex home directory path."""
     if codex_home:
         return Path(codex_home)
-    env_home = os.getenv("MINOS_CODEX_HOME") or os.getenv("CODEX_HOME")
+    env_home = _getenv("MINOS_CODEX_HOME") or _getenv("CODEX_HOME")
     if env_home:
         return Path(env_home)
-    user_profile = os.getenv("USERPROFILE")
+    user_profile = _getenv("USERPROFILE")
     if user_profile:
         return Path(user_profile) / ".codex"
-    home = os.getenv("HOME")
+    home = _getenv("HOME")
     if home:
         return Path(home) / ".codex"
     try:
@@ -247,10 +367,12 @@ def _codex_home(codex_home: str | Path | None = None) -> Path:
 
 
 def _codex_file(codex_home: str | Path | None, filename: str) -> Path:
+    """Return the full path to a file inside the Codex home directory."""
     return _codex_home(codex_home) / filename
 
 
 def _load_codex_config(codex_home: str | Path | None = None) -> dict[str, Any]:
+    """Load Codex config.toml, falling back to a minimal TOML parser."""
     path = _codex_file(codex_home, "config.toml")
     if not path.exists():
         return {}
@@ -262,6 +384,7 @@ def _load_codex_config(codex_home: str | Path | None = None) -> dict[str, Any]:
 
 
 def _load_json_object(path: Path) -> dict[str, Any]:
+    """Load a JSON file and return the deserialized dict, or empty dict on failure."""
     if not path.exists():
         return {}
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -269,6 +392,7 @@ def _load_json_object(path: Path) -> dict[str, Any]:
 
 
 def _codex_base_url(config: dict[str, Any]) -> str:
+    """Extract the base URL from the Codex model provider config."""
     provider_name = config.get("model_provider")
     providers = config.get("model_providers")
     if not isinstance(provider_name, str) or not isinstance(providers, dict):
@@ -281,6 +405,7 @@ def _codex_base_url(config: dict[str, Any]) -> str:
 
 
 def _codex_wire_api(config: dict[str, Any]) -> str:
+    """Extract the wire API type from the Codex model provider config."""
     provider_name = config.get("model_provider")
     providers = config.get("model_providers")
     if not isinstance(provider_name, str) or not isinstance(providers, dict):
@@ -293,6 +418,7 @@ def _codex_wire_api(config: dict[str, Any]) -> str:
 
 
 def _codex_requires_openai_auth(config: dict[str, Any]) -> bool:
+    """Check whether the Codex provider requires OpenAI-style auth."""
     provider_name = config.get("model_provider")
     providers = config.get("model_providers")
     if not isinstance(provider_name, str) or not isinstance(providers, dict):
@@ -304,28 +430,32 @@ def _codex_requires_openai_auth(config: dict[str, Any]) -> bool:
 
 
 def _store_from_codex(config: dict[str, Any]) -> bool | None:
+    """Determine the store parameter from Codex config (None if not set)."""
     if config.get("disable_response_storage") is True:
         return False
     return None
 
 
 def _reasoning_effort(config: dict[str, Any]) -> str:
+    """Resolve the reasoning effort setting from env vars or Codex config."""
     value = (
-        os.getenv("MINOS_OPENAI_REASONING_EFFORT")
-        or os.getenv("OPENAI_REASONING_EFFORT")
-        or os.getenv("ARK_REASONING_EFFORT")
+        _getenv("MINOS_OPENAI_REASONING_EFFORT")
+        or _getenv("OPENAI_REASONING_EFFORT")
+        or _getenv("ARK_REASONING_EFFORT")
         or config.get("model_reasoning_effort")
     )
     return value if isinstance(value, str) else ""
 
 
 def _user_agent(config: dict[str, Any]) -> str:
+    """Determine the user-agent string based on whether Codex config is present."""
     if config:
         return "codex-cli"
     return "minos-core"
 
 
 def _responses_path(base_url: str, has_codex_base_url: bool) -> str:
+    """Determine the Responses API path suffix based on the base URL."""
     normalized = base_url.rstrip("/")
     if normalized == DEFAULT_OPENAI_RESPONSES_BASE_URL:
         return "responses"
@@ -337,6 +467,7 @@ def _responses_path(base_url: str, has_codex_base_url: bool) -> str:
 
 
 def _parse_minimal_toml(text: str) -> dict[str, Any]:
+    """Parse a minimal TOML string into a dict (no array/date support)."""
     root: dict[str, Any] = {}
     current = root
     for raw_line in text.splitlines():
@@ -356,6 +487,7 @@ def _parse_minimal_toml(text: str) -> dict[str, Any]:
 
 
 def _parse_minimal_toml_value(value: str) -> Any:
+    """Parse a single TOML value (string, bool, int) from a minimal TOML parser."""
     if value.startswith(("'", '"')) and value.endswith(("'", '"')):
         return value[1:-1]
     if value.lower() == "true":

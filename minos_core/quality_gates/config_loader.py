@@ -5,11 +5,12 @@ Loads and validates quality gate configuration from YAML files,
 allowing business rules to be externalized and modified without code changes.
 """
 
-import logging
 from pathlib import Path
 from typing import Any
 
-logger = logging.getLogger(__name__)
+from minos_core.observability.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def get_default_config_path() -> Path:
@@ -50,22 +51,23 @@ def load_quality_gate_config(path: str | Path | None = None) -> dict[str, Any]:
         FileNotFoundError: If configuration file is not found
         ValueError: If configuration is invalid
     """
-    if path is None:
-        path = get_default_config_path()
-    else:
-        path = Path(path)
+    path = get_default_config_path() if path is None else Path(path)
 
     if not path.exists():
-        logger.warning(f"Quality gate config not found at {path}, using defaults")
+        logger.warning("Quality gate config not found, using defaults", config_path=str(path))
         return get_default_config()
 
     try:
         import yaml
 
         with open(path, encoding="utf-8") as f:
-            config = yaml.safe_load(f)
+            loaded: Any = yaml.safe_load(f)
 
-        logger.info(f"Loaded quality gate config from {path}")
+        if not isinstance(loaded, dict):
+            raise ValueError("quality gate configuration must be a mapping")
+        config: dict[str, Any] = loaded
+
+        logger.info("Loaded quality gate config", config_path=str(path))
         return config
 
     except ImportError:
@@ -73,7 +75,7 @@ def load_quality_gate_config(path: str | Path | None = None) -> dict[str, Any]:
         return get_default_config()
 
     except Exception as e:
-        logger.error(f"Failed to load quality gate config from {path}: {e}")
+        logger.error("Failed to load quality gate config", config_path=str(path), error=str(e))
         raise ValueError(f"Invalid quality gate configuration: {e}") from e
 
 
@@ -169,11 +171,10 @@ def validate_config(config: dict[str, Any]) -> list[str]:
     # Validate PFMEA gate
     if "pfmea_gate" in config:
         pfmea = config["pfmea_gate"]
-        if "severity_range" in pfmea:
-            if not isinstance(pfmea["severity_range"], list) or len(
-                pfmea["severity_range"]
-            ) != 2:
-                errors.append("pfmea_gate.severity_range must be a list of [min, max]")
+        if "severity_range" in pfmea and (not isinstance(pfmea["severity_range"], list) or len(
+            pfmea["severity_range"]
+        ) != 2):
+            errors.append("pfmea_gate.severity_range must be a list of [min, max]")
 
     return errors
 
@@ -190,7 +191,7 @@ def get_pfd_config(config: dict[str, Any] | None = None) -> dict[str, Any]:
     """
     if config is None:
         config = load_quality_gate_config()
-    return config.get("pfd_gate", get_default_config()["pfd_gate"])
+    return _config_section(config, "pfd_gate")
 
 
 def get_pfmea_config(config: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -205,7 +206,7 @@ def get_pfmea_config(config: dict[str, Any] | None = None) -> dict[str, Any]:
     """
     if config is None:
         config = load_quality_gate_config()
-    return config.get("pfmea_gate", get_default_config()["pfmea_gate"])
+    return _config_section(config, "pfmea_gate")
 
 
 def get_control_plan_config(config: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -220,9 +221,7 @@ def get_control_plan_config(config: dict[str, Any] | None = None) -> dict[str, A
     """
     if config is None:
         config = load_quality_gate_config()
-    return config.get(
-        "control_plan_gate", get_default_config()["control_plan_gate"]
-    )
+    return _config_section(config, "control_plan_gate")
 
 
 def get_export_gate_config(config: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -237,4 +236,13 @@ def get_export_gate_config(config: dict[str, Any] | None = None) -> dict[str, An
     """
     if config is None:
         config = load_quality_gate_config()
-    return config.get("export_gate", get_default_config()["export_gate"])
+    return _config_section(config, "export_gate")
+
+
+def _config_section(config: dict[str, Any], key: str) -> dict[str, Any]:
+    """Return a validated configuration section or its default mapping."""
+    section = config.get(key)
+    if isinstance(section, dict):
+        return dict(section)
+    default_section = get_default_config().get(key, {})
+    return dict(default_section) if isinstance(default_section, dict) else {}

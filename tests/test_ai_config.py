@@ -10,11 +10,107 @@ from minos_core.cli import main
 
 
 class AIConfigTests(unittest.TestCase):
+    def test_load_vision_config_ignores_removed_mimo_provider(self):
+        with patch.dict(
+            os.environ,
+            {
+                "MINOS_DISABLE_CODEX_CONFIG": "1",
+                "MINOS_VISION_PROVIDER": "mimo",
+                "MINOS_MIMO_API_KEY": "mimo-secret",
+                "MINOS_MIMO_BASE_URL": "https://api.xiaomimimo.com/v1",
+                "MINOS_MIMO_MODEL": "mimo-v2.5",
+                "MINOS_OPENAI_API_KEY": "openai-secret",
+                "MINOS_OPENAI_MODEL": "gpt-5.5",
+            },
+            clear=True,
+        ):
+            from minos_core.ai_config import load_vision_config
+
+            config = load_vision_config(allow_codex_config=False)
+
+        self.assertEqual(config.provider, "openai_responses")
+        self.assertEqual(config.model, "gpt-5.5")
+        self.assertEqual(config.base_url, "https://allincode.top")
+        self.assertTrue(config.api_key_configured)
+        self.assertEqual(config.api_key_env_name, "MINOS_OPENAI_API_KEY")
+        self.assertEqual(config.wire_api, "responses")
+        self.assertEqual(config.responses_path, "responses")
+
+    def test_load_vision_api_key_ignores_removed_mimo_key(self):
+        with patch.dict(
+            os.environ,
+            {
+                "MINOS_DISABLE_CODEX_CONFIG": "1",
+                "MINOS_VISION_PROVIDER": "mimo",
+                "MINOS_MIMO_API_KEY": "mimo-secret",
+                "MINOS_OPENAI_API_KEY": "openai-secret",
+            },
+            clear=True,
+        ):
+            key = ai_config.load_vision_api_key(allow_codex_config=False)
+
+        self.assertEqual(key, "openai-secret")
+
+    def test_packaged_desktop_reads_openai_from_windows_user_environment_when_mimo_is_set(self):
+        user_env = {
+            "MINOS_VISION_PROVIDER": "mimo",
+            "MINOS_MIMO_API_KEY": "mimo-secret",
+            "MINOS_MIMO_BASE_URL": "https://api.xiaomimimo.com/v1",
+            "MINOS_MIMO_MODEL": "mimo-v2.5",
+            "MINOS_OPENAI_API_KEY": "openai-secret",
+            "MINOS_OPENAI_MODEL": "gpt-5.5",
+        }
+
+        with (
+            patch.dict(os.environ, {"MINOS_DISABLE_CODEX_CONFIG": "1"}, clear=True),
+            patch("minos_core.ai_config._windows_user_env_fallback_enabled", return_value=True),
+            patch("minos_core.ai_config._windows_user_env", side_effect=lambda name: user_env.get(name, "")),
+        ):
+            config = ai_config.load_vision_config(allow_codex_config=False)
+            key = ai_config.load_vision_api_key(allow_codex_config=False)
+
+        self.assertEqual(config.provider, "openai_responses")
+        self.assertEqual(config.model, "gpt-5.5")
+        self.assertEqual(config.base_url, "https://allincode.top")
+        self.assertTrue(config.api_key_configured)
+        self.assertEqual(config.api_key_env_name, "MINOS_OPENAI_API_KEY")
+        self.assertEqual(key, "openai-secret")
+
+    def test_desktop_sidecar_source_mode_reads_openai_when_mimo_is_set(self):
+        user_env = {
+            "MINOS_VISION_PROVIDER": "mimo",
+            "MINOS_MIMO_API_KEY": "mimo-secret",
+            "MINOS_MIMO_MODEL": "mimo-v2.5",
+            "MINOS_OPENAI_API_KEY": "openai-secret",
+            "MINOS_OPENAI_MODEL": "gpt-5.5",
+        }
+
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "MINOS_DESKTOP_API_TOKEN": "desktop-token",
+                    "MINOS_DISABLE_CODEX_CONFIG": "1",
+                },
+                clear=True,
+            ),
+            patch("minos_core.ai_config.os.name", "nt"),
+            patch("minos_core.ai_config._windows_user_env", side_effect=lambda name: user_env.get(name, "")),
+        ):
+            config = ai_config.load_vision_config(allow_codex_config=False)
+            key = ai_config.load_vision_api_key(allow_codex_config=False)
+
+        self.assertEqual(config.provider, "openai_responses")
+        self.assertEqual(config.model, "gpt-5.5")
+        self.assertTrue(config.api_key_configured)
+        self.assertEqual(config.api_key_env_name, "MINOS_OPENAI_API_KEY")
+        self.assertEqual(key, "openai-secret")
+
     def test_default_base_url_uses_minos_cx_proxy_without_codex_config(self):
         with patch.dict(os.environ, {"MINOS_DISABLE_CODEX_CONFIG": "1"}, clear=True):
             config = load_openai_responses_config()
 
-        self.assertEqual(config.base_url, "https://cx.allincoding.cc")
+        self.assertEqual(config.base_url, "https://allincode.top")
         self.assertEqual(config.responses_path, "responses")
 
     def test_load_openai_config_prefers_minos_env_without_exposing_key(self):
@@ -73,7 +169,7 @@ class AIConfigTests(unittest.TestCase):
         self.assertEqual(config.api_key_source, "codex_auth")
         self.assertEqual(config.api_key_env_name, "")
         self.assertEqual(config.model, "gpt-5.5")
-        self.assertEqual(config.base_url, "https://cx.allincoding.cc")
+        self.assertEqual(config.base_url, "https://allincode.top")
         self.assertEqual(config.wire_api, "responses")
         self.assertEqual(config.responses_path, "responses")
         self.assertIs(config.store, False)
@@ -141,7 +237,7 @@ class AIConfigTests(unittest.TestCase):
             config = load_openai_responses_config()
 
         self.assertEqual(config.model, "gpt-5.5")
-        self.assertEqual(config.base_url, "https://cx.allincoding.cc")
+        self.assertEqual(config.base_url, "https://allincode.top")
         self.assertFalse(config.api_key_configured)
 
     def test_db_provider_failure_falls_back_to_defaults(self):
@@ -156,7 +252,7 @@ class AIConfigTests(unittest.TestCase):
             ai_config.register_db_overrides_provider(None)
 
         self.assertEqual(config.model, "gpt-5.5")
-        self.assertEqual(config.base_url, "https://cx.allincoding.cc")
+        self.assertEqual(config.base_url, "https://allincode.top")
         self.assertFalse(config.api_key_configured)
 
     def test_env_model_overrides_default_when_using_codex_auth(self):
@@ -182,7 +278,7 @@ class AIConfigTests(unittest.TestCase):
                 config = load_openai_responses_config(codex_home=codex_home)
 
         self.assertEqual(config.model, "gpt-5.4")
-        self.assertEqual(config.base_url, "https://cx.allincoding.cc")
+        self.assertEqual(config.base_url, "https://allincode.top")
         self.assertEqual(config.api_key_source, "codex_auth")
 
     def test_default_base_url_overrides_codex_proxy_but_keeps_codex_auth(self):
@@ -206,7 +302,7 @@ class AIConfigTests(unittest.TestCase):
             with patch.dict(os.environ, {}, clear=True):
                 config = load_openai_responses_config(codex_home=codex_home)
 
-        self.assertEqual(config.base_url, "https://cx.allincoding.cc")
+        self.assertEqual(config.base_url, "https://allincode.top")
         self.assertEqual(config.responses_path, "responses")
         self.assertEqual(config.api_key_source, "codex_auth")
 

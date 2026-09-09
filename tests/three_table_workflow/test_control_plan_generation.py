@@ -1,47 +1,15 @@
-import json
-import tempfile
 import unittest
-from pathlib import Path
 from unittest.mock import patch
-from zipfile import ZipFile
 
-from PIL import Image
-
-from minos_core.adapters.multimodal import FakeMultimodalDrawingAnalyzer
-from minos_core.drawing_analysis import (
-    DrawingAnalysisError,
-    analyze_drawing_pages,
-    evaluate_drawing_recognition_gate,
-)
-from minos_core.drawing_input import (
-    DrawingInputError,
-    load_drawing_source,
-    render_drawing_pages,
-)
-from minos_core.drawing_to_pfd import infer_process_flow_from_drawing, normalize_process_flow_steps
-from minos_core.exporters.three_table_workbooks import (
-    export_split_three_table_workbooks,
-    export_three_table_workbook,
-)
 from minos_core.generate_control_plan import (
     generate_control_plan_from_pfmea,
     normalize_control_plan_rows,
 )
-from minos_core.pfd_to_pfmea_ai import (
-    infer_pfmea_from_process_flow,
-    normalize_pfmea_rows,
-)
-from minos_core.pipeline import generate_three_tables_from_drawing
 from minos_core.pipeline_chain import (
     generate_cp_from_confirmed_pfmea,
     generate_pfd_from_drawing,
     generate_pfmea_from_confirmed_pfd,
 )
-from minos_core.three_table_result import build_three_table_generation_envelope
-from minos_core.cli import main
-from minos_core.schemas import validate_bundle_schema
-
-from .conftest import rows_by_step, PFMEA_CONTROL_LOGIC_FIELDS, assert_pfmea_ai_risk_row
 
 
 class ControlPlanGenerationTests(unittest.TestCase):
@@ -50,7 +18,11 @@ class ControlPlanGenerationTests(unittest.TestCase):
     def test_chain_cp_generates_per_pfmea_row_to_avoid_gateway_timeout(self):
         confirmed_pfd = {
             "steps": [
-                {"process_step_id": "P10", "operation": "来料检验"},
+                {
+                    "process_step_id": "P10",
+                    "operation": "来料检验",
+                    "special_characteristics": ["SC-来料尺寸"],
+                },
                 {"process_step_id": "P20", "operation": "冲压成形"},
             ]
         }
@@ -67,6 +39,8 @@ class ControlPlanGenerationTests(unittest.TestCase):
                     "detection_control": "来料检验",
                     "action_priority": "H",
                     "special_characteristics": "SC",
+                    "characteristic_refs": ["SC-来料尺寸"],
+                    "evidence_refs": ["EV-PFMEA-P10"],
                 },
                 {
                     "pfmea_id": "PFMEA-P20-01",
@@ -79,6 +53,7 @@ class ControlPlanGenerationTests(unittest.TestCase):
                     "detection_control": "尺寸巡检",
                     "action_priority": "M",
                     "special_characteristics": "无",
+                    "evidence_refs": ["EV-PFMEA-P20"],
                 },
             ]
         }
@@ -143,7 +118,7 @@ class ControlPlanGenerationTests(unittest.TestCase):
             },
         ]
 
-        with patch("minos_core.pipeline_chain.OpenAITextGenerator") as generator:
+        with patch("minos_core.adapters.llm_text.OpenAITextGenerator") as generator:
             llm = generator.return_value
             llm.generate_structured.side_effect = payloads
 
@@ -168,8 +143,259 @@ class ControlPlanGenerationTests(unittest.TestCase):
             ):
                 self.assertIn(field, row)
                 self.assertTrue(row[field])
+            self.assertEqual(row["specification"], row["specification_tolerance"])
+            self.assertEqual(row["evidence_refs"], [f"EV-{row['pfmea_id'].removesuffix('-01')}"])
+        self.assertEqual(cp["rows"][0]["source_special_characteristics"], ["SC-来料尺寸"])
+        self.assertEqual(cp["rows"][0]["product_process_characteristic"], "来料尺寸")
         self.assertEqual(cp["metadata"]["cp_generation_strategy"], "per_pfmea_row")
 
+    def test_chain_cp_covers_low_ap_pfmea_rows_for_formal_export_gate(self):
+        confirmed_pfd = {"steps": [{"process_step_id": "P10", "operation": "来料检验"}]}
+        confirmed_pfmea = {
+            "rows": [
+                {
+                    "pfmea_id": "PFMEA-P10-HIGH",
+                    "process_step_id": "P10",
+                    "process_step_name": "来料检验",
+                    "failure_mode": "来料尺寸不符",
+                    "failure_cause": "供应商过程波动",
+                    "prevention_control": "供应商审核",
+                    "detection_control": "来料检验",
+                    "action_priority": "H",
+                    "evidence_refs": ["EV-HIGH"],
+                },
+                {
+                    "pfmea_id": "PFMEA-P10-LOW",
+                    "process_step_id": "P10",
+                    "process_step_name": "来料检验",
+                    "failure_mode": "标签轻微污损",
+                    "failure_cause": "搬运摩擦",
+                    "prevention_control": "周转防护",
+                    "detection_control": "目视检查",
+                    "action_priority": "L",
+                    "evidence_refs": ["EV-LOW"],
+                },
+            ]
+        }
+
+        def payload_for_prompt(*args, **kwargs):
+            prompt_text = " ".join(str(value) for value in args)
+            prompt_text += " " + " ".join(str(value) for value in kwargs.values())
+            if "PFMEA-P10-HIGH" in prompt_text:
+                return {
+                    "rows": [
+                        {
+                            "control_plan_id": "CP-P10-HIGH",
+                            "process_step_id": "P10",
+                            "pfmea_id": "PFMEA-P10-HIGH",
+                            "process_name": "来料检验",
+                            "equipment": "检具",
+                            "characteristic_number": "PFMEA-P10-HIGH",
+                            "product_characteristic": "来料尺寸",
+                            "process_characteristic": "供应商批次",
+                            "special_characteristic_class": "无",
+                            "specification_tolerance": "按图纸要求",
+                            "measurement_method": "尺寸检验",
+                            "sample_size": "5 件",
+                            "sample_frequency": "每批",
+                            "control_method": "供应商审核；来料检验",
+                            "process_parameter": "供应商批次状态",
+                            "parameter_specification": "批次状态受控",
+                            "process_control_method": "供应商放行清单",
+                            "setup_verification": "换批前确认批次状态",
+                            "poka_yoke_device": "批次扫码",
+                            "poka_yoke_verification": "每批首件扫码验证",
+                            "process_record": "来料检验记录",
+                            "reaction_plan": "隔离并通知质量工程师",
+                            "needs_confirmation": True,
+                        }
+                    ]
+                }
+            if "PFMEA-P10-LOW" in prompt_text:
+                return {
+                    "rows": [
+                        {
+                            "control_plan_id": "CP-P10-LOW",
+                            "process_step_id": "P10",
+                            "pfmea_id": "PFMEA-P10-LOW",
+                            "process_name": "来料检验",
+                            "equipment": "检具",
+                            "characteristic_number": "PFMEA-P10-LOW",
+                            "product_characteristic": "标签外观",
+                            "process_characteristic": "搬运防护",
+                            "special_characteristic_class": "无",
+                            "specification_tolerance": "标签清晰可识别",
+                            "measurement_method": "目视检查",
+                            "sample_size": "3 件",
+                            "sample_frequency": "每批",
+                            "control_method": "周转防护；目视检查",
+                            "process_parameter": "周转防护状态",
+                            "parameter_specification": "料框隔离完好",
+                            "process_control_method": "周转料框点检",
+                            "setup_verification": "上线前确认防护状态",
+                            "poka_yoke_device": "料框隔离标识",
+                            "poka_yoke_verification": "每批确认隔离标识",
+                            "process_record": "来料外观检查记录",
+                            "reaction_plan": "隔离并更换标签",
+                            "needs_confirmation": True,
+                        }
+                    ]
+                }
+            raise AssertionError(f"Prompt did not include expected PFMEA id: {prompt_text}")
+
+        with patch("minos_core.adapters.llm_text.OpenAITextGenerator") as generator:
+            generator.return_value.generate_structured.side_effect = payload_for_prompt
+
+            cp = generate_cp_from_confirmed_pfmea({}, confirmed_pfd, confirmed_pfmea)
+
+        self.assertEqual(generator.return_value.generate_structured.call_count, 2)
+        self.assertEqual(
+            [row["pfmea_id"] for row in cp["rows"]],
+            ["PFMEA-P10-HIGH", "PFMEA-P10-LOW"],
+        )
+
+    def test_chain_cp_normalizes_duplicate_llm_control_plan_ids_per_step(self):
+        confirmed_pfd = {"steps": [{"process_step_id": "P10", "operation": "来料检验"}]}
+        confirmed_pfmea = {
+            "rows": [
+                {
+                    "pfmea_id": "PFMEA-P10-01",
+                    "process_step_id": "P10",
+                    "process_step_name": "来料检验",
+                    "failure_mode": "来料尺寸不符",
+                    "action_priority": "H",
+                },
+                {
+                    "pfmea_id": "PFMEA-P10-02",
+                    "process_step_id": "P10",
+                    "process_step_name": "来料检验",
+                    "failure_mode": "标签错误",
+                    "action_priority": "M",
+                },
+            ]
+        }
+        payload_by_pfmea_id = {
+            "PFMEA-P10-01": {
+                "rows": [
+                    {
+                        "control_plan_id": "CP-DUPLICATE",
+                        "process_step_id": "P10",
+                        "pfmea_id": "PFMEA-P10-01",
+                        "process_name": "来料检验",
+                        "characteristic_number": "PFMEA-P10-01",
+                        "product_characteristic": "来料尺寸",
+                        "process_characteristic": "来料检验",
+                        "specification_tolerance": "按图纸要求",
+                        "measurement_method": "尺寸检验",
+                        "control_method": "来料检验",
+                        "reaction_plan": "隔离并通知质量工程师",
+                    }
+                ]
+            },
+            "PFMEA-P10-02": {
+                "rows": [
+                    {
+                        "control_plan_id": "CP-DUPLICATE",
+                        "process_step_id": "P10",
+                        "pfmea_id": "PFMEA-P10-02",
+                        "process_name": "来料检验",
+                        "characteristic_number": "PFMEA-P10-02",
+                        "product_characteristic": "标签",
+                        "process_characteristic": "来料检验",
+                        "specification_tolerance": "按包装规范",
+                        "measurement_method": "目视检查",
+                        "control_method": "标签核对",
+                        "reaction_plan": "隔离并更换标签",
+                    }
+                ]
+            },
+        }
+
+        def duplicate_id_payload_for_prompt(*args, **kwargs):
+            prompt_text = " ".join(str(value) for value in args)
+            prompt_text += " " + " ".join(str(value) for value in kwargs.values())
+            for pfmea_id, payload in payload_by_pfmea_id.items():
+                if pfmea_id in prompt_text:
+                    return payload
+            raise AssertionError(f"Prompt did not include expected PFMEA id: {prompt_text}")
+
+        with patch("minos_core.adapters.llm_text.OpenAITextGenerator") as generator:
+            generator.return_value.generate_structured.side_effect = duplicate_id_payload_for_prompt
+
+            cp = generate_cp_from_confirmed_pfmea({}, confirmed_pfd, confirmed_pfmea)
+
+        self.assertEqual(
+            [(row["control_plan_id"], row["pfmea_id"]) for row in cp["rows"]],
+            [("CP-P10-01", "PFMEA-P10-01"), ("CP-P10-02", "PFMEA-P10-02")],
+        )
+
+    def test_chain_pfd_uses_drawing_page_evidence_when_llm_omits_refs(self):
+        drawing_analysis = {
+            "drawing_identity": {"part_name": "尾门铰链"},
+            "evidence": [
+                {
+                    "evidence_id": "ocr_page_001",
+                    "source": "ocr_page",
+                    "content": "图纸整页 OCR",
+                },
+                {
+                    "evidence_id": "ocr_page_001_block_0001",
+                    "source": "ocr_block",
+                    "content": "局部文字",
+                },
+            ],
+        }
+        payload = {
+            "steps": [
+                {
+                    "process_step_id": "P01",
+                    "operation": "来料检验",
+                    "flow_type": "inspection",
+                    "equipment": "检具",
+                }
+            ]
+        }
+
+        with patch("minos_core.adapters.llm_text.OpenAITextGenerator") as generator:
+            generator.return_value.generate_structured.return_value = payload
+
+            pfd = generate_pfd_from_drawing(drawing_analysis)
+
+        self.assertEqual(pfd["steps"][0]["evidence_refs"], ["ocr_page_001"])
+
+    def test_chain_pfmea_inherits_pfd_evidence_when_llm_omits_refs(self):
+        confirmed_pfd = {
+            "steps": [
+                {
+                    "process_step_id": "P01",
+                    "operation": "来料检验",
+                    "evidence_refs": ["ocr_page_001"],
+                    "special_characteristics": ["SC-盐雾"],
+                    "product_characteristic_class": "SC",
+                }
+            ]
+        }
+        payload = {
+            "rows": [
+                {
+                    "pfmea_id": "PFMEA-P01-01",
+                    "process_step_id": "P01",
+                    "failure_mode": "来料尺寸不符",
+                    "failure_cause": "供应商过程波动",
+                    "prevention_control": "供应商审核",
+                    "detection_control": "来料检验",
+                    "action_priority": "M",
+                }
+            ]
+        }
+
+        with patch("minos_core.adapters.llm_text.OpenAITextGenerator") as generator:
+            generator.return_value.generate_structured.return_value = payload
+
+            pfmea = generate_pfmea_from_confirmed_pfd({}, confirmed_pfd)
+
+        self.assertEqual(pfmea["rows"][0]["evidence_refs"], ["ocr_page_001"])
+        self.assertEqual(pfmea["rows"][0]["characteristic_refs"], ["SC-盐雾"])
 
     def test_control_plan_generation_outputs_process_controls_not_only_result_checks(self):
         pfmea_bundle = {
@@ -234,6 +460,53 @@ class ControlPlanGenerationTests(unittest.TestCase):
         self.assertIn("压力不足导致成形不到位", row["parameter_specification"])
 
 
+    def test_control_plan_generation_ignores_source_control_plan_id(self):
+        pfmea_bundle = {
+            "document_type": "pfmea",
+            "rows": [
+                {
+                    "pfmea_id": "PFMEA-P10-01",
+                    "process_step_id": "P10",
+                    "process_step_name": "来料检验",
+                    "control_plan_id": "CP-DUPLICATE",
+                    "failure_mode": "来料尺寸不符",
+                    "failure_cause": "供应商过程波动",
+                    "prevention_control": "供应商审核",
+                    "detection_control": "来料检验",
+                    "action_priority": "H",
+                }
+            ],
+        }
+
+        cp = generate_control_plan_from_pfmea(pfmea_bundle)
+
+        self.assertEqual(cp["rows"][0]["control_plan_id"], "CP-PFMEA-P10-01")
+
+
+    def test_control_plan_generation_keeps_linked_control_plan_id(self):
+        pfmea_bundle = {
+            "document_type": "pfmea",
+            "rows": [
+                {
+                    "pfmea_id": "PFMEA-P10-01",
+                    "process_step_id": "P10",
+                    "process_step_name": "来料检验",
+                    "linked_control_plan_id": "CP-EXISTING-001",
+                    "control_plan_id": "CP-DUPLICATE",
+                    "failure_mode": "来料尺寸不符",
+                    "failure_cause": "供应商过程波动",
+                    "prevention_control": "供应商审核",
+                    "detection_control": "来料检验",
+                    "action_priority": "H",
+                }
+            ],
+        }
+
+        cp = generate_control_plan_from_pfmea(pfmea_bundle)
+
+        self.assertEqual(cp["rows"][0]["control_plan_id"], "CP-EXISTING-001")
+
+
     def test_chain_cp_rejects_row_request_returning_another_pfmea(self):
         confirmed_pfd = {"steps": [{"process_step_id": "P10", "operation": "来料检验"}]}
         confirmed_pfmea = {
@@ -277,7 +550,7 @@ class ControlPlanGenerationTests(unittest.TestCase):
             ]
         }
 
-        with patch("minos_core.pipeline_chain.OpenAITextGenerator") as generator:
+        with patch("minos_core.adapters.llm_text.OpenAITextGenerator") as generator:
             generator.return_value.generate_structured.return_value = llm_payload
 
             with self.assertRaisesRegex(ValueError, "expected PFMEA-P10-01"):

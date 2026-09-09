@@ -5,10 +5,9 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, fields, is_dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from .domain import APQPChain
-
 
 MOJIBAKE_MARKERS = ("�", "Ã", "Â", "å", "æ", "ä¸", "é", "ï¿½")
 
@@ -124,7 +123,7 @@ def _mandatory_cp_issues(chain: APQPChain) -> list[str]:
 def _three_table_linkage_issues(chain: APQPChain) -> list[str]:
     issues: list[str] = []
     steps_by_id = {step.process_step_id: step for step in chain.process_steps}
-    failures_by_id = {failure.pfmea_id: failure for failure in chain.failure_modes}
+    {failure.pfmea_id: failure for failure in chain.failure_modes}
     controls_by_pfmea: dict[str, list[Any]] = {}
     for control in chain.controls:
         if control.process_step_id and control.process_step_id not in steps_by_id:
@@ -146,21 +145,22 @@ def _three_table_linkage_issues(chain: APQPChain) -> list[str]:
             )
 
     for failure in chain.failure_modes:
-        step = steps_by_id.get(failure.process_step_id)
-        if step is None:
+        linked_step = steps_by_id.get(failure.process_step_id)
+        if linked_step is None:
             continue
         if not _text_matches_any(
             failure.process_function,
-            [step.process_function, step.process_purpose, step.operation],
+            [linked_step.process_function, linked_step.process_purpose, linked_step.operation],
         ):
             issues.append(
                 f"PFMEA {failure.pfmea_id!r} does not inherit function from PFD step {failure.process_step_id!r}"
             )
         if _special_refs(failure) and not _special_refs(failure).issubset(
-            _special_refs(step)
+            _special_refs(linked_step)
         ):
             issues.append(
-                f"PFMEA {failure.pfmea_id!r} special characteristics are not carried from PFD step {failure.process_step_id!r}"
+                f"PFMEA {failure.pfmea_id!r} special characteristics are not carried "
+                f"from PFD step {failure.process_step_id!r}"
             )
         if not failure.is_mandatory_control:
             continue
@@ -192,11 +192,13 @@ def _three_table_linkage_issues(chain: APQPChain) -> list[str]:
         missing_cp = sorted(step_specials - cp_specials)
         if missing_pfmea:
             issues.append(
-                f"special characteristics on PFD step {step.process_step_id!r} missing from PFMEA: {', '.join(missing_pfmea)}"
+                f"special characteristics on PFD step {step.process_step_id!r} "
+                f"missing from PFMEA: {', '.join(missing_pfmea)}"
             )
         if missing_cp:
             issues.append(
-                f"special characteristics on PFD step {step.process_step_id!r} missing from control plan: {', '.join(missing_cp)}"
+                f"special characteristics on PFD step {step.process_step_id!r} "
+                f"missing from control plan: {', '.join(missing_cp)}"
             )
 
     for control in chain.controls:
@@ -225,13 +227,11 @@ def _special_refs(item: Any) -> set[str]:
     for field_name in (
         "special_characteristics",
         "characteristic_refs",
-        "product_characteristics",
-        "process_characteristics",
         "source_special_characteristics",
     ):
         refs.update(_string_values(getattr(item, field_name, [])))
     classification = str(getattr(item, "classification", "")).strip()
-    if classification:
+    if classification in {"SC", "CC"}:
         refs.update(_string_values(classification.split(",")))
     return refs
 
@@ -273,9 +273,9 @@ def _string_values(value: Any) -> set[str]:
     if value is None:
         return set()
     if isinstance(value, str):
-        values = value.split(",")
+        values: list[Any] = value.split(",")
     elif isinstance(value, (list, tuple, set)):
-        values = value
+        values = list(value)
     else:
         values = [value]
     return {str(item).strip() for item in values if str(item).strip()}
@@ -332,7 +332,7 @@ class InputValidator:
     def validate_file_type(
         cls,
         file_path: Path | str,
-        allowed_extensions: Optional[set[str]] = None,
+        allowed_extensions: set[str] | None = None,
         check_magic: bool = True,
     ) -> None:
         """
@@ -447,7 +447,7 @@ class InputValidator:
         except ValueError:
             raise PathValidationError(
                 f"Path '{file_path}' attempts to escape base directory '{base_dir}'"
-            )
+            ) from None
 
         return target
 
@@ -498,15 +498,15 @@ class InputValidator:
             try:
                 filename.encode("ascii")
             except UnicodeEncodeError:
-                raise ValidationError("Filename must be ASCII only")
+                raise ValidationError("Filename must be ASCII only") from None
 
     @classmethod
     def validate_file(
         cls,
         file_path: Path | str,
-        allowed_extensions: Optional[set[str]] = None,
+        allowed_extensions: set[str] | None = None,
         max_size: int = DEFAULT_MAX_FILE_SIZE,
-        base_dir: Optional[Path | str] = None,
+        base_dir: Path | str | None = None,
         check_magic: bool = True,
     ) -> Path:
         """
@@ -572,3 +572,39 @@ class InputValidator:
             sanitized = name[:max_name_len] + ext
 
         return sanitized
+
+
+DRAWING_INPUT_EXTENSIONS = {".pdf", ".png", ".jpg", ".jpeg"}
+
+
+def _reject_null_byte(value: str) -> None:
+    if "\x00" in value:
+        raise PathValidationError("Path cannot contain null bytes")
+
+
+def validate_drawing_input_file(file_path: str | Path) -> Path:
+    """Validate a user-selected drawing file for desktop API ingestion."""
+    text = str(file_path)
+    _reject_null_byte(text)
+    return InputValidator.validate_file(
+        text,
+        allowed_extensions=DRAWING_INPUT_EXTENSIONS,
+        check_magic=True,
+    ).resolve()
+
+
+def validate_output_directory(directory_path: str | Path) -> Path:
+    """Validate a user-selected output directory path."""
+    text = str(directory_path).strip()
+    if not text:
+        raise PathValidationError("Output directory is required")
+    _reject_null_byte(text)
+    path = Path(text)
+    if path.exists() and not path.is_dir():
+        raise PathValidationError(f"Output path is not a directory: {path}")
+    return path.resolve()
+
+
+def validate_user_selected_directory(directory_path: str | Path) -> Path:
+    """Validate a directory selected by the user before storing it."""
+    return validate_output_directory(directory_path)

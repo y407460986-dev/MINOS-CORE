@@ -1,47 +1,10 @@
-import json
-import tempfile
 import unittest
-from pathlib import Path
 from unittest.mock import patch
-from zipfile import ZipFile
 
-from PIL import Image
-
-from minos_core.adapters.multimodal import FakeMultimodalDrawingAnalyzer
-from minos_core.drawing_analysis import (
-    DrawingAnalysisError,
-    analyze_drawing_pages,
-    evaluate_drawing_recognition_gate,
-)
-from minos_core.drawing_input import (
-    DrawingInputError,
-    load_drawing_source,
-    render_drawing_pages,
-)
 from minos_core.drawing_to_pfd import infer_process_flow_from_drawing, normalize_process_flow_steps
-from minos_core.exporters.three_table_workbooks import (
-    export_split_three_table_workbooks,
-    export_three_table_workbook,
-)
-from minos_core.generate_control_plan import (
-    generate_control_plan_from_pfmea,
-    normalize_control_plan_rows,
-)
-from minos_core.pfd_to_pfmea_ai import (
-    infer_pfmea_from_process_flow,
-    normalize_pfmea_rows,
-)
-from minos_core.pipeline import generate_three_tables_from_drawing
 from minos_core.pipeline_chain import (
-    generate_cp_from_confirmed_pfmea,
     generate_pfd_from_drawing,
-    generate_pfmea_from_confirmed_pfd,
 )
-from minos_core.three_table_result import build_three_table_generation_envelope
-from minos_core.cli import main
-from minos_core.schemas import validate_bundle_schema
-
-from .conftest import rows_by_step, PFMEA_CONTROL_LOGIC_FIELDS, assert_pfmea_ai_risk_row
 
 
 class PFDGenerationTests(unittest.TestCase):
@@ -76,7 +39,7 @@ class PFDGenerationTests(unittest.TestCase):
             ]
         }
 
-        with patch("minos_core.pipeline_chain.OpenAITextGenerator") as generator:
+        with patch("minos_core.adapters.llm_text.OpenAITextGenerator") as generator:
             generator.return_value.generate_structured.return_value = llm_payload
 
             pfd = generate_pfd_from_drawing({"drawing_identity": {"part_name": "Demo"}})
@@ -107,6 +70,65 @@ class PFDGenerationTests(unittest.TestCase):
             ):
                 self.assertIn(field, step)
 
+    def test_llm_pfd_generation_shows_unconfirmed_special_candidates(self):
+        llm_payload = {
+            "steps": [
+                {
+                    "process_step_id": "P10",
+                    "flow_type": "inspection",
+                    "flow_symbol": "inspection",
+                    "flow_type_display": "检验",
+                    "operation_type": "检验",
+                    "operation": "过程检验",
+                    "input_material": "来料",
+                    "output_result": "检验完成",
+                    "previous_step_ids": [],
+                    "next_step_ids": [],
+                    "process_function": "确认孔位和关键尺寸",
+                    "equipment": "检具",
+                    "product_characteristics": "孔位",
+                    "product_characteristic_class": "无",
+                    "process_characteristics": "检验频次",
+                    "process_characteristic_class": "无",
+                    "special_characteristics": [],
+                    "needs_confirmation": False,
+                }
+            ]
+        }
+        drawing_analysis = {
+            "drawing_identity": {"part_name": "Demo"},
+            "special_characteristic_candidates": [
+                {
+                    "candidate_type": "SC",
+                    "symbol_text_or_shape": "菱形符号",
+                    "linked_feature": "铰链安装孔位置度/尺寸",
+                    "reasoning": "图例定义为 SC 候选。",
+                },
+                {
+                    "candidate_type": "PTC",
+                    "symbol_text_or_shape": "五角星符号",
+                    "linked_feature": "图例定义项",
+                    "reasoning": "模型误判为 PTC。",
+                }
+            ],
+        }
+
+        with patch("minos_core.adapters.llm_text.OpenAITextGenerator") as generator:
+            generator.return_value.generate_structured.return_value = llm_payload
+
+            pfd = generate_pfd_from_drawing(drawing_analysis)
+
+        step = pfd["steps"][0]
+        self.assertEqual(step["special_characteristics"], [])
+        self.assertIn(
+            "SC候选: 菱形符号 / 铰链安装孔位置度/尺寸",
+            step["special_characteristic_candidates"],
+        )
+        self.assertTrue(
+            all("PTC候选" not in item for item in step["special_characteristic_candidates"])
+        )
+        _, call_kwargs = generator.return_value.generate_structured.call_args
+        self.assertIn("特殊特性候选", call_kwargs["user_prompt"])
 
     def test_rule_pfd_inference_outputs_standard_flow_type_fields(self):
         pfd = infer_process_flow_from_drawing(
@@ -125,7 +147,10 @@ class PFDGenerationTests(unittest.TestCase):
 
         self.assertTrue(pfd["steps"])
         for step in pfd["steps"]:
-            self.assertIn(step["flow_type"], {"operation", "inspection", "transport", "storage", "rework", "outsourced"})
+            self.assertIn(
+                step["flow_type"],
+                {"operation", "inspection", "transport", "storage", "rework", "outsourced"},
+            )
             self.assertEqual(step["flow_symbol"], step["flow_type"])
             self.assertIn("operation_type", step)
             self.assertIn("input_material", step)

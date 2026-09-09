@@ -1,8 +1,10 @@
 """Stage context and result envelope types."""
 from __future__ import annotations
+
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
 from ..domain import APQPChain
 from ..quality_gates import StageQualityGate
 
@@ -17,6 +19,12 @@ class StageContext:
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def model_dump(self) -> dict[str, Any]:
+        """Serialize the StageContext to a dictionary.
+
+        Returns:
+            A dictionary with stage, fixture, payload presence, chain presence,
+            output_path, and metadata.
+        """
         return {
             "stage": self.stage,
             "fixture": str(self.fixture) if self.fixture is not None else None,
@@ -41,9 +49,20 @@ class StageResult:
 
     @property
     def ok(self) -> bool:
+        """Check whether the stage result status is 'ok'.
+
+        Returns:
+            True if status is 'ok', False otherwise.
+        """
         return self.status == "ok"
 
     def model_dump(self) -> dict[str, Any]:
+        """Serialize the StageResult to a dictionary.
+
+        Returns:
+            A dictionary with stage, status, output, evidence, pending_fields,
+            ai_inferred_items, and quality_gate.
+        """
         return {
             "stage": self.stage,
             "status": self.status,
@@ -58,6 +77,7 @@ class StageResult:
 
 
 def _dump_value(value: Any) -> Any:
+    """Convert a value to a serializable form, handling Path and model objects."""
     if isinstance(value, Path):
         return str(value)
     if hasattr(value, "model_dump"):

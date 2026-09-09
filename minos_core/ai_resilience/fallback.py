@@ -5,11 +5,12 @@ Provides alternative approaches when primary AI services are unavailable,
 allowing the system to continue operating with reduced functionality.
 """
 
-import logging
 from abc import ABC, abstractmethod
 from typing import Any
 
-logger = logging.getLogger(__name__)
+from minos_core.observability.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class FallbackStrategy(ABC):
@@ -74,7 +75,7 @@ class LocalKnowledgeFallback(FallbackStrategy):
             logger.warning("No query provided for local knowledge fallback")
             return None
 
-        logger.info(f"Using local knowledge fallback for query: {query}")
+        logger.info("using_local_knowledge_fallback", query=query)
 
         try:
             # Try to query the knowledge base
@@ -87,7 +88,7 @@ class LocalKnowledgeFallback(FallbackStrategy):
                 return None
 
         except Exception as e:
-            logger.error(f"Local knowledge fallback failed: {e}")
+            logger.error("local_knowledge_fallback_failed", error=str(e))
             return None
 
 
@@ -139,7 +140,7 @@ class RuleBasedFallback(FallbackStrategy):
             return result
 
         except Exception as e:
-            logger.error(f"Rule-based fallback failed: {e}")
+            logger.error("rule_based_fallback_failed", error=str(e))
             return None
 
 
@@ -183,10 +184,10 @@ class CachedResponseFallback(FallbackStrategy):
             return None
 
         if cache_key in self.cache:
-            logger.info(f"Using cached response for key: {cache_key}")
+            logger.info("using_cached_response", cache_key=cache_key)
             return self.cache[cache_key]
         else:
-            logger.warning(f"No cached response for key: {cache_key}")
+            logger.warning("no_cached_response", cache_key=cache_key)
             return None
 
     def add_to_cache(self, key: str, response: Any) -> None:
@@ -227,7 +228,9 @@ class ChainedFallback(FallbackStrategy):
         for i, strategy in enumerate(self.strategies):
             if not strategy.is_available():
                 logger.debug(
-                    f"Fallback strategy {i} ({type(strategy).__name__}) not available"
+                    "fallback_strategy_not_available",
+                    index=i,
+                    strategy_type=type(strategy).__name__,
                 )
                 continue
 
@@ -235,12 +238,17 @@ class ChainedFallback(FallbackStrategy):
                 result = strategy.execute(context)
                 if result is not None:
                     logger.info(
-                        f"Fallback strategy {i} ({type(strategy).__name__}) succeeded"
+                        "fallback_strategy_succeeded",
+                        index=i,
+                        strategy_type=type(strategy).__name__,
                     )
                     return result
             except Exception as e:
                 logger.warning(
-                    f"Fallback strategy {i} ({type(strategy).__name__}) failed: {e}"
+                    "fallback_strategy_failed",
+                    index=i,
+                    strategy_type=type(strategy).__name__,
+                    error=str(e),
                 )
 
         logger.error("All fallback strategies failed")
@@ -259,7 +267,7 @@ def create_default_fallback_chain(
     Returns:
         Configured chained fallback
     """
-    strategies = []
+    strategies: list[FallbackStrategy] = []
 
     # Try local knowledge first
     if knowledge_base:

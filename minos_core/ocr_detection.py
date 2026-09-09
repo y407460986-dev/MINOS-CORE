@@ -5,12 +5,14 @@ Automatically detects available OCR engines and selects the best one
 based on availability and capabilities.
 """
 
+import importlib.util
 import os
 import shutil
-import logging
 from typing import Literal
 
-logger = logging.getLogger(__name__)
+from minos_core.observability.logging import get_logger
+
+logger = get_logger(__name__)
 
 OCREngine = Literal["mineru", "rapidocr", "pdf_text"]
 
@@ -25,12 +27,10 @@ def detect_available_ocr_engines() -> list[OCREngine]:
     engines: list[OCREngine] = []
 
     # Check for RapidOCR
-    try:
-        import rapidocr_onnxruntime
-
+    if importlib.util.find_spec("rapidocr_onnxruntime") is not None:
         engines.append("rapidocr")
         logger.debug("RapidOCR detected")
-    except ImportError:
+    else:
         logger.debug("RapidOCR not available")
 
     # Check for MinerU (magic-pdf command or MINERU_COMMAND env var)
@@ -90,8 +90,9 @@ def validate_ocr_engine(engine: str) -> bool:
 
     if not is_valid:
         logger.warning(
-            f"OCR engine '{engine}' is not available. "
-            f"Available engines: {', '.join(available)}"
+            "OCR engine is not available",
+            engine=engine,
+            available_engines=available,
         )
 
     return is_valid

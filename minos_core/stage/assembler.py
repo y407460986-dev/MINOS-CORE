@@ -1,8 +1,9 @@
 """Bundle assembly: merge PFD/PFMEA/CP into APQP chain."""
 from __future__ import annotations
+
 from typing import Any
-from ..domain import APQPChain, EntityType, TraceLinkType
-from ._utils import _dedupe_mappings, _dedupe_values, _list_value, _text_value
+
+from ._utils import _dedupe_mappings, _dedupe_values, _list_value
 from .links import _generated_pfd_pfmea_links, _generated_pfmea_cp_links, _generated_step_candidate_links
 
 
@@ -90,13 +91,16 @@ def assemble_generated_apqp_chain(
         )
     )
     pfmea_rows = list((pfmea or {}).get("rows", (pfmea or {}).get("failure_modes", [])))
-    control_rows = list(
-        (control_plan or {}).get(
-            "rows",
-            (control_plan or {}).get(
-                "controls", (control_plan or {}).get("control_plan_items", [])
-            ),
-        )
+    control_rows = _list_value(
+        {
+            "rows": (control_plan or {}).get(
+                "rows",
+                (control_plan or {}).get(
+                    "controls", (control_plan or {}).get("control_plan_items", [])
+                ),
+            )
+        },
+        "rows",
     )
     evidence_rows = _merge_evidence(bundles)
     links = _dedupe_mappings(
@@ -129,6 +133,7 @@ def assemble_generated_apqp_chain(
 
 
 def _looks_like_stage_bundle_map(value: Any) -> bool:
+    """Check if the value is a bundle dict keyed by stage name (not a single bundle)."""
     if not isinstance(value, dict):
         return False
     if value.get("document_type") in {
@@ -154,12 +159,14 @@ def _looks_like_stage_bundle_map(value: Any) -> bool:
 
 
 def _looks_like_combined_stage_payload(value: Any) -> bool:
+    """Check if the value is a combined payload containing multiple stage bundles."""
     if not isinstance(value, dict):
         return False
     return any(key in value for key in ("process_flow", "pfmea", "control_plan"))
 
 
 def _pick_bundle(bundle_map: dict[str, Any], *keys: str) -> dict[str, Any] | None:
+    """Return the first dict value from bundle_map matching any of the given keys."""
     for key in keys:
         value = bundle_map.get(key)
         if isinstance(value, dict):
@@ -170,6 +177,7 @@ def _pick_bundle(bundle_map: dict[str, Any], *keys: str) -> dict[str, Any] | Non
 def _first_mapping_value(
     bundles: list[dict[str, Any] | None], field_name: str
 ) -> dict[str, Any]:
+    """Return the first non-empty dict value for field_name across bundles."""
     for bundle in bundles:
         if isinstance(bundle, dict) and isinstance(bundle.get(field_name), dict):
             return dict(bundle[field_name])
@@ -179,6 +187,7 @@ def _first_mapping_value(
 def _first_text_value(
     bundles: list[dict[str, Any] | None], field_name: str
 ) -> str:
+    """Return the first non-empty text value for field_name across bundles."""
     for bundle in bundles:
         if isinstance(bundle, dict):
             value = str(bundle.get(field_name, "")).strip()
@@ -188,6 +197,7 @@ def _first_text_value(
 
 
 def _merge_evidence(bundles: list[dict[str, Any]]) -> list[Any]:
+    """Merge and deduplicate evidence entries from multiple bundles."""
     evidence: list[Any] = []
     for bundle in bundles:
         evidence.extend(_list_value(bundle, "evidence"))
@@ -195,6 +205,7 @@ def _merge_evidence(bundles: list[dict[str, Any]]) -> list[Any]:
 
 
 def _merge_list_field(bundles: list[dict[str, Any]], field_name: str) -> list[Any]:
+    """Merge and deduplicate a list-valued field across multiple bundles."""
     values: list[Any] = []
     for bundle in bundles:
         values.extend(_list_value(bundle, field_name))
@@ -204,6 +215,7 @@ def _merge_list_field(bundles: list[dict[str, Any]], field_name: str) -> list[An
 def _merge_metadata(
     bundles: list[dict[str, Any]], extra_metadata: dict[str, Any] | None
 ) -> dict[str, Any]:
+    """Merge metadata dicts from multiple bundles with optional extras."""
     merged: dict[str, Any] = {}
     source_stages: list[str] = []
     generation_modes: list[str] = []

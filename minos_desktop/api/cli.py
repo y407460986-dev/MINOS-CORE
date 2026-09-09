@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 import argparse
-import logging
 import os
 import secrets
 from pathlib import Path
 
+from minos_core.observability.logging import get_logger
 from minos_desktop.services import DEFAULT_DESKTOP_DB_PATH, DEFAULT_DESKTOP_OUTPUT_DIR
 
-logger = logging.getLogger("minos_desktop")
+logger = get_logger("minos_desktop")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -32,9 +32,7 @@ def main(argv: list[str] | None = None) -> int:
     from .app import create_app
 
     app = create_app(db_path=Path(args.db_path), output_dir=Path(args.output_dir))
-    logger.info(
-        "MINOS desktop API listening on http://%s:%s", args.host, args.port
-    )
+    logger.info("desktop_api_listening", host=args.host, port=args.port)
 
     import uvicorn
 

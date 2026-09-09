@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
@@ -25,7 +25,7 @@ router = APIRouter()
 async def submit_review_patch(
     project_id: str,
     req: SubmitReviewPatchRequest,
-    session: AsyncSession = Depends(db.get_session),
+    session: AsyncSession = Depends(db.get_session),  # noqa: B008
 ) -> dict:
     """Record a submitted human-filled review patch against a project."""
     result = await session.execute(select(db.Project).where(db.Project.id == project_id))
@@ -48,7 +48,7 @@ async def submit_review_patch(
     try:
         copied_path = utils.safe_copy_input_file_or_dir(req.patch_path, dest_dir)
     except FileNotFoundError:
-        raise APIError(message="Patch file not found", code="REVIEW_PATCH_NOT_FOUND")
+        raise APIError(message="Patch file not found", code="REVIEW_PATCH_NOT_FOUND") from None
 
     # Reject patches that have template_status field
     parsed = utils.parse_review_patch(copied_path)
@@ -69,7 +69,7 @@ async def submit_review_patch(
         project_id=project_id,
         patch_path=str(copied_path),
         sha256=actual_hash,
-        submitted_at=datetime.now(timezone.utc).replace(microsecond=0),
+        submitted_at=datetime.now(UTC).replace(microsecond=0),
     )
     session.add(patch)
     project.status = "review_patch_submitted"

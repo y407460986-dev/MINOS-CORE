@@ -12,6 +12,6 @@ Debug/check 场景可以生成占位 sidecar，但如果 `binaries/<sidecar>/_in
 ## Documentation
 README 和流程图应反映当前事实：
 - 默认模型为 `gpt-5.5`。
-- 默认 Responses 地址为 `https://cx.allincoding.cc/responses`。
+- 默认 Responses 地址为 `https://allincode.top/responses`。
 - Codex `base_url` 不再作为 MINOS 默认地址。
 - 桌面测试命令引用现存测试文件。

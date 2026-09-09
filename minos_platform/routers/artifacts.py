@@ -18,7 +18,7 @@ router = APIRouter()
 
 @router.get("/artifacts")
 async def list_artifacts(
-    session: AsyncSession = Depends(db.get_session),
+    session: AsyncSession = Depends(db.get_session),  # noqa: B008
 ) -> list[ArtifactSummary]:
     """List all artifacts."""
     result = await session.execute(select(db.Artifact))
@@ -29,7 +29,7 @@ async def list_artifacts(
 @router.get("/artifacts/{artifact_id}", response_class=FileResponse)
 async def download_artifact(
     artifact_id: str,
-    session: AsyncSession = Depends(db.get_session),
+    session: AsyncSession = Depends(db.get_session),  # noqa: B008
 ) -> FileResponse:
     """Download an artifact file by its id."""
     result = await session.execute(
@@ -53,7 +53,7 @@ async def download_artifact(
         raise HTTPException(
             status_code=403,
             detail="Artifact path is outside the permitted artifacts directory",
-        )
+        ) from None
 
     return FileResponse(
         path=path,

@@ -32,9 +32,7 @@ def analyze_change_impacts(source: dict[str, Any]) -> list[dict[str, str]]:
         status = text(step.get("change_impact_status"))
         if step.get("deleted"):
             linked_pfmea_ids = {
-                text(row.get("pfmea_id"))
-                for row in pfmea_by_step.get(step_id, [])
-                if text(row.get("pfmea_id"))
+                text(row.get("pfmea_id")) for row in pfmea_by_step.get(step_id, []) if text(row.get("pfmea_id"))
             }
             if pfmea_by_step.get(step_id):
                 impacts.append(
@@ -60,8 +58,21 @@ def analyze_change_impacts(source: dict[str, Any]) -> list[dict[str, str]]:
                 impacts.append(_impact("PFD 新增工序", f"process_flow:{step_id}", "PFMEA 需补风险", status))
             if not cp_by_step.get(step_id):
                 impacts.append(_impact("PFD 新增工序", f"process_flow:{step_id}", "CP 需补控制", status))
-        if step.get("review_status") == "人工修改" or _changed_any(step, ("operation", "process_function", "product_characteristics", "process_characteristics", "special_characteristics")):
-            impacts.append(_impact("PFD 关键字段修改", f"process_flow:{step_id}", "PFMEA 继承字段需同步确认", status or "待人工确认"))
+        if step.get("review_status") == "人工修改" or _changed_any(
+            step,
+            (
+                "operation",
+                "process_function",
+                "product_characteristics",
+                "process_characteristics",
+                "special_characteristics",
+            ),
+        ):
+            impacts.append(
+                _impact(
+                    "PFD 关键字段修改", f"process_flow:{step_id}", "PFMEA 继承字段需同步确认", status or "待人工确认"
+                )
+            )
 
     for row in pfmea_rows:
         if not isinstance(row, dict) or row.get("deleted"):
@@ -71,10 +82,16 @@ def analyze_change_impacts(source: dict[str, Any]) -> list[dict[str, str]]:
         status = text(row.get("change_impact_status"))
         if ap == "H" and not cp_by_pfmea.get(pfmea_id):
             impacts.append(_impact("PFMEA 高 AP", f"pfmea:{pfmea_id}", "CP 必须新增控制", status))
-        if row.get("review_status") == "人工修改" and _changed_any(row, ("prevention_control", "detection_control", "classification", "action_priority")):
-            impacts.append(_impact("PFMEA 控制/特性修改", f"pfmea:{pfmea_id}", "CP 控制方法需同步确认", status or "待人工确认"))
+        if row.get("review_status") == "人工修改" and _changed_any(
+            row, ("prevention_control", "detection_control", "classification", "action_priority")
+        ):
+            impacts.append(
+                _impact("PFMEA 控制/特性修改", f"pfmea:{pfmea_id}", "CP 控制方法需同步确认", status or "待人工确认")
+            )
 
-    active_pfmea_ids = {text(row.get("pfmea_id")) for row in pfmea_rows if isinstance(row, dict) and not row.get("deleted")}
+    active_pfmea_ids = {
+        text(row.get("pfmea_id")) for row in pfmea_rows if isinstance(row, dict) and not row.get("deleted")
+    }
     for control in cp_rows:
         if not isinstance(control, dict):
             continue
@@ -86,11 +103,24 @@ def analyze_change_impacts(source: dict[str, Any]) -> list[dict[str, str]]:
         if control.get("deleted"):
             continue
         if control.get("review_status") == "人工新增":
-            impacts.append(_impact("CP 新增控制项", f"control_plan:{cp_id}", "PFMEA 需确认控制覆盖", status or "待人工确认"))
-        if control.get("review_status") == "人工修改" and _changed_any(control, ("measurement_method", "sample_size", "sample_frequency", "control_method", "specification")):
-            impacts.append(_impact("CP 控制方法字段修改", f"control_plan:{cp_id}", "测量/控制方法变更需质量确认", status or "待人工确认"))
+            impacts.append(
+                _impact("CP 新增控制项", f"control_plan:{cp_id}", "PFMEA 需确认控制覆盖", status or "待人工确认")
+            )
+        if control.get("review_status") == "人工修改" and _changed_any(
+            control, ("measurement_method", "sample_size", "sample_frequency", "control_method", "specification")
+        ):
+            impacts.append(
+                _impact(
+                    "CP 控制方法字段修改",
+                    f"control_plan:{cp_id}",
+                    "测量/控制方法变更需质量确认",
+                    status or "待人工确认",
+                )
+            )
         if _changed_any(control, ("classification", "product_process_characteristic", "specification")):
-            impacts.append(_impact("CP 特性/规范修改", f"control_plan:{cp_id}", "PFMEA 特性分类需同步确认", status or "待人工确认"))
+            impacts.append(
+                _impact("CP 特性/规范修改", f"control_plan:{cp_id}", "PFMEA 特性分类需同步确认", status or "待人工确认")
+            )
     return impacts
 
 
@@ -235,7 +265,10 @@ def compare_three_table_baseline(
                 if rid in before_by_id:
                     deleted.append(
                         _change_item(
-                            rid, "deleted", table_name, [],
+                            rid,
+                            "deleted",
+                            table_name,
+                            [],
                             before_snapshot=before_by_id[rid],
                             after_snapshot=after_row,
                         )
@@ -245,7 +278,10 @@ def compare_three_table_baseline(
             if rid not in before_by_id:
                 added.append(
                     _change_item(
-                        rid, "added", table_name, [],
+                        rid,
+                        "added",
+                        table_name,
+                        [],
                         after_snapshot=after_row,
                     )
                 )
@@ -257,7 +293,10 @@ def compare_three_table_baseline(
                 if diffs:
                     modified.append(
                         _change_item(
-                            rid, "modified", table_name, diffs,
+                            rid,
+                            "modified",
+                            table_name,
+                            diffs,
                             before_snapshot=before_row,
                             after_snapshot=after_row,
                         )
@@ -268,7 +307,10 @@ def compare_three_table_baseline(
             if rid not in after_by_id:
                 deleted.append(
                     _change_item(
-                        rid, "deleted", table_name, [],
+                        rid,
+                        "deleted",
+                        table_name,
+                        [],
                         before_snapshot=before_row,
                     )
                 )
@@ -320,7 +362,9 @@ def analyze_linked_change_impacts(
     after_linkage = build_three_table_linkage_map(source)
     baseline_linkage = build_three_table_linkage_map(baseline)
 
-    def _build_lookups(links: list[dict[str, Any]]) -> tuple[
+    def _build_lookups(
+        links: list[dict[str, Any]],
+    ) -> tuple[
         dict[str, set[str]],
         dict[str, set[str]],
         dict[str, set[str]],
@@ -343,12 +387,8 @@ def analyze_linked_change_impacts(
                     st_to_cp.setdefault(sid, set()).add(cid)
         return step_to_pf, pf_to_cp, st_to_cp, cp_to_pf
 
-    after_stp, after_ptc, after_stc, after_ctp = _build_lookups(
-        after_linkage.get("links", [])
-    )
-    base_stp, base_ptc, base_stc, base_ctp = _build_lookups(
-        baseline_linkage.get("links", [])
-    )
+    after_stp, after_ptc, after_stc, after_ctp = _build_lookups(after_linkage.get("links", []))
+    base_stp, base_ptc, base_stc, base_ctp = _build_lookups(baseline_linkage.get("links", []))
 
     impacts: list[dict[str, Any]] = []
     changes = comparison.get("changes", {})
@@ -359,36 +399,56 @@ def analyze_linked_change_impacts(
     # PFD added -> PFMEA 需新增风险, CP 需新增控制
     for item in pfd_changes.get("added", []):
         sid = item["id"]
-        impacts.append(_linked_impact(
-            "PFD 新增工序", "process_flow", sid,
-            "pfmea", "",
-            f"PFD 新增工序 {sid}，PFMEA 需新增风险分析",
-            "blocker",
-        ))
-        impacts.append(_linked_impact(
-            "PFD 新增工序", "process_flow", sid,
-            "control_plan", "",
-            f"PFD 新增工序 {sid}，CP 需新增控制项",
-            "blocker",
-        ))
+        impacts.append(
+            _linked_impact(
+                "PFD 新增工序",
+                "process_flow",
+                sid,
+                "pfmea",
+                "",
+                f"PFD 新增工序 {sid}，PFMEA 需新增风险分析",
+                "blocker",
+            )
+        )
+        impacts.append(
+            _linked_impact(
+                "PFD 新增工序",
+                "process_flow",
+                sid,
+                "control_plan",
+                "",
+                f"PFD 新增工序 {sid}，CP 需新增控制项",
+                "blocker",
+            )
+        )
 
     # PFD deleted -> use *baseline* linkage map (the rows are gone from after)
     for item in pfd_changes.get("deleted", []):
         sid = item["id"]
         for pfmea_id in sorted(base_stp.get(sid, set())):
-            impacts.append(_linked_impact(
-                "PFD 删除工序", "process_flow", sid,
-                "pfmea", pfmea_id,
-                f"PFD 工序 {sid} 已删除，关联 PFMEA 行 {pfmea_id} 需处理",
-                "blocker",
-            ))
+            impacts.append(
+                _linked_impact(
+                    "PFD 删除工序",
+                    "process_flow",
+                    sid,
+                    "pfmea",
+                    pfmea_id,
+                    f"PFD 工序 {sid} 已删除，关联 PFMEA 行 {pfmea_id} 需处理",
+                    "blocker",
+                )
+            )
         for cp_id in sorted(base_stc.get(sid, set())):
-            impacts.append(_linked_impact(
-                "PFD 删除工序", "process_flow", sid,
-                "control_plan", cp_id,
-                f"PFD 工序 {sid} 已删除，关联 CP 行 {cp_id} 需处理",
-                "blocker",
-            ))
+            impacts.append(
+                _linked_impact(
+                    "PFD 删除工序",
+                    "process_flow",
+                    sid,
+                    "control_plan",
+                    cp_id,
+                    f"PFD 工序 {sid} 已删除，关联 CP 行 {cp_id} 需处理",
+                    "blocker",
+                )
+            )
 
     # PFD key-fields modified -> use *after* linkage map
     for item in pfd_changes.get("modified", []):
@@ -396,12 +456,17 @@ def analyze_linked_change_impacts(
         diff_fields = {d["field"] for d in item.get("field_diffs", [])}
         if diff_fields & set(_PFD_KEY_FIELDS):
             for pfmea_id in sorted(after_stp.get(sid, set())):
-                impacts.append(_linked_impact(
-                    "PFD 关键字段修改", "process_flow", sid,
-                    "pfmea", pfmea_id,
-                    f"PFD 工序 {sid} 关键字段变更，关联 PFMEA 行 {pfmea_id} 过程项/功能/失效模式需复核",
-                    "warning",
-                ))
+                impacts.append(
+                    _linked_impact(
+                        "PFD 关键字段修改",
+                        "process_flow",
+                        sid,
+                        "pfmea",
+                        pfmea_id,
+                        f"PFD 工序 {sid} 关键字段变更，关联 PFMEA 行 {pfmea_id} 过程项/功能/失效模式需复核",
+                        "warning",
+                    )
+                )
 
     # --- PFMEA changes ---
     pfmea_changes = changes.get("pfmea", {})
@@ -410,23 +475,33 @@ def analyze_linked_change_impacts(
     for item in pfmea_changes.get("added", []):
         pfmea_id = item["id"]
         for cp_id in sorted(after_ptc.get(pfmea_id, set())):
-            impacts.append(_linked_impact(
-                "PFMEA 新增风险行", "pfmea", pfmea_id,
-                "control_plan", cp_id,
-                f"PFMEA 新增风险行 {pfmea_id}，关联 CP 行 {cp_id} 控制覆盖需确认",
-                "warning",
-            ))
+            impacts.append(
+                _linked_impact(
+                    "PFMEA 新增风险行",
+                    "pfmea",
+                    pfmea_id,
+                    "control_plan",
+                    cp_id,
+                    f"PFMEA 新增风险行 {pfmea_id}，关联 CP 行 {cp_id} 控制覆盖需确认",
+                    "warning",
+                )
+            )
 
     # PFMEA deleted -> use *baseline* linkage map
     for item in pfmea_changes.get("deleted", []):
         pfmea_id = item["id"]
         for cp_id in sorted(base_ptc.get(pfmea_id, set())):
-            impacts.append(_linked_impact(
-                "PFMEA 删除风险行", "pfmea", pfmea_id,
-                "control_plan", cp_id,
-                f"PFMEA 风险行 {pfmea_id} 已删除，关联 CP 行 {cp_id} 需处理",
-                "blocker",
-            ))
+            impacts.append(
+                _linked_impact(
+                    "PFMEA 删除风险行",
+                    "pfmea",
+                    pfmea_id,
+                    "control_plan",
+                    cp_id,
+                    f"PFMEA 风险行 {pfmea_id} 已删除，关联 CP 行 {cp_id} 需处理",
+                    "blocker",
+                )
+            )
 
     # PFMEA key-fields modified -> use *after* linkage map
     for item in pfmea_changes.get("modified", []):
@@ -434,12 +509,17 @@ def analyze_linked_change_impacts(
         diff_fields = {d["field"] for d in item.get("field_diffs", [])}
         if diff_fields & set(_PFMEA_KEY_FIELDS):
             for cp_id in sorted(after_ptc.get(pfmea_id, set())):
-                impacts.append(_linked_impact(
-                    "PFMEA 关键字段修改", "pfmea", pfmea_id,
-                    "control_plan", cp_id,
-                    f"PFMEA 行 {pfmea_id} 关键字段变更，关联 CP 行 {cp_id} 控制方法是否仍匹配需复核",
-                    "warning",
-                ))
+                impacts.append(
+                    _linked_impact(
+                        "PFMEA 关键字段修改",
+                        "pfmea",
+                        pfmea_id,
+                        "control_plan",
+                        cp_id,
+                        f"PFMEA 行 {pfmea_id} 关键字段变更，关联 CP 行 {cp_id} 控制方法是否仍匹配需复核",
+                        "warning",
+                    )
+                )
 
     # --- CP changes ---
     cp_changes = changes.get("control_plan", {})
@@ -449,24 +529,34 @@ def analyze_linked_change_impacts(
         cp_id = item["id"]
         pfmea_id = after_ctp.get(cp_id, "")
         if pfmea_id:
-            impacts.append(_linked_impact(
-                "CP 新增控制项", "control_plan", cp_id,
-                "pfmea", pfmea_id,
-                f"CP 新增控制项 {cp_id}，关联 PFMEA 行 {pfmea_id} 需确认控制覆盖",
-                "warning",
-            ))
+            impacts.append(
+                _linked_impact(
+                    "CP 新增控制项",
+                    "control_plan",
+                    cp_id,
+                    "pfmea",
+                    pfmea_id,
+                    f"CP 新增控制项 {cp_id}，关联 PFMEA 行 {pfmea_id} 需确认控制覆盖",
+                    "warning",
+                )
+            )
 
     # CP deleted -> use *baseline* linkage map
     for item in cp_changes.get("deleted", []):
         cp_id = item["id"]
         pfmea_id = base_ctp.get(cp_id, "")
         if pfmea_id:
-            impacts.append(_linked_impact(
-                "CP 删除控制项", "control_plan", cp_id,
-                "pfmea", pfmea_id,
-                f"CP 控制项 {cp_id} 已删除，关联 PFMEA 行 {pfmea_id} 需检查是否留下未控制高风险",
-                "blocker",
-            ))
+            impacts.append(
+                _linked_impact(
+                    "CP 删除控制项",
+                    "control_plan",
+                    cp_id,
+                    "pfmea",
+                    pfmea_id,
+                    f"CP 控制项 {cp_id} 已删除，关联 PFMEA 行 {pfmea_id} 需检查是否留下未控制高风险",
+                    "blocker",
+                )
+            )
 
     # CP key-fields modified -> PFMEA 预防/探测控制需复核
     for item in cp_changes.get("modified", []):
@@ -476,12 +566,17 @@ def analyze_linked_change_impacts(
             # Try after map first, fall back to baseline map
             pfmea_id = after_ctp.get(cp_id, "") or base_ctp.get(cp_id, "")
             if pfmea_id:
-                impacts.append(_linked_impact(
-                    "CP 关键字段修改", "control_plan", cp_id,
-                    "pfmea", pfmea_id,
-                    f"CP 行 {cp_id} 关键字段变更，关联 PFMEA 行 {pfmea_id} 预防/探测控制需复核",
-                    "review",
-                ))
+                impacts.append(
+                    _linked_impact(
+                        "CP 关键字段修改",
+                        "control_plan",
+                        cp_id,
+                        "pfmea",
+                        pfmea_id,
+                        f"CP 行 {cp_id} 关键字段变更，关联 PFMEA 行 {pfmea_id} 预防/探测控制需复核",
+                        "review",
+                    )
+                )
 
     return impacts
 

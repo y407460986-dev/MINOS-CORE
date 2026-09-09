@@ -270,9 +270,7 @@ def _eval_needs_review(
         return True
     if not prevention_control and not detection_control:
         return True
-    if _has_linkage_gap(pfmea_id, linkage_gaps):
-        return True
-    return False
+    return bool(_has_linkage_gap(pfmea_id, linkage_gaps))
 
 
 def _has_linkage_gap(

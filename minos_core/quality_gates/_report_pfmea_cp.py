@@ -8,6 +8,7 @@ from ._rows import _document_manual_review_items, _document_rows_report
 
 
 def _pfmea_bundle_report(pfmea_bundle: dict[str, Any]) -> dict[str, Any]:
+    """Produce a coverage report for a PFMEA bundle."""
     rows = pfmea_bundle.get("rows", pfmea_bundle.get("failure_modes", []))
     report = _document_rows_report(
         rows=rows,
@@ -33,6 +34,7 @@ def _pfmea_bundle_report(pfmea_bundle: dict[str, Any]) -> dict[str, Any]:
 
 
 def _control_plan_bundle_report(control_plan_bundle: dict[str, Any]) -> dict[str, Any]:
+    """Produce a coverage report for a Control Plan bundle."""
     rows = control_plan_bundle.get(
         "rows", control_plan_bundle.get("control_plan_items", control_plan_bundle.get("controls", []))
     )
@@ -65,6 +67,7 @@ def _control_plan_bundle_report(control_plan_bundle: dict[str, Any]) -> dict[str
 def _extend_pfmea_pfd_linkage_report(
     report: dict[str, Any], pfmea_bundle: dict[str, Any], rows: Any
 ) -> None:
+    """Check PFMEA-PFD linkage: ensure each process step has a PFMEA risk row."""
     process_steps = pfmea_bundle.get("process_steps", pfmea_bundle.get("steps", []))
     if not isinstance(process_steps, list) or not isinstance(rows, list):
         return
@@ -91,6 +94,7 @@ def _extend_pfmea_pfd_linkage_report(
 def _extend_control_plan_linkage_report(
     report: dict[str, Any], control_plan_bundle: dict[str, Any], rows: Any
 ) -> None:
+    """Check Control-Plan-PFMEA linkage: ensure PFMEA risks have corresponding controls."""
     pfmea_rows = control_plan_bundle.get("pfmea_rows", control_plan_bundle.get("failure_modes", []))
     process_steps = control_plan_bundle.get("process_steps", [])
     if not isinstance(rows, list):
@@ -131,6 +135,7 @@ def _extend_control_plan_linkage_report(
 
 
 def _pfmea_row_requires_control(row: dict[str, Any]) -> bool:
+    """Return True if the PFMEA row requires a corresponding Control Plan item."""
     action_priority = str(row.get("action_priority", row.get("AP", ""))).strip().upper()
     classification = str(row.get("classification", "")).strip()
     try:
@@ -141,6 +146,7 @@ def _pfmea_row_requires_control(row: dict[str, Any]) -> bool:
 
 
 def _pfmea_manual_review_items(report: dict[str, Any]) -> list[AuditItem]:
+    """Convert a PFMEA report into AuditItem objects for manual review."""
     return _document_manual_review_items(
         report,
         incomplete_category="pfmea_incomplete",
@@ -154,6 +160,7 @@ def _pfmea_manual_review_items(report: dict[str, Any]) -> list[AuditItem]:
 
 
 def _control_plan_manual_review_items(report: dict[str, Any]) -> list[AuditItem]:
+    """Convert a Control Plan report into AuditItem objects for manual review."""
     return _document_manual_review_items(
         report,
         incomplete_category="control_plan_incomplete",

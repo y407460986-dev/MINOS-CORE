@@ -5,7 +5,7 @@ import urllib.error
 from io import BytesIO
 from unittest.mock import patch
 
-from minos_core.adapters.llm import LLMAdapter, LLMMessage, LLMResult
+from minos_core.adapters.llm import LLMMessage
 from minos_core.adapters.openai_llm import (
     OpenAILLMAdapter,
     OpenAILLMError,
@@ -39,7 +39,7 @@ class ProtocolConformanceTests(unittest.TestCase):
     def test_openai_llm_adapter_satisfies_llm_adapter_protocol(self):
         """OpenAILLMAdapter has a ``complete`` method matching the protocol."""
         self.assertTrue(hasattr(OpenAILLMAdapter, "complete"))
-        self.assertTrue(callable(getattr(OpenAILLMAdapter, "complete")))
+        self.assertTrue(callable(OpenAILLMAdapter.complete))
 
     def test_fake_llm_adapter_satisfies_llm_adapter_protocol(self):
         """Existing FakeLLMAdapter also satisfies the protocol."""

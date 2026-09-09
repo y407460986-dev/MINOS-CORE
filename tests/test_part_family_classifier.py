@@ -31,7 +31,10 @@ class PartFamilyClassifierTests(unittest.TestCase):
             _analysis_bundle(
                 "DOOR OPENING LIMITER ASSEMBLY",
                 [
-                    {"text": "Travel limiter with limit stop and holding force requirement", "evidence_refs": ["EV-LIM"]},
+                    {
+                        "text": "Travel limiter with limit stop and holding force requirement",
+                        "evidence_refs": ["EV-LIM"],
+                    },
                     {
                         "clue": "Door check arm uses roller, spring, rivet and press fit components",
                         "evidence_refs": ["EV-LIM"],
@@ -52,7 +55,10 @@ class PartFamilyClassifierTests(unittest.TestCase):
             _analysis_bundle(
                 "FRONT DOOR HINGE ASSEMBLY",
                 [
-                    {"text": "Door hinge includes hinge pin, bushing and rotation torque requirement", "evidence_refs": ["EV-HINGE"]},
+                    {
+                        "text": "Door hinge includes hinge pin, bushing and rotation torque requirement",
+                        "evidence_refs": ["EV-HINGE"],
+                    },
                     {
                         "clue": "Hinge bracket is riveted and checked for opening angle",
                         "evidence_refs": ["EV-HINGE"],

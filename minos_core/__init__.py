@@ -1,16 +1,5 @@
 """MINOS Core public API."""
 
-from .audit import AuditItem, AuditReport, audit_chain
-from .analyze import analyze_evidence_bundle, analyze_evidence_bundle_with_ai
-from .automation_review import (
-    AUTOMATION_REVIEW_VERSION,
-    DEFAULT_BATCH_CONFIRM_CONFIDENCE,
-    automation_review_issue,
-    build_automation_review,
-    build_batch_confirm_patch,
-)
-from .brainstorm import brainstorm_failure_modes_from_pfd
-from .config import SampleMetadata, list_samples, load_sample_metadata
 from .adapters.multimodal import (
     FakeMultimodalDrawingAnalyzer,
     MultimodalDrawingAnalyzer,
@@ -19,6 +8,25 @@ from .adapters.multimodal import (
     OpenAIMultimodalError,
     OpenAIResponsesMultimodalDrawingAnalyzer,
 )
+from .analyze import analyze_evidence_bundle, analyze_evidence_bundle_with_ai
+from .audit import AuditItem, AuditReport, audit_chain
+from .automation_review import (
+    AUTOMATION_REVIEW_VERSION,
+    DEFAULT_BATCH_CONFIRM_CONFIDENCE,
+    automation_review_issue,
+    build_automation_review,
+    build_batch_confirm_patch,
+)
+from .brainstorm import brainstorm_failure_modes_from_pfd
+from .change_management import (
+    analyze_linked_change_impacts,
+    compare_three_table_baseline,
+)
+from .characteristic_registry import (
+    attach_characteristics_to_three_tables,
+    build_characteristic_registry,
+)
+from .config import SampleMetadata, list_samples, load_sample_metadata
 from .domain import (
     APQPChain,
     Characteristic,
@@ -56,9 +64,9 @@ from .edit_patch import (
     evaluate_edit_export_gate,
     export_edited_three_tables,
 )
+from .generate_control_plan import generate_control_plan_from_pfmea
 from .generate_pfd import generate_pfd_from_analysis
 from .generate_pfmea import generate_pfmea_from_candidates
-from .generate_control_plan import generate_control_plan_from_pfmea
 from .ingest import ingest_evidence_bundle
 from .knowledge_recommendation import (
     recommend_from_knowledge,
@@ -67,6 +75,7 @@ from .knowledge_recommendation import (
 )
 from .part_family_classifier import classify_part_family, get_default_family_index
 from .part_family_knowledge import load_part_family_index, load_part_family_knowledge
+from .pfd_to_pfmea_ai import infer_pfmea_from_process_flow
 from .pipeline import (
     apply_review,
     export_draft_fixture,
@@ -74,16 +83,21 @@ from .pipeline import (
     generate_draft,
     generate_three_tables_from_drawing,
 )
-from .pfd_to_pfmea_ai import infer_pfmea_from_process_flow
 from .quality_gates import (
     StageQualityGate,
     evaluate_analysis_bundle_gate,
     evaluate_brainstorm_failure_modes_input_gate,
     evaluate_control_plan_bundle_gate,
     evaluate_failure_mode_candidates_gate,
-    evaluate_pfmea_bundle_gate,
     evaluate_pfd_bundle_gate,
+    evaluate_pfmea_bundle_gate,
     evaluate_stage_gate,
+)
+from .review_issues import (
+    REVIEW_ISSUE_VERSION,
+    ReviewIssue,
+    build_review_issue,
+    unresolved_review_issues,
 )
 from .review_patch import (
     REVIEW_PATCH_VERSION,
@@ -91,11 +105,8 @@ from .review_patch import (
     apply_review_patch,
     build_review_patch_template,
 )
-from .review_issues import (
-    REVIEW_ISSUE_VERSION,
-    ReviewIssue,
-    build_review_issue,
-    unresolved_review_issues,
+from .risk_structure import (
+    build_risk_structure,
 )
 from .run_manifest import (
     RUN_MANIFEST_SCHEMA_VERSION,
@@ -112,23 +123,12 @@ from .stage import (
     assemble_generated_apqp_chain,
     run_stage,
 )
-from .validation import validate_chain
 from .three_table_linkage import (
     build_three_table_linkage_map,
     evaluate_three_table_linkage,
     find_linkage_gaps,
 )
-from .characteristic_registry import (
-    build_characteristic_registry,
-    attach_characteristics_to_three_tables,
-)
-from .change_management import (
-    compare_three_table_baseline,
-    analyze_linked_change_impacts,
-)
-from .risk_structure import (
-    build_risk_structure,
-)
+from .validation import validate_chain
 
 __all__ = [
     "APQPChain",

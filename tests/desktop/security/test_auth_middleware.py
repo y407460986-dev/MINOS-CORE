@@ -1,7 +1,8 @@
 """Tests for AuthMiddleware."""
 
+from unittest.mock import MagicMock
+
 import pytest
-from unittest.mock import MagicMock, AsyncMock
 from fastapi import HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials
 

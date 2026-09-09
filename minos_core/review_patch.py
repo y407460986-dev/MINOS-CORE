@@ -138,6 +138,7 @@ def build_review_patch_template(draft_result_or_chain: dict[str, Any]) -> dict[s
 
 
 def _draft_chain_payload(draft_result_or_chain: dict[str, Any]) -> dict[str, Any]:
+    """Extract the chain payload from a draft result, review result, or raw chain dict."""
     if not isinstance(draft_result_or_chain, dict):
         raise TypeError("draft_result_or_chain must be a JSON object")
     if draft_result_or_chain.get("document_type") == "apqp_chain_draft_result":
@@ -163,6 +164,7 @@ def _template_item(
     value: Any = None,
     manual_review_note: str = "",
 ) -> dict[str, Any]:
+    """Build a single template item dict for the review patch."""
     item: dict[str, Any] = {
         "action": action,
         "target": target,
@@ -181,6 +183,7 @@ def _template_item(
 
 
 def _normalize_template_target(target: Any) -> str:
+    """Normalize a target value into type:id format from various input forms."""
     text = str(target).strip()
     if not text:
         return "manual_review:REPLACE_WITH_TARGET_ID"
@@ -203,20 +206,23 @@ def _normalize_template_target(target: Any) -> str:
 
 
 def _manual_review_item_id(item: Any) -> str:
+    """Extract the item_id from a manual review item."""
     if isinstance(item, dict):
         return str(item.get("item_id", item.get("target", ""))).strip()
     return str(getattr(item, "item_id", "")).strip()
 
 
 def _manual_review_message(item: Any) -> str:
+    """Extract the message from a manual review item."""
     if isinstance(item, dict):
         return str(item.get("message", "")).strip()
     return str(getattr(item, "message", "")).strip()
 
 
 def _dedupe_template_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    deduped: list[dict[str, Any]] = []
+    """Remove duplicate template items based on (action, target, review_category)."""
     seen: set[tuple[str, str, str]] = set()
+    deduped: list[dict[str, Any]] = []
     for item in items:
         key = (item["action"], item["target"], item["review_category"])
         if key in seen:
@@ -316,6 +322,7 @@ def apply_review_patch(
 
 
 def _payload_copy(chain_or_payload: APQPChain | dict[str, Any]) -> dict[str, Any]:
+    """Deep-copy the chain payload from an APQPChain or dict."""
     if isinstance(chain_or_payload, APQPChain):
         return copy.deepcopy(chain_or_payload.model_dump())
     if isinstance(chain_or_payload, dict):
@@ -333,6 +340,7 @@ def _normalize_item(
     index: int,
     evidence_ids: set[str],
 ) -> dict[str, Any]:
+    """Validate and normalize a single review patch item."""
     if not isinstance(item, dict):
         raise ReviewPatchError(f"review patch item {index} must be an object")
     action = _required_text(item, patch, "action", index)
@@ -380,6 +388,7 @@ def _normalize_item(
 
 
 def _metadata_record(record: dict[str, Any]) -> dict[str, Any]:
+    """Build a metadata record from a normalized patch record."""
     metadata_record = {
         "action": record["action"],
         "target": record["target"],
@@ -400,12 +409,13 @@ def _metadata_record(record: dict[str, Any]) -> dict[str, Any]:
 
 
 def _apply_item(payload: dict[str, Any], record: dict[str, Any]) -> None:
+    """Apply a normalized patch record to the payload, modifying it in place."""
     target_type = record["target_type"]
     if target_type == "pending_field":
         _remove_pending_field(payload, record["target_id"])
         if record["action"] == "correct":
-            row, field = _resolve_field_path_target(payload, record["target_id"])
-            row[field] = record["value"]
+            field_row, field = _resolve_field_path_target(payload, record["target_id"])
+            field_row[field] = record["value"]
         return
 
     # ai_inferred_item targets are aggregate markers (strings), not table rows.
@@ -424,18 +434,18 @@ def _apply_item(payload: dict[str, Any], record: dict[str, Any]) -> None:
         )
         return
 
-    row = _find_target(payload, target_type, record["target_id"])
-    if row is None:
+    target_row = _find_target(payload, target_type, record["target_id"])
+    if target_row is None:
         raise ReviewPatchError(f"review patch target not found: {record['target']}")
     if record["action"] == "correct":
-        row[record["field"]] = record["value"]
-    if "needs_confirmation" in row:
-        row["needs_confirmation"] = False
+        target_row[record["field"]] = record["value"]
+    if "needs_confirmation" in target_row:
+        target_row["needs_confirmation"] = False
     _remove_confirmed_ai_inferred_item(
         payload,
         target_type=target_type,
         target_id=record["target_id"],
-        row=row,
+        row=target_row,
     )
     if record.get("field"):
         for pending_field in _pending_field_candidates(record):
@@ -449,6 +459,7 @@ def _remove_confirmed_ai_inferred_item(
     target_id: str,
     row: dict[str, Any],
 ) -> None:
+    """Remove a confirmed AI-inferred item from all containers in the payload."""
     candidates = _ai_inferred_target_candidates(target_type, target_id, row)
     if not candidates:
         return
@@ -467,6 +478,7 @@ def _ai_inferred_target_candidates(
     target_id: str,
     row: dict[str, Any],
 ) -> set[str]:
+    """Build a set of candidate identifiers for matching AI-inferred items."""
     candidates = {str(target_id).strip()}
     if target_type == "failure_mode":
         candidates.add(str(row.get("pfmea_id", "")).strip())
@@ -491,6 +503,7 @@ def _ai_inferred_target_candidates(
 
 
 def _ai_inferred_item_containers(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    """Find all containers in the payload that may hold ai_inferred_items."""
     containers: list[dict[str, Any]] = []
     if "ai_inferred_items" in payload:
         containers.append(payload)
@@ -508,6 +521,7 @@ def _ai_inferred_item_containers(payload: dict[str, Any]) -> list[dict[str, Any]
 
 
 def _ai_inferred_item_matches(item: Any, candidates: set[str]) -> bool:
+    """Check if a single AI-inferred item matches any of the given candidates."""
     if isinstance(item, str):
         return item.strip() in candidates
     if isinstance(item, dict):
@@ -519,6 +533,7 @@ def _ai_inferred_item_matches(item: Any, candidates: set[str]) -> bool:
 
 
 def _parse_target(target: str, index: int) -> tuple[str, str]:
+    """Parse a type:id target string into its component parts."""
     if ":" not in target:
         raise ReviewPatchError(f"review patch item {index} target must use type:id")
     target_type, target_id = target.split(":", 1)
@@ -534,6 +549,7 @@ def _parse_target(target: str, index: int) -> tuple[str, str]:
 def _find_target(
     payload: dict[str, Any], target_type: str, target_id: str
 ) -> dict[str, Any] | None:
+    """Find a target row in the payload by type and ID."""
     for row in _target_rows(payload, target_type):
         if not isinstance(row, dict):
             continue
@@ -548,6 +564,7 @@ def _find_target(
 def _resolve_field_path_target(
     payload: dict[str, Any], field_path: str
 ) -> tuple[dict[str, Any], str]:
+    """Resolve a field path (e.g. object_id.field) to the target row and field name."""
     object_id, separator, field = field_path.rpartition(".")
     if not separator or not object_id or not field:
         raise ReviewPatchError(
@@ -576,6 +593,7 @@ def _resolve_field_path_target(
 
 
 def _target_rows(payload: dict[str, Any], target_type: str) -> list[Any]:
+    """Retrieve all rows of a given target type from the payload."""
     rows: list[Any] = []
     for path in _TARGET_LIST_PATHS[target_type]:
         value: Any = payload
@@ -590,6 +608,7 @@ def _target_rows(payload: dict[str, Any], target_type: str) -> list[Any]:
 
 
 def _remove_pending_field(payload: dict[str, Any], field_path: str) -> None:
+    """Remove a pending field by its path from all containers in the payload."""
     for container in _pending_field_containers(payload):
         pending_fields = container.get("pending_fields")
         if isinstance(pending_fields, list):
@@ -603,6 +622,7 @@ def _remove_pending_field(payload: dict[str, Any], field_path: str) -> None:
 
 
 def _pending_field_containers(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    """Find all containers in the payload that may hold pending_fields."""
     containers: list[dict[str, Any]] = []
     if "pending_fields" in payload:
         containers.append(payload)
@@ -620,6 +640,7 @@ def _pending_field_containers(payload: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _pending_item_matches(item: Any, field_path: str) -> bool:
+    """Check if a pending field item matches the given field path."""
     if isinstance(item, str):
         return _field_matches(item, field_path)
     if isinstance(item, dict):
@@ -636,6 +657,7 @@ def _pending_item_matches(item: Any, field_path: str) -> bool:
 
 
 def _field_matches(candidate: str, field_path: str) -> bool:
+    """Check if a candidate string matches a field path, handling type:path formats."""
     candidate = candidate.strip()
     field_path = field_path.strip()
     if not candidate or not field_path:
@@ -652,6 +674,7 @@ def _field_matches(candidate: str, field_path: str) -> bool:
 
 
 def _pending_field_candidates(record: dict[str, Any]) -> set[str]:
+    """Generate candidate field path strings for removal from a patch record."""
     candidates = {record["target_id"]}
     field = record.get("field")
     if field:
@@ -663,12 +686,14 @@ def _pending_field_candidates(record: dict[str, Any]) -> set[str]:
 
 
 def _field_path_for(target_type: str, target_id: str, field: str) -> str:
+    """Build a field path string from target type, ID, and field name."""
     if target_type == "pending_field":
         return target_id
     return f"{target_id}.{field}" if field else ""
 
 
 def _collect_evidence_ids(value: Any) -> set[str]:
+    """Recursively collect all evidence IDs from a dict/list structure."""
     ids: set[str] = set()
     if isinstance(value, dict):
         evidence_id = str(value.get("evidence_id", "")).strip()
@@ -683,6 +708,7 @@ def _collect_evidence_ids(value: Any) -> set[str]:
 
 
 def _trace_link_label(row: dict[str, Any]) -> str:
+    """Get the label for a trace link row from its ID fields or from/to references."""
     link_id = str(row.get("trace_link_id", row.get("link_id", row.get("id", "")))).strip()
     if link_id:
         return link_id
@@ -694,6 +720,7 @@ def _trace_link_label(row: dict[str, Any]) -> str:
 def _required_text(
     item: dict[str, Any], patch: dict[str, Any], key: str, index: int
 ) -> str:
+    """Get a required text field, raising an error if missing."""
     value = item.get(key, patch.get(key, ""))
     text = _optional_text(value)
     if not text:
@@ -702,6 +729,7 @@ def _required_text(
 
 
 def _optional_text(value: Any) -> str:
+    """Convert a value to a trimmed string, returning empty string for None."""
     if value is None:
         return ""
     return str(value).strip()

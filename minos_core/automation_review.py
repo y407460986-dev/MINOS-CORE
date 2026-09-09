@@ -3,23 +3,30 @@
 from __future__ import annotations
 
 import copy
-import logging
-from typing import Any
+from typing import Any, TypedDict
 
-from minos_core._text_utils import float_or_none
+from minos_core.observability.logging import get_logger
 
+from ._text_utils import float_or_none
 from .edit_patch import EDIT_PATCH_VERSION
 from .quality_gates import evaluate_export_gate
 from .review_issues import build_review_issue, unresolved_review_issues
 
-
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 AUTOMATION_REVIEW_VERSION = "minos-core.automation_review.v1"
 DEFAULT_BATCH_CONFIRM_CONFIDENCE = 0.85
 
-_TABLE_CONFIG = {
+
+class _TableConfig(TypedDict):
+    chain_key: str
+    table_key: str
+    id_fields: tuple[str, ...]
+    target_type: str
+
+
+_TABLE_CONFIG: dict[str, _TableConfig] = {
     "process_flow": {
         "chain_key": "process_steps",
         "table_key": "steps",
@@ -46,7 +53,23 @@ def build_automation_review(
     *,
     min_confidence: float = DEFAULT_BATCH_CONFIRM_CONFIDENCE,
 ) -> dict[str, Any]:
-    """Build AI pre-review tasks and safe batch-confirm candidates."""
+    """Build AI pre-review tasks and safe batch-confirm candidates.
+
+    Analyzes the three-table generation result and produces automation tasks,
+    batch-confirm candidates, blocking issues, and cross-table semantic review
+    issues for human review.
+
+    Args:
+        source: The three-table generation result dict (must be a JSON object).
+        min_confidence: Minimum confidence threshold for batch confirmation.
+
+    Returns:
+        A dict containing automation_tasks, batch_confirm_candidates,
+        blocking_issues, review_issues, and summary.
+
+    Raises:
+        TypeError: If source is not a dict.
+    """
 
     if not isinstance(source, dict):
         raise TypeError("source must be a JSON object")
@@ -60,6 +83,8 @@ def build_automation_review(
     batch_confirm_candidates: list[dict[str, Any]] = []
     for table, row in _iter_rows(source, chain):
         if not isinstance(row, dict):
+            continue
+        if _is_human_confirmed(row):
             continue
         row_id = _row_id(table, row)
         if not row_id:
@@ -148,7 +173,20 @@ def build_batch_confirm_patch(
     edited_at: str = "",
     reason: str = "AI 预审建议批量确认低风险高置信度项目",
 ) -> dict[str, Any]:
-    """Create an edit patch for candidates returned by build_automation_review."""
+    """Create an edit patch for candidates returned by build_automation_review.
+
+    Converts a list of batch-confirm candidates into an edit patch that can
+    be applied to mark items as AI-recommended batch confirmed.
+
+    Args:
+        candidates: List of candidate dicts with ``table`` and ``target_id`` keys.
+        edited_by: Identifier of the editing entity.
+        edited_at: ISO-8601 timestamp of the edit.
+        reason: Human-readable reason for the batch confirm.
+
+    Returns:
+        An edit patch dict with the specified edit_patch_version and items.
+    """
 
     items = []
     for candidate in candidates if isinstance(candidates, list) else []:
@@ -178,6 +216,7 @@ def build_batch_confirm_patch(
 
 
 def _as_chain(source: dict[str, Any]) -> dict[str, Any]:
+    """Extract or build the APQP chain dict from the source result."""
     if source.get("document_type") == "three_table_generation_result":
         chain = copy.deepcopy(source.get("chain") or {})
         chain.update(
@@ -200,6 +239,7 @@ def _as_chain(source: dict[str, Any]) -> dict[str, Any]:
 
 
 def _iter_rows(source: dict[str, Any], chain: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
+    """Iterate over all table rows across process_flow, pfmea, and control_plan."""
     rows: list[tuple[str, dict[str, Any]]] = []
     for table in _TABLE_CONFIG:
         table_rows = _table_rows(source, table)
@@ -210,6 +250,7 @@ def _iter_rows(source: dict[str, Any], chain: dict[str, Any]) -> list[tuple[str,
 
 
 def _table_rows(source: dict[str, Any], table: str) -> list[Any]:
+    """Retrieve the list of rows for a given table from the source."""
     config = _TABLE_CONFIG[table]
     document = source.get(table)
     if isinstance(document, dict):
@@ -230,6 +271,7 @@ def _batch_reject_reasons(
     min_confidence: float,
     blocking_targets: set[str],
 ) -> list[str]:
+    """Determine why a row should be rejected from batch confirmation."""
     reasons: list[str] = []
     target = _target(table, row_id)
     confidence = float_or_none(row.get("confidence"))
@@ -262,6 +304,7 @@ def _batch_reject_reasons(
 
 
 def _blocking_issues(source: dict[str, Any], gate_payload: dict[str, Any]) -> list[dict[str, Any]]:
+    """Collect blocking (severity=blocker) issues from quality gate and metadata."""
     issues: list[dict[str, Any]] = []
     for issue in gate_payload.get("review_issues", []):
         if isinstance(issue, dict) and str(issue.get("severity", "")).strip() == "blocker":
@@ -276,8 +319,11 @@ def _blocking_issues(source: dict[str, Any], gate_payload: dict[str, Any]) -> li
 
 
 def _blocking_targets(issues: list[dict[str, Any]]) -> set[str]:
+    """Extract the set of target IDs from blocking issues (excluding uncovered_pfmea)."""
     targets: set[str] = set()
     for issue in issues:
+        if str(issue.get("category", "")).strip() == "uncovered_pfmea":
+            continue
         for field_name in ("target", "item_id", "issue_id"):
             value = str(issue.get(field_name, "")).strip()
             if value:
@@ -295,6 +341,7 @@ def _task(
     *,
     can_batch_confirm: bool,
 ) -> dict[str, Any]:
+    """Build a single automation task dict for human review."""
     target = _target(table, row_id) if row_id else table
     return {
         "task_id": f"AR-{table}-{row_id or 'row'}",
@@ -312,6 +359,7 @@ def _task(
 
 
 def _candidate(table: str, row_id: str, row: dict[str, Any]) -> dict[str, Any]:
+    """Build a batch-confirm candidate dict for a single row."""
     return {
         "table": table,
         "target_id": row_id,
@@ -325,6 +373,7 @@ def _candidate(table: str, row_id: str, row: dict[str, Any]) -> dict[str, Any]:
 
 
 def _fix_proposal(table: str, row_id: str, row: dict[str, Any], reasons: list[str]) -> dict[str, Any]:
+    """Generate a fix proposal for a row based on its rejection reasons."""
     changes: dict[str, Any] = {}
     suggestion_parts: list[str] = []
 
@@ -391,6 +440,7 @@ def _fix_proposal(table: str, row_id: str, row: dict[str, Any], reasons: list[st
 
 
 def _int_or(value: Any, default: int = 0) -> int:
+    """Convert a value to int, returning default on failure."""
     try:
         return int(value)
     except (TypeError, ValueError):
@@ -398,6 +448,7 @@ def _int_or(value: Any, default: int = 0) -> int:
 
 
 def _row_id(table: str, row: dict[str, Any]) -> str:
+    """Get the row identifier using the table's configured ID fields."""
     for field_name in _TABLE_CONFIG[table]["id_fields"]:
         value = str(row.get(field_name, "")).strip()
         if value:
@@ -406,18 +457,30 @@ def _row_id(table: str, row: dict[str, Any]) -> str:
 
 
 def _target(table: str, row_id: str) -> str:
+    """Build a qualified target string (type:id) from table config and row ID."""
     return f"{_TABLE_CONFIG[table]['target_type']}:{row_id}"
 
 
 def _is_deleted(row: dict[str, Any]) -> bool:
+    """Check if a row is soft-deleted."""
     return bool(row.get("deleted") or row.get("soft_deleted"))
 
 
+def _is_human_confirmed(row: dict[str, Any]) -> bool:
+    """Check if a row has been confirmed by a human review."""
+    if row.get("needs_confirmation"):
+        return False
+    status = str(row.get("review_status", "")).strip().lower()
+    return status in {"已确认", "已批准", "已批量确认", "confirmed", "approved", "closed"}
+
+
 def _is_high_ap(row: dict[str, Any]) -> bool:
+    """Check if a row has a high action priority (AP)."""
     return str(row.get("action_priority", row.get("AP", ""))).strip().upper() == "H"
 
 
 def _has_special_characteristic(row: dict[str, Any], table: str, chain: dict[str, Any]) -> bool:
+    """Check if a row has special characteristics, directly or via its process step."""
     direct = (
         row.get("classification")
         or row.get("characteristic_refs")
@@ -435,6 +498,7 @@ def _has_special_characteristic(row: dict[str, Any], table: str, chain: dict[str
 
 
 def _is_broken_link(table: str, row: dict[str, Any], chain: dict[str, Any]) -> bool:
+    """Check if a row's cross-table references point to non-existent or deleted items."""
     step_ids = {
         str(item.get("process_step_id", "")).strip()
         for item in chain.get("process_steps", [])
@@ -457,6 +521,7 @@ def _is_broken_link(table: str, row: dict[str, Any], chain: dict[str, Any]) -> b
 
 
 def _has_open_change_impact(source: dict[str, Any], target: str) -> bool:
+    """Check if there are any open (unresolved) change impacts for the given target."""
     for item in _metadata(source).get("change_impacts", []):
         if not isinstance(item, dict):
             continue
@@ -468,6 +533,7 @@ def _has_open_change_impact(source: dict[str, Any], target: str) -> bool:
 
 
 def _metadata(source: dict[str, Any]) -> dict[str, Any]:
+    """Extract merged metadata from the source chain and top-level metadata."""
     metadata = {}
     chain = source.get("chain")
     if isinstance(chain, dict) and isinstance(chain.get("metadata"), dict):
@@ -480,6 +546,7 @@ def _metadata(source: dict[str, Any]) -> dict[str, Any]:
 
 
 def _dedupe(values: list[str]) -> list[str]:
+    """Remove duplicate strings while preserving order."""
     result: list[str] = []
     seen: set[str] = set()
     for value in values:
@@ -490,6 +557,7 @@ def _dedupe(values: list[str]) -> list[str]:
 
 
 def _dedupe_issues(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Remove duplicate issue dicts based on issue_id or target."""
     result: list[dict[str, Any]] = []
     seen: set[str] = set()
     for item in items:
@@ -512,6 +580,19 @@ def automation_review_issue(
     fix_proposal: dict[str, Any] | None = None,
     can_batch_confirm: bool = False,
 ) -> dict[str, Any]:
+    """Build a review issue from automation review.
+
+    Args:
+        category: Issue category (e.g. "semantic", "missing_evidence").
+        message: Human-readable issue description.
+        target: Target identifier for the issue.
+        severity: Severity level ("review", "blocker", etc.).
+        fix_proposal: Optional dict with suggested fixes.
+        can_batch_confirm: Whether this issue can be batch-confirmed.
+
+    Returns:
+        A review issue dict.
+    """
     return build_review_issue(
         category=category,
         message=message,

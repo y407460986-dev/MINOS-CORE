@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -13,9 +12,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from minos_platform import config, db
-from minos_platform.utils import calculate_file_sha256
 from minos_platform.errors import InvalidStateError, NotFoundError, map_core_error
 from minos_platform.models import ApplyReviewResponse
+from minos_platform.utils import calculate_file_sha256
 
 VALID_STATES = {"review_patch_submitted"}
 
@@ -29,7 +28,7 @@ router = APIRouter()
 )
 async def apply_review(
     project_id: str,
-    session: AsyncSession = Depends(db.get_session),
+    session: AsyncSession = Depends(db.get_session),  # noqa: B008
 ) -> ApplyReviewResponse:
     """Apply the latest review patch against the latest draft run."""
     result = await session.execute(select(db.Project).where(db.Project.id == project_id))
@@ -77,7 +76,7 @@ async def apply_review(
         status="created",
         result_json_path=review_result_path,
         manifest_json_path=manifest_path,
-        created_at=datetime.now(timezone.utc).replace(microsecond=0),
+        created_at=datetime.now(UTC).replace(microsecond=0),
     )
     session.add(apply_run)
 
@@ -101,7 +100,7 @@ async def apply_review(
             artifact_type="review_result",
             file_path=review_result_path,
             sha256=result_sha256,
-            created_at=datetime.now(timezone.utc).replace(microsecond=0),
+            created_at=datetime.now(UTC).replace(microsecond=0),
         )
         session.add(artifact)
 

@@ -4,7 +4,6 @@ import unittest
 
 from minos_core.domain import TraceLinkType
 
-
 FIXTURE_PROCESS_FLOW = {
     "document_type": "process_flow",
     "schema_version": "minos-core.generated.v1",
@@ -265,9 +264,9 @@ class TraceLinkGenerationTests(unittest.TestCase):
             FIXTURE_CONTROL_PLAN,
         )
         pfd_pfmea_links = [
-            l
-            for l in chain.get("links", [])
-            if l.get("link_type") == TraceLinkType.PFD_TO_PFMEA.value
+            link
+            for link in chain.get("links", [])
+            if link.get("link_type") == TraceLinkType.PFD_TO_PFMEA.value
         ]
         self.assertTrue(len(pfd_pfmea_links) > 0, "Expected at least one PFD-to-PFMEA link")
         for link in pfd_pfmea_links:
@@ -286,9 +285,9 @@ class TraceLinkGenerationTests(unittest.TestCase):
             FIXTURE_CONTROL_PLAN,
         )
         pfmea_cp_links = [
-            l
-            for l in chain.get("links", [])
-            if l.get("link_type") == TraceLinkType.PFMEA_TO_CP.value
+            link
+            for link in chain.get("links", [])
+            if link.get("link_type") == TraceLinkType.PFMEA_TO_CP.value
         ]
         self.assertTrue(len(pfmea_cp_links) > 0, "Expected at least one PFMEA-to-CP link")
         for link in pfmea_cp_links:
@@ -307,9 +306,9 @@ class TraceLinkGenerationTests(unittest.TestCase):
             FIXTURE_CONTROL_PLAN,
         )
         step_cand_links = [
-            l
-            for l in chain.get("links", [])
-            if l.get("link_type") == TraceLinkType.STEP_TO_CANDIDATE.value
+            link
+            for link in chain.get("links", [])
+            if link.get("link_type") == TraceLinkType.STEP_TO_CANDIDATE.value
         ]
         self.assertTrue(len(step_cand_links) > 0, "Expected at least one step-to-candidate link")
         # Candidate CAND-003 references STEP-99 which doesn't exist, so it should be excluded
@@ -337,9 +336,9 @@ class TraceLinkGenerationTests(unittest.TestCase):
         # CP-001 has evidence_refs ["EV-001"] -> confidence 0.95
         cp_001_link = next(
             (
-                l
-                for l in chain.get("links", [])
-                if l.get("to_id") == "CP-001"
+                link
+                for link in chain.get("links", [])
+                if link.get("to_id") == "CP-001"
             ),
             None,
         )
@@ -350,10 +349,10 @@ class TraceLinkGenerationTests(unittest.TestCase):
         # FM-002 has evidence_refs ["EV-003", "EV-001"] -> confidence (0.85 + 0.95) / 2 = 0.90
         fm_002_link = next(
             (
-                l
-                for l in chain.get("links", [])
-                if l.get("to_id") == "FM-002"
-                and l.get("link_type") == TraceLinkType.PFD_TO_PFMEA.value
+                link
+                for link in chain.get("links", [])
+                if link.get("to_id") == "FM-002"
+                and link.get("link_type") == TraceLinkType.PFD_TO_PFMEA.value
             ),
             None,
         )
@@ -378,10 +377,10 @@ class TraceLinkGenerationTests(unittest.TestCase):
         # which has empty evidence_refs and its candidate fallback may differ.
         fm_001_link = next(
             (
-                l
-                for l in chain.get("links", [])
-                if l.get("to_id") == "FM-001"
-                and l.get("link_type") == TraceLinkType.PFD_TO_PFMEA.value
+                link
+                for link in chain.get("links", [])
+                if link.get("to_id") == "FM-001"
+                and link.get("link_type") == TraceLinkType.PFD_TO_PFMEA.value
             ),
             None,
         )
@@ -400,11 +399,11 @@ class TraceLinkGenerationTests(unittest.TestCase):
             FIXTURE_CONTROL_PLAN,
         )
         step_cand_links = [
-            l
-            for l in chain.get("links", [])
-            if l.get("link_type") == TraceLinkType.STEP_TO_CANDIDATE.value
+            link
+            for link in chain.get("links", [])
+            if link.get("link_type") == TraceLinkType.STEP_TO_CANDIDATE.value
         ]
-        cand_ids = {l["to_id"] for l in step_cand_links}
+        cand_ids = {link["to_id"] for link in step_cand_links}
         self.assertIn("CAND-001", cand_ids)
         self.assertIn("CAND-002", cand_ids)
         self.assertNotIn("CAND-003", cand_ids, "Orphan CAND-003 should be excluded")

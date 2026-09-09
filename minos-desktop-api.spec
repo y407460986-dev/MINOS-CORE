@@ -20,11 +20,20 @@ collected_hiddenimports = [
 collected_hiddenimports += collect_submodules("minos_core")
 collected_hiddenimports += collect_submodules("minos_desktop")
 
-for package in ("onnxruntime", "rapidocr_onnxruntime", "fitz", "PIL"):
+for package in ("onnxruntime", "rapidocr_onnxruntime", "fitz", "PIL", "keyring", "jaraco"):
     datas, binaries, hiddenimports = collect_all(package)
     collected_datas += datas
     collected_binaries += binaries
     collected_hiddenimports += hiddenimports
+
+collected_hiddenimports += [
+    "keyring.backends.Windows",
+    "keyring.backends.fail",
+    "keyring.backends.null",
+    "win32ctypes",
+    "win32ctypes.pywin32",
+    "win32ctypes.pywin32.win32cred",
+]
 
 a = Analysis(
     ["scripts/entrypoint_desktop_api.py"],

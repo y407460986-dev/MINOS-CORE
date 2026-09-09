@@ -6,9 +6,9 @@ import json
 import re
 from typing import Any
 
-from .evidence_relevance import filter_relevant_evidence_refs
 from minos_core._text_utils import string_list
 
+from .evidence_relevance import filter_relevant_evidence_refs
 
 OPERATION_RULES = (
     (
@@ -152,11 +152,13 @@ def _candidate(
         available_evidence=available_evidence or [],
     )
     step_confidence = step.get("confidence")
-    evidence_confidences = [
-        ev.get("confidence") for ev in (available_evidence or [])
-        if isinstance(ev, dict) and ev.get("evidence_id") in filtered_refs
-        and ev.get("confidence") is not None
-    ]
+    evidence_confidences: list[float] = []
+    for evidence_item in available_evidence or []:
+        if not isinstance(evidence_item, dict):
+            continue
+        confidence = evidence_item.get("confidence")
+        if evidence_item.get("evidence_id") in filtered_refs and confidence is not None:
+            evidence_confidences.append(float(confidence))
     avg_confidence = (
         sum(evidence_confidences) / len(evidence_confidences)
         if evidence_confidences else (step_confidence if step_confidence is not None else 0.5)

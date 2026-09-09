@@ -8,8 +8,8 @@ from pathlib import Path
 from typing import Any
 
 from ..app_state import DesktopProjectRecord, DesktopProjectState
-from .sqlite_store import DesktopSQLiteStore, DEFAULT_DESKTOP_DB_PATH, _utc_now, _to_json
 from .settings_store import DesktopSettingsStore
+from .sqlite_store import DEFAULT_DESKTOP_DB_PATH, DesktopSQLiteStore, _to_json, _utc_now
 
 
 class DesktopProjectStore:
@@ -28,18 +28,29 @@ class DesktopProjectStore:
             cursor = connection.execute(
                 """
                 INSERT INTO projects
-                    (project_name, drawing_path, output_dir, context_json, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?)
+                    (
+                        project_name,
+                        drawing_path,
+                        component_drawings_json,
+                        output_dir,
+                        context_json,
+                        created_at,
+                        updated_at
+                    )
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     state.project_name,
                     state.drawing_path,
+                    _to_json(state.component_drawings),
                     output_dir,
                     _to_json(state.context),
                     now,
                     now,
                 ),
             )
+            if cursor.lastrowid is None:
+                raise RuntimeError("project insert did not return an id")
             project_id = int(cursor.lastrowid)
         return self.get_project(project_id)
 
@@ -53,6 +64,14 @@ class DesktopProjectStore:
         if row is None:
             raise KeyError(f"desktop project not found: {project_id}")
         return _project_from_row(row)
+
+    def list_recent_projects(self, limit: int = 10) -> list[DesktopProjectRecord]:
+        with self._store.connect() as connection:
+            rows = connection.execute(
+                "SELECT * FROM projects ORDER BY updated_at DESC, id DESC LIMIT ?",
+                (max(1, int(limit)),),
+            ).fetchall()
+        return [_project_from_row(row) for row in rows]
 
     def update_project(
         self,
@@ -90,15 +109,23 @@ class DesktopProjectStore:
 
 def _project_from_row(row: sqlite3.Row) -> DesktopProjectRecord:
     """Convert a database row to a project record."""
+    component_list = _from_json_list(str(row["component_drawings_json"] or "[]"))
     return DesktopProjectRecord(
         id=int(row["id"]),
         project_name=str(row["project_name"]),
         drawing_path=str(row["drawing_path"]),
+        component_drawings=tuple(component_list),
         output_dir=str(row["output_dir"]),
         context=_from_json_object(str(row["context_json"])),
         created_at=str(row["created_at"]),
         updated_at=str(row["updated_at"]),
     )
+
+
+def _from_json_list(value: str) -> list[str]:
+    """Parse JSON string to list of strings."""
+    data = json.loads(value or "[]")
+    return [str(item) for item in data] if isinstance(data, list) else []
 
 
 def _from_json_object(value: str) -> dict[str, Any]:

@@ -7,7 +7,8 @@ provides the canonical implementations.
 
 from __future__ import annotations
 
-from typing import Any, Mapping
+from collections.abc import Mapping, Sequence
+from typing import Any
 
 
 def _coerce(value: Any) -> str:
@@ -123,7 +124,7 @@ def dedupe(items: list[Any]) -> list[Any]:
 # ---------------------------------------------------------------------------
 
 def sequence_links(
-    steps: list[Mapping[str, Any]],
+    steps: Sequence[Mapping[str, Any]],
     step_key: str = "id",
     *,
     link_type: str = "sequence",

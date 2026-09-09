@@ -1,6 +1,7 @@
 """Tests for TokenManager."""
 
 import pytest
+
 from minos_desktop.security.token_manager import TokenManager
 
 
@@ -52,3 +53,31 @@ def test_get_or_create_token_handles_keyring_failure(monkeypatch):
     manager = TokenManager()
     with pytest.raises(RuntimeError, match="Failed to access system keyring"):
         manager.get_or_create_token()
+
+
+def test_get_or_create_token_generates_and_stores_when_missing(monkeypatch):
+    manager = TokenManager()
+    stored = {}
+    monkeypatch.setattr(manager.keystore, "get_api_key", lambda _provider: None)
+    monkeypatch.setattr(
+        manager.keystore,
+        "store_api_key",
+        lambda provider, token: stored.update(provider=provider, token=token),
+    )
+    monkeypatch.setattr("minos_desktop.security.token_manager.secrets.token_urlsafe", lambda _length: "new-token")
+
+    assert manager.get_or_create_token() == "new-token"
+    assert stored == {"provider": TokenManager.TOKEN_PROVIDER, "token": "new-token"}
+
+
+def test_regenerate_token_handles_keyring_failure(monkeypatch):
+    manager = TokenManager()
+    monkeypatch.setattr(
+        manager.keystore,
+        "store_api_key",
+        lambda _provider, _token: (_ for _ in ()).throw(RuntimeError("locked")),
+    )
+
+    with pytest.raises(RuntimeError, match="Failed to store token in keyring") as exc_info:
+        manager.regenerate_token()
+    assert isinstance(exc_info.value.__cause__, RuntimeError)

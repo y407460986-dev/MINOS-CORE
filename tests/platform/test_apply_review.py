@@ -38,7 +38,12 @@ async def test_apply_review_chain(test_client, demo_package_path, demo_sha256):
         test_client, project_id, demo_package_path, demo_sha256
     )
 
-    patch_data = {**template_data, "confirmed_by": "qa.engineer", "confirmed_at": "2026-04-25T10:00:00Z", "reason": "test approval"}
+    patch_data = {
+        **template_data,
+        "confirmed_by": "qa.engineer",
+        "confirmed_at": "2026-04-25T10:00:00Z",
+        "reason": "test approval",
+    }
     # Must remove template_status — apply_review_patch rejects templates
     patch_data.pop("template_status", None)
     for item in patch_data.get("items", []):
@@ -65,7 +70,25 @@ async def test_apply_review_chain(test_client, demo_package_path, demo_sha256):
     assert apply_resp.status_code == 201
     apply_data = apply_resp.json()
     assert "review_result_path" in apply_data
-    assert apply_data["final_export_allowed"] == True
+    assert apply_data["final_export_allowed"]
 
     proj_detail = await test_client.get(f"/api/projects/{project_id}")
     assert proj_detail.json()["status"] == "review_applied"
+
+
+async def test_apply_review_on_nonexistent_project(test_client):
+    """POST /api/projects/{id}/apply-review for non-existent project returns 404."""
+    fake_id = "00000000-0000-0000-0000-000000000000"
+    apply_resp = await test_client.post(f"/api/projects/{fake_id}/apply-review")
+    assert apply_resp.status_code == 404
+
+
+async def test_apply_review_wrong_state(test_client):
+    """POST /api/projects/{project_id}/apply-review for a project in 'created' state returns 409."""
+    proj = await test_client.post("/api/projects", json={"name": "Apply Review Wrong State Test"})
+    project_id = proj.json()["id"]
+
+    apply_resp = await test_client.post(f"/api/projects/{project_id}/apply-review")
+    assert apply_resp.status_code == 409
+    apply_data = apply_resp.json()
+    assert apply_data.get("code") == "INVALID_STATE_TRANSITION"

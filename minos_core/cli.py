@@ -18,13 +18,22 @@ logger = structlog.get_logger(__name__)
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Execute the CLI entry point.
+
+    Parses command-line arguments, dispatches to the appropriate handler,
+    and returns a POSIX exit code (0 for success, 2 for error).
+
+    Args:
+        argv: Optional argument list; defaults to sys.argv when None.
+
+    Returns:
+        POSIX exit code: 0 on success, 2 on failure.
+    """
     parser = argparse.ArgumentParser(prog="minos-core")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     list_parser = subparsers.add_parser("list", help="List configured sample metadata")
-    list_parser.add_argument(
-        "--samples-dir", default=None, help="Optional sample metadata directory"
-    )
+    list_parser.add_argument("--samples-dir", default=None, help="Optional sample metadata directory")
     subparsers.add_parser("list-samples", help="List configured sample metadata")
     subparsers.add_parser("ai-config", help="Show AI provider config status without printing secrets")
     subparsers.add_parser("doctor", help="Run environment diagnostics")
@@ -120,17 +129,11 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     validate_parser = subparsers.add_parser("validate", help="Validate an APQP fixture")
-    validate_parser.add_argument(
-        "--fixture", help="Fixture JSON file or fixture directory"
-    )
-    validate_parser.add_argument(
-        "--input", help="Fixture JSON file or fixture directory"
-    )
+    validate_parser.add_argument("--fixture", help="Fixture JSON file or fixture directory")
+    validate_parser.add_argument("--input", help="Fixture JSON file or fixture directory")
 
     export_parser = subparsers.add_parser("export", help="Export a formally released APQP fixture")
-    export_parser.add_argument(
-        "--fixture", help="Fixture JSON file or fixture directory"
-    )
+    export_parser.add_argument("--fixture", help="Fixture JSON file or fixture directory")
     export_parser.add_argument("--input", help="Fixture JSON file or fixture directory")
     export_parser.add_argument("--output", required=True, help="Output workbook path")
     export_parser.add_argument("--label", default="", help="Optional export label")
@@ -143,9 +146,7 @@ def main(argv: list[str] | None = None) -> int:
         "export-draft",
         help="Export a draft-only APQP workbook for engineering review",
     )
-    export_draft_parser.add_argument(
-        "--fixture", help="Fixture JSON file or fixture directory"
-    )
+    export_draft_parser.add_argument("--fixture", help="Fixture JSON file or fixture directory")
     export_draft_parser.add_argument("--input", help="Fixture JSON file or fixture directory")
     export_draft_parser.add_argument("--output", required=True, help="Output workbook path")
     export_draft_parser.add_argument("--label", default="", help="Optional export label")
@@ -154,28 +155,18 @@ def main(argv: list[str] | None = None) -> int:
         help="Optional path to save the run manifest JSON",
     )
 
-    audit_parser = subparsers.add_parser(
-        "audit", help="Audit APQP fixture quality without blocking export"
-    )
-    audit_parser.add_argument(
-        "--fixture", help="Fixture JSON file or fixture directory"
-    )
+    audit_parser = subparsers.add_parser("audit", help="Audit APQP fixture quality without blocking export")
+    audit_parser.add_argument("--fixture", help="Fixture JSON file or fixture directory")
     audit_parser.add_argument("--input", help="Fixture JSON file or fixture directory")
-    audit_parser.add_argument(
-        "--json", action="store_true", help="Print machine-readable JSON"
-    )
+    audit_parser.add_argument("--json", action="store_true", help="Print machine-readable JSON")
 
     draft_parser = subparsers.add_parser(
         "generate-draft",
         aliases=["run-pipeline"],
         help="Run generated stages from evidence and emit a draft APQPChain JSON",
     )
-    draft_parser.add_argument(
-        "--input", required=True, help="Evidence bundle JSON file or evidence directory"
-    )
-    draft_parser.add_argument(
-        "--output", help="Optional path to save the draft result JSON"
-    )
+    draft_parser.add_argument("--input", required=True, help="Evidence bundle JSON file or evidence directory")
+    draft_parser.add_argument("--output", help="Optional path to save the draft result JSON")
     draft_parser.add_argument(
         "--manifest-output",
         help="Optional path to save the run manifest JSON",
@@ -229,20 +220,14 @@ def main(argv: list[str] | None = None) -> int:
         help="Output review patch template JSON path",
     )
 
-    convert_parser = subparsers.add_parser(
-        "convert-legacy", help="Convert a legacy Excel seed workbook"
-    )
+    convert_parser = subparsers.add_parser("convert-legacy", help="Convert a legacy Excel seed workbook")
     convert_parser.add_argument(
         "--sample-id",
         required=True,
         help="Sample identifier for the generated fixtures",
     )
-    convert_parser.add_argument(
-        "--display-name", required=True, help="Display name for the generated fixtures"
-    )
-    convert_parser.add_argument(
-        "--input", required=True, help="Legacy .xlsx seed workbook path"
-    )
+    convert_parser.add_argument("--display-name", required=True, help="Display name for the generated fixtures")
+    convert_parser.add_argument("--input", required=True, help="Legacy .xlsx seed workbook path")
     convert_parser.add_argument(
         "--output-dir",
         required=True,
@@ -296,6 +281,7 @@ def main(argv: list[str] | None = None) -> int:
         return _ai_config()
     if args.command == "doctor":
         from .cli_doctor import doctor_command
+
         doctor_command()
         return 0
     if args.command == "analyze-drawing":
@@ -328,30 +314,26 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "export":
         return _export(args.fixture or args.input, args.output, args.label, args.manifest_output)
     if args.command == "export-draft":
-        return _export_draft(
-            args.fixture or args.input, args.output, args.label, args.manifest_output
-        )
+        return _export_draft(args.fixture or args.input, args.output, args.label, args.manifest_output)
     if args.command == "audit":
         return _audit(args.fixture or args.input, args.json)
     if args.command in {"generate-draft", "run-pipeline"}:
         return _generate_draft(args.input, args.output, args.manifest_output)
     if args.command == "apply-review":
         review_input = args.input or args.draft_result or args.apqp_chain
-        return _apply_review(
-            review_input, args.review_patch, args.output, args.manifest_output
-        )
+        return _apply_review(review_input, args.review_patch, args.output, args.manifest_output)
     if args.command == "review-template":
         return _review_template(args.draft_result, args.output)
     if args.command == "convert-legacy":
-        return _convert_legacy(
-            args.input, args.output_dir, args.sample_id, args.display_name, args.profile
-        )
+        return _convert_legacy(args.input, args.output_dir, args.sample_id, args.display_name, args.profile)
     if args.command == "generate-pfd":
         return _generate_pfd(args.input, args.output_dir, args.model)
     if args.command == "generate-pfmea":
         return _generate_pfmea(args.confirmed_pfd, args.drawing_analysis, args.output_dir, args.model)
     if args.command == "generate-cp":
-        return _generate_cp(args.confirmed_pfd, args.confirmed_pfmea, args.drawing_analysis, args.output_dir, args.model)
+        return _generate_cp(
+            args.confirmed_pfd, args.confirmed_pfmea, args.drawing_analysis, args.output_dir, args.model
+        )
     if args.command == "confirm-pfd":
         return _confirm_draft(args.draft, args.review, args.output)
     if args.command == "confirm-pfmea":
@@ -363,6 +345,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _list_samples(samples_dir: str | None = None) -> int:
+    """Log metadata for all configured sample fixtures."""
     for sample in list_samples(samples_dir):
         logger.info(
             "sample_metadata",
@@ -377,6 +360,7 @@ def _list_samples(samples_dir: str | None = None) -> int:
 
 
 def _ai_config() -> int:
+    """Log the current AI provider configuration status."""
     from .ai_config import load_openai_responses_config
 
     config = load_openai_responses_config().model_dump()
@@ -392,6 +376,7 @@ def _analyze_drawing(
     analysis_mode: str,
     ocr_engine: str,
 ) -> int:
+    """Analyze a drawing PDF/PNG/JPG with OCR and/or multimodal AI."""
     from .adapters.multimodal import OpenAIMultimodalError, OpenAIResponsesMultimodalDrawingAnalyzer
     from .drawing_analysis import DrawingAnalysisError, analyze_drawing_pages
     from .drawing_input import DrawingInputError, load_drawing_source, render_drawing_pages
@@ -463,6 +448,7 @@ def _analyze_drawing(
 
 
 def _parse_context_json(context_json: str) -> dict[str, Any]:
+    """Parse a JSON string into a context dictionary."""
     payload = json.loads(context_json or "{}")
     if not isinstance(payload, dict):
         raise json.JSONDecodeError("context JSON must be an object", context_json, 0)
@@ -474,6 +460,7 @@ def _compare_ocr_engines(
     engines: str,
     output: str | None,
 ) -> int:
+    """Compare OCR engines on a single drawing and print a JSON summary."""
     from .drawing_input import DrawingInputError, load_drawing_source, render_drawing_pages
     from .drawing_ocr_analysis import analyze_drawing_with_ocr
 
@@ -510,6 +497,7 @@ def _compare_ocr_engines(
 
 
 def _parse_compare_engines(engines: str) -> list[str]:
+    """Parse and validate a comma-separated OCR engine list."""
     values = [item.strip().lower() for item in str(engines or "").split(",")]
     engine_names = [item for item in values if item]
     if not engine_names:
@@ -524,6 +512,7 @@ def _compare_one_ocr_engine(
     target_dir: Path,
     analyze_drawing_with_ocr: Any,
 ) -> dict[str, Any]:
+    """Run one OCR engine against the source and return a result summary."""
     try:
         bundle = analyze_drawing_with_ocr(
             source=source,
@@ -539,6 +528,7 @@ def _compare_one_ocr_engine(
 
 
 def _compare_ocr_adapter(engine: str) -> Any | None:
+    """Return the OCR adapter for the given engine, or None."""
     if engine != "mineru":
         return None
     from .adapters.mineru_ocr import MinerUOCRAdapter
@@ -547,6 +537,7 @@ def _compare_ocr_adapter(engine: str) -> Any | None:
 
 
 def _compare_ocr_summary(engine: str, bundle: dict[str, Any]) -> dict[str, Any]:
+    """Extract a summary dict from an OCR analysis bundle."""
     identity = bundle.get("drawing_identity")
     if not isinstance(identity, dict):
         identity = {}
@@ -571,6 +562,7 @@ def _compare_ocr_summary(engine: str, bundle: dict[str, Any]) -> dict[str, Any]:
 
 
 def _compare_ocr_error(engine: str, exc: Exception) -> dict[str, Any]:
+    """Build an error result entry for an OCR engine comparison."""
     return {
         "engine": engine,
         "drawing_number": None,
@@ -588,6 +580,7 @@ def _compare_ocr_error(engine: str, exc: Exception) -> dict[str, Any]:
 
 
 def _item_count(value: Any) -> int:
+    """Return the length of a list value, or 0 if not a list."""
     return len(value) if isinstance(value, list) else 0
 
 
@@ -600,6 +593,7 @@ def _generate_three_tables(
     analysis_mode: str,
     ocr_engine: str,
 ) -> int:
+    """Generate draft PFD/PFMEA/CP workbooks from a drawing and save the result."""
     from .adapters.multimodal import OpenAIMultimodalError
     from .drawing_analysis import DrawingAnalysisError
     from .drawing_input import DrawingInputError
@@ -632,7 +626,7 @@ def _generate_three_tables(
         encoding="utf-8",
     )
     logger.info("three_tables_saved", path=str(destination))
-    logger.info("three_tables_status", status=result.get('status_display') or result.get('status'))
+    logger.info("three_tables_status", status=result.get("status_display") or result.get("status"))
     manual_review = result.get("manual_review")
     if isinstance(manual_review, dict):
         summary = manual_review.get("summary")
@@ -644,6 +638,7 @@ def _generate_three_tables(
 
 
 def _write_demo_drawing(output: str) -> int:
+    """Write a synthetic safe demo drawing PNG for local smoke tests."""
     from .demo_acceptance import write_safe_demo_drawing_png
 
     path = write_safe_demo_drawing_png(output)
@@ -652,6 +647,7 @@ def _write_demo_drawing(output: str) -> int:
 
 
 def _accept_three_tables(result_path: str) -> int:
+    """Check a three_table_generation_result JSON and exported workbooks."""
     from .adapters.fixture_json import read_json_object
     from .demo_acceptance import summarize_three_table_acceptance
 
@@ -680,6 +676,7 @@ def _accept_three_tables(result_path: str) -> int:
 
 
 def _validate(fixture: str) -> int:
+    """Validate an APQP fixture against schema and business rules."""
     if not fixture:
         raise ValueError("--fixture or --input is required")
     chain = APQPChain(**load_fixture_payload(fixture))
@@ -692,6 +689,7 @@ def _validate(fixture: str) -> int:
 
 
 def _export(fixture: str, output: str, label: str, manifest_output: str | None) -> int:
+    """Run the quality gate and export a formally released APQP workbook."""
     if not fixture:
         raise ValueError("--fixture or --input is required")
     from .pipeline import export_fixture
@@ -699,7 +697,10 @@ def _export(fixture: str, output: str, label: str, manifest_output: str | None) 
 
     payload = load_fixture_payload(fixture)
     if payload.get("document_type") == "apqp_chain_review_result":
-        payload = payload.get("patched_chain")
+        patched_chain = payload.get("patched_chain")
+        if not isinstance(patched_chain, dict):
+            raise ValueError("review result must contain a patched_chain mapping")
+        payload = patched_chain
     if label:
         payload["label"] = label
     try:
@@ -711,16 +712,18 @@ def _export(fixture: str, output: str, label: str, manifest_output: str | None) 
     return 0
 
 
-def _export_draft(
-    fixture: str, output: str, label: str, manifest_output: str | None
-) -> int:
+def _export_draft(fixture: str, output: str, label: str, manifest_output: str | None) -> int:
+    """Export a draft-only APQP workbook for engineering review without quality gate."""
     if not fixture:
         raise ValueError("--fixture or --input is required")
     from .pipeline import export_draft_fixture
 
     payload = load_fixture_payload(fixture)
     if payload.get("document_type") == "apqp_chain_draft_result":
-        payload = payload.get("draft")
+        draft = payload.get("draft")
+        if not isinstance(draft, dict):
+            raise ValueError("draft result must contain a draft mapping")
+        payload = draft
     if label:
         payload["label"] = label
     result = export_draft_fixture(payload, output, manifest_output)
@@ -729,6 +732,7 @@ def _export_draft(
 
 
 def _audit(fixture: str, as_json: bool) -> int:
+    """Audit APQP fixture quality without blocking export."""
     if not fixture:
         raise ValueError("--fixture or --input is required")
     from .audit import audit_chain, audit_report_json
@@ -738,9 +742,8 @@ def _audit(fixture: str, as_json: bool) -> int:
     return 0
 
 
-def _generate_draft(
-    evidence_input: str, output: str | None, manifest_output: str | None
-) -> int:
+def _generate_draft(evidence_input: str, output: str | None, manifest_output: str | None) -> int:
+    """Run pipeline stages from evidence and emit a draft APQPChain JSON."""
     from .pipeline import generate_draft
 
     result = generate_draft(evidence_input, output, manifest_output)
@@ -754,6 +757,7 @@ def _apply_review(
     output: str | None,
     manifest_output: str | None,
 ) -> int:
+    """Apply a review patch to an APQPChain draft and re-run the export gate."""
     if not review_input:
         raise ValueError("--input, --draft-result, or --apqp-chain is required")
     from .pipeline import apply_review
@@ -769,15 +773,14 @@ def _apply_review(
 
 
 def _review_template(draft_result: str, output: str) -> int:
+    """Create a human-fillable review patch template from a draft result."""
     from .adapters.fixture_json import read_json_object
     from .review_patch import build_review_patch_template
 
     template = build_review_patch_template(read_json_object(Path(draft_result)))
     destination = Path(output)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_text(
-        json.dumps(template, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    destination.write_text(json.dumps(template, ensure_ascii=False, indent=2), encoding="utf-8")
     logger.info("review_template_created", template=json.dumps(template, ensure_ascii=False, indent=2))
     return 0
 
@@ -789,35 +792,35 @@ def _convert_legacy(
     display_name: str,
     profile: str | None,
 ) -> int:
+    """Convert a legacy Excel seed workbook into fixture JSON files."""
     from .adapters.legacy_excel import convert_legacy_workbook
 
-    paths = convert_legacy_workbook(
-        workbook, output_dir, sample_id, display_name, profile
-    )
+    paths = convert_legacy_workbook(workbook, output_dir, sample_id, display_name, profile)
     for name, path in paths.items():
         logger.info("legacy_conversion_output", name=name, path=str(path))
     return 0
 
 
 def _generate_pfd(input_path: str, output_dir: str, model: str | None) -> int:
+    """Generate a PFD draft from a drawing analysis JSON and write review template."""
     from . import pipeline_chain
 
     drawing_analysis = json.loads(Path(input_path).read_text(encoding="utf-8"))
     result = pipeline_chain.generate_pfd_from_drawing(drawing_analysis, model)
     Path(output_dir).mkdir(parents=True, exist_ok=True)
-    Path(output_dir, "pfd_draft.json").write_text(
-        json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    Path(output_dir, "pfd_draft.json").write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     items = []
     for step in result.get("steps", result.get("process_steps", result.get("items", []))):
-        items.append({
-            "process_step_id": step.get("process_step_id", ""),
-            "operation": step.get("operation", ""),
-            "process_function": step.get("process_function", ""),
-            "decision": "",
-            "comment": "",
-            "revised_value": {},
-        })
+        items.append(
+            {
+                "process_step_id": step.get("process_step_id", ""),
+                "operation": step.get("operation", ""),
+                "process_function": step.get("process_function", ""),
+                "decision": "",
+                "comment": "",
+                "revised_value": {},
+            }
+        )
     review_template = {"document_type": "pfd_review_template", "items": items}
     Path(output_dir, "pfd_review_template.json").write_text(
         json.dumps(review_template, ensure_ascii=False, indent=2), encoding="utf-8"
@@ -826,25 +829,26 @@ def _generate_pfd(input_path: str, output_dir: str, model: str | None) -> int:
 
 
 def _generate_pfmea(confirmed_pfd_path: str, drawing_analysis_path: str, output_dir: str, model: str | None) -> int:
+    """Generate a PFMEA draft from confirmed PFD and drawing analysis."""
     from . import pipeline_chain
 
     drawing_analysis = json.loads(Path(drawing_analysis_path).read_text(encoding="utf-8"))
     confirmed_pfd = json.loads(Path(confirmed_pfd_path).read_text(encoding="utf-8"))
     result = pipeline_chain.generate_pfmea_from_confirmed_pfd(drawing_analysis, confirmed_pfd, model)
     Path(output_dir).mkdir(parents=True, exist_ok=True)
-    Path(output_dir, "pfmea_draft.json").write_text(
-        json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    Path(output_dir, "pfmea_draft.json").write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     items = []
     for row in result.get("failure_modes", result.get("items", [])):
-        items.append({
-            "pfmea_id": row.get("pfmea_id", ""),
-            "process_step_id": row.get("process_step_id", ""),
-            "failure_mode": row.get("failure_mode", ""),
-            "decision": "",
-            "comment": "",
-            "revised_value": {},
-        })
+        items.append(
+            {
+                "pfmea_id": row.get("pfmea_id", ""),
+                "process_step_id": row.get("process_step_id", ""),
+                "failure_mode": row.get("failure_mode", ""),
+                "decision": "",
+                "comment": "",
+                "revised_value": {},
+            }
+        )
     review_template = {"document_type": "pfmea_review_template", "items": items}
     Path(output_dir, "pfmea_review_template.json").write_text(
         json.dumps(review_template, ensure_ascii=False, indent=2), encoding="utf-8"
@@ -852,7 +856,10 @@ def _generate_pfmea(confirmed_pfd_path: str, drawing_analysis_path: str, output_
     return 0
 
 
-def _generate_cp(confirmed_pfd_path: str, confirmed_pfmea_path: str, drawing_analysis_path: str, output_dir: str, model: str | None) -> int:
+def _generate_cp(
+    confirmed_pfd_path: str, confirmed_pfmea_path: str, drawing_analysis_path: str, output_dir: str, model: str | None
+) -> int:
+    """Generate a Control Plan draft from confirmed PFMEA and PFD."""
     from . import pipeline_chain
 
     drawing_analysis = json.loads(Path(drawing_analysis_path).read_text(encoding="utf-8"))
@@ -860,19 +867,19 @@ def _generate_cp(confirmed_pfd_path: str, confirmed_pfmea_path: str, drawing_ana
     confirmed_pfmea = json.loads(Path(confirmed_pfmea_path).read_text(encoding="utf-8"))
     result = pipeline_chain.generate_cp_from_confirmed_pfmea(drawing_analysis, confirmed_pfd, confirmed_pfmea, model)
     Path(output_dir).mkdir(parents=True, exist_ok=True)
-    Path(output_dir, "cp_draft.json").write_text(
-        json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    Path(output_dir, "cp_draft.json").write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     items = []
     for row in result.get("control_items", result.get("items", [])):
-        items.append({
-            "cp_id": row.get("cp_id", ""),
-            "process_step_id": row.get("process_step_id", ""),
-            "control_characteristic": row.get("control_characteristic", ""),
-            "decision": "",
-            "comment": "",
-            "revised_value": {},
-        })
+        items.append(
+            {
+                "cp_id": row.get("cp_id", ""),
+                "process_step_id": row.get("process_step_id", ""),
+                "control_characteristic": row.get("control_characteristic", ""),
+                "decision": "",
+                "comment": "",
+                "revised_value": {},
+            }
+        )
     review_template = {"document_type": "cp_review_template", "items": items}
     Path(output_dir, "cp_review_template.json").write_text(
         json.dumps(review_template, ensure_ascii=False, indent=2), encoding="utf-8"
@@ -881,10 +888,14 @@ def _generate_cp(confirmed_pfd_path: str, confirmed_pfmea_path: str, drawing_ana
 
 
 def _confirm_draft(draft_path: str, review_path: str, output_path: str) -> int:
+    """Apply review decisions to a draft JSON and write a confirmed version."""
     draft = json.loads(Path(draft_path).read_text(encoding="utf-8"))
     review = json.loads(Path(review_path).read_text(encoding="utf-8"))
 
-    decisions = {item.get("process_step_id") or item.get("pfmea_id") or item.get("control_plan_id") or item.get("cp_id"): item for item in review.get("items", [])}
+    decisions = {
+        item.get("process_step_id") or item.get("pfmea_id") or item.get("control_plan_id") or item.get("cp_id"): item
+        for item in review.get("items", [])
+    }
 
     list_key = None
     for key in ("steps", "rows", "process_steps", "failure_modes", "control_items", "items"):
@@ -895,7 +906,9 @@ def _confirm_draft(draft_path: str, review_path: str, output_path: str) -> int:
     if list_key:
         confirmed_items = []
         for item in draft[list_key]:
-            item_id = item.get("process_step_id") or item.get("pfmea_id") or item.get("control_plan_id") or item.get("cp_id")
+            item_id = (
+                item.get("process_step_id") or item.get("pfmea_id") or item.get("control_plan_id") or item.get("cp_id")
+            )
             review_item = decisions.get(item_id, {})
             decision = review_item.get("decision", "accept")
             if decision == "reject":
@@ -909,9 +922,7 @@ def _confirm_draft(draft_path: str, review_path: str, output_path: str) -> int:
     if isinstance(draft.get("metadata"), dict):
         draft["metadata"]["chain_stage_status"] = "confirmed"
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-    Path(output_path).write_text(
-        json.dumps(draft, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    Path(output_path).write_text(json.dumps(draft, ensure_ascii=False, indent=2), encoding="utf-8")
     return 0
 
 

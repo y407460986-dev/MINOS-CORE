@@ -6,10 +6,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+
 @dataclass
 class DesktopProjectState:
     project_name: str = "MINOS 三表项目"
     drawing_path: str = ""
+    component_drawings: list[str] = field(default_factory=list)
     output_dir: str = ""
     context: dict[str, Any] = field(default_factory=dict)
 
@@ -81,7 +83,7 @@ class StageConfirmState:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "StageConfirmState":
+    def from_dict(cls, data: dict[str, Any]) -> StageConfirmState:
         return cls(
             status=data.get("status", "not_started"),
             generated_at=data.get("generated_at", ""),
@@ -123,7 +125,7 @@ class ChainStageStates:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "ChainStageStates":
+    def from_dict(cls, data: dict[str, Any]) -> ChainStageStates:
         return cls(
             pfd=StageConfirmState.from_dict(data.get("pfd", {})),
             pfmea=StageConfirmState.from_dict(data.get("pfmea", {})),
@@ -156,6 +158,7 @@ class DesktopProjectRecord:
     context: dict[str, Any]
     created_at: str
     updated_at: str
+    component_drawings: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

@@ -1,8 +1,10 @@
 """TraceLink generation between APQP artifacts."""
 from __future__ import annotations
+
 from typing import Any
+
 from ..domain import EntityType, TraceLinkType
-from ._utils import _text_value, _list_value
+from ._utils import _list_value, _text_value
 
 
 def _generated_pfd_pfmea_links(

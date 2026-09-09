@@ -95,7 +95,7 @@ class ConfidencePropagationBrainstormTests(unittest.TestCase):
             )
             self.assertFalse(
                 candidate["needs_confirmation"],
-                f"Candidate backed by high-confidence evidence should not need confirmation",
+                "Candidate backed by high-confidence evidence should not need confirmation",
             )
 
     def test_no_confidence_data_defaults_to_confirmation(self):
@@ -145,7 +145,7 @@ class ConfidencePropagationBrainstormTests(unittest.TestCase):
             self.assertAlmostEqual(candidate["confidence"], 0.6, places=1)
             self.assertTrue(
                 candidate["needs_confirmation"],
-                f"Avg confidence 0.6 < 0.85 should need confirmation",
+                "Avg confidence 0.6 < 0.85 should need confirmation",
             )
 
     def test_confidence_present_in_candidate_dict(self):
@@ -251,7 +251,7 @@ class ConfidencePropagationPfmeaAiTests(unittest.TestCase):
         self.assertGreater(len(rows), 0)
         for row in rows:
             reasoning_str = row.get("ai_reasoning", "")
-            self.assertTrue(reasoning_str, f"ai_reasoning should not be empty")
+            self.assertTrue(reasoning_str, "ai_reasoning should not be empty")
             # Should contain step context (step ID and operation in Chinese-readable prose)
             self.assertIn("P10", reasoning_str)
             self.assertIn("assemble riveted joint", reasoning_str)

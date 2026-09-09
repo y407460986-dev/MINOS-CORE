@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from httpx import ASGITransport, AsyncClient
 
@@ -14,6 +16,16 @@ try:
     from openpyxl import Workbook
 except ImportError:
     Workbook = None  # type: ignore[assignment]
+
+TEST_API_TOKEN = "test-token"
+
+
+def _client(transport: ASGITransport) -> AsyncClient:
+    return AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        headers={"Authorization": f"Bearer {TEST_API_TOKEN}"},
+    )
 
 
 class DesktopApiV114Tests(unittest.TestCase):
@@ -28,13 +40,16 @@ class DesktopApiV114Tests(unittest.TestCase):
         asyncio.run(self._knowledge_import_seeds_api_converts_three_families())
 
     async def _closure_tasks_api_serializes_and_resolves_fake_run(self) -> None:
-        with tempfile.TemporaryDirectory() as tmpdir:
+        with (
+            patch.dict(os.environ, {"MINOS_DESKTOP_API_TOKEN": TEST_API_TOKEN}),
+            tempfile.TemporaryDirectory() as tmpdir,
+        ):
             db_path = Path(tmpdir) / "desktop.sqlite3"
             output_dir = Path(tmpdir) / "out"
             app = create_app(db_path=db_path, output_dir=output_dir)
             run = DesktopRunService(db_path).save_result(None, _fake_result(), output_dir)
             transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as client:
+            async with _client(transport) as client:
                 drawing = await client.get(f"/api/runs/{run.id}/drawing-analysis")
                 part_family = await client.get(f"/api/runs/{run.id}/part-family")
                 updated_family = await client.patch(
@@ -67,12 +82,15 @@ class DesktopApiV114Tests(unittest.TestCase):
         self.assertEqual(updated["review_status"], "已确认")
 
     async def _knowledge_family_api_lists_default_families(self) -> None:
-        with tempfile.TemporaryDirectory() as tmpdir:
+        with (
+            patch.dict(os.environ, {"MINOS_DESKTOP_API_TOKEN": TEST_API_TOKEN}),
+            tempfile.TemporaryDirectory() as tmpdir,
+        ):
             db_path = Path(tmpdir) / "desktop.sqlite3"
             output_dir = Path(tmpdir) / "out"
             app = create_app(db_path=db_path, output_dir=output_dir)
             transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as client:
+            async with _client(transport) as client:
                 response = await client.get("/api/knowledge/families")
 
         self.assertEqual(response.status_code, 200)
@@ -80,7 +98,10 @@ class DesktopApiV114Tests(unittest.TestCase):
         self.assertGreaterEqual(keys, {"stamping", "limiter", "door_hinge"})
 
     async def _knowledge_import_seeds_api_converts_three_families(self) -> None:
-        with tempfile.TemporaryDirectory() as tmpdir:
+        with (
+            patch.dict(os.environ, {"MINOS_DESKTOP_API_TOKEN": TEST_API_TOKEN}),
+            tempfile.TemporaryDirectory() as tmpdir,
+        ):
             root = Path(tmpdir)
             seed_dirs = {
                 "stamping": str(_build_stamping_seed(root / "stamping")),
@@ -91,7 +112,7 @@ class DesktopApiV114Tests(unittest.TestCase):
             output_dir = root / "out"
             app = create_app(db_path=db_path, output_dir=output_dir)
             transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as client:
+            async with _client(transport) as client:
                 response = await client.post(
                     "/api/knowledge/import-seeds",
                     json={"seed_dirs": seed_dirs, "output_dir": str(root / "knowledge")},

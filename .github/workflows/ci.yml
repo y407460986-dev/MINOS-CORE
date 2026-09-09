@@ -4,41 +4,196 @@ on:
   push:
   pull_request:
   workflow_dispatch:
-  release:
-    types: [published]
 
 jobs:
-  offline-tests:
-    name: Offline tests
-    runs-on: ubuntu-latest
+  windows-dependency-lock:
+    name: Windows dependency lock
+    runs-on: windows-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Check Windows dependency lock drift
+        shell: pwsh
+        run: |
+          uv pip compile pyproject.toml --python-version 3.11 --python-platform windows --extra dev --extra test --extra desktop-api --extra platform --extra ocr --extra build --output-file requirements/locks/windows-py311.txt
+          git diff --exit-code -- requirements/locks/windows-py311.txt
+
+  python-quality:
+    name: Python quality
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements/locks/linux-py311.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e ".[platform]" pytest pytest-asyncio
+          python -m pip install -r requirements/locks/linux-py311.txt
+          python -m pip install -e . --no-deps
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Check Linux dependency lock drift
+        run: |
+          uv pip compile pyproject.toml --python-version 3.11 --python-platform linux --extra dev --extra test --extra desktop-api --extra platform --extra ocr --output-file requirements/locks/linux-py311.txt
+          git diff --exit-code -- requirements/locks/linux-py311.txt
+
+      - name: Ruff lint
+        run: ruff check --output-format=github .
+
+      - name: Mypy check
+        run: mypy minos_core/ minos_desktop/
+
+      - name: pip-audit
+        run: pip-audit
+
+      - name: Check Python dependencies
+        run: python -m pip check
+
+      - name: Repository hygiene
+        run: python scripts/check_repo_hygiene.py
+
+  python-tests:
+    name: Python tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements/locks/linux-py311.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install Python test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements/locks/linux-py311.txt
+          python -m pip install -e . --no-deps
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/desktop-tauri/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: apps/desktop-tauri
+        run: npm ci
+
+      - name: Import runtime dependencies
+        run: >-
+          python -c "import keyring, sse_starlette, fitz, rapidocr_onnxruntime;
+          import minos_desktop.api.app, minos_platform.app"
+
+      - name: Check Python dependencies
+        run: python -m pip check
 
       - name: Run pytest
-        run: python -m pytest tests -q
+        run: >-
+          python -m pytest tests -q -m "not real_api"
+          --cov=minos_core --cov=minos_desktop --cov=minos_platform
+          --cov-report=xml --cov-fail-under=80
+          diff-cover coverage.xml --compare-branch=origin/main --fail-under=80
 
-      - name: Run unittest
-        run: python -m unittest discover -s tests -v
+      - name: Run unittest compatibility smoke
+        run: python -m unittest discover -s tests -p "test_runtime_paths.py" -v
+
+  desktop-quality:
+    name: Desktop build and Rust check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            apps/desktop-tauri/src-tauri/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('apps/desktop-tauri/src-tauri/Cargo.lock') }}
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/desktop-tauri/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: apps/desktop-tauri
+        run: npm ci
+
+      - name: npm audit
+        working-directory: apps/desktop-tauri
+        run: npm audit --audit-level=high
+
+      - name: Build frontend
+        working-directory: apps/desktop-tauri
+        run: npm run build
+
+      - name: Install Tauri Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+
+      - name: Cargo check
+        working-directory: apps/desktop-tauri/src-tauri
+        run: cargo check --locked
 
   real-acceptance:
     name: Real API acceptance
     runs-on: ubuntu-latest
     # Security: Scope secrets to acceptance-testing environment to limit exposure
-    # Only workflow_dispatch and release events can access these secrets
+    # Real acceptance is an explicit manual action with protected environment secrets.
     environment: acceptance-testing
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'release'
+    if: github.event_name == 'workflow_dispatch'
     env:
       MINOS_RUN_REAL_ACCEPTANCE: "1"
       # API keys: Only one of these three is required (fallback chain: MINOS_OPENAI_API_KEY → OPENAI_API_KEY → ARK_API_KEY)
@@ -62,6 +217,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -71,7 +228,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e ".[platform]" pytest pytest-asyncio
+          python -m pip install -r requirements/locks/linux-py311.txt
+          python -m pip install -e . --no-deps
 
       - name: Check real API secret
         run: |
@@ -84,4 +242,4 @@ jobs:
           PY
 
       - name: Run real API acceptance tests
-        run: python -m pytest tests -q -m "real_api and acceptance"
+        run: python -m pytest tests/acceptance/test_real_api_acceptance.py -q

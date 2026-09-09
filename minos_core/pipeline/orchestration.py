@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -9,23 +10,25 @@ from ..exporters.three_table_workbooks import (
     export_split_three_table_workbooks,
     export_three_table_workbook,
 )
-from ..quality_gates import evaluate_export_gate
+from ..quality_gates import StageQualityGate, evaluate_export_gate
+from ..special_characteristic_candidates import strip_unconfirmed_special_characteristic_refs
+from ..stage import assemble_generated_apqp_chain as _assemble_generated_apqp_chain
 from ..three_table_result import (
     build_three_table_generation_envelope,
+)
+from ..three_table_result import (
     dedupe_strings as _dedupe_strings,
+)
+from ..three_table_result import (
     three_table_manual_review as _three_table_manual_review,
 )
-from .._text_utils import string_list
-from ..stage import assemble_generated_apqp_chain as _assemble_generated_apqp_chain
+from .drawing_analysis import analyze_drawing_for_three_table_chain
 from .utilities import (
-    _write_json_file,
-    _write_manifest_file,
     _dump_json_value,
     _last_quality_gate,
+    _write_json_file,
+    _write_manifest_file,
 )
-from .drawing_analysis import analyze_drawing_for_three_table_chain
-from .family_context import _part_family_context_from_drawing
-
 
 # Pipeline stage definitions
 PIPELINE_STAGES = (
@@ -162,14 +165,19 @@ def generate_three_tables_from_drawing(
     of AI-inferred drawing content.
     """
 
+    # Load external plugins once (idempotent — logs failures, never crashes)
+    from ..plugins import load_entry_point_plugins
+
+    load_entry_point_plugins()
+
+    from ..characteristic_registry import attach_characteristics_to_three_tables, build_characteristic_registry
     from ..drawing_to_pfd import infer_process_flow_from_drawing
     from ..generate_control_plan import generate_control_plan_from_pfmea
     from ..pfd_to_pfmea_ai import infer_pfmea_from_process_flow
-    from ..characteristic_registry import build_characteristic_registry, attach_characteristics_to_three_tables
     from ..quality_gates import (
         evaluate_control_plan_bundle_gate,
-        evaluate_pfmea_bundle_gate,
         evaluate_pfd_bundle_gate,
+        evaluate_pfmea_bundle_gate,
     )
 
     if export_mode not in {"draft", "final"}:
@@ -187,9 +195,9 @@ def generate_three_tables_from_drawing(
         analyzer=analyzer,
     )
     drawing_analysis = analysis_result["drawing_analysis"]
-    context_payload = analysis_result["context"]
-    active_analysis_mode = analysis_result["analysis_mode"]
-    active_ocr_engine = analysis_result["ocr_engine"]
+    analysis_result["context"]
+    analysis_result["analysis_mode"]
+    analysis_result["ocr_engine"]
     analysis_warnings = analysis_result["warnings"]
     analysis_source = analysis_result["analysis_source"]
     part_family_classification = analysis_result["part_family_classification"]
@@ -377,10 +385,13 @@ def assemble_generated_apqp_chain(
 
 
 def _generate_pfd_stage(
-    drawing_analysis, family_context, registry,
-    infer_process_flow_from_drawing, attach_characteristics_to_three_tables,
-    evaluate_pfd_bundle_gate,
-):
+    drawing_analysis: dict[str, Any],
+    family_context: dict[str, Any],
+    registry: dict[str, Any],
+    infer_process_flow_from_drawing: Callable[..., dict[str, Any]],
+    attach_characteristics_to_three_tables: Callable[..., dict[str, Any]],
+    evaluate_pfd_bundle_gate: Callable[..., StageQualityGate],
+) -> dict[str, Any]:
     """Infer PFD from drawing analysis and evaluate quality gate."""
     process_flow = infer_process_flow_from_drawing(
         drawing_analysis,
@@ -390,15 +401,18 @@ def _generate_pfd_stage(
         process_flow = attach_characteristics_to_three_tables(
             {"process_flow": process_flow}, registry
         )["process_flow"]
+    strip_unconfirmed_special_characteristic_refs(process_flow, registry)
     pfd_gate = evaluate_pfd_bundle_gate(process_flow, stage="drawing_to_pfd")
     return {"process_flow": process_flow, "pfd_gate": pfd_gate}
 
 
 def _generate_pfmea_stage(
-    process_flow, registry,
-    infer_pfmea_from_process_flow, attach_characteristics_to_three_tables,
-    evaluate_pfmea_bundle_gate,
-):
+    process_flow: dict[str, Any],
+    registry: dict[str, Any],
+    infer_pfmea_from_process_flow: Callable[..., dict[str, Any]],
+    attach_characteristics_to_three_tables: Callable[..., dict[str, Any]],
+    evaluate_pfmea_bundle_gate: Callable[..., StageQualityGate],
+) -> dict[str, Any]:
     """Infer PFMEA from process flow and evaluate quality gate."""
     pfmea = infer_pfmea_from_process_flow(process_flow)
     if registry and registry.get("items"):
@@ -407,15 +421,20 @@ def _generate_pfmea_stage(
         )
         process_flow = attached["process_flow"]
         pfmea = attached["pfmea"]
+    strip_unconfirmed_special_characteristic_refs(process_flow, registry)
+    strip_unconfirmed_special_characteristic_refs(pfmea, registry)
     pfmea_gate = evaluate_pfmea_bundle_gate(pfmea, stage="pfd_to_pfmea")
     return {"process_flow": process_flow, "pfmea": pfmea, "pfmea_gate": pfmea_gate}
 
 
 def _generate_cp_stage(
-    process_flow, pfmea, registry,
-    generate_control_plan_from_pfmea, attach_characteristics_to_three_tables,
-    evaluate_control_plan_bundle_gate,
-):
+    process_flow: dict[str, Any],
+    pfmea: dict[str, Any],
+    registry: dict[str, Any],
+    generate_control_plan_from_pfmea: Callable[..., dict[str, Any]],
+    attach_characteristics_to_three_tables: Callable[..., dict[str, Any]],
+    evaluate_control_plan_bundle_gate: Callable[..., StageQualityGate],
+) -> dict[str, Any]:
     """Generate control plan from PFMEA and evaluate quality gate."""
     control_plan = generate_control_plan_from_pfmea(pfmea)
     if registry and registry.get("items"):
@@ -425,6 +444,9 @@ def _generate_cp_stage(
         process_flow = attached["process_flow"]
         pfmea = attached["pfmea"]
         control_plan = attached["control_plan"]
+    strip_unconfirmed_special_characteristic_refs(process_flow, registry)
+    strip_unconfirmed_special_characteristic_refs(pfmea, registry)
+    strip_unconfirmed_special_characteristic_refs(control_plan, registry)
     control_plan_gate = evaluate_control_plan_bundle_gate(
         control_plan, stage="pfmea_to_control_plan"
     )
@@ -434,12 +456,18 @@ def _generate_cp_stage(
     }
 
 
-def _build_chain_analysis(chain, registry, part_family_classification, family_context):
+def _build_chain_analysis(
+    chain: dict[str, Any],
+    registry: dict[str, Any],
+    part_family_classification: dict[str, Any] | None,
+    family_context: dict[str, Any] | None,
+) -> dict[str, Any]:
     """Build action items, linkage, risk structure, and review dashboard."""
-    from ..action_tracking import build_action_items, action_items_summary
-    from ..three_table_linkage import build_three_table_linkage_map, evaluate_three_table_linkage
+    from ..action_tracking import action_items_summary, build_action_items
+    from ..edit_patch import evaluate_edit_export_gate
+    from ..edit_patch_reports import build_review_dashboard
     from ..risk_structure import build_risk_structure
-    from ..edit_patch import _build_review_dashboard, evaluate_edit_export_gate
+    from ..three_table_linkage import build_three_table_linkage_map, evaluate_three_table_linkage
 
     metadata = chain.setdefault("metadata", {})
     if isinstance(metadata, dict):
@@ -452,7 +480,7 @@ def _build_chain_analysis(chain, registry, part_family_classification, family_co
     risk_structure = build_risk_structure(chain)
     knowledge_recs = chain.get("metadata", {}).get("knowledge_recommendations", [])
     edit_gate_for_envelope = evaluate_edit_export_gate(chain)
-    review_dashboard = _build_review_dashboard(
+    review_dashboard = build_review_dashboard(
         chain, edit_gate_for_envelope, risk_structure, linkage_report,
     )
     return {
@@ -465,12 +493,27 @@ def _build_chain_analysis(chain, registry, part_family_classification, family_co
 
 
 def _export_and_finalize(
-    chain, target_dir, export_mode, final_gate, quality_gates,
-    analysis_source, analysis_warnings, drawing_analysis, process_flow,
-    pfmea, control_plan, pipeline_inputs, linkage_map, linkage_gaps,
-    registry, knowledge_recs, risk_structure, review_dashboard,
-    part_family_classification, family_context,
-):
+    chain: dict[str, Any],
+    target_dir: Path,
+    export_mode: str,
+    final_gate: StageQualityGate,
+    quality_gates: dict[str, Any],
+    analysis_source: str,
+    analysis_warnings: list[str],
+    drawing_analysis: dict[str, Any],
+    process_flow: dict[str, Any],
+    pfmea: dict[str, Any],
+    control_plan: dict[str, Any],
+    pipeline_inputs: dict[str, Any],
+    linkage_map: dict[str, Any],
+    linkage_gaps: list[dict[str, Any]],
+    registry: dict[str, Any],
+    knowledge_recs: list[dict[str, Any]],
+    risk_structure: dict[str, Any],
+    review_dashboard: dict[str, Any],
+    part_family_classification: dict[str, Any] | None,
+    family_context: dict[str, Any] | None,
+) -> dict[str, Any]:
     """Export workbooks and build the final generation envelope."""
     manual_review = _three_table_manual_review(quality_gates)
     unified = export_three_table_workbook(
@@ -578,6 +621,9 @@ def _assemble_three_table_chain(
     }
     if characteristic_registry:
         chain["metadata"]["characteristic_registry"] = characteristic_registry
+    drawing_risks = _drawing_analysis_risks(drawing_analysis)
+    if drawing_risks:
+        chain["metadata"]["drawing_analysis_risks"] = drawing_risks
     chain["metadata"]["part_family_classification"] = part_family_classification or {}
     chain["metadata"]["family_context"] = family_context or {}
     chain["metadata"]["knowledge_recommendations"] = recommend_from_knowledge(
@@ -585,6 +631,36 @@ def _assemble_three_table_chain(
         family_context=family_context or None,
     )
     return chain
+
+
+def _drawing_analysis_risks(drawing_analysis: dict[str, Any]) -> list[dict[str, Any]]:
+    metadata = drawing_analysis.get("metadata", {})
+    if not isinstance(metadata, dict):
+        return []
+    risks: list[dict[str, Any]] = []
+    indexes: dict[str, int] = {}
+    for key in ("drawing_analysis_risks", "ocr_identity_risks"):
+        values = metadata.get(key, [])
+        if not isinstance(values, list):
+            continue
+        for item in values:
+            if not isinstance(item, dict):
+                continue
+            risk_id = str(item.get("risk_id", item.get("item_id", ""))).strip()
+            if not risk_id:
+                continue
+            risk = dict(item)
+            if risk_id in indexes:
+                existing_index = indexes[risk_id]
+                if (
+                    risk.get("severity") == "blocker"
+                    and risks[existing_index].get("severity") != "blocker"
+                ):
+                    risks[existing_index] = risk
+                continue
+            indexes[risk_id] = len(risks)
+            risks.append(risk)
+    return risks
 
 
 def _three_table_generation_envelope(

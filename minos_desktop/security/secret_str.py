@@ -76,7 +76,7 @@ class SecretStr:
             cls._validate,
             core_schema.str_schema(),
             serialization=core_schema.plain_serializer_function_ser_schema(
-                lambda instance: instance.get_secret_value(),
+                lambda instance: str(instance),
                 return_schema=core_schema.str_schema(),
             ),
         )

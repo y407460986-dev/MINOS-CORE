@@ -1,8 +1,7 @@
 import json
 import os
-import socket
-import urllib.error
 import unittest
+import urllib.error
 from io import BytesIO
 from unittest.mock import patch
 
@@ -40,7 +39,7 @@ class _TimeoutStreamResponse:
         return False
 
     def readline(self):
-        raise socket.timeout("stream stalled")
+        raise TimeoutError("stream stalled")
 
 
 class OpenAITextGeneratorResponsesTests(unittest.TestCase):
@@ -187,7 +186,7 @@ class OpenAITextGeneratorResponsesTests(unittest.TestCase):
             raw = (
                 "event: response.output_text.delta\n"
                 f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
-            ).encode("utf-8")
+            ).encode()
             return _StreamResponse(raw)
 
         with patch.dict(os.environ, {"MINOS_OPENAI_API_KEY": "secret"}, clear=True):
@@ -395,7 +394,9 @@ class OpenAITextGeneratorResponsesTests(unittest.TestCase):
             if attempts["count"] < 3:
                 raw = (
                     b'event: error\n'
-                    b'data: {"type":"error","error":{"type":"service_unavailable_error","code":"server_is_overloaded","message":"Our servers are currently overloaded. Please try again later."},"sequence_number":3}\n\n'
+                    b'data: {"type":"error","error":{"type":"service_unavailable_error",'
+                    b'"code":"server_is_overloaded","message":"Our servers are currently '
+                    b'overloaded. Please try again later."},"sequence_number":3}\n\n'
                 )
                 return _StreamResponse(raw)
             raw = (

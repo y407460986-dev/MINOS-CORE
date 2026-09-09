@@ -1,7 +1,7 @@
 [package]
 name = "minos-core-desktop"
-version = "1.14.0"
-description = "MINOS-CORE V1.14 drawing intelligence desktop workbench"
+version = "3.8.6"
+description = "MINOS-CORE v3.8.6 drawing intelligence desktop workbench"
 authors = ["MINOS-CORE"]
 edition = "2021"
 

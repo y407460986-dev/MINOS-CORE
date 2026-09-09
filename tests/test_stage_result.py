@@ -5,7 +5,6 @@ from pathlib import Path
 
 from minos_core.adapters.fixture_json import load_fixture_payload
 
-
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE_DIR = ROOT / "tests" / "fixtures" / "apqp_chain"
 
@@ -283,6 +282,60 @@ class StageResultTests(unittest.TestCase):
         self.assertFalse(result.ok)
         self.assertIn("missing from PFMEA: SC-THICKNESS", messages)
         self.assertIn("missing from control plan: SC-THICKNESS", messages)
+
+    def test_validate_does_not_treat_ordinary_characteristics_as_special(self):
+        from minos_core.validation import validate_chain
+
+        chain = {
+            "document_type": "apqp_chain",
+            "process_steps": [
+                {
+                    "process_step_id": "P10",
+                    "operation": "检验",
+                    "process_function": "确认尺寸",
+                    "product_characteristics": ["孔径"],
+                    "process_characteristics": ["检验频次"],
+                    "special_characteristics": [],
+                    "evidence_refs": ["EV-1"],
+                }
+            ],
+            "failure_modes": [
+                {
+                    "pfmea_id": "PFMEA-P10-001",
+                    "process_step_id": "P10",
+                    "process_function": "确认尺寸",
+                    "failure_mode": "漏检",
+                    "failure_effect": "不合格流出",
+                    "severity": 6,
+                    "failure_cause": "检具失准",
+                    "occurrence": 2,
+                    "prevention_control": "检具校准",
+                    "detection_control": "首件检验",
+                    "detection": 3,
+                    "action_priority": "L",
+                    "evidence_refs": ["EV-1"],
+                }
+            ],
+            "controls": [
+                {
+                    "control_plan_id": "CP-P10-001",
+                    "process_step_id": "P10",
+                    "pfmea_id": "PFMEA-P10-001",
+                    "product_process_characteristic": "尺寸",
+                    "specification": "按图纸",
+                    "measurement_method": "卡尺",
+                    "sample_frequency": "每批",
+                    "reaction_plan": "隔离并通知质量",
+                    "evidence_refs": ["EV-1"],
+                }
+            ],
+            "evidence": [{"evidence_id": "EV-1", "source": "fixture", "content": "图纸"}],
+            "metadata": {"strict_three_table_linkage": True},
+        }
+
+        result = validate_chain(chain)
+
+        self.assertTrue(result.ok, "\n".join(result.messages))
 
 
 if __name__ == "__main__":

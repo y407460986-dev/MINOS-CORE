@@ -1,34 +1,22 @@
 import os
-import sqlite3
 import tempfile
 import unittest
-import zipfile
 from unittest.mock import patch
 
 from minos_desktop.app_state import (
     ChainStageStates,
-    DesktopProjectState,
     DesktopRunState,
     StageConfirmState,
     desktop_run_state_from_result,
-    summarize_generation_result,
 )
-from minos_desktop.api.schemas import settings_to_dict
 from minos_desktop.services import (
-    DesktopDataManagementService,
-    DesktopKnowledgeStore,
-    DesktopProjectStore,
     DesktopRunService,
-    DesktopSQLiteStore,
-    DesktopSettingsStore,
-    format_desktop_failure,
 )
 from minos_desktop.table_editor import (
     ROW_STATUS_COLUMN,
     build_edit_patch,
     three_table_to_table_model,
 )
-from minos_core._paths import user_data_dir
 
 
 class TestRunServiceIntegration(unittest.TestCase):
@@ -91,7 +79,7 @@ class TestRunServiceIntegration(unittest.TestCase):
                 "已确认",
             )
 
-            def fake_generate_pfmea(_drawing_analysis, confirmed_pfd, on_progress=None):
+            def fake_generate_pfmea(_drawing_analysis, confirmed_pfd, model=None, on_progress=None):
                 return {
                     "rows": [
                         {
@@ -728,6 +716,117 @@ class TestRunServiceIntegration(unittest.TestCase):
         self.assertEqual(
             updated.edit_patch["items"][0]["metadata"]["confirmation_mode"],
             "ai_recommended_batch",
+        )
+
+    def test_cp_confirm_materializes_quality_gate_recommendations_for_closure(self):
+        from minos_core.closure_tasks import build_closure_tasks
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = os.path.join(tmpdir, "desktop.sqlite3")
+            run_service = DesktopRunService(db_path)
+            chain_stages = ChainStageStates(
+                pfd=StageConfirmState(status="confirmed", row_count=1),
+                pfmea=StageConfirmState(status="confirmed", row_count=1),
+                cp=StageConfirmState(status="generated", row_count=1),
+                pipeline_mode="chain",
+            )
+            run = run_service.save_chain_run(
+                None,
+                DesktopRunState(
+                    status="needs_review",
+                    status_display="待人工确认",
+                    blocked_stage="",
+                    exports=(),
+                    manifest_path="",
+                    manifest_run_id="",
+                    manual_review_required=False,
+                    manual_review_count=0,
+                    manual_review_raw_count=0,
+                    manual_review_items=(),
+                    chain_stages=chain_stages,
+                ),
+                tmpdir,
+                {
+                    "document_type": "three_table_generation_result",
+                    "status": "needs_review",
+                    "drawing_analysis": {"evidence": [{"evidence_id": "EV-1"}]},
+                    "process_flow": {
+                        "steps": [
+                            {
+                                "process_step_id": "P10",
+                                "operation": "来料检验",
+                                "process_function": "确认来料状态",
+                                "evidence_refs": ["EV-1"],
+                                "needs_confirmation": False,
+                            }
+                        ]
+                    },
+                    "pfmea": {
+                        "rows": [
+                            {
+                                "pfmea_id": "PFMEA-P10-001",
+                                "process_step_id": "P10",
+                                "failure_mode": "来料错误",
+                                "failure_effect": "不合格流出",
+                                "failure_cause": "供方批次波动",
+                                "prevention_control": "供方审核",
+                                "detection_control": "来料检验",
+                                "severity": 6,
+                                "occurrence": 3,
+                                "detection": 4,
+                                "action_priority": "L",
+                                "evidence_refs": ["EV-1"],
+                                "needs_confirmation": False,
+                            }
+                        ]
+                    },
+                    "control_plan": {
+                        "rows": [
+                            {
+                                "control_plan_id": "CP-P10-001",
+                                "process_step_id": "P10",
+                                "pfmea_id": "PFMEA-P10-001",
+                                "product_characteristic": "来料状态",
+                                "process_characteristic": "供方批次",
+                                "specification": "按图纸",
+                                "measurement_method": "来料检验",
+                                "sample_size": "5件",
+                                "sample_frequency": "每批",
+                                "control_method": "检验记录",
+                                "reaction_plan": "隔离并通知质量",
+                                "evidence_refs": ["EV-1"],
+                                "needs_confirmation": False,
+                            }
+                        ]
+                    },
+                    "manual_review": {"required": False, "items": []},
+                },
+                "",
+                chain_stages,
+            )
+            recommendation = {
+                "recommendation_id": "KR-TEST:PFMEA-P10-001",
+                "target_table": "pfmea",
+                "target_id": "PFMEA-P10-001",
+                "reason": "检验工序建议确认检具校准状态。",
+                "status": "待确认",
+                "lifecycle_status": "proposed",
+            }
+
+            with patch(
+                "minos_core.edit_patch.recommend_from_knowledge",
+                return_value=[recommendation],
+            ):
+                confirmed = run_service.confirm_cp_stage(run.id, confirmed_by="qe")
+
+        metadata = confirmed.current_result["metadata"]
+        self.assertEqual(
+            metadata["knowledge_recommendations"][0]["recommendation_id"],
+            "KR-TEST:PFMEA-P10-001",
+        )
+        tasks = build_closure_tasks(confirmed.current_result)
+        self.assertTrue(
+            any(task.get("task_type") == "knowledge_recommendation" for task in tasks)
         )
 
 

@@ -11,7 +11,6 @@ from minos_core.ppap_comparison import (
     compare_to_approved_ppap,
 )
 
-
 ROOT = Path(__file__).resolve().parents[1]
 GENERATED_FIXTURE = ROOT / "tests" / "fixtures" / "apqp_chain"
 APPROVED_BASELINE = (

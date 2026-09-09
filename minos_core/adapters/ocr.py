@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-import logging
+from dataclasses import dataclass, field
 from io import BytesIO
 from pathlib import Path
-from dataclasses import dataclass, field
 from typing import Any, Protocol
 
+from minos_core.observability.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 OCRBBox = tuple[float, float, float, float]
 
@@ -210,7 +210,7 @@ class CompositeOCRAdapter:
 
 def _import_pymupdf(context: str) -> Any:
     try:
-        import fitz  # type: ignore[import-not-found]
+        import fitz
     except ImportError as exc:
         raise OCRDependencyError(
             f"{context} requires PyMuPDF (fitz); install minos-core[ocr]"
@@ -220,7 +220,7 @@ def _import_pymupdf(context: str) -> Any:
 
 def _load_rapidocr_engine() -> Any:
     try:
-        from rapidocr_onnxruntime import RapidOCR  # type: ignore[import-not-found]
+        from rapidocr_onnxruntime import RapidOCR
     except ImportError as exc:
         raise OCRDependencyError(
             "RapidOCRPageAdapter requires rapidocr-onnxruntime; install minos-core[ocr]"
@@ -230,7 +230,7 @@ def _load_rapidocr_engine() -> Any:
 
 def _require_pillow_for_image_validation(context: str) -> None:
     try:
-        from PIL import Image  # type: ignore[import-not-found]  # noqa: F401
+        from PIL import Image  # noqa: F401
     except ImportError as exc:
         raise OCRDependencyError(
             f"{context} requires Pillow for image OCR; install minos-core[ocr]"
@@ -267,7 +267,7 @@ def _image_bbox(source_ref: str, content: bytes) -> OCRBBox | None:
             with Image.open(BytesIO(content)) as image:
                 width, height = image.size
     except Exception as exc:
-        logger.debug("Image bbox extraction failed for %s: %s", source_ref, exc)
+        logger.debug("image_bbox_extraction_failed", source_ref=source_ref, error=str(exc))
         return None
     return (0.0, 0.0, float(width), float(height))
 
@@ -334,12 +334,12 @@ def _rapidocr_rows(raw_result: Any) -> list[Any]:
     if raw_result is None:
         return []
     if hasattr(raw_result, "boxes") and hasattr(raw_result, "txts"):
-        boxes = list(getattr(raw_result, "boxes") or [])
-        texts = list(getattr(raw_result, "txts") or [])
+        boxes = list(raw_result.boxes or [])
+        texts = list(raw_result.txts or [])
         scores = list(getattr(raw_result, "scores", []) or [])
         return [
             (box, text, scores[index] if index < len(scores) else None)
-            for index, (box, text) in enumerate(zip(boxes, texts))
+            for index, (box, text) in enumerate(zip(boxes, texts, strict=False))
         ]
     if isinstance(raw_result, tuple) and raw_result:
         first = raw_result[0]
@@ -369,7 +369,7 @@ def _pymupdf_blocks(page: Any, source_ref: str, engine_name: str) -> list[OCRBlo
     try:
         raw_blocks = page.get_text("blocks") or []
     except Exception as exc:
-        logger.debug("PyMuPDF block extraction failed for %s: %s", source_ref, exc)
+        logger.debug("pymupdf_block_extraction_failed", source_ref=source_ref, error=str(exc))
         return blocks
     for index, raw in enumerate(raw_blocks, start=1):
         if not isinstance(raw, (list, tuple)) or len(raw) < 5:
@@ -418,8 +418,8 @@ def _bbox_from_any(value: Any) -> OCRBBox | None:
             right = left + width
         if bottom is None and top is not None and height is not None:
             bottom = top + height
-        if None not in (left, top, right, bottom):
-            return (float(left), float(top), float(right), float(bottom))
+        if left is not None and top is not None and right is not None and bottom is not None:
+            return (left, top, right, bottom)
     if isinstance(value, (list, tuple)):
         if len(value) >= 4 and all(_float_or_none(item) is not None for item in value[:4]):
             return (

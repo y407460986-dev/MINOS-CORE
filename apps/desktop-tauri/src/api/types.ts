@@ -25,6 +25,7 @@ export type DrawingAnalysisMode = "hybrid" | "ocr_only" | "vision_only";
 export type CreateProjectRequest = {
   project_name: string;
   drawing_path: string;
+  component_drawings?: string[];
   output_dir?: string;
   context?: Record<string, unknown> & {
     analysis_mode?: DrawingAnalysisMode;
@@ -195,6 +196,52 @@ export type DrawingAnalysisItem = {
   [key: string]: unknown;
 };
 
+export type SpecialCharacteristicJudgment = {
+  judgment_id?: string;
+  candidate_id?: string;
+  classification?: "SC" | "CC" | "unknown";
+  verdict?: "confirmed" | "rejected" | "needs_human_review";
+  linked_feature?: string;
+  confidence?: number;
+  reasoning_summary?: string;
+};
+
+export type DeclaredSpecialCharacteristic = {
+  declaration_id?: string;
+  classification?: "SC" | "CC";
+  expected_count?: number;
+  source_text?: string;
+  evidence_refs?: string[];
+};
+
+export type DeclaredSpecialTotals = {
+  CC?: number;
+  SC?: number;
+};
+
+export type SpecialCharacteristicSearchCoverage = {
+  CC?: number;
+  SC?: number;
+};
+
+export type SpecialCharacteristicLocation = {
+  location_id?: string;
+  classification?: "SC" | "CC" | "unknown";
+  linked_feature?: string;
+  symbol_text_or_shape?: string;
+  confidence?: number;
+  evidence_refs?: string[];
+};
+
+export type SpecialCharacteristicDiscovery = {
+  declared_totals?: DeclaredSpecialTotals;
+  found_counts?: DeclaredSpecialTotals;
+  missing_counts?: DeclaredSpecialTotals;
+  extra_counts?: DeclaredSpecialTotals;
+  search_coverage?: SpecialCharacteristicSearchCoverage;
+  risks?: Record<string, unknown>[];
+};
+
 export type DrawingAnalysisResponse = {
   document_type?: string;
   schema_version?: string;
@@ -204,6 +251,11 @@ export type DrawingAnalysisResponse = {
   dimensions?: DrawingAnalysisItem[];
   tolerances?: DrawingAnalysisItem[];
   special_characteristics?: DrawingAnalysisItem[];
+  special_characteristic_judgments?: SpecialCharacteristicJudgment[];
+  declared_special_characteristics?: DeclaredSpecialCharacteristic[];
+  declared_totals?: DeclaredSpecialTotals;
+  special_characteristic_locations?: SpecialCharacteristicLocation[];
+  special_characteristic_discovery?: SpecialCharacteristicDiscovery;
   technical_requirements?: DrawingAnalysisItem[];
   inspection_requirements?: DrawingAnalysisItem[];
   manufacturing_clues?: DrawingAnalysisItem[];

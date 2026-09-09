@@ -1,0 +1,42 @@
+# v3.8.7 Production Readiness Tasks
+
+- [x] /// 1. 建立 OpenSpec、流程图和测试基线；验证：UTF-8、Mermaid 节点唯一、基线测试无新增失败。
+- [x] /// 2. 修复 Tauri sidecar ownership、并发 bootstrap、PID 清理、HTTP readiness 和 single close listener；验证：Rust lifecycle tests、Tauri contract tests、cargo check。
+- [x] /// 3. 将 Platform auth 改为默认 required；验证：未配置 token 为 401，显式开发开关和 CORS preflight 测试通过。
+- [x] /// 4. 补齐 Python extras、Node esbuild、lock/CI 安装表面；验证：干净 venv/npm ci/import smoke/pip check。
+- [x] /// 5. 分 PR 清零 Ruff/mypy，建立 coverage ratchet，修复 Tailwind CSS warning；验证：目标范围逐步 0，最终全仓 0、总覆盖率和改动行覆盖率均 >=80%。
+  - 已完成：`ruff check .` 清零；strict mypy 对 `minos_core/ minos_desktop/` 共 168 个源码文件清零；CI 已移除 Ruff/mypy 软失败。
+  - 已完成：为诊断 CLI、桌面 API 启动器、stage 工具函数和 token 管理补行为测试；全量覆盖率达到 `80.04%`，CI 以 `--cov-fail-under=80` 硬阻断。
+  - 已验证：Task 10 完成后全量 `1590 passed, 8 skipped, 101 subtests`，总覆盖率 `82.72%`；相对 `origin/main` 的 diff coverage 为 `86%`。
+- [x] /// 6. 建立 Windows NSIS unsigned/signed pipeline、token injection E2E 和 Authenticode verify；验证：draft release 只在包验证后创建。
+  - 已完成：Internal 包强制 `internal-unsigned` 命名；Production 缺证书参数 fail closed，并要求 Authenticode `Valid`。
+  - 已完成：Windows tag/manual workflow 在验签、SHA256、安装/401/卸载冒烟后才创建 draft release；PFX 和证书均清理。
+  - 已验证：发布契约、PowerShell AST、生产参数 fail-closed、零匹配 fail-fast 和前端 build 通过；正式证书与真实安装由受保护 Windows runner 执行。
+- [x] /// 7. 删除 requirements 快照、清理 tracked runtime artifacts、增加受限 workspace clean；验证：hygiene 和 lock drift 通过。
+  - 已完成：`pyproject.toml` 保持抽象依赖唯一来源，Python 3.11 Linux/Windows lock 由 `uv --python-platform` 独立解析并由对应 CI runner 检查漂移。
+  - 已完成：sidecar 与 Linux CI 均先安装平台 lock，再以 `--no-deps` 安装项目；旧开发机快照和 tracked `.last-run.json` 已删除。
+  - 已完成：仓库卫生拒绝 tracked runtime/binaries 和 lock 绝对 editable 路径；workspace clean 默认预演、精确 allowlist 且拒绝 reparse point。
+- [x] /// 8. 删除不可达 facade，抽取 RunRepository，改为 request-scoped service dependency，收口 jobs/routes；验证：公共 import、API 和 E2E 回归通过。
+  - 已完成：删除同名不可达 `pipeline.py`/`services.py`；package `__init__.py` 继续提供兼容公共导入。
+  - 已完成：RunRepository 集中 run CRUD、Unicode JSON 和 `BEGIN IMMEDIATE` transaction；run/project routes 使用 request-scoped factory。
+  - 已验证：Repository/依赖测试与 desktop/API 回归 `220 passed, 3 subtests passed`，目标 routes 无直接 run SQL 或直接构造 RunService。
+- [x] /// 9. SQLite schema v2、history store、atomic undo/redo、edit-patch history 和 migration backup；验证：重启、DB 隔离、并发、回滚和 API 200。
+  - 已完成：v1 -> v2 前用 SQLite backup API 生成 schema1 备份；备份失败保持 version=1 且不创建 history 表，每个应用连接启用 foreign keys 和 5 秒 busy timeout。
+  - 已完成：`DesktopHistoryStore` 按 run/direction 保存完整 envelope，使用 UTF-8 字节计数并按 20 条/50MB 裁剪；删除 run 时 history 级联清理。
+  - 已完成：edit-patch、save、undo、redo 在同一 `BEGIN IMMEDIATE` transaction 中移动 history 并更新 run；后台 refresh/generation 继续不记录用户历史。
+  - 已验证：重启持久、同 run id 跨库隔离、并发字段不丢、更新失败回滚、坏 JSON 回滚和 API 200/422/404；Task 9 聚焦 `37 passed`，desktop/API 回归 `238 passed, 3 subtests passed`。
+- [x] /// 10. 组合 RunService 并分离 chain generation/export/edit responsibilities；验证：公共 API、desktop tests、mypy/ruff 和依赖方向通过。
+  - 已完成：删除中间态 `run_core.py` monolith；chain generation、edit/history、export 由三个注入同一 Repository/History 的服务拥有真实实现。
+  - 已完成：SQLite row mapper 与 edit 纯 helper 独立下沉，Repository 不再依赖 export，helper 不再反向导入 service。
+  - 已验证：facade 显式委托 32 个公共方法且签名不变；最大实现模块 680 行，无 `type: ignore` 或动态 `__getattr__`。
+  - 已验证：Ruff、Core/Desktop strict mypy 和 desktop/API/public import 回归 `289 passed, 3 subtests passed`。
+- [ ] /// 11. 完成三表主链、Excel 可打开性、安装/卸载、签名和 OpenSpec 关闭审核；验证：发布清单无未验证项。
+  - 已验证：本机全量 `1590 passed, 8 skipped, 101 subtests`，coverage `82.85%`，diff coverage `84%`；完整 unittest `1004 tests OK`。
+  - 已验证：三表/工作簿/OpenXML/JLV fixture/SC locator `104 passed, 37 subtests passed`；npm ci、audit-high、build、pip check 和 repository hygiene 通过。
+  - 已验证：本机安装 Visual Studio Build Tools 17.14.36 后，MSVC `link.exe`、Windows SDK 和 `cargo check --locked` 通过。
+  - 已验证：本机重新构建唯一 3.8.6 internal unsigned NSIS 包；修复 verifier 的旧主程序名、native 退出码和 sidecar 文件锁时序后，官方脚本真实完成静默安装、Bearer health 200、无 token 401、进程退出和卸载目录清理。
+  - 已验证：2026-07-17 第一次真实 API 调用生成完整三表与 4 个 OpenXML 工作簿；其暴露的序列化 `quality_gate` exporter 兼容缺陷已按红绿测试修复，对象兼容回归通过。
+  - 已复核：第一次真实 JLV 结果定位到第 4 条转动力矩 `0.5~2.5Nm` 的 SC 候选，但状态仍为 `needs_human_review`、置信度 `0.42`；第二次真实调用发生 Responses stream 120 秒超时并回落 OCR，尚不能声明稳定通过。
+  - 已复核：2026-07-17 聚焦 locator 复测以 54.69 秒得到同一 req4(2) SC 候选，置信度 `0.82`，符号框、文本框和三个页面/裁剪引用均有效。旧 judge 提示未声明引用字段的 ID 命名空间，模型虽给出 `confirmed`，但 verifier 因引用类型错误正确降为 `needs_human_review`；该提示缺陷已按红绿测试修复。
+  - 稳定性仍未关闭：复用同一候选和 evidence packet 的三次修复后 judge-only 结果为 `needs_human_review`（7.32 秒）、`judge_confirmed`（6.29 秒）、`judge_confirmed`（6.74 秒），引用均有效，但未达到连续三次 verifier 接受 `judge_confirmed` 的门槛，也没有 human confirmed。
+  - 待外部证据：本机没有正式 PFX；受保护 Windows runner 的 Authenticode/RFC3161、Office 无修复打开、真实 API 与真实 JLV req4 SC judge/human confirmed 尚未完成，因此 Task 11 和 OpenSpec 保持未关闭。

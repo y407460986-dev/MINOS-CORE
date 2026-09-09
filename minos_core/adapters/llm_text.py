@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 import json
-import logging
 import os
-import socket
 import ssl
 import time
 import urllib.error
@@ -13,16 +11,16 @@ import urllib.request
 from typing import Any
 from urllib.parse import urlparse
 
-from minos_core.ai_config import (
-    AIProviderConfig,
-    load_openai_api_key,
-    load_openai_responses_config,
-)
 from minos_core.adapters.multimodal import (
     OpenAIMultimodalError,
     _extract_output_text,
     _parse_responses_stream,
     is_retryable_responses_stream_error,
+)
+from minos_core.ai_config import (
+    AIProviderConfig,
+    load_openai_api_key,
+    load_openai_responses_config,
 )
 from minos_core.observability.errors import (
     ConfigurationError,
@@ -30,11 +28,19 @@ from minos_core.observability.errors import (
 )
 from minos_core.observability.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 struct_logger = get_logger(__name__)
 
 _DEFAULT_MAX_TOKENS = 4096
 _DEFAULT_TIMEOUT_SECONDS = 240
+
+
+def _decode_json_object(raw: bytes) -> dict[str, Any]:
+    """Decode an HTTP response body and require a JSON object."""
+    payload: Any = json.loads(raw.decode("utf-8"))
+    if not isinstance(payload, dict):
+        raise RuntimeError("LLM response body must be a JSON object")
+    return payload
 
 
 def _create_ssl_context() -> ssl.SSLContext:
@@ -88,14 +94,14 @@ class OpenAITextGenerator:
         self,
         system_prompt: str,
         user_prompt: str,
-        response_format: dict | None = None,
+        response_format: dict[str, Any] | None = None,
         model: str | None = None,
         max_tokens: int = _DEFAULT_MAX_TOKENS,
         temperature: float = 0.3,
     ) -> dict[str, Any]:
         """调用 Responses API 生成结构化 JSON 输出。"""
         model_name = model or self.model
-        logger.info("LLM text: model=%s max_tokens=%d", model_name, max_tokens)
+        logger.info("llm_text_request", model=model_name, max_tokens=max_tokens)
         struct_logger.info(
             "llm_text.request",
             model=model_name,
@@ -170,7 +176,7 @@ class OpenAITextGenerator:
                                 fallback_model=str(payload.get("model") or ""),
                                 timeout_seconds=self._timeout_seconds,
                             )
-                        return json.loads(resp.read().decode("utf-8"))
+                        return _decode_json_object(resp.read())
                 else:
                     with urllib.request.urlopen(req, timeout=self._timeout_seconds) as resp:
                         if payload.get("stream") is True:
@@ -179,8 +185,8 @@ class OpenAITextGenerator:
                                 fallback_model=str(payload.get("model") or ""),
                                 timeout_seconds=self._timeout_seconds,
                             )
-                        return json.loads(resp.read().decode("utf-8"))
-            except (TimeoutError, socket.timeout) as exc:
+                        return _decode_json_object(resp.read())
+            except TimeoutError as exc:
                 if attempt < max_attempts:
                     time.sleep(2 ** attempt)
                     continue
@@ -201,7 +207,7 @@ class OpenAITextGenerator:
                 if attempt < max_attempts and exc.code in {429, 500, 502, 503, 504}:
                     time.sleep(2 ** attempt)
                     continue
-                logger.error("LLM Responses HTTP %d", exc.code)
+                logger.error("llm_text_http_error", status_code=exc.code)
                 struct_logger.error(
                     "llm_text.http_error",
                     status_code=exc.code,
@@ -250,7 +256,7 @@ def _parse_json_content(content: str) -> dict[str, Any]:
             if extracted is None:
                 raise RuntimeError(
                     f"无法解析 LLM 输出为 JSON (前500字): {content[:500]}"
-                )
+                ) from None
             parsed = json.loads(extracted)
     if not isinstance(parsed, dict):
         raise RuntimeError("LLM JSON response must be an object")

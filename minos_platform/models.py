@@ -3,18 +3,16 @@
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum
-from typing import Any, List, Optional
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
-
 
 # ---------------------------------------------------------------------------
 # Enums
 # ---------------------------------------------------------------------------
 
 
-class ProjectStatus(str, Enum):
+class ProjectStatus(StrEnum):
     CREATED = "created"
     INPUT_REGISTERED = "input_registered"
     DRAFT_READY = "draft_ready"
@@ -25,13 +23,13 @@ class ProjectStatus(str, Enum):
     BLOCKED = "blocked"
 
 
-class RunType(str, Enum):
+class RunType(StrEnum):
     DRAFT = "draft"
     REVIEW = "review"
     EXPORT = "export"
 
 
-class PPAPElementStatus(str, Enum):
+class PPAPElementStatus(StrEnum):
     NOT_REQUIRED = "not_required"
     REQUIRED = "required"
     MISSING = "missing"
@@ -41,7 +39,7 @@ class PPAPElementStatus(str, Enum):
     BLOCKED = "blocked"
 
 
-class PPAPPackageStatus(str, Enum):
+class PPAPPackageStatus(StrEnum):
     DRAFT = "draft"
     READY_FOR_SUBMISSION = "ready_for_submission"
     SUBMITTED = "submitted"
@@ -56,8 +54,8 @@ class PPAPPackageStatus(str, Enum):
 
 class CreateProjectRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=256)
-    project_code: Optional[str] = Field(default=None, max_length=128)
-    part_number: Optional[str] = Field(default=None, max_length=128)
+    project_code: str | None = Field(default=None, max_length=128)
+    part_number: str | None = Field(default=None, max_length=128)
 
 
 class RegisterInputPackageRequest(BaseModel):
@@ -82,17 +80,17 @@ class TriggerExportRequest(BaseModel):
 
 class CreatePPAPPackageRequest(BaseModel):
     name: str = Field(default="PPAP Package 1", min_length=1, max_length=256)
-    submission_level: Optional[str] = Field(default=None, max_length=32)
+    submission_level: str | None = Field(default=None, max_length=32)
 
 
 class UpdatePPAPElementRequest(BaseModel):
-    status: Optional[PPAPElementStatus] = None
-    notes: Optional[str] = Field(default=None, max_length=2048)
+    status: PPAPElementStatus | None = None
+    notes: str | None = Field(default=None, max_length=2048)
 
 
 class LinkArtifactToElementRequest(BaseModel):
     artifact_id: str = Field(...)
-    notes: Optional[str] = Field(default=None, max_length=1024)
+    notes: str | None = Field(default=None, max_length=1024)
 
 
 class RefreshPackageRequest(BaseModel):
@@ -107,8 +105,8 @@ class RefreshPackageRequest(BaseModel):
 class ProjectSummary(BaseModel):
     id: str
     name: str
-    project_code: Optional[str]
-    part_number: Optional[str]
+    project_code: str | None
+    part_number: str | None
     status: ProjectStatus
     created_at: datetime
 
@@ -126,8 +124,8 @@ class InputPackageSummary(BaseModel):
 
 
 class ProjectDetail(ProjectSummary):
-    input_packages: List[InputPackageSummary] = Field(default_factory=list)
-    latest_run_id: Optional[str] = None
+    input_packages: list[InputPackageSummary] = Field(default_factory=list)
+    latest_run_id: str | None = None
 
 
 class RunSummary(BaseModel):
@@ -135,9 +133,9 @@ class RunSummary(BaseModel):
     project_id: str
     run_type: RunType
     status: str
-    result_json_path: Optional[str]
-    manifest_json_path: Optional[str]
-    error_message: Optional[str]
+    result_json_path: str | None
+    manifest_json_path: str | None
+    error_message: str | None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -145,7 +143,7 @@ class RunSummary(BaseModel):
 
 class ArtifactSummary(BaseModel):
     id: str
-    run_id: Optional[str]
+    run_id: str | None
     artifact_type: str
     file_path: str
     sha256: str
@@ -185,7 +183,7 @@ class PPAPElementSummary(BaseModel):
     element_key: str
     display_name: str
     status: PPAPElementStatus
-    notes: Optional[str]
+    notes: str | None
     updated_at: datetime
 
     model_config = {"from_attributes": True}
@@ -193,24 +191,24 @@ class PPAPElementSummary(BaseModel):
 
 class PPAPElementArtifactResponse(BaseModel):
     id: str
-    artifact_id: Optional[str]
-    artifact_ref_path: Optional[str]
-    sha256: Optional[str]
-    notes: Optional[str]
+    artifact_id: str | None
+    artifact_ref_path: str | None
+    sha256: str | None
+    notes: str | None
     created_at: datetime
 
     model_config = {"from_attributes": True}
 
 
 class PPAPElementDetail(PPAPElementSummary):
-    artifacts: List[PPAPElementArtifactResponse] = Field(default_factory=list)
+    artifacts: list[PPAPElementArtifactResponse] = Field(default_factory=list)
 
 
 class PPAPPackageSummary(BaseModel):
     id: str
     project_id: str
     name: str
-    submission_level: Optional[str]
+    submission_level: str | None
     status: PPAPPackageStatus
     total_elements: int = 0
     required_count: int = 0
@@ -224,4 +222,4 @@ class PPAPPackageSummary(BaseModel):
 
 
 class PPAPPackageDetail(PPAPPackageSummary):
-    elements: List[PPAPElementDetail] = Field(default_factory=list)
+    elements: list[PPAPElementDetail] = Field(default_factory=list)

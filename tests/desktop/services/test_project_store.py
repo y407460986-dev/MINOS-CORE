@@ -1,11 +1,11 @@
 """Tests for DesktopProjectStore."""
 
-import json
-import pytest
 from pathlib import Path
 
-from minos_desktop.services.project_store import DesktopProjectStore, _project_from_row, _from_json_object
+import pytest
+
 from minos_desktop.app_state import DesktopProjectState
+from minos_desktop.services.project_store import DesktopProjectStore, _from_json_object
 
 
 class TestDesktopProjectStore:

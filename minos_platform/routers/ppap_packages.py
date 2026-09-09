@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
@@ -13,12 +13,12 @@ from minos_platform import db
 from minos_platform.errors import NotFoundError
 from minos_platform.models import (
     CreatePPAPPackageRequest,
-    PPAPPackageDetail,
-    PPAPPackageSummary,
-    PPAPElementDetail,
     PPAPElementArtifactResponse,
+    PPAPElementDetail,
     PPAPElementStatus,
+    PPAPPackageDetail,
     PPAPPackageStatus,
+    PPAPPackageSummary,
 )
 
 router = APIRouter()
@@ -53,7 +53,11 @@ def _build_package_summary(pkg: db.PPAPPackage) -> PPAPPackageSummary:
     missing = sum(1 for e in pkg.elements if e.status == PPAPElementStatus.MISSING.value)
     blocked = sum(1 for e in pkg.elements if e.status == PPAPElementStatus.BLOCKED.value)
     required_elements = [e for e in pkg.elements if e.status == PPAPElementStatus.REQUIRED.value]
-    ready_for_submission = all(e.status == PPAPElementStatus.APPROVED.value for e in required_elements) if required_elements else False
+    ready_for_submission = (
+        all(e.status == PPAPElementStatus.APPROVED.value for e in required_elements)
+        if required_elements
+        else False
+    )
 
     return PPAPPackageSummary(
         id=pkg.id,
@@ -149,7 +153,7 @@ def _build_element_detail_from_data(elem, artifacts) -> PPAPElementDetail:
 async def create_ppap_package(
     project_id: str,
     req: CreatePPAPPackageRequest,
-    session: AsyncSession = Depends(db.get_session),
+    session: AsyncSession = Depends(db.get_session),  # noqa: B008
 ) -> PPAPPackageSummary:
     """Create a new PPAP package for the project and initialize 18 element checklist."""
     result = await session.execute(select(db.Project).where(db.Project.id == project_id))
@@ -158,7 +162,7 @@ async def create_ppap_package(
         raise NotFoundError("project", project_id)
 
     package_id = str(uuid.uuid4())
-    now = datetime.now(timezone.utc).replace(microsecond=0)
+    now = datetime.now(UTC).replace(microsecond=0)
     pkg = db.PPAPPackage(
         id=package_id,
         project_id=project_id,
@@ -212,7 +216,7 @@ async def create_ppap_package(
 @router.get("/projects/{project_id}/ppap-packages")
 async def list_ppap_packages(
     project_id: str,
-    session: AsyncSession = Depends(db.get_session),
+    session: AsyncSession = Depends(db.get_session),  # noqa: B008
 ) -> list[PPAPPackageSummary]:
     """List all PPAP packages for a project."""
     result = await session.execute(
@@ -236,7 +240,7 @@ async def list_ppap_packages(
 @router.get("/ppap-packages/{package_id}")
 async def get_ppap_package(
     package_id: str,
-    session: AsyncSession = Depends(db.get_session),
+    session: AsyncSession = Depends(db.get_session),  # noqa: B008
 ) -> PPAPPackageDetail:
     """Get detailed PPAP package with element checklist."""
     result = await session.execute(

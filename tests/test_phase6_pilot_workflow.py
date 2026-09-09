@@ -14,7 +14,6 @@ from minos_core.ppap_comparison import compare_to_approved_ppap
 from minos_core.run_manifest import sha256_file, sha256_json
 from minos_core.schemas import validate_bundle_schema
 
-
 ROOT = Path(__file__).resolve().parents[1]
 REALISTIC_PACKAGE = ROOT / "tests" / "fixtures" / "realistic_input_package"
 APPROVED_BASELINE = (

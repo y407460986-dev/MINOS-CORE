@@ -180,7 +180,7 @@ class ReleaseReadinessTests(unittest.TestCase):
 
             manifest_file = release_dir / "release_manifest.json"
             self.assertTrue(manifest_file.exists())
-            with open(manifest_file, "r", encoding="utf-8") as fh:
+            with open(manifest_file, encoding="utf-8") as fh:
                 disk_manifest = json.load(fh)
             self.assertEqual(disk_manifest["release_id"], "REL-TEST")
 

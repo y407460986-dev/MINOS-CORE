@@ -53,13 +53,13 @@ def filter_relevant_evidence_refs(
 
     relevant: list[str] = []
     for ref in evidence_refs:
-        ev = evidence_by_id.get(ref)
-        if ev is None:
+        evidence_item = evidence_by_id.get(ref)
+        if evidence_item is None:
             # Reference not found in available evidence — keep (conservative).
             relevant.append(ref)
             continue
 
-        content = str(ev.get("content", "")).strip()
+        content = str(evidence_item.get("content", "")).strip()
         if not content:
             # Evidence has no text content — keep (conservative).
             relevant.append(ref)

@@ -1,6 +1,6 @@
-import inspect
 import importlib
 import importlib.util
+import inspect
 import unittest
 
 import minos_core.edit_patch as edit_patch

@@ -195,6 +195,21 @@ class AutomationReviewTests(unittest.TestCase):
         self.assertIn("缺少 evidence_refs", tasks["failure_mode:PFMEA-P10-NOEVID"])
         self.assertIn("上下游链路不完整", tasks["failure_mode:PFMEA-P99-BROKEN"])
 
+    def test_confirmed_rows_do_not_reenter_automation_review_tasks(self):
+        source = _minimal_three_table()
+        for step in source["process_flow"]["steps"]:
+            step["needs_confirmation"] = False
+            step["review_status"] = "已确认"
+        for row in source["pfmea"]["rows"]:
+            row["needs_confirmation"] = False
+            row["review_status"] = "已确认"
+
+        review = build_automation_review(source)
+        targets = {item.get("target") for item in review["automation_tasks"]}
+
+        self.assertNotIn("process_step:P10", targets)
+        self.assertNotIn("failure_mode:PFMEA-P10-HIGH", targets)
+
     def test_batch_confirm_patch_is_per_row_and_keeps_ai_batch_audit_metadata(self):
         source = _minimal_three_table()
         review = build_automation_review(source)
@@ -213,7 +228,10 @@ class AutomationReviewTests(unittest.TestCase):
         confirmed = next(row for row in edited["pfmea"]["rows"] if row["pfmea_id"] == "PFMEA-P10-OK")
         self.assertFalse(confirmed["needs_confirmation"])
         self.assertEqual(confirmed.get("confirmation_mode"), AUTOMATION_BATCH_CONFIRM_MODE)
-        self.assertEqual(edited["metadata"]["edit_history"][0]["metadata"]["confirmation_mode"], AUTOMATION_BATCH_CONFIRM_MODE)
+        self.assertEqual(
+            edited["metadata"]["edit_history"][0]["metadata"]["confirmation_mode"],
+            AUTOMATION_BATCH_CONFIRM_MODE,
+        )
 
     def test_adopting_ai_fix_suggestion_generates_patch_without_overwriting_original_draft(self):
         source = _minimal_three_table()

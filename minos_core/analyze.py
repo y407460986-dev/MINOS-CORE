@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Sequence
 from typing import Any
 
 from .adapters.llm import LLMAdapter, LLMMessage
 from .domain import Evidence
 from .ingest import ingest_evidence_bundle
-
 
 DRAWING_TERMS = (
     "drawing",
@@ -497,7 +497,7 @@ def _phrase_is_covered_by_pxx(operation: str, matched_tokens: set[str]) -> bool:
 
 
 def _extract_specification(
-    content: str, patterns: tuple[str, ...]
+    content: str, patterns: Sequence[str]
 ) -> tuple[str, dict[str, Any]]:
     for pattern in patterns:
         match = re.search(pattern, content, flags=re.IGNORECASE)

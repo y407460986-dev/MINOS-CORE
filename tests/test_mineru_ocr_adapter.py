@@ -1,10 +1,11 @@
+import subprocess
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
-from minos_core.adapters.ocr import OCRDependencyError
 from minos_core.adapters.mineru_ocr import MinerUOCRAdapter, _mineru_command_from_cmd
+from minos_core.adapters.ocr import OCRDependencyError
 
 
 class MinerUOCRAdapterTests(unittest.TestCase):
@@ -64,7 +65,7 @@ class MinerUOCRAdapterTests(unittest.TestCase):
             markdown_path = output_dir / "drawing.md"
             markdown_path.write_text("Drawing No: CLI-001\n\nPart Name: CLI Bracket", encoding="utf-8")
 
-            def fake_run(command, check, capture_output, text):
+            def fake_run(command, check, capture_output, text, **kwargs):
                 self.assertEqual(command[0], "mineru")
                 self.assertIn("-o", command)
                 return _CompletedProcess()
@@ -77,6 +78,31 @@ class MinerUOCRAdapterTests(unittest.TestCase):
         self.assertEqual(result.pages[0].engine, "mineru")
         self.assertEqual(result.pages[0].blocks[0].text, "Drawing No: CLI-001")
         self.assertEqual(result.pages[0].blocks[1].text, "Part Name: CLI Bracket")
+
+    def test_uses_mineru_markdown_output_when_cli_reports_late_failure(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            output_dir = root / "mineru-output"
+            output_dir.mkdir()
+
+            def fake_run(command, check, capture_output, text, **kwargs):
+                (output_dir / "drawing.md").write_text(
+                    "Drawing No: LATE-001\n\nPart Name: Salvaged Bracket",
+                    encoding="utf-8",
+                )
+                raise subprocess.CalledProcessError(
+                    1,
+                    command,
+                    stderr="All connection attempts failed",
+                )
+
+            adapter = MinerUOCRAdapter(output_dir=output_dir)
+            with patch("minos_core.adapters.mineru_ocr.shutil.which", return_value="mineru"):
+                with patch("minos_core.adapters.mineru_ocr.subprocess.run", side_effect=fake_run):
+                    result = adapter.extract_text(str(root / "drawing.pdf"), b"%PDF fake")
+
+        self.assertEqual(result.pages[0].blocks[0].text, "Drawing No: LATE-001")
+        self.assertEqual(result.pages[0].blocks[1].text, "Part Name: Salvaged Bracket")
 
     def test_reads_mineru_command_from_codex_mcp_start_script(self):
         script = (
@@ -116,7 +142,7 @@ class MinerUOCRAdapterTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            def fake_run(command, check, capture_output, text):
+            def fake_run(command, check, capture_output, text, **kwargs):
                 self.assertEqual(command[0], str(mineru_exe))
                 return _CompletedProcess()
 

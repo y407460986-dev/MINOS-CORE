@@ -42,6 +42,13 @@ export function configureApi(bootstrap: BootstrapPayload | null): void {
   runtimeApiToken = bootstrap?.apiToken || runtimeApiToken;
 }
 
+export async function getStreamToken(): Promise<string> {
+  const response = await apiJson<{ stream_token: string }>("/api/auth/stream-token", {
+    method: "POST"
+  });
+  return response.stream_token;
+}
+
 export async function getHealth(): Promise<HealthResponse> {
   let response: Response;
   try {
@@ -81,6 +88,9 @@ async function apiJson<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error("本地服务认证失败，请重启 MINOS 桌面应用。");
+    }
     const body = await response.json().catch(() => null);
     const message = body?.failure_message ?? body?.detail ?? body?.message ?? `${path} returned ${response.status}`;
     throw new Error(message);
@@ -134,6 +144,26 @@ export function importKnowledgeSeeds(
 
 export function getClosureTasks(runId: number): Promise<ClosureTasksResponse> {
   return apiJson<ClosureTasksResponse>(`/api/runs/${runId}/closure-tasks`);
+}
+
+export function resolveClosureTasksByType(
+  runId: number,
+  payload: {
+    task_type: string;
+    action?: string;
+    status?: string;
+    changes?: Record<string, unknown>;
+    reason?: string;
+    resolution_note?: string;
+    manual_confirmation_event?: string;
+    task_ids?: string[];
+    target_row_ids?: string[];
+  }
+): Promise<DesktopRun> {
+  return apiJson<DesktopRun>(`/api/runs/${runId}/closure-tasks/resolve-by-type`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
 }
 
 export function applyEditPatch(runId: number, patch: Record<string, unknown>): Promise<DesktopRun> {
@@ -240,6 +270,10 @@ export function selectOutputDir(): Promise<string | null> {
   return invoke<string | null>("select_output_dir");
 }
 
+export function selectComponentDrawings(): Promise<string[]> {
+  return invoke<string[]>("select_component_drawings");
+}
+
 export function openOutputDir(path: string): Promise<void> {
   return invoke("open_output_dir", { path });
 }
@@ -313,4 +347,12 @@ export function confirmCpStage(
     method: "POST",
     body: JSON.stringify(payload),
   });
+}
+
+export function undoRun(runId: number): Promise<DesktopRun> {
+  return apiJson<DesktopRun>(`/api/runs/${runId}/undo`, { method: "POST" });
+}
+
+export function redoRun(runId: number): Promise<DesktopRun> {
+  return apiJson<DesktopRun>(`/api/runs/${runId}/redo`, { method: "POST" });
 }

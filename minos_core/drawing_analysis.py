@@ -5,16 +5,26 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, cast
+
+from minos_core._text_utils import dedupe, float_or_none, string_list
+from minos_core._types import DrawingAnalysisResult
+from minos_core.special_characteristic_candidates import (
+    confirmed_special_characteristics_from_candidates,
+    normalize_special_characteristic_candidates,
+    risks_from_special_characteristic_candidates,
+)
+from minos_core.special_characteristic_discovery import (
+    build_special_characteristic_discovery_report,
+    normalize_special_characteristic_locations,
+)
 
 from .audit import AuditItem, AuditReport
-from .drawing_input import DrawingPageEvidence
 from .domain import APQPChain
+from .drawing_input import DrawingPageEvidence
 from .quality_gates import StageQualityGate
 from .review_issues import review_issue_from_manual_item
 from .validation import ChainValidationResult
-from minos_core._text_utils import dedupe, string_list, float_or_none
-
 
 DRAWING_ANALYSIS_SCHEMA_VERSION = "minos-core.drawing_analysis.v1"
 MIN_REVIEW_CONFIDENCE = 0.75
@@ -22,7 +32,12 @@ DRAWING_PAGE_REF_PATTERN = re.compile(r"^drawing_page_\d{3}$")
 
 
 class DrawingAnalysisError(ValueError):
-    """Raised when drawing analysis output violates the contract."""
+    """Raised when drawing analysis output violates the contract.
+
+    Indicates that the AI-generated or OCR-derived drawing analysis bundle
+    failed validation checks, such as missing required fields, invalid JSON,
+    or unrecognized evidence references.
+    """
 
 
 @dataclass(frozen=True)
@@ -31,13 +46,28 @@ class DrawingRecognitionGate:
 
     @property
     def can_continue(self) -> bool:
+        """Whether the pipeline may proceed past this gate without human review.
+
+        Returns:
+            True if no blocking issues exist.
+        """
         return self.gate.can_continue
 
     @property
     def needs_human_review(self) -> bool:
+        """Whether this gate identified items requiring human review.
+
+        Returns:
+            True if any review-grade issue was flagged.
+        """
         return self.gate.needs_human_review
 
     def model_dump(self) -> dict[str, Any]:
+        """Serialize the gate to a dictionary.
+
+        Returns:
+            Dictionary representation of the underlying stage quality gate.
+        """
         return self.gate.model_dump()
 
 
@@ -46,6 +76,11 @@ class DrawingAnalysisBundle:
     payload: dict[str, Any] = field(default_factory=dict)
 
     def model_dump(self) -> dict[str, Any]:
+        """Return the underlying payload dictionary.
+
+        Returns:
+            The raw analysis bundle dictionary.
+        """
         return dict(self.payload)
 
 
@@ -53,29 +88,102 @@ def analyze_drawing_pages(
     pages: list[DrawingPageEvidence],
     analyzer: Any,
     context: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    """Run a multimodal analyzer and return a validated drawing bundle."""
+) -> DrawingAnalysisResult:
+    """Run a multimodal analyzer and return a validated drawing bundle.
+
+    Args:
+        pages: One or more drawing page evidence objects.
+        analyzer: An object with an ``analyze_drawing_pages`` method that
+            accepts pages and context, returning a result with ``content``.
+        context: Optional dictionary of contextual parameters forwarded to the
+            analyzer.
+
+    Returns:
+        A validated drawing analysis result dictionary.
+
+    Raises:
+        DrawingAnalysisError: If no pages are provided, the analyzer returns
+            invalid JSON, or the JSON payload is not a dictionary.
+    """
 
     if not pages:
         raise DrawingAnalysisError("drawing analysis requires at least one drawing page")
     result = analyzer.analyze_drawing_pages(pages, context or {})
     try:
-        payload = json.loads(result.content)
+        payload = _loads_model_json_object(result.content)
     except json.JSONDecodeError as exc:
         raise DrawingAnalysisError(f"AI drawing analysis returned invalid JSON: {exc}") from exc
     if not isinstance(payload, dict):
         raise DrawingAnalysisError("AI drawing analysis JSON must be an object")
 
     bundle = _normalize_drawing_analysis_payload(payload, pages, result)
-    evaluate_drawing_recognition_gate(bundle)
+    evaluate_drawing_recognition_gate(dict(bundle))
     return bundle
+
+
+def _loads_model_json_object(content: str) -> Any:
+    """Parse a JSON object from model output, retrying with bracket extraction on failure."""
+    try:
+        return json.loads(content)
+    except json.JSONDecodeError:
+        extracted = _extract_json_object_text(content)
+        if not extracted or extracted == content:
+            raise
+        return json.loads(extracted)
+
+
+def _extract_json_object_text(content: str) -> str:
+    """Extract the outermost JSON object from content, handling fences and leading text."""
+    text = str(content or "").strip()
+    fence = re.fullmatch(r"```(?:json)?\s*(.*?)\s*```", text, flags=re.IGNORECASE | re.DOTALL)
+    if fence:
+        text = fence.group(1).strip()
+    start = text.find("{")
+    if start < 0:
+        return ""
+    depth = 0
+    in_string = False
+    escaped = False
+    for index in range(start, len(text)):
+        char = text[index]
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            continue
+        if char == '"':
+            in_string = True
+        elif char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start : index + 1]
+            if depth < 0:
+                return ""
+    return ""
 
 
 def evaluate_drawing_recognition_gate(
     bundle: dict[str, Any],
     stage: str = "drawing_analysis",
 ) -> StageQualityGate:
-    """Evaluate whether drawing recognition can feed process-flow inference."""
+    """Evaluate whether drawing recognition can feed process-flow inference.
+
+    Analyzes the drawing analysis bundle and produces a quality gate result
+    that determines whether the pipeline may proceed.
+
+    Args:
+        bundle: The drawing analysis bundle dictionary.
+        stage: Name of the pipeline stage (default "drawing_analysis").
+
+    Returns:
+        A StageQualityGate with validation results, audit items, coverage
+        information and manual review items.
+    """
 
     report = _drawing_analysis_report(bundle)
     validation = ChainValidationResult(
@@ -111,10 +219,51 @@ def _normalize_drawing_analysis_payload(
     payload: dict[str, Any],
     pages: list[DrawingPageEvidence],
     result: Any,
-) -> dict[str, Any]:
-    evidence = [page.model_dump() for page in pages]
-    source_ids = {page.evidence_id for page in pages}
-    normalized = {
+) -> DrawingAnalysisResult:
+    """Normalize a raw AI drawing analysis payload into a validated bundle."""
+    adapter_metadata = getattr(result, "metadata", {})
+    evidence = [page.model_dump() for page in pages] + _visual_evidence_region_items(
+        adapter_metadata
+    )
+    source_ids = {
+        str(item.get("evidence_id", "")).strip()
+        for item in evidence
+        if isinstance(item, dict) and item.get("evidence_id")
+    }
+    located_occurrences = normalize_special_characteristic_candidates(
+        payload.get("located_occurrences", [])
+    )
+    special_characteristic_candidates = _dedupe_candidate_rows(
+        normalize_special_characteristic_candidates(
+            _list(payload.get("special_characteristic_candidates"))
+            + _list(payload.get("located_occurrences"))
+        )
+    )
+    special_characteristic_locations = normalize_special_characteristic_locations(
+        _list(payload.get("special_characteristic_locations"))
+        + _locations_from_located_occurrences(located_occurrences)
+    )
+    declared_totals = dict(_dict(payload.get("declared_totals")))
+    discovery_report = build_special_characteristic_discovery_report(
+        declared_totals=declared_totals,
+        locations=special_characteristic_locations,
+    )
+    confirmed_specials = confirmed_special_characteristics_from_candidates(
+        _directly_confirmable_special_characteristic_candidates(
+            special_characteristic_candidates
+        )
+    )
+    raw_special_characteristics = _normalize_analysis_items(payload.get("special_characteristics"))
+    if _strict_candidate_special_characteristics(
+        adapter_metadata,
+        special_characteristic_candidates,
+    ):
+        raw_special_characteristics = [
+            item
+            for item in raw_special_characteristics
+            if _confirmed_raw_special_characteristic(item)
+        ]
+    normalized: dict[str, Any] = {
         "document_type": "drawing_analysis_bundle",
         "schema_version": DRAWING_ANALYSIS_SCHEMA_VERSION,
         "drawing_identity": _dict(payload.get("drawing_identity")),
@@ -122,27 +271,91 @@ def _normalize_drawing_analysis_payload(
         "surface_treatments": _normalize_analysis_items(payload.get("surface_treatments")),
         "dimensions": _normalize_analysis_items(payload.get("dimensions")),
         "tolerances": _normalize_analysis_items(payload.get("tolerances")),
-        "special_characteristics": _normalize_analysis_items(payload.get("special_characteristics")),
+        "special_characteristics": raw_special_characteristics + confirmed_specials,
+        "special_characteristic_candidates": special_characteristic_candidates,
+        "located_occurrences": located_occurrences,
+        "special_characteristic_judgments": _normalize_judgment_items(
+            payload.get("special_characteristic_judgments")
+        ),
+        "declared_special_characteristics": _normalize_analysis_items(
+            payload.get("declared_special_characteristics")
+        ),
+        "declared_totals": declared_totals,
+        "special_characteristic_locations": special_characteristic_locations,
+        "special_characteristic_discovery": {
+            key: value
+            for key, value in discovery_report.items()
+            if key != "risks"
+        },
         "technical_requirements": _normalize_analysis_items(payload.get("technical_requirements")),
         "inspection_requirements": _normalize_analysis_items(payload.get("inspection_requirements")),
         "manufacturing_clues": _normalize_analysis_items(payload.get("manufacturing_clues")),
         "uncertainties": _normalize_analysis_items(payload.get("uncertainties")),
+        "focused_review_requests": _normalize_judgment_items(
+            payload.get("focused_review_requests")
+        ),
         "evidence": evidence,
         "metadata": {
             "model": getattr(result, "model", ""),
-            "adapter_metadata": getattr(result, "metadata", {}),
+            "adapter_metadata": adapter_metadata,
             "ai_inferred": True,
             "source_stage": "drawing_analysis",
         },
     }
+    candidate_risks = risks_from_special_characteristic_candidates(
+        special_characteristic_candidates
+    )
+    if candidate_risks:
+        normalized["metadata"]["drawing_analysis_risks"] = candidate_risks
+    discovery_risks = [
+        item for item in discovery_report.get("risks", []) if isinstance(item, dict)
+    ]
+    if discovery_risks:
+        normalized["metadata"]["drawing_analysis_risks"] = _merge_drawing_risks(
+            _list(normalized["metadata"].get("drawing_analysis_risks")),
+            discovery_risks,
+        )
+    evidence_packet = _dict(payload.get("special_characteristic_evidence_packet"))
+    if evidence_packet:
+        normalized["special_characteristic_evidence_packet"] = evidence_packet
     evidence_ref_repairs = _repair_page_evidence_refs(normalized, source_ids)
     if evidence_ref_repairs:
         normalized["metadata"]["evidence_ref_repairs"] = evidence_ref_repairs
     _validate_all_refs_exist(normalized, source_ids)
-    return normalized
+    return cast(DrawingAnalysisResult, normalized)
+
+
+def _visual_evidence_region_items(adapter_metadata: Any) -> list[dict[str, Any]]:
+    """Convert adapter visual evidence regions into standard evidence items."""
+    metadata = adapter_metadata if isinstance(adapter_metadata, dict) else {}
+    regions = _list(metadata.get("visual_evidence_regions"))
+    evidence_items: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for region in regions:
+        if not isinstance(region, dict):
+            continue
+        region_id = str(region.get("region_id", "")).strip()
+        if not region_id or region_id in seen:
+            continue
+        seen.add(region_id)
+        evidence_items.append(
+            {
+                "evidence_id": region_id,
+                "source": "visual_evidence_crop",
+                "page_evidence_id": str(region.get("page_evidence_id", "")).strip(),
+                "label": str(region.get("label", "")).strip(),
+                "bbox": list(region.get("bbox", []))
+                if isinstance(region.get("bbox"), list)
+                else [],
+                "image_path": str(region.get("image_path", "")).strip(),
+                "evidence_refs": string_list(region.get("evidence_refs", [])),
+            }
+        )
+    return evidence_items
 
 
 def _drawing_analysis_report(bundle: dict[str, Any]) -> dict[str, Any]:
+    """Build a structured quality report from the drawing analysis bundle."""
     evidence_ids = {
         str(item.get("evidence_id", "")).strip()
         for item in bundle.get("evidence", [])
@@ -155,6 +368,14 @@ def _drawing_analysis_report(bundle: dict[str, Any]) -> dict[str, Any]:
     blocking_items: list[str] = []
     evidence_ref_repair_items: list[dict[str, Any]] = []
     confidence_parse_error_items: list[dict[str, Any]] = []
+    drawing_risk_items = _drawing_risk_items(bundle)
+    candidate_risks = risks_from_special_characteristic_candidates(
+        normalize_special_characteristic_candidates(
+            _list(bundle.get("special_characteristic_candidates"))
+        )
+    )
+    if candidate_risks:
+        drawing_risk_items = _merge_drawing_risks(drawing_risk_items, candidate_risks)
 
     identity = _dict(bundle.get("drawing_identity"))
     for field_name in ("part_name", "drawing_number", "revision"):
@@ -165,6 +386,7 @@ def _drawing_analysis_report(bundle: dict[str, Any]) -> dict[str, Any]:
         "materials",
         "dimensions",
         "special_characteristics",
+        "special_characteristic_candidates",
         "technical_requirements",
         "manufacturing_clues",
     ):
@@ -199,10 +421,17 @@ def _drawing_analysis_report(bundle: dict[str, Any]) -> dict[str, Any]:
             if isinstance(item, dict) and item.get("ai_inferred", True):
                 ai_inferred_items.append(label)
 
+    blocker_drawing_risks = [
+        item for item in drawing_risk_items if item.get("severity") == "blocker"
+    ]
     if missing_refs:
         blocking_items.extend(missing_refs)
+    blocking_items.extend(
+        str(item.get("item_id", ""))
+        for item in blocker_drawing_risks
+    )
 
-    ok = bool(evidence_ids and not missing_refs and bundle.get("manufacturing_clues"))
+    ok = bool(evidence_ids and not missing_refs and not blocker_drawing_risks and bundle.get("manufacturing_clues"))
     return {
         "stage_mode": "drawing_analysis",
         "next_stage": "infer_process_flow_from_drawing",
@@ -213,18 +442,21 @@ def _drawing_analysis_report(bundle: dict[str, Any]) -> dict[str, Any]:
         "ai_inferred_items": dedupe(ai_inferred_items),
         "evidence_ref_repair_items": evidence_ref_repair_items,
         "confidence_parse_error_items": confidence_parse_error_items,
+        "drawing_risk_items": drawing_risk_items,
         "blocking_items": dedupe(blocking_items),
         "ok": ok,
     }
 
 
 def _validate_all_refs_exist(bundle: dict[str, Any], evidence_ids: set[str]) -> None:
+    """Raise DrawingAnalysisError if any item references an unknown evidence ID."""
     for block_name in (
         "materials",
         "surface_treatments",
         "dimensions",
         "tolerances",
         "special_characteristics",
+        "special_characteristic_candidates",
         "technical_requirements",
         "inspection_requirements",
         "manufacturing_clues",
@@ -243,7 +475,19 @@ def _validate_all_refs_exist(bundle: dict[str, Any], evidence_ids: set[str]) -> 
 
 
 def _drawing_manual_review_items(report: dict[str, Any]) -> list[AuditItem]:
+    """Convert report risk and repair items into audit items for manual review."""
     items: list[AuditItem] = []
+    for risk in report.get("drawing_risk_items", []):
+        if not isinstance(risk, dict):
+            continue
+        items.append(
+            AuditItem(
+                str(risk.get("item_id", "")),
+                str(risk.get("category", "drawing_analysis")),
+                str(risk.get("message", "图纸识别风险需要人工复核。")),
+                str(risk.get("severity", "review")),
+            )
+        )
     for repair in report.get("evidence_ref_repair_items", []):
         if not isinstance(repair, dict):
             continue
@@ -272,28 +516,193 @@ def _drawing_manual_review_items(report: dict[str, Any]) -> list[AuditItem]:
             )
         )
     for value in report["blocking_items"]:
+        if any(
+            isinstance(risk, dict) and risk.get("item_id") == value
+            for risk in report.get("drawing_risk_items", [])
+        ):
+            continue
         items.append(AuditItem(value, "drawing_recognition_blocker", "图纸识别缺少可追溯证据", "blocker"))
     for value in report["pending_fields"]:
         items.append(AuditItem(value, "drawing_recognition_pending", "图纸识别存在待补字段", "review"))
     for value in report["needs_confirmation_items"]:
-        items.append(AuditItem(value, "drawing_recognition_low_confidence", "图纸识别置信度不足，需要人工复核", "review"))
+        items.append(
+            AuditItem(value, "drawing_recognition_low_confidence", "图纸识别置信度不足，需要人工复核", "review")
+        )
     return items
 
 
 def _dict(value: Any) -> dict[str, Any]:
+    """Coerce a value to dict, returning an empty dict for non-dict values."""
     return value if isinstance(value, dict) else {}
 
 
 def _list(value: Any) -> list[Any]:
+    """Coerce a value to list, returning an empty list for non-list values."""
     return value if isinstance(value, list) else []
 
 
+def _drawing_risk_items(bundle: dict[str, Any]) -> list[dict[str, Any]]:
+    """Collect and deduplicate drawing analysis risk items from bundle metadata."""
+    metadata = _dict(bundle.get("metadata"))
+    risks = _list(metadata.get("drawing_analysis_risks")) + _list(
+        metadata.get("ocr_identity_risks")
+    )
+    items: list[dict[str, Any]] = []
+    indexes: dict[str, int] = {}
+    for risk in risks:
+        if not isinstance(risk, dict):
+            continue
+        risk_id = str(risk.get("risk_id", risk.get("item_id", ""))).strip()
+        if not risk_id:
+            continue
+        item = dict(risk)
+        item["item_id"] = risk_id
+        item.setdefault("category", "drawing_analysis")
+        item.setdefault("severity", "review")
+        item.setdefault("message", "图纸识别风险需要人工复核。")
+        if risk_id in indexes:
+            existing_index = indexes[risk_id]
+            if (
+                item.get("severity") == "blocker"
+                and items[existing_index].get("severity") != "blocker"
+            ):
+                items[existing_index] = item
+            continue
+        indexes[risk_id] = len(items)
+        items.append(item)
+    return items
+
+
+def _merge_drawing_risks(
+    existing: list[dict[str, Any]],
+    candidates: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Merge candidate risk items into existing, upgrading severity when applicable."""
+    merged = list(existing)
+    indexes = {
+        str(item.get("risk_id", item.get("item_id", ""))).strip(): index
+        for index, item in enumerate(merged)
+        if isinstance(item, dict)
+        and str(item.get("risk_id", item.get("item_id", ""))).strip()
+    }
+    for risk in candidates:
+        risk_id = str(risk.get("risk_id", risk.get("item_id", ""))).strip()
+        if not risk_id:
+            continue
+        if risk_id in indexes:
+            index = indexes[risk_id]
+            if (
+                risk.get("severity") == "blocker"
+                and merged[index].get("severity") != "blocker"
+            ):
+                merged[index] = risk
+            continue
+        indexes[risk_id] = len(merged)
+        merged.append(risk)
+    return merged
+
+
+def _strict_candidate_special_characteristics(
+    adapter_metadata: Any,
+    candidates: list[dict[str, Any]],
+) -> bool:
+    """Determine whether to apply strict filtering based on visual source evidence."""
+    metadata = adapter_metadata if isinstance(adapter_metadata, dict) else {}
+    if _visual_candidate_source(metadata.get("source")):
+        return True
+    return any(
+        _visual_candidate_source(candidate.get("source"))
+        for candidate in candidates
+        if isinstance(candidate, dict)
+    )
+
+
+def _visual_candidate_source(value: Any) -> bool:
+    """Check whether a source string originates from a visual detection pipeline."""
+    source = str(value or "").strip().lower()
+    return source.startswith("gpt55_visual") or source in {
+        "generic_visual",
+        "visual",
+        "visual_symbol",
+        "visual_locator",
+        "symbol_table_on_drawing",
+    }
+
+
+def _directly_confirmable_special_characteristic_candidates(
+    candidates: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Filter candidates that can be confirmed directly (OCR text sourced)."""
+    return [
+        candidate
+        for candidate in candidates
+        if str(candidate.get("source", "")).strip() == "ocr_text"
+    ]
+
+
+def _dedupe_candidate_rows(candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Deduplicate candidate rows by candidate_id or full item representation."""
+    deduped: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        candidate_id = str(candidate.get("candidate_id", "")).strip()
+        key = candidate_id or repr(sorted(candidate.items()))
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(candidate)
+    return deduped
+
+
+def _locations_from_located_occurrences(
+    occurrences: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Convert located occurrences with CC/SC classification into location items."""
+    locations: list[dict[str, Any]] = []
+    for item in occurrences:
+        classification = str(item.get("candidate_type", "")).strip().upper()
+        if classification not in {"CC", "SC"}:
+            continue
+        candidate_id = str(item.get("candidate_id", "")).strip()
+        locations.append(
+            {
+                "location_id": candidate_id or "",
+                "classification": classification,
+                "linked_feature": item.get("linked_feature", ""),
+                "symbol_text_or_shape": item.get("symbol_text_or_shape", ""),
+                "bbox": item.get("symbol_bbox", []),
+                "evidence_refs": string_list(item.get("evidence_refs", [])),
+                "confidence": item.get("confidence", 0.0),
+                "reasoning": item.get("reasoning", ""),
+            }
+        )
+    return locations
+
+
+def _confirmed_raw_special_characteristic(item: Any) -> bool:
+    """Check whether a raw special characteristic item has a confirmed status."""
+    if not isinstance(item, dict):
+        return False
+    return str(item.get("confirmation_status", "")).strip() in {
+        "judge_confirmed",
+        "rule_confirmed",
+        "human_confirmed",
+    }
+
+
+def _normalize_judgment_items(value: Any) -> list[dict[str, Any]]:
+    """Coerce a value into a list of dictionaries (judgment items)."""
+    return [dict(item) for item in _list(value) if isinstance(item, dict)]
+
+
 def _normalize_analysis_items(value: Any) -> list[Any]:
+    """Normalize every item in a list through the single-item normalizer."""
     items = _list(value)
     return [_normalize_analysis_item(item) for item in items]
 
 
 def _normalize_analysis_item(item: Any) -> Any:
+    """Normalize a single analysis item: add evidence_regions, refs, confidence and confirmation."""
     if not isinstance(item, dict):
         return item
     normalized = dict(item)
@@ -318,6 +727,7 @@ def _normalize_analysis_item(item: Any) -> Any:
 
 
 def _normalize_evidence_regions(value: Any) -> list[dict[str, Any]]:
+    """Normalize a list of evidence region dicts into a consistent format."""
     regions = _list(value)
     normalized: list[dict[str, Any]] = []
     for index, region in enumerate(regions):
@@ -347,6 +757,7 @@ def _normalize_evidence_regions(value: Any) -> list[dict[str, Any]]:
 
 
 def _normalize_region_box(value: Any) -> dict[str, float]:
+    """Normalize a bounding box value (dict or list) into a standard {x, y, width, height} dict."""
     if isinstance(value, dict):
         left = float_or_none(value.get("x", value.get("left")))
         top = float_or_none(value.get("y", value.get("top")))
@@ -377,6 +788,7 @@ def _repair_page_evidence_refs(
     bundle: dict[str, Any],
     evidence_ids: set[str],
 ) -> list[dict[str, Any]]:
+    """Repair evidence refs that reference non-existent page evidence by substituting fallback IDs."""
     if not evidence_ids:
         return []
     repairs: list[dict[str, Any]] = []
@@ -387,6 +799,7 @@ def _repair_page_evidence_refs(
         "dimensions",
         "tolerances",
         "special_characteristics",
+        "special_characteristic_candidates",
         "technical_requirements",
         "inspection_requirements",
         "manufacturing_clues",
@@ -396,34 +809,37 @@ def _repair_page_evidence_refs(
             if not isinstance(item, dict):
                 continue
             refs = string_list(item.get("evidence_refs", []))
-            unknown_page_refs = [
-                ref for ref in refs if ref not in evidence_ids and DRAWING_PAGE_REF_PATTERN.match(ref)
-            ]
-            if not unknown_page_refs:
+            unknown_refs = [ref for ref in refs if ref not in evidence_ids]
+            repairable_refs = (
+                unknown_refs
+                if fallback_ref
+                else [ref for ref in unknown_refs if DRAWING_PAGE_REF_PATTERN.match(ref)]
+            )
+            if not repairable_refs:
                 continue
             repair = {
                 "block": block_name,
                 "index": index,
                 "original_refs": list(refs),
-                "unknown_refs": list(unknown_page_refs),
+                "unknown_refs": list(repairable_refs),
                 "message": (
-                    "AI 引用了不存在的图纸页面证据 "
-                    + ", ".join(unknown_page_refs)
+                    "AI 引用了不存在的图纸证据 "
+                    + ", ".join(repairable_refs)
                     + "，需要人工确认。"
                 ),
             }
             if fallback_ref:
                 repaired_refs: list[str] = []
                 for ref in refs:
-                    normalized_ref = fallback_ref if ref in unknown_page_refs else ref
+                    normalized_ref = fallback_ref if ref in repairable_refs else ref
                     if normalized_ref and normalized_ref not in repaired_refs:
                         repaired_refs.append(normalized_ref)
                 item["original_evidence_refs"] = list(refs)
                 item["evidence_refs"] = repaired_refs
                 repair["repaired_refs"] = list(repaired_refs)
                 repair["message"] = (
-                    "AI 引用了不存在的图纸页面证据 "
-                    + ", ".join(unknown_page_refs)
+                    "AI 引用了不存在的图纸证据 "
+                    + ", ".join(repairable_refs)
                     + f"，当前输入只有一页，已临时归并到 {fallback_ref}，需要人工确认。"
                 )
             item["needs_confirmation"] = True
@@ -437,6 +853,7 @@ def _repair_page_evidence_refs(
 
 
 def _confidence(item: Any) -> float:
+    """Extract the confidence value from an item dict, defaulting to 0.0."""
     if not isinstance(item, dict):
         return 0.0
     try:
@@ -446,6 +863,7 @@ def _confidence(item: Any) -> float:
 
 
 def _collect_nested_refs(value: Any) -> list[str]:
+    """Recursively collect all evidence_refs from a nested dict/list structure."""
     refs: list[str] = []
     if isinstance(value, dict):
         direct = value.get("evidence_refs")
@@ -466,6 +884,7 @@ def _collect_nested_refs(value: Any) -> list[str]:
 
 
 def _collect_nested_confidence(value: Any) -> float | None:
+    """Recursively find the minimum confidence value in a nested structure."""
     confidences: list[float] = []
     if isinstance(value, dict):
         direct = value.get("confidence")
@@ -489,6 +908,7 @@ def _collect_nested_confidence(value: Any) -> float | None:
 
 
 def _collect_confidence_parse_errors(value: Any, path: str = "") -> list[dict[str, str]]:
+    """Recursively collect confidence values that failed to parse as floats."""
     errors: list[dict[str, str]] = []
     if isinstance(value, dict):
         for key, nested in value.items():
@@ -514,6 +934,7 @@ def _collect_confidence_parse_errors(value: Any, path: str = "") -> list[dict[st
 
 
 def _collect_nested_confirmation(value: Any) -> bool:
+    """Recursively check whether any nested item has needs_confirmation set to True."""
     if isinstance(value, dict):
         if bool(value.get("needs_confirmation")):
             return True
@@ -524,6 +945,7 @@ def _collect_nested_confirmation(value: Any) -> bool:
 
 
 def _item_label(block_name: str, index: int, item: Any) -> str:
+    """Build a human-readable label for an item within a block, using id/name if available."""
     if isinstance(item, dict):
         for key in ("id", "name", "characteristic_id", "clue_id", "requirement_id", "designation"):
             value = str(item.get(key, "")).strip()
@@ -533,12 +955,14 @@ def _item_label(block_name: str, index: int, item: Any) -> str:
 
 
 def _optional_text(value: Any) -> str:
+    """Return stripped text or empty string for None values."""
     if value is None:
         return ""
     return str(value).strip()
 
 
 def _positive_int(value: Any) -> int:
+    """Coerce a value to a non-negative integer, defaulting to 0."""
     try:
         number = int(value or 0)
     except (TypeError, ValueError):

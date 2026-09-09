@@ -37,8 +37,8 @@ class TestDesktopRunServiceUndo(unittest.TestCase):
             reloaded = run_service.get_run(run.id)
 
         self.assertEqual(saved.current_result["process_flow"]["steps"][0]["operation"], "After")
-        self.assertEqual(undone["process_flow"]["steps"][0]["operation"], "Before")
-        self.assertEqual(redone["process_flow"]["steps"][0]["operation"], "After")
+        self.assertEqual(undone.current_result["process_flow"]["steps"][0]["operation"], "Before")
+        self.assertEqual(redone.current_result["process_flow"]["steps"][0]["operation"], "After")
         self.assertEqual(reloaded.current_result["process_flow"]["steps"][0]["operation"], "After")
         self.assertEqual(reloaded.state.status, "draft_ready")
 
@@ -50,7 +50,7 @@ class TestDesktopRunServiceUndo(unittest.TestCase):
 
             run_service.save_with_undo(run.id, self.make_result("First edit"))
             self.assertEqual(
-                run_service.undo_run(run.id)["process_flow"]["steps"][0]["operation"],
+                run_service.undo_run(run.id).current_result["process_flow"]["steps"][0]["operation"],
                 "Initial",
             )
             run_service.save_with_undo(run.id, self.make_result("Second edit"))

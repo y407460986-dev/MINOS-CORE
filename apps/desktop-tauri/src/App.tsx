@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Activity, CheckCircle2, FileInput, Loader2, RefreshCw, Settings, Share, Table2, WifiOff } from "lucide-react";
-import { configureApi, getBootstrap, getHealth, getRecentRuns } from "./api/client";
+import { configureApi, getBootstrap, getHealth, getRecentRuns, getRun } from "./api/client";
 import type { BootstrapPayload, DesktopRun, HealthResponse, WorkbenchRow } from "./api/types";
 import { AppShell } from "./components/AppShell";
 import { Sidebar, type NavItem } from "./components/Sidebar";
@@ -98,6 +98,24 @@ export default function App() {
       .catch(() => setApiState("offline"));
   }, []);
 
+  const refreshActiveRun = useCallback(async () => {
+    setApiState("checking");
+    try {
+      if (activeRun) {
+        const latest = await getRun(activeRun.id);
+        setActiveRun(latest);
+      } else {
+        const runs = await getRecentRuns(5);
+        const run = runs.find(autoRestorableRun);
+        if (run) setActiveRun(run);
+      }
+      setApiState("online");
+    } catch (caught) {
+      setApiState("offline");
+
+    }
+  }, [activeRun?.id]);
+
   const context = pageContext[page];
 
   return (
@@ -110,11 +128,11 @@ export default function App() {
           status={apiMeta[apiState]}
           actions={
             <>
-              <Button variant="outline" size="icon-sm" className="bg-card/80" title="刷新" aria-label="刷新">
+              <Button variant="outline" size="icon-sm" className="bg-card/80" title="刷新" aria-label="刷新" onClick={() => void refreshActiveRun()}>
                 <RefreshCw size={16} />
               </Button>
               <span className="flex h-7 items-center rounded-full border border-border bg-card/80 px-2.5 text-xs font-medium text-muted-foreground">
-                v{bootstrap?.version ?? "1.14"}
+                v{bootstrap?.version ?? "3.8.6"}
               </span>
             </>
           }
@@ -127,6 +145,7 @@ export default function App() {
           selectedRow={selectedRow}
           onSelectRow={setSelectedRow}
           onRunUpdated={setActiveRun}
+          onRunRefresh={refreshActiveRun}
         />
       )}
       <div hidden={page !== "import"}>

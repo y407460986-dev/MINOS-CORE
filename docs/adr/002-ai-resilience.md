@@ -11,7 +11,7 @@
 MINOS-CORE v2.0.1 has critical external dependency vulnerabilities:
 
 1. **AI Service Single Point of Failure**
-   - Hardcoded single endpoint: `https://cx.allincoding.cc`
+   - Hardcoded single endpoint: `https://allincode.top`
    - Upstream 502/504 errors cause complete pipeline failure
    - No retry logic or fallback mechanisms
    - No circuit breaker to prevent cascading failures
@@ -219,3 +219,18 @@ pfd_config = get_pfd_config(config)
 - ADR 001: Module Restructuring (Track 1)
 - ADR 003: Security and Validation (Track 3) - Planned
 - ADR 004: Observability (Track 4) - Planned
+
+### Status Update (2026-06-26)
+
+Phase 3 of the MINOS-CORE remediation plan reviewed this ADR:
+
+| Item | Status | Notes |
+|------|--------|-------|
+| AI resilience module (service_pool, retry_strategy, circuit_breaker, fallback) | ✅ Done | All 4 components present in `minos_core/ai_resilience/` |
+| OCR engine detection and auto-selection | ✅ Done | Implemented, RapidOCR bundled as default |
+| Environment diagnostics (`doctor` command) | ✅ Done | `minos_core/cli_doctor.py` exists |
+| Quality gate configuration externalization | ✅ Done | `config/quality_gates.yaml` loads via `config_loader.py` |
+| Comprehensive unit tests (30 tests) | ✅ Done | All passing |
+| Migration guide for existing deployments | ✅ Done | `docs/MIGRATION.md` exists covering migration paths |
+| Integration with existing AI adapters (`multimodal.py`, `llm_text.py`) | ⏳ Still pending | `ai_resilience` package is not imported in any adapter under `minos_core/adapters/`; adapters still call external services directly |
+| Performance benchmarks | ⏳ Still pending | No benchmark suite found |

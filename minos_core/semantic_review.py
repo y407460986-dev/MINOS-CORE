@@ -214,33 +214,31 @@ def check_detection_vs_failure_type(row: dict[str, Any]) -> list[str]:
     is_visual_failure = _any_keyword_hit(failure_mode, _VISUAL_FAILURE_KEYWORDS)
     is_dimensional_failure = _any_keyword_hit(failure_mode, _DIMENSIONAL_FAILURE_KEYWORDS)
 
-    if is_visual_failure:
-        if not _any_keyword_hit(detection_control, _VISUAL_DETECTION_KEYWORDS):
-            row_id = _normalize(
-                row.get("pfmea_id")
-                or row.get("id")
-                or row.get("item_id")
-                or "?"
-            )
-            issues.append(
-                f"[{row_id}] 探测方法可能不匹配：故障模式含外观类关键词"
-                f"（'{_normalize(failure_mode)}'），但探测控制"
-                f"（'{detection_control}'）未包含目视检查方法"
-            )
+    if is_visual_failure and not _any_keyword_hit(detection_control, _VISUAL_DETECTION_KEYWORDS):
+        row_id = _normalize(
+            row.get("pfmea_id")
+            or row.get("id")
+            or row.get("item_id")
+            or "?"
+        )
+        issues.append(
+            f"[{row_id}] 探测方法可能不匹配：故障模式含外观类关键词"
+            f"（'{_normalize(failure_mode)}'），但探测控制"
+            f"（'{detection_control}'）未包含目视检查方法"
+        )
 
-    if is_dimensional_failure:
-        if not _any_keyword_hit(detection_control, _MEASUREMENT_DETECTION_KEYWORDS):
-            row_id = _normalize(
-                row.get("pfmea_id")
-                or row.get("id")
-                or row.get("item_id")
-                or "?"
-            )
-            issues.append(
-                f"[{row_id}] 探测方法可能不匹配：故障模式含尺寸类关键词"
-                f"（'{_normalize(failure_mode)}'），但探测控制"
-                f"（'{detection_control}'）未包含测量/计量方法"
-            )
+    if is_dimensional_failure and not _any_keyword_hit(detection_control, _MEASUREMENT_DETECTION_KEYWORDS):
+        row_id = _normalize(
+            row.get("pfmea_id")
+            or row.get("id")
+            or row.get("item_id")
+            or "?"
+        )
+        issues.append(
+            f"[{row_id}] 探测方法可能不匹配：故障模式含尺寸类关键词"
+            f"（'{_normalize(failure_mode)}'），但探测控制"
+            f"（'{detection_control}'）未包含测量/计量方法"
+        )
 
     return issues
 
@@ -398,19 +396,20 @@ def check_cross_table_step_name_consistency(
         # Fallback: try matching by sequence number
         seq_val = row.get("sequence") or row.get("step_no")
         if seq_val is not None:
+            fallback_seq: int | None
             try:
-                seq_i = int(seq_val)
+                fallback_seq = int(seq_val)
             except (TypeError, ValueError):
-                seq_i = None
-            if seq_i is not None and seq_i in pfd_by_seq:
-                pfd_name = pfd_by_seq[seq_i]
+                fallback_seq = None
+            if fallback_seq is not None and fallback_seq in pfd_by_seq:
+                pfd_name = pfd_by_seq[fallback_seq]
                 if pfmea_step_name != pfd_name:
                     issues.append({
-                        "item_id": pfmea_id or f"pfmea-seq-{seq_i}",
+                        "item_id": pfmea_id or f"pfmea-seq-{fallback_seq}",
                         "category": "cross_table_consistency",
                         "message": (
                             f"PFD 与 PFMEA 工序名称不一致："
-                            f"PFD 工序 '{pfd_name}'（seq={seq_i}）"
+                            f"PFD 工序 '{pfd_name}'（seq={fallback_seq}）"
                             f" vs PFMEA 工序 '{pfmea_step_name}'（{pfmea_id}）"
                         ),
                         "severity": "review",

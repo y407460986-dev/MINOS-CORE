@@ -6,7 +6,6 @@ from typing import Any
 
 from minos_core._text_utils import string_list, text
 
-
 ACTION_STATUS_OPEN = {"未制定", "待执行", "执行中", "已逾期"}
 ACTION_STATUS_DONE = {"已完成", "已验证", "已关闭"}
 
@@ -112,7 +111,11 @@ def normalize_pfmea_row(row: dict[str, Any], process_step: dict[str, Any] | None
     severity = bounded_rating(normalized.get("severity", normalized.get("S")), default=5)
     occurrence = bounded_rating(normalized.get("occurrence", normalized.get("O")), default=3)
     detection = bounded_rating(normalized.get("detection", normalized.get("D")), default=6)
-    ap = text(normalized.get("action_priority"), normalized.get("AP"), calculate_ap(severity, occurrence, detection)).upper()
+    ap = text(
+        normalized.get("action_priority"),
+        normalized.get("AP"),
+        calculate_ap(severity, occurrence, detection),
+    ).upper()
     preventive_action = text(
         normalized.get("preventive_action"),
         normalized.get("recommended_preventive_action"),
@@ -233,7 +236,10 @@ def normalize_pfmea_row(row: dict[str, Any], process_step: dict[str, Any] | None
         normalized["after_occurrence"] = bounded_rating(after_o, default=occurrence)
     if after_d not in {None, ""}:
         normalized["after_detection"] = bounded_rating(after_d, default=detection)
-    if all(normalized.get(field) not in {None, ""} for field in ("after_severity", "after_occurrence", "after_detection")):
+    if all(
+        normalized.get(field) not in {None, ""}
+        for field in ("after_severity", "after_occurrence", "after_detection")
+    ):
         normalized["after_ap"] = text(
             normalized.get("after_ap"),
             calculate_ap(

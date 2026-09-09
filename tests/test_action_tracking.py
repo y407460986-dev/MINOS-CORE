@@ -6,9 +6,9 @@ import unittest
 from datetime import date
 
 from minos_core.action_tracking import (
+    action_items_summary,
     build_action_items,
     unresolved_action_items,
-    action_items_summary,
 )
 
 

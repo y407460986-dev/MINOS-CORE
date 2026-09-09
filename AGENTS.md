@@ -25,7 +25,7 @@
 ## 开发流程树 worktree
 - 所有开发都要符合以下流程规范。
 - 先使用 using-superpowers 编排选流程，并建立一个流程图；后续任何改动、更新、功能新增都要在流程图中体现。
-- 使用 planning-with-files 建立 `task_plan.md`、`progress.md`、`findings.md`，详细列清楚所需功能内容。
+- 使用 planning-with-files 建立 `docs/plans/task_plan.md`、`docs/plans/progress.md`、`docs/plans/findings.md`，详细列清楚所需功能内容。
 - 每次开发前用 gsd-method-guide 把每步写成 `///`。
 - 如果涉及开发改动，走 OpenSpec 四步闭环。
 - 每次改动、每次新增功能，都要同步更新流程图。

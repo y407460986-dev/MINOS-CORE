@@ -8,21 +8,21 @@ Provides fault tolerance mechanisms for AI service calls:
 - Fallback strategies for degraded service
 """
 
-from .service_pool import AIEndpoint, AIServicePool
-from .retry_strategy import ExponentialBackoffRetry, RetryConfig
 from .circuit_breaker import (
     CircuitBreaker,
-    CircuitState,
     CircuitBreakerConfig,
     CircuitBreakerOpenError,
+    CircuitState,
 )
 from .fallback import (
+    CachedResponseFallback,
+    ChainedFallback,
     FallbackStrategy,
     LocalKnowledgeFallback,
     RuleBasedFallback,
-    CachedResponseFallback,
-    ChainedFallback,
 )
+from .retry_strategy import ExponentialBackoffRetry, RetryConfig
+from .service_pool import AIEndpoint, AIServicePool
 
 __all__ = [
     "AIEndpoint",

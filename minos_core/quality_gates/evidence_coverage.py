@@ -18,16 +18,23 @@ __all__ = [
 
 
 def _evidence_sufficient(chain: APQPChain) -> bool:
+    """Return True if the chain has sufficient evidence coverage."""
     return bool(_evidence_coverage_report(chain)["ok"])
 
 
 def _stage_validation(chain: APQPChain, stage: str) -> ChainValidationResult:
+    """Return validation result; ingest/analyze stages skip full chain validation."""
     if stage in {"ingest", "analyze"}:
         return ChainValidationResult(ok=True, messages=[], chain=chain)
     return validate_chain(chain)
 
 
 def _ingest_evidence_report(chain: APQPChain) -> dict[str, Any]:
+    """Compute an evidence-coverage report for the ingest stage.
+
+    Validates that each evidence item has an ID, source, and content, then
+    categorises items as AI-inferred or needing confirmation.
+    """
     missing_fields: list[str] = []
     duplicate_ids: list[str] = []
     seen_ids: set[str] = set()
@@ -90,6 +97,11 @@ def _ingest_evidence_report(chain: APQPChain) -> dict[str, Any]:
 
 
 def _evidence_coverage_report(chain: APQPChain) -> dict[str, Any]:
+    """Produce an evidence-coverage report after chain assembly.
+
+    Maps each required item (process step, failure mode, control) to its
+    evidence references and reports any missing or AI-inferred refs.
+    """
     if not chain.evidence:
         structurally_present = bool(
             chain.process_steps and chain.failure_modes and chain.controls
@@ -153,6 +165,7 @@ def _evidence_coverage_report(chain: APQPChain) -> dict[str, Any]:
 
 
 def _iter_evidence_required_items(chain: APQPChain) -> list[tuple[str, str, list[str]]]:
+    """Yield required evidence items from process steps, failure modes, and controls."""
     return [
         *[
             ("process_step", item.process_step_id, item.evidence_refs)
@@ -170,6 +183,7 @@ def _iter_evidence_required_items(chain: APQPChain) -> list[tuple[str, str, list
 
 
 def _evidence_manual_review_items(report: dict[str, Any]) -> list[AuditItem]:
+    """Convert an evidence-coverage report into a list of AuditItems for manual review."""
     items: list[AuditItem] = []
     for value in report["uncovered_items"]:
         items.append(

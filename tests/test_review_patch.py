@@ -1,4 +1,3 @@
-import copy
 import unittest
 
 from minos_core.adapters.fixture_json import load_fixture_payload
@@ -9,7 +8,6 @@ from minos_core.review_patch import (
     apply_review_patch,
     build_review_patch_template,
 )
-
 
 ROOT_FIXTURE = "D:/MINOS-CORE/tests/fixtures/apqp_chain"
 

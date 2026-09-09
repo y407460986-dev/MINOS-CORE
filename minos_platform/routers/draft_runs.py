@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -13,9 +13,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from minos_platform import config, db
-from minos_platform.utils import calculate_file_sha256
 from minos_platform.errors import InvalidStateError, NotFoundError, map_core_error
 from minos_platform.models import RunSummary
+from minos_platform.utils import calculate_file_sha256
 
 VALID_STATES = {"input_registered"}
 
@@ -31,7 +31,7 @@ def _status_to_project_status(status: str) -> str:
 @router.post("/projects/{project_id}/draft-runs", response_model=RunSummary, status_code=201)
 async def trigger_draft_run(
     project_id: str,
-    session: AsyncSession = Depends(db.get_session),
+    session: AsyncSession = Depends(db.get_session),  # noqa: B008
 ) -> RunSummary:
     """Trigger generate_draft for the project's input package."""
     result = await session.execute(select(db.Project).where(db.Project.id == project_id))
@@ -65,7 +65,7 @@ async def trigger_draft_run(
         status="created",
         result_json_path=result_json_path,
         manifest_json_path=manifest_json_path,
-        created_at=datetime.now(timezone.utc).replace(microsecond=0),
+        created_at=datetime.now(UTC).replace(microsecond=0),
     )
     session.add(run)
 
@@ -81,7 +81,7 @@ async def trigger_draft_run(
 
         draft_result = await asyncio.to_thread(_generate)
 
-        draft_json = json.loads(Path(result_json_path).read_text(encoding="utf-8"))
+        json.loads(Path(result_json_path).read_text(encoding="utf-8"))
         draft_sha256 = calculate_file_sha256(Path(result_json_path))
         artifact = db.Artifact(
             id=str(uuid.uuid4()),
@@ -89,7 +89,7 @@ async def trigger_draft_run(
             artifact_type="draft_result",
             file_path=result_json_path,
             sha256=draft_sha256,
-            created_at=datetime.now(timezone.utc).replace(microsecond=0),
+            created_at=datetime.now(UTC).replace(microsecond=0),
         )
         session.add(artifact)
 

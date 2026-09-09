@@ -6,11 +6,13 @@ when primary endpoints fail or become unhealthy.
 """
 
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable, Any
-import logging
+from typing import Any
 
-logger = logging.getLogger(__name__)
+from minos_core.observability.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -32,7 +34,7 @@ class AIEndpoint:
         """Mark endpoint as successful, resetting failure count."""
         self.consecutive_failures = 0
         self.is_healthy = True
-        logger.debug(f"Endpoint {self.name} marked as healthy")
+        logger.debug("endpoint_marked_healthy", name=self.name)
 
     def mark_failure(self) -> None:
         """Mark endpoint as failed, incrementing failure count."""
@@ -43,8 +45,9 @@ class AIEndpoint:
         if self.consecutive_failures >= 3:
             self.is_healthy = False
             logger.warning(
-                f"Endpoint {self.name} marked as unhealthy after "
-                f"{self.consecutive_failures} consecutive failures"
+                "endpoint_marked_unhealthy",
+                name=self.name,
+                consecutive_failures=self.consecutive_failures,
             )
 
     def should_retry_after_cooldown(self, cooldown_seconds: float = 60.0) -> bool:
@@ -73,7 +76,7 @@ class AIServicePool:
     endpoints: list[AIEndpoint] = field(default_factory=list)
     cooldown_seconds: float = 60.0
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Sort endpoints by priority after initialization."""
         self.endpoints.sort(key=lambda e: e.priority)
 
@@ -95,7 +98,7 @@ class AIServicePool:
         )
         self.endpoints.append(endpoint)
         self.endpoints.sort(key=lambda e: e.priority)
-        logger.info(f"Added endpoint {name} with priority {priority}")
+        logger.info("endpoint_added", name=name, priority=priority)
 
     def get_next_endpoint(self) -> AIEndpoint | None:
         """
@@ -113,7 +116,8 @@ class AIServicePool:
         for endpoint in self.endpoints:
             if endpoint.should_retry_after_cooldown(self.cooldown_seconds):
                 logger.info(
-                    f"Retrying unhealthy endpoint {endpoint.name} after cooldown"
+                    "retrying_unhealthy_endpoint",
+                    name=endpoint.name,
                 )
                 return endpoint
 
@@ -152,7 +156,7 @@ class AIServicePool:
                 break
 
             try:
-                logger.info(f"Attempting operation with endpoint {endpoint.name}")
+                logger.info("attempting_operation", name=endpoint.name)
                 result = operation(endpoint)
                 endpoint.mark_success()
                 return result
@@ -161,17 +165,22 @@ class AIServicePool:
                 last_error = e
                 endpoint.mark_failure()
                 logger.warning(
-                    f"Operation failed with endpoint {endpoint.name}: {e}"
+                    "operation_failed",
+                    name=endpoint.name,
+                    error=str(e),
                 )
                 attempts += 1
 
         # All endpoints failed
-        error_msg = (
+        logger.error(
+            "all_endpoints_failed",
+            attempts=attempts,
+            last_error=str(last_error),
+        )
+        raise RuntimeError(
             f"All {attempts} endpoint attempts failed. "
             f"Last error: {last_error}"
-        )
-        logger.error(error_msg)
-        raise RuntimeError(error_msg) from last_error
+        ) from last_error
 
     def get_health_status(self) -> dict[str, Any]:
         """Get health status of all endpoints."""

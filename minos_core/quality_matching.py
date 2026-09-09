@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import re
 
-
 QUALITY_KEYWORD_GROUPS = {
     "pressure": ["压力", "压入", "mpa", "bar"],
     "position": ["位置", "距离", "高度", "开始位", "结束位", "对焦", "mm", "卡板"],

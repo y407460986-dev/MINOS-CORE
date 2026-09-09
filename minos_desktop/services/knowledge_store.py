@@ -7,7 +7,7 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
-from .sqlite_store import DesktopSQLiteStore, DEFAULT_DESKTOP_DB_PATH, _utc_now, _to_json
+from .sqlite_store import DEFAULT_DESKTOP_DB_PATH, DesktopSQLiteStore, _to_json, _utc_now
 
 
 class DesktopKnowledgeStore:

@@ -9,13 +9,12 @@ from pathlib import Path
 from xml.etree import ElementTree
 
 from minos_core.adapters.fixture_json import load_fixture_payload
-from minos_core.pipeline import export_draft_fixture, export_fixture
-from minos_core.quality_gates import ExportGateError
-from minos_core.review_patch import REVIEW_PATCH_VERSION, apply_review_patch
 from minos_core.exporters.apqp_workbook import export_apqp_workbook
 from minos_core.exporters.three_table_workbooks import export_split_three_table_workbooks
 from minos_core.exporters.xlsx import WorkbookWriter, sanitize_sheet_name
-
+from minos_core.pipeline import export_draft_fixture, export_fixture
+from minos_core.quality_gates import ExportGateError
+from minos_core.review_patch import REVIEW_PATCH_VERSION, apply_review_patch
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE_DIR = ROOT / "tests" / "fixtures" / "apqp_chain"

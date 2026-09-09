@@ -1,11 +1,12 @@
 """Security tests for settings store - API key storage in keyring."""
 
-import pytest
 from pathlib import Path
 
-from minos_desktop.services.settings_store import DesktopSettingsStore
-from minos_desktop.security.secret_str import SecretStr
+import pytest
+
 from minos_desktop.security.api_key_store import SecureAPIKeyStore
+from minos_desktop.security.secret_str import SecretStr
+from minos_desktop.services.settings_store import DesktopSettingsStore
 
 
 def test_api_key_stored_in_keyring_not_sqlite(tmp_path: Path) -> None:

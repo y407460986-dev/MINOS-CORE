@@ -1,47 +1,15 @@
-import json
-import tempfile
 import unittest
-from pathlib import Path
 from unittest.mock import patch
-from zipfile import ZipFile
 
-from PIL import Image
-
-from minos_core.adapters.multimodal import FakeMultimodalDrawingAnalyzer
-from minos_core.drawing_analysis import (
-    DrawingAnalysisError,
-    analyze_drawing_pages,
-    evaluate_drawing_recognition_gate,
-)
-from minos_core.drawing_input import (
-    DrawingInputError,
-    load_drawing_source,
-    render_drawing_pages,
-)
-from minos_core.drawing_to_pfd import infer_process_flow_from_drawing, normalize_process_flow_steps
-from minos_core.exporters.three_table_workbooks import (
-    export_split_three_table_workbooks,
-    export_three_table_workbook,
-)
-from minos_core.generate_control_plan import (
-    generate_control_plan_from_pfmea,
-    normalize_control_plan_rows,
-)
 from minos_core.pfd_to_pfmea_ai import (
     infer_pfmea_from_process_flow,
     normalize_pfmea_rows,
 )
-from minos_core.pipeline import generate_three_tables_from_drawing
 from minos_core.pipeline_chain import (
-    generate_cp_from_confirmed_pfmea,
-    generate_pfd_from_drawing,
     generate_pfmea_from_confirmed_pfd,
 )
-from minos_core.three_table_result import build_three_table_generation_envelope
-from minos_core.cli import main
-from minos_core.schemas import validate_bundle_schema
 
-from .conftest import rows_by_step, PFMEA_CONTROL_LOGIC_FIELDS, assert_pfmea_ai_risk_row
+from .conftest import PFMEA_CONTROL_LOGIC_FIELDS, assert_pfmea_ai_risk_row, rows_by_step
 
 
 class PFMEAGenerationTests(unittest.TestCase):
@@ -90,7 +58,7 @@ class PFMEAGenerationTests(unittest.TestCase):
             ]
         }
 
-        with patch("minos_core.pipeline_chain.OpenAITextGenerator") as generator:
+        with patch("minos_core.adapters.llm_text.OpenAITextGenerator") as generator:
             llm = generator.return_value
             llm.generate_structured.return_value = llm_payload
 
@@ -223,7 +191,7 @@ class PFMEAGenerationTests(unittest.TestCase):
             },
         ]
 
-        with patch("minos_core.pipeline_chain.OpenAITextGenerator") as generator:
+        with patch("minos_core.adapters.llm_text.OpenAITextGenerator") as generator:
             llm = generator.return_value
             llm.generate_structured.side_effect = payloads
 
@@ -279,7 +247,7 @@ class PFMEAGenerationTests(unittest.TestCase):
             ]
         }
 
-        with patch("minos_core.pipeline_chain.OpenAITextGenerator") as generator:
+        with patch("minos_core.adapters.llm_text.OpenAITextGenerator") as generator:
             generator.return_value.generate_structured.return_value = llm_payload
 
             with self.assertRaisesRegex(ValueError, "P99"):
@@ -328,7 +296,7 @@ class PFMEAGenerationTests(unittest.TestCase):
             }
         ]
 
-        with patch("minos_core.pipeline_chain.OpenAITextGenerator") as generator:
+        with patch("minos_core.adapters.llm_text.OpenAITextGenerator") as generator:
             # Parallel execution: both steps call LLM; return the same wrong payload for both
             generator.return_value.generate_structured.return_value = payloads[0]
 

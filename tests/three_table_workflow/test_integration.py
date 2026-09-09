@@ -8,38 +8,29 @@ from zipfile import ZipFile
 from PIL import Image
 
 from minos_core.adapters.multimodal import FakeMultimodalDrawingAnalyzer
+from minos_core.cli import main
 from minos_core.drawing_analysis import (
     DrawingAnalysisError,
     analyze_drawing_pages,
-    evaluate_drawing_recognition_gate,
 )
 from minos_core.drawing_input import (
-    DrawingInputError,
     load_drawing_source,
     render_drawing_pages,
 )
-from minos_core.drawing_to_pfd import infer_process_flow_from_drawing, normalize_process_flow_steps
+from minos_core.drawing_to_pfd import infer_process_flow_from_drawing
 from minos_core.exporters.three_table_workbooks import (
     export_split_three_table_workbooks,
     export_three_table_workbook,
 )
 from minos_core.generate_control_plan import (
     generate_control_plan_from_pfmea,
-    normalize_control_plan_rows,
 )
 from minos_core.pfd_to_pfmea_ai import (
     infer_pfmea_from_process_flow,
-    normalize_pfmea_rows,
 )
 from minos_core.pipeline import generate_three_tables_from_drawing
-from minos_core.pipeline_chain import (
-    generate_cp_from_confirmed_pfmea,
-    generate_pfd_from_drawing,
-    generate_pfmea_from_confirmed_pfd,
-)
-from minos_core.three_table_result import build_three_table_generation_envelope
-from minos_core.cli import main
 from minos_core.schemas import validate_bundle_schema
+from minos_core.three_table_result import build_three_table_generation_envelope
 
 
 class IntegrationTests(unittest.TestCase):

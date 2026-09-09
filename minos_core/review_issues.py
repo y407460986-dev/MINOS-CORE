@@ -7,7 +7,6 @@ from typing import Any
 
 from minos_core._text_utils import float_or_none
 
-
 REVIEW_ISSUE_VERSION = "minos-core.review_issue.v1"
 RESOLVED_REVIEW_ISSUE_STATUSES = {"已处理", "已确认", "已采纳", "无影响"}
 
@@ -31,6 +30,7 @@ class ReviewIssue:
     human_reason_required: bool | None = None
 
     def model_dump(self) -> dict[str, Any]:
+        """Serialize the review issue to a dict, omitting None/empty fields."""
         payload: dict[str, Any] = {
             "review_issue_version": REVIEW_ISSUE_VERSION,
             "issue_id": self.issue_id,
@@ -76,6 +76,27 @@ def build_review_issue(
     can_batch_confirm: Any = None,
     human_reason_required: Any = None,
 ) -> dict[str, Any]:
+    """Build a review issue dict with a generated issue ID.
+
+    Args:
+        category: Issue category (e.g. \"missing_evidence\", \"人工复核\").
+        message: Human-readable issue description.
+        severity: Severity level (\"review\", \"blocker\", etc.).
+        source: Source of the issue (e.g. \"quality_gate\", \"automation_review\").
+        target: Target identifier associated with the issue.
+        field: Specific field name related to the issue.
+        status: Issue status (\"待处理\", \"已确认\", etc.).
+        recommendation_id: Related knowledge recommendation ID.
+        change_impact_id: Related change impact ID.
+        confidence: Confidence score for the issue.
+        automation_level: Automation level string.
+        fix_proposal: Dict with suggested fix details.
+        can_batch_confirm: Whether this issue can be batch-confirmed.
+        human_reason_required: Whether a human reason is required.
+
+    Returns:
+        A review issue dict with generated issue_id.
+    """
     issue = ReviewIssue(
         issue_id=_issue_id(source, category, target, field, recommendation_id, change_impact_id),
         category=str(category or "人工复核"),
@@ -97,6 +118,15 @@ def build_review_issue(
 
 
 def review_issue_from_manual_item(item: Any, *, source: str = "quality_gate") -> dict[str, Any]:
+    """Build a review issue from a manual review item (dict or object).
+
+    Args:
+        item: A dict or object with item_id/target, category, message, severity.
+        source: Source string for the issue.
+
+    Returns:
+        A review issue dict.
+    """
     payload = _item_payload(item)
     return build_review_issue(
         category=payload.get("category", "人工复核"),
@@ -109,6 +139,14 @@ def review_issue_from_manual_item(item: Any, *, source: str = "quality_gate") ->
 
 
 def unresolved_review_issues(items: Any) -> list[dict[str, Any]]:
+    """Filter a list of review issue dicts to only unresolved ones.
+
+    Args:
+        items: List of review issue dicts.
+
+    Returns:
+        List of unresolved review issues.
+    """
     result: list[dict[str, Any]] = []
     for item in items if isinstance(items, list) else []:
         if not isinstance(item, dict):
@@ -130,6 +168,7 @@ def _issue_id(
     recommendation_id: str,
     change_impact_id: str,
 ) -> str:
+    """Generate a unique issue ID from source, category, target, and other qualifiers."""
     raw = "|".join(
         str(value or "").strip()
         for value in (source, category, target, field, recommendation_id, change_impact_id)
@@ -141,6 +180,7 @@ def _issue_id(
 
 
 def _item_payload(item: Any) -> dict[str, Any]:
+    """Extract a dict payload from a dict, object, or string item."""
     if isinstance(item, dict):
         return item
     if hasattr(item, "__dict__"):
@@ -152,6 +192,7 @@ def _item_payload(item: Any) -> dict[str, Any]:
 
 
 def _bool_or_none(value: Any) -> bool | None:
+    """Convert a value to bool, None, or fallback to bool(value)."""
     if value is None or value == "":
         return None
     if isinstance(value, bool):

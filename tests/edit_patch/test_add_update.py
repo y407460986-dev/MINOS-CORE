@@ -1,29 +1,22 @@
 from __future__ import annotations
 
-import copy
-import tempfile
 import unittest
 from pathlib import Path
-from zipfile import ZipFile
 from xml.etree import ElementTree
+from zipfile import ZipFile
 
-from minos_core.adapters.fixture_json import load_fixture_payload
+from minos_core.automation_review import build_automation_review
+from minos_core.change_management import _changed_any
 from minos_core.edit_patch import (
     EDIT_PATCH_VERSION,
     EditPatchError,
     apply_edit_patch,
     evaluate_edit_export_gate,
-    export_edited_three_tables,
 )
-from minos_core.automation_review import build_automation_review, build_batch_confirm_patch
-from minos_core.change_management import _changed_any
 from minos_core.knowledge_recommendation import recommend_from_knowledge
-from minos_core.quality_gates import evaluate_export_gate
-
+from tests.edit_patch.conftest import NS, _three_table_result
 
 ROOT_FIXTURE = "D:/MINOS-CORE/tests/fixtures/apqp_chain"
-
-from tests.edit_patch.conftest import _fixture, _three_table_result, ROOT_FIXTURE, NS
 
 
 class EditPatchTests(unittest.TestCase):
@@ -204,7 +197,7 @@ class EditPatchTests(unittest.TestCase):
         candidate_targets = {item["target"] for item in review["batch_confirm_candidates"]}
         self.assertIn("process_step:P10", candidate_targets)
         self.assertIn("failure_mode:PFMEA-P10-OK", candidate_targets)
-        self.assertIn("control_item:CP-P10-OK", candidate_targets)
+        self.assertNotIn("control_item:CP-P10-OK", candidate_targets)
         self.assertNotIn("process_step:P20", candidate_targets)
         self.assertNotIn("failure_mode:PFMEA-P10-HIGH", candidate_targets)
         self.assertNotIn("failure_mode:PFMEA-P10-LOW", candidate_targets)

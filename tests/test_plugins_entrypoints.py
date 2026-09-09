@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import importlib.metadata as importlib_metadata
 import unittest
-from typing import Any, Iterable, Mapping
+from collections.abc import Iterable, Mapping
+from typing import Any
 from unittest import mock
 
 from minos_core.plugins import (
-    OCR_ENGINES_GROUP,
     KNOWLEDGE_SOURCES_GROUP,
+    OCR_ENGINES_GROUP,
     PluginError,
     get_knowledge_source,
     get_ocr_engine,

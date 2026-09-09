@@ -4,7 +4,6 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from minos_core.adapters.fixture_json import load_fixture_payload
 from minos_core.pipeline import apply_review, export_draft_fixture, generate_draft
 from minos_core.review_patch import REVIEW_PATCH_VERSION
 from minos_core.run_manifest import (
@@ -14,7 +13,6 @@ from minos_core.run_manifest import (
     sha256_file,
     sha256_json,
 )
-
 
 ROOT_FIXTURE = "D:/MINOS-CORE/tests/fixtures/apqp_chain"
 

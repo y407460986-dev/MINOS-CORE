@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -127,9 +128,9 @@ def _normalize_evidence_rows(
         evidence = Evidence.from_mapping(row)
         if not evidence.evidence_id:
             prefix = "EV-MANUAL" if default_source == "manual" else "EV-INGEST"
-            evidence.evidence_id = f"{prefix}-{index:03d}"
+            evidence = replace(evidence, evidence_id=f"{prefix}-{index:03d}")
         if not evidence.source:
-            evidence.source = default_source
+            evidence = replace(evidence, source=default_source)
         normalized.append(evidence.__dict__)
     return normalized
 

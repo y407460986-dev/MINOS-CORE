@@ -1,9 +1,10 @@
 """Tests for SecureAPIKeyStore."""
 
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
-from minos_desktop.security import SecureAPIKeyStore, SecretStr
+import pytest
+
+from minos_desktop.security import SecretStr, SecureAPIKeyStore
 
 
 class TestSecureAPIKeyStore:

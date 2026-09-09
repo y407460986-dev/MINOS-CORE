@@ -21,7 +21,7 @@ def load_fixture_payload(fixture: str | Path | dict[str, Any]) -> dict[str, Any]
         input_package_path = path / "input_package.json"
         if input_package_path.exists():
             return _input_package_from_directory(path)
-        payload = {
+        payload: dict[str, Any] = {
             "process_flow": load_fixture_payload(path / "process_flow.json"),
             "pfmea": load_fixture_payload(path / "pfmea.json"),
             "control_plan": load_fixture_payload(path / "control_plan.json"),

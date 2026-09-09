@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 REVIEW_PATCH_VERSION = "minos-core.review_patch.v1"
 EDIT_PATCH_VERSION = "minos-core.edit_patch.v1"
 
@@ -98,9 +97,11 @@ class _ContractFailureCollector:
         self.messages: list[str] = []
 
     def add(self, message: str) -> None:
+        """Accumulate a validation failure message."""
         self.messages.append(message)
 
     def raise_if_any(self) -> None:
+        """Raise BundleSchemaError if any messages were accumulated."""
         if not self.messages:
             return
         joined_messages = "; ".join(self.messages)
@@ -131,13 +132,12 @@ def validate_bundle_schema(
         payload, payload_document_type, expected_document_type
     )
 
-    if expected_document_type and payload_document_type:
-        if payload_document_type != expected_document_type:
-            raise BundleSchemaError(
-                f"{expected_document_type} schema validation failed: "
-                "document_type mismatch: "
-                f"expected {expected_document_type}, got {payload_document_type}"
-            )
+    if expected_document_type and payload_document_type and payload_document_type != expected_document_type:
+        raise BundleSchemaError(
+            f"{expected_document_type} schema validation failed: "
+            "document_type mismatch: "
+            f"expected {expected_document_type}, got {payload_document_type}"
+        )
 
     if not resolved_document_type:
         raise BundleSchemaError(
@@ -170,12 +170,14 @@ def validate_bundle_schema(
 
 
 def _clean_text(value: Any) -> str:
+    """Strip whitespace from a value's string representation, or return empty string."""
     return str(value).strip() if value is not None else ""
 
 
 def _resolve_document_type(
     payload: dict[str, Any], payload_document_type: str, expected_document_type: str
 ) -> str:
+    """Determine the resolved document type from expectations, payload, or heuristics."""
     if expected_document_type:
         return expected_document_type
     if payload_document_type:
@@ -190,6 +192,7 @@ def _resolve_document_type(
 
 
 def _has_schema_version(payload: dict[str, Any], document_type: str) -> bool:
+    """Check whether the payload carries a valid schema_version for its document type."""
     if _clean_text(payload.get("schema_version")):
         return True
     if document_type == "review_patch":
@@ -206,6 +209,7 @@ def _has_schema_version(payload: dict[str, Any], document_type: str) -> bool:
 def _has_required_field(
     payload: dict[str, Any], document_type: str, field_name: str
 ) -> bool:
+    """Check whether a required field exists in the payload or its aliases."""
     if field_name in payload:
         return True
     return _get_field_value(payload, document_type, field_name, missing=None) is not None
@@ -218,6 +222,7 @@ def _get_field_value(
     *,
     missing: Any = None,
 ) -> Any:
+    """Get a field value from the payload, falling back to aliases."""
     if field_name in payload:
         return payload[field_name]
     for alias in _FIELD_ALIASES.get(document_type, {}).get(field_name, ()):  # noqa: SIM118
@@ -228,6 +233,7 @@ def _get_field_value(
 
 
 def _get_dotted_value(payload: dict[str, Any], path: str, *, missing: Any = None) -> Any:
+    """Access a nested dict value using a dot-delimited path."""
     current: Any = payload
     for part in path.split("."):
         if not isinstance(current, dict) or part not in current:
@@ -237,14 +243,17 @@ def _get_dotted_value(payload: dict[str, Any], path: str, *, missing: Any = None
 
 
 def _looks_like_review_patch(payload: dict[str, Any]) -> bool:
+    """Heuristic check: payload looks like a review patch."""
     return bool(payload.get("review_patch_version") and "items" in payload)
 
 
 def _looks_like_edit_patch(payload: dict[str, Any]) -> bool:
+    """Heuristic check: payload looks like an edit patch."""
     return bool(payload.get("edit_patch_version") and "items" in payload)
 
 
 def _looks_like_legacy_apqp_chain(payload: dict[str, Any]) -> bool:
+    """Heuristic check: payload looks like a legacy APQP chain (flat or combined)."""
     normalized_fields = {"process_steps", "failure_modes", "controls", "evidence"}
     if normalized_fields.issubset(payload):
         return True
@@ -264,6 +273,7 @@ def _looks_like_legacy_apqp_chain(payload: dict[str, Any]) -> bool:
 
 
 def _validate_contract_fields(payload: dict[str, Any], document_type: str) -> None:
+    """Run document-type-specific contract validators if one exists."""
     validators = {
         "drawing_analysis_bundle": _validate_drawing_analysis_bundle,
         "input_package": _validate_input_package,
@@ -280,6 +290,7 @@ def _validate_contract_fields(payload: dict[str, Any], document_type: str) -> No
 
 
 def _validate_drawing_analysis_bundle(payload: dict[str, Any], document_type: str) -> None:
+    """Validate drawing_analysis_bundle field types and schema version."""
     failures = _ContractFailureCollector(document_type)
     if payload.get("schema_version") != "minos-core.drawing_analysis.v1":
         failures.add("schema_version must be 'minos-core.drawing_analysis.v1'")
@@ -300,6 +311,7 @@ def _validate_drawing_analysis_bundle(payload: dict[str, Any], document_type: st
 
 
 def _validate_input_package(payload: dict[str, Any], document_type: str) -> None:
+    """Validate input_package field types and required fields."""
     failures = _ContractFailureCollector(document_type)
     if payload.get("schema_version") != "minos-core.input_package.v1":
         failures.add("schema_version must be 'minos-core.input_package.v1'")
@@ -316,6 +328,7 @@ def _validate_input_package(payload: dict[str, Any], document_type: str) -> None
 
 
 def _validate_run_manifest(payload: dict[str, Any], document_type: str) -> None:
+    """Validate run_manifest field types, run_id, and stages."""
     failures = _ContractFailureCollector(document_type)
     if not _clean_text(payload.get("run_id")):
         failures.add("run_id must be a non-empty string")
@@ -343,6 +356,7 @@ def _validate_run_manifest(payload: dict[str, Any], document_type: str) -> None:
 
 
 def _validate_review_patch(payload: dict[str, Any], document_type: str) -> None:
+    """Validate review_patch version, items structure, and each item's fields."""
     failures = _ContractFailureCollector(document_type)
     if payload.get("review_patch_version") != REVIEW_PATCH_VERSION:
         failures.add(f"review_patch_version must be {REVIEW_PATCH_VERSION!r}")
@@ -362,6 +376,7 @@ def _validate_review_patch_item(
     index: int,
     failures: _ContractFailureCollector,
 ) -> None:
+    """Validate a single review-patch item's action, target, and evidence."""
     if not isinstance(item, dict):
         failures.add(f"items[{index}] must be an object")
         return
@@ -379,9 +394,8 @@ def _validate_review_patch_item(
         failures.add(f"items[{index}].reason must be a non-empty string")
     if action == "correct" and "value" not in item:
         failures.add(f"items[{index}].value is required for correction")
-    if action == "correct" and not target.startswith("pending_field:"):
-        if not _clean_text(item.get("field")):
-            failures.add(f"items[{index}].field is required for correction")
+    if action == "correct" and not target.startswith("pending_field:") and not _clean_text(item.get("field")):
+        failures.add(f"items[{index}].field is required for correction")
     evidence_refs = item.get("evidence_refs", patch.get("evidence_refs", []))
     if evidence_refs is None:
         evidence_refs = []
@@ -399,6 +413,7 @@ def _validate_review_patch_item(
 
 
 def _validate_edit_patch(payload: dict[str, Any], document_type: str) -> None:
+    """Validate edit_patch version, items structure, and each item's fields."""
     failures = _ContractFailureCollector(document_type)
     if payload.get("edit_patch_version") != EDIT_PATCH_VERSION:
         failures.add(f"edit_patch_version must be {EDIT_PATCH_VERSION!r}")
@@ -417,6 +432,7 @@ def _validate_edit_patch_item(
     index: int,
     failures: _ContractFailureCollector,
 ) -> None:
+    """Validate a single edit-patch item's action, table, and required fields."""
     if not isinstance(item, dict):
         failures.add(f"items[{index}] must be an object")
         return
@@ -440,6 +456,7 @@ def _validate_edit_patch_item(
 
 
 def _validate_apqp_chain_draft_result(payload: dict[str, Any], document_type: str) -> None:
+    """Validate apqp_chain_draft_result status, draft, and stage_results."""
     failures = _ContractFailureCollector(document_type)
     status = _clean_text(payload.get("status"))
     if status not in {"draft_ready", "blocked"}:

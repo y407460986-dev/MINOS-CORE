@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -26,7 +26,7 @@ router = APIRouter()
 async def trigger_export(
     project_id: str,
     req: TriggerExportRequest,
-    session: AsyncSession = Depends(db.get_session),
+    session: AsyncSession = Depends(db.get_session),  # noqa: B008
 ) -> ExportResponse:
     """Export a final or draft workbook for the project."""
     result = await session.execute(select(db.Project).where(db.Project.id == project_id))
@@ -35,10 +35,7 @@ async def trigger_export(
         raise NotFoundError("project", project_id)
 
     export_mode = req.export_mode
-    if export_mode == "final":
-        valid = VALID_STATES_FINAL
-    else:
-        valid = VALID_STATES_DRAFT
+    valid = VALID_STATES_FINAL if export_mode == "final" else VALID_STATES_DRAFT
 
     if project.status not in valid:
         raise InvalidStateError(project.status, "/".join(valid))
@@ -102,7 +99,7 @@ async def trigger_export(
         status="created",
         result_json_path=export_path,
         manifest_json_path=manifest_path,
-        created_at=datetime.now(timezone.utc).replace(microsecond=0),
+        created_at=datetime.now(UTC).replace(microsecond=0),
     )
     session.add(export_run)
 
@@ -134,7 +131,7 @@ async def trigger_export(
             artifact_type=f"{export_mode}_xlsx",
             file_path=str(exported),
             sha256=file_hash,
-            created_at=datetime.now(timezone.utc).replace(microsecond=0),
+            created_at=datetime.now(UTC).replace(microsecond=0),
         )
         session.add(artifact)
 

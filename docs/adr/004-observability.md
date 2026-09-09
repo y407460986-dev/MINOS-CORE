@@ -52,3 +52,15 @@ concerns:
 * Existing callers that catch `ValueError` / `RuntimeError` continue to
   function; they can opt into richer typing incrementally.
 * `structlog` is a new runtime dependency (>= 24.1.0).
+
+### Status Update (2026-06-26)
+
+Phase 3 of the MINOS-CORE remediation plan reviewed this ADR:
+
+| Item | Status | Notes |
+|------|--------|-------|
+| Structured logging (`logging.py`) | ✅ Done | structlog-based with shared processor chain; MINOS_LOG_LEVEL / MINOS_LOG_JSON env vars; contextvars for correlation IDs |
+| Semantic error hierarchy (`errors.py`) | ✅ Done | `MinosError` base with code, context, retriable, user_message_zh; subclasses: `ConfigurationError`, `ValidationError`, `ExternalServiceError`, `ResourceError`, `PipelineError` |
+| Resource context managers (`resources.py`) | ✅ Done | `temporary_directory` (Path-based, Windows-safe), `managed_subprocess` with graceful terminate/kill escalation |
+| Configuration diagnostics (`config_diagnostics.py`) | ✅ Done | `describe_config_sources` reports key/value/source/detail tuples with secret redaction |
+| Sensitive data redaction (`redaction.py`) | ✅ Done | Exists in `minos_core/observability/redaction.py`; redacts secrets to first/last 3 chars + length |

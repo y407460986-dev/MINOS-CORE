@@ -8,12 +8,17 @@ from __future__ import annotations
 
 from typing import Any
 
-from .change_management import _rows, _group
 from minos_core._text_utils import text
+
+from .change_management import _group, _rows
 from .domain import EntityType, TraceLinkType
 from .three_table_linkage_reports import (
     build_sync_issues as _build_sync_issues,
+)
+from .three_table_linkage_reports import (
     build_sync_snapshot as _build_sync_snapshot,
+)
+from .three_table_linkage_reports import (
     build_sync_suggestions as _build_sync_suggestions,
 )
 
@@ -340,8 +345,8 @@ def _build_gaps(
                 "target": "pfmea",
                 "message": f"PFD 工序 {step_id} 没有关联 PFMEA 风险行。",
                 "recommended_action": (
-                    f"为该工序补充至少一条 PFMEA 风险行，"
-                    f"或人工确认该工序无风险分析要求。"
+                    "为该工序补充至少一条 PFMEA 风险行，"
+                    "或人工确认该工序无风险分析要求。"
                 ),
                 "status": "待处理",
                 "evidence_refs": [],
@@ -474,8 +479,12 @@ def _build_gaps(
 
         # Warning: step special_characteristics may be relevant to PFMEA
         step_id = text(row.get("process_step_id"))
-        step = step_by_id.get(step_id) if step_id else None
-        step_specials = set(_list_str(step.get("special_characteristics", []))) if step else set()
+        linked_step = step_by_id.get(step_id) if step_id else None
+        step_specials = (
+            set(_list_str(linked_step.get("special_characteristics", [])))
+            if linked_step
+            else set()
+        )
         step_rel_refs = {
             c for c in non_sc_refs
             if _normalize_char_name(c) in {_normalize_char_name(s) for s in step_specials}
@@ -532,12 +541,16 @@ def _build_gaps(
         if not pfmea_id:
             continue
         step_id = text(row.get("process_step_id"))
-        step = step_by_id.get(step_id) if step_id else None
-        step_specials = _list_str(step.get("special_characteristics", [])) if step else []
-        if not step_specials:
+        linked_step = step_by_id.get(step_id) if step_id else None
+        linked_step_specials = (
+            _list_str(linked_step.get("special_characteristics", []))
+            if linked_step
+            else []
+        )
+        if not linked_step_specials:
             continue
         # Filter to only SC-xxx IDs — markers like "SC"/"CC" are not matchable
-        sc_only = [s for s in step_specials if s.startswith("SC-")]
+        sc_only = [s for s in linked_step_specials if s.startswith("SC-")]
         if not sc_only:
             continue
         pfmea_char_refs = set(_list_str(row.get("characteristic_refs", [])))
@@ -585,8 +598,8 @@ def _build_gaps(
                     f"(AP={ap}, severity={severity}) 没有关联控制计划行。"
                 ),
                 "recommended_action": (
-                    f"为该 PFMEA 风险行补充至少一条控制计划行，"
-                    f"或人工确认无需控制。"
+                    "为该 PFMEA 风险行补充至少一条控制计划行，"
+                    "或人工确认无需控制。"
                 ),
                 "status": "待处理",
                 "evidence_refs": [],

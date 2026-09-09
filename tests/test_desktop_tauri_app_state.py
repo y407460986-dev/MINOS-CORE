@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
-
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -21,6 +21,34 @@ def test_drawing_import_page_uses_chain_start_feedback() -> None:
 
     assert "chainStartFeedback(run, cs)" in page_source
     assert 'setStatus("PFD 已生成，请确认过程流程图。");' not in page_source
+
+
+def test_drawing_import_page_lets_backend_default_hybrid_analysis_for_sc_cc_detection() -> None:
+    page_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "pages" / "DrawingImportPage.tsx"
+    ).read_text(encoding="utf-8")
+
+    assert 'const analysisMode: DrawingAnalysisMode = "ocr_only";' not in page_source
+    assert "analysis_mode: analysisMode" not in page_source
+    assert 'context: { source: "tauri-react-desktop", ocr_engine: "auto" }' in page_source
+
+
+def test_drawing_import_page_displays_actual_analysis_metadata_before_input_context() -> None:
+    page_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "pages" / "DrawingImportPage.tsx"
+    ).read_text(encoding="utf-8")
+
+    assert (
+        (
+            "const analysisMode = text(analysisMetadata.analysis_mode ?? metadata.analysis_mode "
+            '?? context.analysis_mode, "hybrid");'
+        )
+        in page_source
+    )
+    assert (
+        "const analysisMode = text(context.analysis_mode ?? metadata.analysis_mode"
+        not in page_source
+    )
 
 
 def test_drawing_import_page_refreshes_stage_context_and_shows_failure() -> None:
@@ -86,7 +114,10 @@ def test_workbench_uses_top_level_chain_stages_and_hides_legacy_pfmea_placeholde
 
     assert "chainStagesFromRun" in page_source
     assert "updatedRun?.chain_stages" in page_source
-    assert "updatedRun?.raw_result?.chain_stages ?? updatedRun?.current_result?.chain_stages" not in page_source
+    assert (
+        "updatedRun?.raw_result?.chain_stages ?? updatedRun?.current_result?.chain_stages"
+        not in page_source
+    )
     assert "PFMEA-SYNC-" in store_source
     assert "待工程人员填写失效模式" in store_source
     assert "联动新增" in store_source
@@ -120,7 +151,11 @@ def test_workbench_pfmea_columns_follow_aiag_vda_core_fields() -> None:
     assert 'header: "AP"' in table_source
     assert 'header: "控制逻辑复核"' in table_source
     assert 'header: "特殊特性"' in table_source
-    assert '["special_characteristics", "special_characteristic", "special_characteristic_class", "classification"]' in table_source
+    assert (
+        '["special_characteristics", "special_characteristic", '
+        '"special_characteristic_class", "classification"]'
+        in table_source
+    )
     assert 'header: "预防措施"' in table_source
     assert 'header: "探测措施"' in table_source
     assert 'header: "责任人"' in table_source
@@ -150,6 +185,22 @@ def test_workbench_can_regenerate_failed_pfmea_stage() -> None:
     assert 'pfmeaStatus === "running"' in page_source
 
 
+def test_workbench_refreshes_stale_run_when_reopened_or_toolbar_refresh_clicked() -> None:
+    app_source = (ROOT / "apps" / "desktop-tauri" / "src" / "App.tsx").read_text(encoding="utf-8")
+    page_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "pages" / "ThreeTableWorkbench.tsx"
+    ).read_text(encoding="utf-8")
+
+    assert "refreshActiveRun" in app_source
+    assert "onClick={() => void refreshActiveRun()}" in app_source
+    assert "onRunRefresh={refreshActiveRun}" in app_source
+    assert "onRunRefresh?: () => Promise<void>" in page_source
+    assert "refreshRunSnapshot" in page_source
+    assert "document.visibilityState === \"visible\"" in page_source
+    assert "window.addEventListener(\"focus\", handleFocus)" in page_source
+    assert "onRunRefresh().catch" in page_source
+
+
 def test_chain_sse_client_reconnects_and_workbench_handles_step_failed() -> None:
     sse_source = (
         ROOT / "apps" / "desktop-tauri" / "src" / "api" / "sse-client.ts"
@@ -164,7 +215,7 @@ def test_chain_sse_client_reconnects_and_workbench_handles_step_failed() -> None
     assert 'es.addEventListener("heartbeat"' in sse_source
     assert "MAX_RETRIES" in sse_source
     assert "retryCount < MAX_RETRIES" in sse_source
-    assert "setTimeout(connect" in sse_source
+    assert "setTimeout(() => void connect()" in sse_source
     assert "onConnectionStateChange" in sse_source
     assert "handlers.onStepFailed?.(data)" in sse_source
     assert "handlers.onHeartbeat?.(data)" in sse_source
@@ -376,6 +427,60 @@ def test_settings_page_exposes_local_data_management_actions() -> None:
     assert "open_path," in tauri_source
 
 
+def test_tauri_open_paths_are_guarded_by_allowlist() -> None:
+    rust_source = (
+        ROOT / "apps" / "desktop-tauri" / "src-tauri" / "src" / "lib.rs"
+    ).read_text(encoding="utf-8")
+
+    assert "struct OpenPathAllowlist" in rust_source
+    assert "fn remember_allowed_path" in rust_source
+    assert "fn ensure_open_path_allowed" in rust_source
+    assert ".manage(OpenPathAllowlist::default())" in rust_source
+    assert (
+        "fn open_output_dir(app: tauri::AppHandle, open_paths: tauri::State<OpenPathAllowlist>, path: String)"
+        in rust_source
+    )
+    assert (
+        "fn open_path(app: tauri::AppHandle, open_paths: tauri::State<OpenPathAllowlist>, path: String)"
+        in rust_source
+    )
+    assert (
+        "fn reveal_file(app: tauri::AppHandle, open_paths: tauri::State<OpenPathAllowlist>, path: String)"
+        in rust_source
+    )
+    assert ".open_path(path, None::<&str>)" not in rust_source
+    assert ".reveal_item_in_dir(path)" not in rust_source
+
+
+def test_tauri_select_commands_register_user_selected_paths() -> None:
+    rust_source = (
+        ROOT / "apps" / "desktop-tauri" / "src-tauri" / "src" / "lib.rs"
+    ).read_text(encoding="utf-8")
+    cargo_source = (
+        ROOT / "apps" / "desktop-tauri" / "src-tauri" / "Cargo.toml"
+    ).read_text(encoding="utf-8")
+
+    assert (
+        "fn select_drawing_file(app: tauri::AppHandle, open_paths: tauri::State<OpenPathAllowlist>)"
+        in rust_source
+    )
+    assert (
+        "fn select_output_dir(app: tauri::AppHandle, open_paths: tauri::State<OpenPathAllowlist>)"
+        in rust_source
+    )
+    assert (
+        "fn select_component_drawings(app: tauri::AppHandle, open_paths: tauri::State<OpenPathAllowlist>)"
+        in rust_source
+    )
+    assert '.add_filter("图纸文件", &["pdf", "png", "jpg", "jpeg"])' in rust_source
+    assert ".blocking_pick_file()" in rust_source
+    assert ".blocking_pick_folder()" in rust_source
+    assert ".blocking_pick_files()" in rust_source
+    assert "remember_allowed_path(&open_paths" in rust_source
+    assert "dunce" not in cargo_source
+    assert "path-clean" not in cargo_source
+
+
 def test_settings_page_exposes_ai_service_config_controls() -> None:
     page_source = (
         ROOT / "apps" / "desktop-tauri" / "src" / "pages" / "SettingsPage.tsx"
@@ -393,7 +498,7 @@ def test_settings_page_exposes_ai_service_config_controls() -> None:
     assert "清除自定义" in page_source
     assert "已被环境变量接管" in page_source
     assert "已自定义" in page_source
-    assert "https://cx.allincoding.cc" in page_source
+    assert "https://allincode.top" in page_source
     assert "已配置请留空保持不变" in page_source
     assert "未配置则填入" in page_source
     assert "gpt-5.5" in page_source
@@ -425,12 +530,30 @@ def test_release_npm_script_rebuilds_sidecar_before_nsis() -> None:
     )
     release_script = (ROOT / "scripts" / "build_release.ps1").read_text(encoding="utf-8")
 
-    assert '"tauri:nsis": "tauri build --ci --no-sign --bundles nsis"' in package_source
-    assert '"release:nsis": "powershell -ExecutionPolicy Bypass -File ..\\\\..\\\\scripts\\\\build_sidecar.ps1 && npm run tauri:nsis"' in package_source
-    assert "npm run tauri:nsis" in release_script
+    assert '"tauri:nsis:unsigned": "tauri build --ci --no-sign --bundles nsis"' in package_source
+    assert '"tauri:nsis:signed": "tauri build --ci --bundles nsis"' in package_source
+    assert (
+        '"release:nsis": "powershell -ExecutionPolicy Bypass -File '
+        '..\\\\..\\\\scripts\\\\build_release.ps1 -Channel Internal"'
+        in package_source
+    )
+    assert "npm run tauri:nsis:unsigned" in release_script
+    assert "npm run tauri:nsis:signed -- --config $temporarySigningConfig" in release_script
+    assert '& "$PSScriptRoot\\build_sidecar.ps1"' in release_script
     assert '$repo = Split-Path -Parent $PSScriptRoot' in release_script
     assert 'dist\\build\\out' in release_script
-    assert 'Copy-Item -Force (Join-Path $nsisDir "*.exe") $releaseOut' in release_script
+    assert '$installerName = "$($tauriConfig.productName)_$($tauriConfig.version)_x64-setup.exe"' in release_script
+    assert 'Copy-Item -Force $expectedInstaller (Join-Path $releaseOut $installerName)' in release_script
+
+
+def test_sidecar_injected_token_is_redacted_by_testable_helper() -> None:
+    rust_source = (ROOT / "apps" / "desktop-tauri" / "src-tauri" / "src" / "lib.rs").read_text(
+        encoding="utf-8"
+    )
+
+    assert "fn redact_sidecar_log" in rust_source
+    assert 'text.replace(token, "***REDACTED***")' in rust_source
+    assert "fn sidecar_log_redacts_injected_token" in rust_source
 
 
 def test_workbench_pfd_columns_follow_normal_apqp_process_flow_content() -> None:
@@ -458,6 +581,265 @@ def test_workbench_pfd_columns_follow_normal_apqp_process_flow_content() -> None
     assert "output_result" not in page_source
 
 
+def test_workbench_pfd_special_characteristic_display_filters_ptc_candidates() -> None:
+    table_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "components" / "WorkbenchTable.tsx"
+    ).read_text(encoding="utf-8")
+    display_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "state" / "special-characteristic-display.ts"
+    ).read_text(encoding="utf-8")
+    types_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "api" / "types.ts"
+    ).read_text(encoding="utf-8")
+
+    assert "specialCharacteristicColumnText" in table_source
+    assert "specialCharacteristicColumnText" in display_source
+    assert "sanitizeSpecialCharacteristicDisplay" in display_source
+    assert "AI裁判" not in display_source
+    assert "return `候选待确认" not in display_source
+    assert "special_characteristic_judgments" not in table_source
+    assert "special_characteristic_candidates" not in table_source
+    assert "special_characteristic_judgments" in types_source
+    assert "PTC候选" in display_source
+    assert "特殊特性候选" in display_source
+
+
+def test_workbench_surfaces_declared_special_count_mismatch() -> None:
+    (
+        ROOT / "apps" / "desktop-tauri" / "src" / "components" / "WorkbenchTable.tsx"
+    ).read_text(encoding="utf-8")
+    display_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "state" / "special-characteristic-display.ts"
+    ).read_text(encoding="utf-8")
+    types_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "api" / "types.ts"
+    ).read_text(encoding="utf-8")
+    store_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "state" / "workbench-store.ts"
+    ).read_text(encoding="utf-8")
+
+    assert "declared_special_characteristics" in types_source
+    assert "declared_totals" in types_source
+    assert "special_characteristic_locations" in types_source
+    assert "special_characteristic_discovery" in types_source
+    assert "extra_counts?: DeclaredSpecialTotals" in types_source
+    assert "risks?: Record<string, unknown>[]" in types_source
+    assert "SpecialCharacteristicSearchCoverage" in types_source
+    assert "声明CC" in display_source
+    assert "声明SC" in display_source
+    assert "缺少CC" in display_source
+    assert "缺少SC" in display_source
+    assert "specialCharacteristicCount" in display_source
+    assert "Number.isFinite(count)" in display_source
+    assert 'if (declaredCc <= 0 && declaredSc <= 0) return "";' in display_source
+    assert "declaredParts.push(`声明CC=${declaredCc}`)" in display_source
+    assert "declaredParts.push(`声明SC=${declaredSc}`)" in display_source
+    assert "`声明CC=${declaredCc}/SC=${declaredSc}`" not in display_source
+    assert "if (declaredCc > 0 && missingCc > 0)" in display_source
+    assert "if (declaredSc > 0 && missingSc > 0)" in display_source
+    assert "SPCC" in display_source
+    assert "formatDeclaredSpecialDiscovery(row.raw)" not in display_source
+    assert "drawingAnalysisContextFromResult" not in store_source
+    assert "const drawingAnalysis = asRecord(result.drawing_analysis)" not in store_source
+    assert "raw: { ...row }" in store_source
+
+
+def test_workbench_store_does_not_smear_drawing_special_fields_into_rows() -> None:
+    store_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "state" / "workbench-store.ts"
+    ).read_text(encoding="utf-8")
+
+    for field in (
+        "special_characteristic_judgments",
+        "declared_special_characteristics",
+        "declared_totals",
+        "special_characteristic_locations",
+        "special_characteristic_discovery",
+    ):
+        assert f'"{field}"' not in store_source
+
+    assert "function drawingAnalysisContextFromResult" not in store_source
+    assert "const drawingAnalysisContext = drawingAnalysisContextFromResult(result);" not in store_source
+    assert "raw: { ...row }" in store_source
+    assert "raw: row" not in store_source
+
+
+def test_workbench_special_characteristic_display_priority_and_guards() -> None:
+    display_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "state" / "special-characteristic-display.ts"
+    ).read_text(encoding="utf-8")
+    table_source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "components" / "WorkbenchTable.tsx"
+    ).read_text(encoding="utf-8")
+
+    body = display_source[
+        display_source.index("export function specialCharacteristicColumnText") :
+    ]
+
+    assert body.index("formatFormalSpecialCharacteristic") < body.index("formatConfirmedAiJudgment")
+    assert "formatPendingCandidate" not in body
+    assert "formatDeclaredSpecialDiscovery" not in body
+    assert "const specialCharacteristicDiscovery = asRecord(raw.special_characteristic_discovery);" in display_source
+    assert (
+        "const declaredTotals = asRecord(raw.declared_totals) ?? "
+        "asRecord(specialCharacteristicDiscovery?.declared_totals);"
+        in display_source
+    )
+    assert r"if (/^SPCC(?:$|-|:|\uFF1A)/i.test(trimmed))" in display_source
+    assert "if (rawClassification && !classification) return \"\";" in display_source
+    assert (
+        (
+            'rawColumn("special_characteristics", "特殊特性", '
+            '["special_characteristics", "special_characteristic", '
+            '"special_characteristic_class", "classification"], undefined, '
+            'specialCharacteristicColumnText)'
+        )
+        in table_source
+    )
+    assert (
+        (
+            'rawColumn("special_characteristic_class", "特殊特性分类", '
+            '["special_characteristic_class", "classification", '
+            '"special_characteristics"], undefined, specialCharacteristicColumnText)'
+        )
+        in table_source
+    )
+
+
+def test_workbench_special_characteristic_display_runtime_contract(tmp_path: Path) -> None:
+    desktop_root = ROOT / "apps" / "desktop-tauri"
+    esbuild = desktop_root / "node_modules" / ".bin" / "esbuild.cmd"
+    if not esbuild.exists():
+        esbuild = desktop_root / "node_modules" / ".bin" / "esbuild"
+
+    script = tmp_path / "workbench-special-characteristics-contract.ts"
+    bundle = tmp_path / "workbench-special-characteristics-contract.mjs"
+    script.write_text(
+        f"""
+import assert from "node:assert/strict";
+import {{ rowsFromResult }} from "{(desktop_root / "src" / "state" / "workbench-store.ts").as_posix()}";
+import {{
+  formatDeclaredSpecialDiscovery,
+  specialCharacteristicColumnText,
+  specialCharacteristicCount,
+}} from "{(desktop_root / "src" / "state" / "special-characteristic-display.ts").as_posix()}";
+
+const result = {{
+  drawing_analysis: {{
+    special_characteristic_judgments: [
+      {{ classification: "CC", verdict: "confirmed", linked_feature: "global hole" }},
+    ],
+    declared_special_characteristics: [
+      {{ classification: "CC", expected_count: 2 }},
+      {{ classification: "SC", expected_count: 1 }},
+    ],
+    declared_totals: {{ CC: "2", SC: 1 }},
+    special_characteristic_locations: [],
+    special_characteristic_discovery: {{
+      missing_counts: {{ CC: "1", SC: 1, PTC: 9 }},
+    }},
+  }},
+  process_flow: {{
+    steps: [
+      {{ process_step_id: "P1", operation: "press" }},
+      {{ process_step_id: "P2", operation: "row override", declared_totals: {{ CC: 5, SC: 0 }} }},
+    ],
+  }},
+  pfmea: {{ rows: [{{ pfmea_id: "PF1", failure_mode: "crack" }}] }},
+  control_plan: {{ rows: [{{ control_plan_id: "CP1", special_characteristic_class: "SPCC" }}] }},
+}};
+
+const rows = rowsFromResult(result);
+assert.equal(rows.length, 4);
+for (const row of rows) {{
+  assert.ok(!("special_characteristic_judgments" in row.raw));
+  assert.ok(!("declared_special_characteristics" in row.raw));
+  assert.ok(!("special_characteristic_locations" in row.raw));
+  assert.ok(!("special_characteristic_discovery" in row.raw));
+}}
+assert.equal(rows[0].raw.declared_totals, undefined);
+assert.deepEqual(rows[1].raw.declared_totals, {{ CC: 5, SC: 0 }});
+assert.equal(specialCharacteristicColumnText(rows[0]), "-");
+assert.equal(specialCharacteristicColumnText(rows[1]), "-");
+
+assert.equal(
+  specialCharacteristicColumnText({{ raw: {{
+    special_characteristics: [{{ classification: "SC", linked_feature: "diameter" }}],
+    special_characteristic_judgments: [{{
+      classification: "CC", verdict: "confirmed", linked_feature: "hole",
+    }}],
+  }} }}),
+  "SC / diameter",
+);
+assert.equal(
+  specialCharacteristicColumnText({{ raw: {{
+    special_characteristics: ["CC: 右下角视图中的孔特征，星形符号，图纸声明CC 2个"],
+  }} }}),
+  "CC / 右下角视图中的孔特征，星形符号",
+);
+assert.equal(
+  specialCharacteristicColumnText({{ raw: {{ special_characteristics: ["SC候选: 三角形符号 / 槽"] }} }}),
+  "-",
+);
+assert.equal(
+  specialCharacteristicColumnText({{ raw: {{
+    special_characteristic_judgments: [{{
+      classification: "CC", verdict: "confirmed", linked_feature: "hole",
+    }}],
+  }} }}),
+  "CC / hole",
+);
+assert.equal(
+  specialCharacteristicColumnText({{ raw: {{
+    special_characteristic_candidates: [
+      {{ candidate_type: "PTC", linked_feature: "ignore" }},
+      {{ candidate_type: "SC", symbol_text_or_shape: "SC", linked_feature: "slot" }},
+    ],
+  }} }}),
+  "-",
+);
+assert.equal(
+  specialCharacteristicColumnText({{ raw: {{
+    declared_totals: {{ CC: "2", SC: 0 }},
+    special_characteristic_discovery: {{ missing_counts: {{ CC: "1", SC: "3" }} }},
+  }} }}),
+  "-",
+);
+assert.equal(
+  formatDeclaredSpecialDiscovery({{ special_characteristic_discovery: {{
+    declared_totals: {{ CC: 0, SC: "3" }},
+    missing_counts: {{ CC: 2, SC: "1" }},
+  }} }}),
+  "声明SC=3, 缺少SC=1",
+);
+assert.equal(specialCharacteristicColumnText({{ raw: {{ classification: "SPCC" }} }}), "-");
+assert.equal(specialCharacteristicColumnText({{ raw: {{ classification: "PTC" }} }}), "-");
+assert.equal(specialCharacteristicColumnText({{ raw: {{ classification: "SC" }} }}), "SC");
+assert.equal(specialCharacteristicCount(undefined), 0);
+assert.equal(specialCharacteristicCount(null), 0);
+assert.equal(specialCharacteristicCount("NaN"), 0);
+assert.equal(specialCharacteristicCount("2.9"), 2);
+""",
+        encoding="utf-8",
+    )
+
+    subprocess.run(
+        [
+            str(esbuild),
+            str(script),
+            "--bundle",
+            "--platform=node",
+            "--format=esm",
+            f"--outfile={bundle}",
+        ],
+        cwd=desktop_root,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    subprocess.run(["node", str(bundle)], cwd=desktop_root, check=True, capture_output=True, text=True)
+
+
 def test_exports_use_normal_process_flow_headers() -> None:
     split_source = (
         ROOT / "minos_core" / "exporters" / "three_table_workbooks.py"
@@ -481,7 +863,7 @@ def test_workbench_cp_columns_show_process_controls_separate_from_result_checks(
     table_source = (
         ROOT / "apps" / "desktop-tauri" / "src" / "components" / "WorkbenchTable.tsx"
     ).read_text(encoding="utf-8")
-    table_editor_source = (ROOT / "minos_desktop" / "table_editor.py").read_text(encoding="utf-8")
+    table_editor_source = (ROOT / "minos_desktop" / "table_editor" / "specs.py").read_text(encoding="utf-8")
 
     for source in (table_source, table_editor_source):
         assert "过程参数" in source
@@ -505,7 +887,12 @@ def test_review_closure_happens_after_control_plan_with_human_priority() -> None
     page_source = (
         ROOT / "apps" / "desktop-tauri" / "src" / "pages" / "ReviewClosurePage.tsx"
     ).read_text(encoding="utf-8")
-    service_source = (ROOT / "minos_desktop" / "services.py").read_text(encoding="utf-8")
+    service_source = (
+        ROOT / "minos_desktop" / "services" / "run_chain_service.py"
+    ).read_text(encoding="utf-8")
+    edit_service_source = (
+        ROOT / "minos_desktop" / "services" / "run_edit_service.py"
+    ).read_text(encoding="utf-8")
     review_source = (ROOT / "minos_core" / "automation_review.py").read_text(encoding="utf-8")
 
     assert "评审任务收件箱" in page_source
@@ -513,7 +900,7 @@ def test_review_closure_happens_after_control_plan_with_human_priority() -> None
     assert "批量确认低风险 AI 项" not in page_source
     assert "build_automation_review(current)" in service_source
     assert 'current["automation_review"]' in service_source
-    assert "_can_apply_after_control_plan_automation_review(current)" in service_source
+    assert "_can_apply_after_control_plan_automation_review(current)" in edit_service_source
     assert '"review_stage": "after_control_plan"' in review_source
     assert '"human_decision_priority": True' in review_source
 
@@ -613,7 +1000,7 @@ def test_desktop_sidecar_starts_without_windows_console_window() -> None:
     ).read_text(encoding="utf-8")
     spec_source = (ROOT / "minos-desktop-api.spec").read_text(encoding="utf-8")
 
-    assert "app.shell().sidecar(SIDECAR_NAME)" in rust_source
+    assert ".sidecar(SIDECAR_NAME)" in rust_source
     assert 'const SIDECAR_NAME: &str = "minos-desktop-api";' in rust_source
     assert "console=False" in spec_source
     assert 'name="minos-desktop-api-x86_64-pc-windows-msvc"' in spec_source
@@ -629,6 +1016,66 @@ def test_desktop_sidecar_uses_owned_port_instead_of_stale_8000() -> None:
     assert "format!(\"http://127.0.0.1:{}\", port)" in rust_source
     assert "if is_api_port_open() {\n        return false;" not in rust_source
     assert 'arg("8000")' not in rust_source
+    assert "unwrap_or(SIDECAR_PORT_START)" not in rust_source
+
+
+def test_desktop_sidecar_owns_only_the_child_it_spawned() -> None:
+    rust_source = (
+        ROOT / "apps" / "desktop-tauri" / "src-tauri" / "src" / "lib.rs"
+    ).read_text(encoding="utf-8")
+
+    assert "taskkill" not in rust_source
+    assert "pkill" not in rust_source
+    assert "kill_stale_sidecars" not in rust_source
+    assert "let pid = child.pid();" in rust_source
+    assert "current.pid == pid" in rust_source
+
+
+def test_desktop_sidecar_readiness_is_authenticated_and_requires_healthy_body() -> None:
+    rust_source = (
+        ROOT / "apps" / "desktop-tauri" / "src-tauri" / "src" / "lib.rs"
+    ).read_text(encoding="utf-8")
+
+    assert '"GET /api/health HTTP/1.1\\r\\nHost:' in rust_source
+    assert "Authorization: Bearer {token}" in rust_source
+    assert "HTTP/1.1 200" in rust_source
+    assert 'body.contains("\\\"ok\\\":true")' in rust_source
+    assert 'body.contains("\\\"status\\\":\\\"ok\\\"")' in rust_source
+    assert "Err(\"Sidecar readiness timed out\".to_string())" in rust_source
+    assert "fn get_bootstrap(app: tauri::AppHandle) -> Result<BootstrapPayload, String>" in rust_source
+
+
+def test_desktop_sidecar_serializes_lifecycle_and_registers_close_listener_once() -> None:
+    rust_source = (
+        ROOT / "apps" / "desktop-tauri" / "src-tauri" / "src" / "lib.rs"
+    ).read_text(encoding="utf-8")
+    ensure_source = rust_source[
+        rust_source.index("fn ensure_sidecar_running") : rust_source.index("fn generate_api_token")
+    ]
+
+    assert "let mut guard = process_slot.lock()" in ensure_source
+    assert "*process_state.borrow_mut() = Some(SidecarProcess" in ensure_source
+    assert ensure_source.count("tauri://close-requested") == 0
+    assert rust_source.count("tauri://close-requested") == 1
+    assert ".setup(|app|" in rust_source
+
+
+def test_desktop_sidecar_prefers_explicit_e2e_token_before_generating_one() -> None:
+    rust_source = (
+        ROOT / "apps" / "desktop-tauri" / "src-tauri" / "src" / "lib.rs"
+    ).read_text(encoding="utf-8")
+
+    assert '"MINOS_DESKTOP_API_TOKEN").unwrap_or_else(|_| generate_api_token())' in rust_source
+
+
+def test_special_characteristic_regex_does_not_emit_tailwind_arbitrary_property() -> None:
+    source = (
+        ROOT / "apps" / "desktop-tauri" / "src" / "state" / "special-characteristic-display.ts"
+    ).read_text(encoding="utf-8")
+
+    assert "[-:：]" not in source
+    assert r"/^PTC(?:$|-|:|\uFF1A)/i" in source
+    assert r"/^SPCC(?:$|-|:|\uFF1A)/i" in source
 
 
 def test_desktop_binary_uses_windows_gui_subsystem_in_release() -> None:

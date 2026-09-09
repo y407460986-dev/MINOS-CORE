@@ -52,7 +52,8 @@ Three-table workbooks                   # minos_core/exporters/three_table_workb
 ## 默认行为与默认值
 
 - 默认 OCR 引擎：`minos_core.pipeline.DEFAULT_OCR_ENGINE`（当前为 MinerU 优先，详见 [ADR 002](../adr/002-ai-resilience.md)）。
-- 默认 analysis_mode：`ocr_only`，`hybrid` 在 OCR 失败时回退到 vision；`vision_only` 跳过 OCR。
+- 默认 analysis_mode：`ocr_only`（仅 OCR）；`hybrid` 并行执行 OCR + 多模态视觉分析，融合结果（详见 [Hybrid 分析](#hybrid-分析ocr--多模态融合)）；`vision_only` 跳过 OCR（用于 OCR 不适用的图纸）。
+- 特殊特性（SC/CC）自动发现与视觉定位，经由 `special_characteristic_*.py` 模块链路注入三表。
 - AI 调用经由 `minos_core.ai_resilience` 的 `AIServicePool` 与 `CircuitBreaker`；无可用端点时由 `FallbackStrategy` 子类降级。
 
 ## 复核与导出闸门
@@ -61,6 +62,133 @@ Three-table workbooks                   # minos_core/exporters/three_table_workb
 - `apply_review` / `apply_edit_patch` 用于注入人工复核结果。
 - `evaluate_edit_export_gate` 与 `export_edited_three_tables` 把复核后的链路推送到正式导出路径。
 - `require_export_gate` 在写入工作簿前再做一次校验，闸门拦截会抛出 `ExportGateError`。
+
+## OCR 引擎对比
+
+```text
+minos-core compare-ocr-engines --input drawing.png --engines mineru,rapidocr
+        │
+        ▼
+_compare_ocr_engines                     # minos_core/cli.py
+        │   对同一图纸逐个调用各 OCR 引擎
+        │
+        ├──► MinerUOCRAdapter          # minos_core/adapters/mineru_ocr.py
+        │       └─ 基于 MinerU 的版面分析与文本提取
+        │
+        ├──► analyze_drawing_with_ocr   # minos_core/drawing_ocr_analysis.py
+        │       └─ RapidOCR / 通用 OCR 引擎调用
+        │
+        ▼
+    输出对比 JSON（各引擎的逐字段结果）
+        │
+        ▼
+    用户可选择最优引擎进入主链路
+```
+
+## Hybrid 分析（OCR + 多模态融合）
+
+```text
+analyze_drawing_for_three_table_chain   # minos_core/pipeline/drawing_analysis.py
+  with analysis_mode="hybrid"
+        │
+        ├──► OCR 分析分支
+        │       └─ 提取文字、尺寸、公差、特性标注
+        │
+        ├──► 多模态视觉分析分支
+        │       └─ OpenAIResponsesMultimodalDrawingAnalyzer
+        │           （minos_core/adapters/multimodal.py）
+        │
+        ▼
+    hybrid_fusion.merge_analysis_results  # minos_core/pipeline/hybrid_fusion.py
+        │   融合策略：
+        │   - OCR 高信度字段锁定（OCR_IDENTITY_LOCK_CONFIDENCE）
+        │   - 多模态补充 OCR 缺失项
+        │   - 冲突时取高信度来源
+        │
+        ▼
+    drawing_analysis bundle（含 meta.ocr_engine、meta.hybrid_sources）
+```
+
+## 特殊特性（SC/CC）发现流程
+
+```text
+drawing_analysis bundle
+        │
+        ▼
+special_characteristic_candidates        # minos_core/special_characteristic_candidates.py
+    从 OCR / 多模态结果提取 SC/CC 候选
+        │
+        ▼
+special_characteristic_discovery         # minos_core/special_characteristic_discovery.py
+    基于 OCR 文本自动标记 SC/CC 位置
+        │
+        ▼
+special_characteristic_declarations      # minos_core/special_characteristic_declarations.py
+    解析图纸上的 SC/CC 声明（如符号 STM、SC、CC、Δ 等）
+        │
+        ▼
+special_characteristics_judge            # minos_core/special_characteristics_judge.py
+    规则引擎判定：是否为正式 SC/CC，置信度评分
+        │
+        ▼
+special_characteristics_visual_locator   # minos_core/special_characteristics_visual_locator.py
+    在图纸图像上高亮标记 SC/CC 位置（供人工复核）
+        │
+        ▼
+characteristic_registry                  # minos_core/characteristic_registry.py
+    build_characteristic_registry / attach_characteristics_to_three_tables
+    将 SC/CC 映射注入 PFD / PFMEA / CP 三表
+```
+
+## Edit Patch 编辑复核流程
+
+```text
+draft 三表（AI 生成）
+        │
+        ▼
+apply_review / apply_edit_patch          # minos_core/pipeline/review_export.py
+        │   注入人工复核结果或编辑 patch
+        │
+        ├──► build_edit_patch                   # minos_core/edit_patch.py
+        │       └─ 构建行级修改 patch
+        │
+        ├──► evaluate_edit_export_gate          # minos_core/edit_patch.py
+        │       └─ 评估编辑后的导出就绪状态
+        │
+        ▼
+export_edited_three_tables              # minos_core/edit_patch.py
+        │   生成正式 release 三表
+        │
+        ▼
+    过程流程图_final.xlsx
+    PFMEA_final.xlsx
+    控制计划_final.xlsx
+```
+
+## 插件加载流程
+
+```text
+应用启动 / CLI 初始化
+        │
+        ▼
+load_entry_point_plugins                 # minos_core/plugins/entrypoints.py
+        │   扫描 pyproject.toml entry points
+        │   - minos_core.ocr_engines
+        │   - minos_core.knowledge_sources
+        │
+        ├──► register_ocr_engine(name, instance)    # plugins/registry.py
+        │       └─ 注入 OCREnginePlugin 实例
+        │
+        ├──► register_knowledge_source(name, instance)  # plugins/registry.py
+        │       └─ 注入 KnowledgeSourcePlugin 实例
+        │
+        ▼
+get_ocr_engine / get_knowledge_source    # plugins/registry.py
+        │   运行期按名称查找
+        │
+        ▼
+    pipeline 在分析/推理阶段调用插件实例
+```
 
 ## 失败处理
 

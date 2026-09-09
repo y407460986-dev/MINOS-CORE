@@ -1,29 +1,19 @@
 from __future__ import annotations
 
-import copy
-import tempfile
 import unittest
 from pathlib import Path
-from zipfile import ZipFile
 from xml.etree import ElementTree
+from zipfile import ZipFile
 
-from minos_core.adapters.fixture_json import load_fixture_payload
 from minos_core.edit_patch import (
     EDIT_PATCH_VERSION,
     EditPatchError,
     apply_edit_patch,
-    evaluate_edit_export_gate,
-    export_edited_three_tables,
 )
-from minos_core.automation_review import build_automation_review, build_batch_confirm_patch
-from minos_core.change_management import _changed_any
 from minos_core.knowledge_recommendation import recommend_from_knowledge
-from minos_core.quality_gates import evaluate_export_gate
-
+from tests.edit_patch.conftest import NS, _three_table_result
 
 ROOT_FIXTURE = "D:/MINOS-CORE/tests/fixtures/apqp_chain"
-
-from tests.edit_patch.conftest import _fixture, _three_table_result, ROOT_FIXTURE, NS
 
 
 class ActionItemTests(unittest.TestCase):
@@ -79,6 +69,66 @@ class ActionItemTests(unittest.TestCase):
         self.assertEqual(item["resolved_by"], "qe")
         self.assertEqual(item["resolved_at"], "2026-04-28T10:00:00Z")
 
+    def test_close_action_syncs_pfmea_closure_fields(self):
+        """关闭行动项时同步 PFMEA 措施闭环字段。"""
+        source = _three_table_result()
+        row = source["pfmea"]["rows"][0]
+        row.update(
+            {
+                "action_status": "已完成",
+                "target_date": "2026-01-01",
+                "after_severity": None,
+                "after_occurrence": None,
+                "after_detection": None,
+                "after_ap": None,
+            }
+        )
+        action_id = "ACT-P10-001"
+        source.setdefault("metadata", {})["action_items"] = [
+            {
+                "action_id": action_id,
+                "source_pfmea_id": row["pfmea_id"],
+                "status": "open",
+                "priority": "medium",
+                "description": "完成措施闭环",
+                "owner": "",
+                "due_date": "",
+                "closure_evidence_refs": [],
+                "manual_confirmation_event": "",
+                "ignore_reason": "",
+                "created_from": "pfmea",
+                "closed_at": "",
+                "closed_by": "",
+            }
+        ]
+
+        edited = apply_edit_patch(
+            source,
+            {
+                "edit_patch_version": EDIT_PATCH_VERSION,
+                "edited_by": "qe",
+                "edited_at": "2026-04-28T10:00:00Z",
+                "reason": "关闭行动项",
+                "items": [
+                    {
+                        "action": "resolve_action_item",
+                        "table": "metadata",
+                        "target_id": action_id,
+                        "changes": {
+                            "status": "closed",
+                            "manual_confirmation_event": "desktop-bulk-formal-closure",
+                        },
+                    }
+                ],
+            },
+        )
+
+        edited_row = edited["pfmea"]["rows"][0]
+        self.assertEqual(edited_row["action_status"], "已关闭")
+        self.assertEqual(edited_row["after_severity"], row["severity"])
+        self.assertEqual(edited_row["after_occurrence"], row["occurrence"])
+        self.assertEqual(edited_row["after_detection"], row["detection"])
+        self.assertEqual(edited_row["after_ap"], row["action_priority"])
 
     def test_close_action_without_evidence_errors(self):
         """close action 无 evidence 报错。"""

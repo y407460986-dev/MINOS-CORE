@@ -5,6 +5,7 @@ dictionaries before they are written to logs or sent to external systems.
 """
 
 import re
+from collections.abc import Mapping
 from typing import Any
 
 # Sensitive key patterns (case-insensitive, ignoring underscores/hyphens)
@@ -28,7 +29,7 @@ SENSITIVE_PATTERNS = [
 ]
 
 
-def redact_sensitive_data(event_dict: dict[str, Any]) -> dict[str, Any]:
+def redact_sensitive_data(event_dict: Mapping[str, Any]) -> dict[str, Any]:
     """Redact sensitive information from event dictionary.
 
     This function recursively processes event dictionaries and redacts:
@@ -47,7 +48,7 @@ def redact_sensitive_data(event_dict: dict[str, Any]) -> dict[str, Any]:
         >>> redact_sensitive_data(event)
         {"api_key": "***REDACTED***", "message": "Hello"}
     """
-    result = {}
+    result: dict[str, Any] = {}
     for key, value in event_dict.items():
         if _is_sensitive_key(key):
             result[key] = "***REDACTED***"

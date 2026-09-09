@@ -2,13 +2,10 @@
 
 from __future__ import annotations
 
-import pytest
-
 from minos_core.evidence_relevance import (
     _tokenize,
     filter_relevant_evidence_refs,
 )
-
 
 # ---------------------------------------------------------------------------
 # _tokenize

@@ -16,6 +16,7 @@ def _pfd_bundle_report(
     next_stage: str = "brainstorm_failure_modes",
     require_operation: bool = True,
 ) -> dict[str, Any]:
+    """Produce a coverage report for a PFD (Process Flow Diagram) bundle."""
     steps = pfd_bundle.get("steps", pfd_bundle.get("process_steps", []))
     links = pfd_bundle.get("links", [])
     pending_fields = _pending_field_paths(pfd_bundle.get("pending_fields", []))
@@ -167,6 +168,7 @@ def _pfd_bundle_report(
 
 
 def _special_characteristic_refs(value: Any) -> set[str]:
+    """Extract characteristic references from a string or list of characteristic dicts."""
     if isinstance(value, str):
         return {value.strip()} if value.strip() else set()
     if not isinstance(value, list):
@@ -190,6 +192,7 @@ def _special_characteristic_refs(value: Any) -> set[str]:
 def _unmapped_special_characteristics(
     characteristics: Any, mapped_refs: set[str]
 ) -> list[str]:
+    """Return characteristic refs that exist in the bundle but are not mapped to any step."""
     if not isinstance(characteristics, list):
         return []
     characteristic_refs: list[str] = []
@@ -221,6 +224,7 @@ def _check_pfd_evidence_refs(
     referenced_evidence_ids: set[str],
     referenced_non_ai_evidence_ids: set[str],
 ) -> None:
+    """Validate evidence references for a single PFD step or link."""
     evidence_refs = [str(ref).strip() for ref in refs or [] if str(ref).strip()]
     if not evidence_refs:
         pfd_blocking_fields.append(f"{label}.evidence_refs")
@@ -240,6 +244,7 @@ def _check_pfd_evidence_refs(
 
 
 def _evidence_ids(items: Any) -> list[str]:
+    """Extract evidence_id strings from a list of dicts."""
     if not isinstance(items, list):
         return []
     return [
@@ -250,6 +255,7 @@ def _evidence_ids(items: Any) -> list[str]:
 
 
 def _pfd_manual_review_items(report: dict[str, Any]) -> list[AuditItem]:
+    """Convert a PFD report into AuditItem objects for manual review."""
     items: list[AuditItem] = []
     for value in report["uncovered_items"]:
         items.append(

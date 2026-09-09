@@ -262,13 +262,23 @@ function extractQualityGate(run: DesktopRun | null, exported: ExportResponse | n
 
 function extractResultGate(result: Record<string, unknown> | undefined): Record<string, unknown> | null {
   if (!result) return null;
-  const qualityGate = result.quality_gate;
-  if (qualityGate && typeof qualityGate === "object" && !Array.isArray(qualityGate)) return qualityGate as Record<string, unknown>;
+  const dashboard = result.review_dashboard;
+  if (dashboard && typeof dashboard === "object" && !Array.isArray(dashboard)) {
+    const finalExportAllowed = (dashboard as Record<string, unknown>).final_export_allowed;
+    if (finalExportAllowed !== undefined) {
+      return {
+        final_export_allowed: finalExportAllowed,
+        reason: text((dashboard as Record<string, unknown>).status_display, "质量门未放行")
+      };
+    }
+  }
   const qualityGates = result.quality_gates;
   if (qualityGates && typeof qualityGates === "object" && !Array.isArray(qualityGates)) {
     const exportGate = (qualityGates as Record<string, unknown>).export_gate ?? (qualityGates as Record<string, unknown>).export;
     if (exportGate && typeof exportGate === "object" && !Array.isArray(exportGate)) return exportGate as Record<string, unknown>;
   }
+  const qualityGate = result.quality_gate;
+  if (qualityGate && typeof qualityGate === "object" && !Array.isArray(qualityGate)) return qualityGate as Record<string, unknown>;
   return null;
 }
 

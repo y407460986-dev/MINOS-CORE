@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Any
 from zipfile import BadZipFile, ZipFile
 
-
 REQUIRED_THREE_TABLE_EXPORTS = (
     "unified_workbook",
     "process_flow",

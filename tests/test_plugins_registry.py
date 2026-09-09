@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import unittest
-from typing import Any, Iterable, Mapping
+from collections.abc import Iterable, Mapping
+from typing import Any
 
 from minos_core.observability.errors import MinosError
 from minos_core.plugins import (

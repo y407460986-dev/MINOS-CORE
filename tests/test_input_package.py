@@ -14,7 +14,6 @@ from minos_core.pipeline import apply_review, generate_draft
 from minos_core.schemas import BundleSchemaError, validate_bundle_schema
 from minos_core.stage import run_stage
 
-
 ROOT = Path(__file__).resolve().parents[1]
 DEMO_PACKAGE = ROOT / "tests" / "fixtures" / "demo_input_package"
 REALISTIC_PACKAGE = ROOT / "tests" / "fixtures" / "realistic_input_package"

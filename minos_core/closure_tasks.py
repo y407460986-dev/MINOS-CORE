@@ -6,11 +6,11 @@ import copy
 import re
 from typing import Any
 
-from minos_core._table_constants import TABLE_ROW_FIELDS as _TABLE_ROW_FIELDS, TABLE_ID_FIELDS as _ID_FIELDS, row_id as _row_id
+from minos_core._table_constants import TABLE_ROW_FIELDS as _TABLE_ROW_FIELDS
+from minos_core._table_constants import row_id as _row_id
 
 from ._text_utils import string_list, text
 from .edit_patch import EDIT_PATCH_VERSION
-
 
 _TARGET_PREFIX = {
     "process_flow": "process_step",
@@ -35,7 +35,24 @@ _IGNORED_STATUSES = {"已忽略", "ignored"}
 
 
 def build_closure_tasks(result: dict[str, Any]) -> list[dict[str, Any]]:
-    """Build a flat closure task list from a three-table generation result."""
+    """Build a flat closure task list from a three-table generation result.
+
+    Collects tasks from all sources (drawing review, evidence confirmation,
+    family confirmation, process flow confirmation, knowledge recommendations,
+    linkage gaps, change impacts, action items, and automation review) and
+    deduplicates them by task_id.
+
+    Args:
+        result: The three-table generation result dictionary.
+
+    Returns:
+        A list of closure task dictionaries, each containing task_id, task_type,
+        target_table, target_row_id, severity, message, evidence,
+        recommended_action, and status.
+
+    Raises:
+        TypeError: If result is not a dict.
+    """
 
     if not isinstance(result, dict):
         raise TypeError("result must be a JSON object")
@@ -43,6 +60,7 @@ def build_closure_tasks(result: dict[str, Any]) -> list[dict[str, Any]]:
     tasks: dict[str, dict[str, Any]] = {}
     for builder in (
         _drawing_review_tasks,
+        _evidence_confirmation_tasks,
         _family_confirmation_tasks,
         _process_flow_confirmation_tasks,
         _knowledge_recommendation_tasks,
@@ -61,7 +79,21 @@ def apply_closure_action(
     task_id: str,
     action: str | dict[str, Any],
 ) -> dict[str, Any]:
-    """Return an edit patch that resolves or applies the requested closure task."""
+    """Return an edit patch that resolves or applies the requested closure task.
+
+    Args:
+        result: The three-table generation result dictionary.
+        task_id: The ID of the closure task to act on.
+        action: Either a string action name or a dict with action and optional
+            parameters (status, changes, resolution_note, etc.).
+
+    Returns:
+        An edit patch dictionary with edit_patch_version, source, reason, and items.
+
+    Raises:
+        TypeError: If result is not a dict.
+        KeyError: If no closure task matches the given task_id.
+    """
 
     if not isinstance(result, dict):
         raise TypeError("result must be a JSON object")
@@ -81,6 +113,7 @@ def apply_closure_action(
 
 
 def _drawing_review_tasks(result: dict[str, Any]) -> list[dict[str, Any]]:
+    """Generate closure tasks for drawing-analysis items needing confirmation."""
     drawing = result.get("drawing_analysis")
     if not isinstance(drawing, dict):
         return []
@@ -145,7 +178,33 @@ def _drawing_review_tasks(result: dict[str, Any]) -> list[dict[str, Any]]:
     return tasks
 
 
+def _evidence_confirmation_tasks(result: dict[str, Any]) -> list[dict[str, Any]]:
+    """Generate closure tasks for evidence rows needing confirmation."""
+    tasks: list[dict[str, Any]] = []
+    for row in _evidence_rows(result):
+        if not isinstance(row, dict) or not row.get("needs_confirmation"):
+            continue
+        evidence_id = text(row.get("evidence_id"))
+        if not evidence_id:
+            continue
+        tasks.append(
+            _task(
+                task_type="evidence_confirmation",
+                target_table="metadata",
+                target_row_id=evidence_id,
+                severity="review",
+                message=f"证据 {evidence_id} 需要人工确认。",
+                evidence=[evidence_id],
+                recommended_action="confirm_evidence",
+                status=_synthetic_status(result, _task_id("evidence_confirmation", evidence_id)),
+                task_id=_task_id("evidence_confirmation", evidence_id),
+            )
+        )
+    return tasks
+
+
 def _family_confirmation_tasks(result: dict[str, Any]) -> list[dict[str, Any]]:
+    """Generate a closure task for part-family confirmation if needed."""
     family = _family_context(result)
     if not family:
         return []
@@ -168,6 +227,7 @@ def _family_confirmation_tasks(result: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _process_flow_confirmation_tasks(result: dict[str, Any]) -> list[dict[str, Any]]:
+    """Generate closure tasks for PFD steps needing confirmation."""
     tasks: list[dict[str, Any]] = []
     for row in _table_rows(result, "process_flow"):
         if not isinstance(row, dict) or _deleted(row) or not row.get("needs_confirmation"):
@@ -190,6 +250,7 @@ def _process_flow_confirmation_tasks(result: dict[str, Any]) -> list[dict[str, A
 
 
 def _knowledge_recommendation_tasks(result: dict[str, Any]) -> list[dict[str, Any]]:
+    """Generate closure tasks for knowledge-base recommendations."""
     tasks: list[dict[str, Any]] = []
     for item in _metadata_items(result, "knowledge_recommendations"):
         rec_id = text(item.get("recommendation_id"))
@@ -217,6 +278,7 @@ def _knowledge_recommendation_tasks(result: dict[str, Any]) -> list[dict[str, An
 
 
 def _linkage_gap_tasks(result: dict[str, Any]) -> list[dict[str, Any]]:
+    """Generate closure tasks for cross-table linkage gaps."""
     tasks: list[dict[str, Any]] = []
     for index, item in enumerate(_linkage_items(result)):
         if not isinstance(item, dict):
@@ -256,6 +318,7 @@ def _linkage_gap_tasks(result: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _change_impact_tasks(result: dict[str, Any]) -> list[dict[str, Any]]:
+    """Generate closure tasks for downstream change impacts from manual edits."""
     tasks: list[dict[str, Any]] = []
     for item in _metadata_items(result, "change_impacts"):
         item_id = text(item.get("item_id"))
@@ -283,6 +346,7 @@ def _change_impact_tasks(result: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _action_item_tasks(result: dict[str, Any]) -> list[dict[str, Any]]:
+    """Generate closure tasks for PFMEA action items needing closure."""
     tasks: list[dict[str, Any]] = []
     action_items = _metadata_items(result, "action_items")
     unresolved_ids = {
@@ -319,6 +383,7 @@ def _action_item_tasks(result: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _automation_review_tasks(result: dict[str, Any]) -> list[dict[str, Any]]:
+    """Generate closure tasks from automation pre-review results."""
     review = result.get("automation_review")
     if not isinstance(review, dict):
         review = _build_automation_review_safe(result)
@@ -328,6 +393,9 @@ def _automation_review_tasks(result: dict[str, Any]) -> list[dict[str, Any]]:
             continue
         task_id = text(item.get("task_id"), default="")
         row_id = text(item.get("target_id"), default=task_id)
+        target_table = text(item.get("table"), item.get("target_table"), default="metadata")
+        if _is_confirmed_table_target(result, target_table, row_id):
+            continue
         if item.get("can_batch_confirm"):
             severity = "review"
             action = "batch_confirm"
@@ -337,7 +405,7 @@ def _automation_review_tasks(result: dict[str, Any]) -> list[dict[str, Any]]:
         tasks.append(
             _task(
                 task_type="automation_review",
-                target_table=text(item.get("table"), item.get("target_table"), default="metadata"),
+                target_table=target_table,
                 target_row_id=row_id,
                 severity=severity,
                 message=text(item.get("message"), default="AI 预审项需要处理。"),
@@ -370,6 +438,28 @@ def _automation_review_tasks(result: dict[str, Any]) -> list[dict[str, Any]]:
     return tasks
 
 
+def _is_confirmed_table_target(result: dict[str, Any], table: str, row_id: str) -> bool:
+    """Check whether a specific table row has already been confirmed/reviewed."""
+    if table not in _TABLE_ROW_FIELDS or not row_id:
+        return False
+    for row in _table_rows(result, table):
+        if not isinstance(row, dict):
+            continue
+        if _row_id(table, row) != row_id:
+            continue
+        if row.get("needs_confirmation"):
+            return False
+        return text(row.get("review_status")).lower() in {
+            "已确认",
+            "已批准",
+            "已批量确认",
+            "confirmed",
+            "approved",
+            "closed",
+        }
+    return False
+
+
 def _task(
     *,
     task_type: str,
@@ -385,6 +475,7 @@ def _task(
     resolution_note: str = "",
     task_id: str | None = None,
 ) -> dict[str, Any]:
+    """Build a single closure task dictionary from keyword arguments."""
     return {
         "task_id": task_id or _task_id(task_type, target_row_id),
         "task_type": task_type,
@@ -402,6 +493,7 @@ def _task(
 
 
 def _patch_item_for_task(task: dict[str, Any], action: dict[str, Any]) -> dict[str, Any]:
+    """Generate the edit-patch item for a given closure task and action."""
     task_type = task["task_type"]
     target_id = task["target_row_id"]
     action_name = text(action.get("action"), default="resolve")
@@ -423,6 +515,13 @@ def _patch_item_for_task(task: dict[str, Any], action: dict[str, Any]) -> dict[s
             "reason": reason,
         }
         return item
+    if task_type == "evidence_confirmation":
+        return {
+            "action": "confirm_review_target",
+            "table": "metadata",
+            "target_id": f"evidence:{target_id}",
+            "reason": reason,
+        }
     if task_type == "change_impact":
         return {
             "action": "resolve_change_impact",
@@ -449,9 +548,12 @@ def _patch_item_for_task(task: dict[str, Any], action: dict[str, Any]) -> dict[s
             "changes": changes,
             "reason": reason,
         }
-    if task_type == "automation_review" and task["target_table"] in _TABLE_ROW_FIELDS:
-        if action_name in {"confirm", "batch_confirm", "resolve"}:
-            return _confirm_item(task["target_table"], target_id, reason)
+    if (
+        task_type == "automation_review"
+        and task["target_table"] in _TABLE_ROW_FIELDS
+        and action_name in {"confirm", "batch_confirm", "resolve"}
+    ):
+        return _confirm_item(task["target_table"], target_id, reason)
     return {
         "action": "resolve_review_issue",
         "table": "metadata",
@@ -462,6 +564,7 @@ def _patch_item_for_task(task: dict[str, Any], action: dict[str, Any]) -> dict[s
 
 
 def _confirm_item(table: str, target_id: str, reason: str) -> dict[str, Any]:
+    """Build a confirm-action edit patch for a table row."""
     return {
         "action": "confirm",
         "table": table,
@@ -474,6 +577,7 @@ def _confirm_item(table: str, target_id: str, reason: str) -> dict[str, Any]:
 
 
 def _metadata(result: dict[str, Any]) -> dict[str, Any]:
+    """Extract combined metadata from chain metadata and top-level metadata."""
     metadata: dict[str, Any] = {}
     chain = result.get("chain")
     if isinstance(chain, dict) and isinstance(chain.get("metadata"), dict):
@@ -483,7 +587,32 @@ def _metadata(result: dict[str, Any]) -> dict[str, Any]:
     return metadata
 
 
+def _evidence_rows(result: dict[str, Any]) -> list[Any]:
+    """Collect deduplicated evidence rows from chain, drawing, and top-level sources."""
+    rows: list[Any] = []
+    chain = result.get("chain")
+    if isinstance(chain, dict) and isinstance(chain.get("evidence"), list):
+        rows.extend(chain["evidence"])
+    drawing = result.get("drawing_analysis")
+    if isinstance(drawing, dict) and isinstance(drawing.get("evidence"), list):
+        rows.extend(drawing["evidence"])
+    if isinstance(result.get("evidence"), list):
+        rows.extend(result["evidence"])
+
+    seen: set[str] = set()
+    deduped: list[Any] = []
+    for row in rows:
+        marker = text(row.get("evidence_id")) if isinstance(row, dict) else ""
+        if marker and marker in seen:
+            continue
+        if marker:
+            seen.add(marker)
+        deduped.append(row)
+    return deduped
+
+
 def _metadata_items(result: dict[str, Any], key: str) -> list[dict[str, Any]]:
+    """Collect deduplicated metadata items by key from metadata and top-level result."""
     values: list[dict[str, Any]] = []
     for source in (_metadata(result), result):
         items = source.get(key, []) if isinstance(source, dict) else []
@@ -506,6 +635,7 @@ def _metadata_items(result: dict[str, Any], key: str) -> list[dict[str, Any]]:
 
 
 def _family_context(result: dict[str, Any]) -> dict[str, Any]:
+    """Extract the part-family context dict from the result."""
     for source in (
         ((result.get("process_flow") or {}).get("metadata") if isinstance(result.get("process_flow"), dict) else {}),
         _metadata(result),
@@ -521,6 +651,7 @@ def _family_context(result: dict[str, Any]) -> dict[str, Any]:
 
 
 def _table_rows(result: dict[str, Any], table: str) -> list[Any]:
+    """Retrieve the rows for a given table from the result."""
     document = result.get(table)
     if isinstance(document, dict):
         for field_name in _TABLE_ROW_FIELDS[table]:
@@ -533,6 +664,7 @@ def _table_rows(result: dict[str, Any], table: str) -> list[Any]:
 
 
 def _linkage_items(result: dict[str, Any]) -> list[Any]:
+    """Collect all linkage-gap and sync-issue items from multiple result locations."""
     items: list[Any] = []
     for key in ("linkage_gaps", "live_linkage_issues"):
         value = result.get(key)
@@ -552,6 +684,7 @@ def _linkage_items(result: dict[str, Any]) -> list[Any]:
 
 
 def _target_from_linkage_item(item: dict[str, Any]) -> tuple[str, str]:
+    """Extract target table and row ID from a linkage item."""
     table = text(item.get("target_table"))
     row_id = text(item.get("target_id"))
     if table or row_id:
@@ -560,6 +693,7 @@ def _target_from_linkage_item(item: dict[str, Any]) -> tuple[str, str]:
 
 
 def _table_and_row_from_target(target: str) -> tuple[str, str]:
+    """Parse a prefixed target string (e.g., 'process_step:010') into table and row ID."""
     if ":" not in target:
         return "", target
     prefix, row_id = target.split(":", 1)
@@ -575,6 +709,7 @@ def _table_and_row_from_target(target: str) -> tuple[str, str]:
 
 
 def _unresolved_action_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Filter action items to those that are still unresolved, with optional action-tracking support."""
     try:
         from .action_tracking import unresolved_action_items
     except ImportError:
@@ -587,6 +722,7 @@ def _unresolved_action_items(items: list[dict[str, Any]]) -> list[dict[str, Any]
 
 
 def _build_automation_review_safe(result: dict[str, Any]) -> dict[str, Any]:
+    """Safely import and build the automation review, returning empty dict on failure."""
     try:
         from .automation_review import build_automation_review
     except ImportError:
@@ -598,6 +734,7 @@ def _build_automation_review_safe(result: dict[str, Any]) -> dict[str, Any]:
 
 
 def _status_from_source(item: dict[str, Any]) -> str:
+    """Derive a normalized status ('open', 'resolved', 'ignored') from an item's status fields."""
     status = text(item.get("status"), item.get("lifecycle_status"))
     if status in _IGNORED_STATUSES:
         if text(item.get("ignore_reason"), item.get("reason")):
@@ -609,6 +746,7 @@ def _status_from_source(item: dict[str, Any]) -> str:
 
 
 def _recommendation_status(item: dict[str, Any]) -> str:
+    """Determine the closure status of a knowledge recommendation."""
     lifecycle = text(item.get("lifecycle_status"))
     status = text(item.get("status"), default="待确认")
     if lifecycle == "applied" or status == "已应用":
@@ -619,6 +757,7 @@ def _recommendation_status(item: dict[str, Any]) -> str:
 
 
 def _synthetic_status(result: dict[str, Any], task_id: str) -> str:
+    """Check if a review-issue record already exists for this task and derive its status."""
     for item in _metadata_items(result, "review_issues"):
         if text(item.get("issue_id"), item.get("item_id")) != task_id:
             continue
@@ -629,6 +768,7 @@ def _synthetic_status(result: dict[str, Any], task_id: str) -> str:
 
 
 def _analysis_item_label(block_name: str, index: int, item: dict[str, Any]) -> str:
+    """Build a human-readable label for a drawing-analysis item."""
     for field_name in ("item_id", "evidence_id", "id", "characteristic_id", "operation"):
         value = text(item.get(field_name))
         if value:
@@ -637,6 +777,7 @@ def _analysis_item_label(block_name: str, index: int, item: dict[str, Any]) -> s
 
 
 def _evidence_refs(item: dict[str, Any]) -> list[Any]:
+    """Extract evidence references from an item, checking multiple field names."""
     for key in ("evidence_refs", "evidence", "source_refs"):
         refs = item.get(key)
         if isinstance(refs, list):
@@ -649,8 +790,10 @@ def _evidence_refs(item: dict[str, Any]) -> list[Any]:
 
 
 def _task_id(task_type: str, value: str) -> str:
+    """Generate a deterministic closure-task ID from type and a value."""
     prefixes = {
         "drawing_review": "CT-DRAWING",
+        "evidence_confirmation": "CT-EVIDENCE",
         "family_confirmation": "CT-FAMILY",
         "process_flow_confirmation": "CT-PROCESS",
         "knowledge_recommendation": "CT-KNOWLEDGE",
@@ -663,6 +806,7 @@ def _task_id(task_type: str, value: str) -> str:
 
 
 def _suffix_id(task_id: str) -> str:
+    """Extract the original ID from a prefixed task ID by stripping the type prefix."""
     for prefix in ("CT-KNOWLEDGE-",):
         if task_id.startswith(prefix):
             return task_id[len(prefix):].replace("__", ":")
@@ -670,6 +814,7 @@ def _suffix_id(task_id: str) -> str:
 
 
 def _slug(value: Any) -> str:
+    """Convert a value to a URL-safe, sanitized slug string."""
     text = str(value or "").strip()
     if not text:
         return "UNKNOWN"
@@ -679,6 +824,7 @@ def _slug(value: Any) -> str:
 
 
 def _severity(value: Any, *, default: str = "review") -> str:
+    """Normalize a severity value to one of 'blocker', 'warning', or 'review'."""
     result = text(value, default=default).lower()
     return {
         "critical": "blocker",
@@ -693,15 +839,14 @@ def _severity(value: Any, *, default: str = "review") -> str:
 
 
 def _action_payload(action: str | dict[str, Any]) -> dict[str, Any]:
-    if isinstance(action, dict):
-        payload = copy.deepcopy(action)
-    else:
-        payload = {"action": str(action or "resolve")}
+    """Normalize an action string or dict into an action payload dict."""
+    payload = copy.deepcopy(action) if isinstance(action, dict) else {"action": str(action or "resolve")}
     payload.setdefault("action", "resolve")
     return payload
 
 
 def _action_reason(action: dict[str, Any]) -> str:
+    """Extract the action reason from an action payload, with a default fallback."""
     return text(
         action.get("resolution_note"),
         action.get("reason"),
@@ -710,6 +855,7 @@ def _action_reason(action: dict[str, Any]) -> str:
 
 
 def _manual_event(action: dict[str, Any], task: dict[str, Any]) -> str:
+    """Build a manual confirmation event string from action and task."""
     return text(
         action.get("manual_confirmation_event"),
         action.get("resolution_note"),
@@ -719,14 +865,17 @@ def _manual_event(action: dict[str, Any], task: dict[str, Any]) -> str:
 
 
 def _list(value: Any) -> list[Any]:
+    """Return the value if it is a list, otherwise an empty list."""
     return value if isinstance(value, list) else []
 
 
 def _deleted(row: dict[str, Any]) -> bool:
+    """Check whether a row has been soft-deleted."""
     return bool(row.get("deleted") or row.get("soft_deleted"))
 
 
 def _float(value: Any) -> float | None:
+    """Safely convert a value to float, returning None if conversion fails."""
     try:
         return None if value in {None, ""} else float(value)
     except (TypeError, ValueError):

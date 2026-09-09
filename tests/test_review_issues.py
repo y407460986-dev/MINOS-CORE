@@ -5,13 +5,19 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 from PIL import Image
 
 from minos_core.adapters.multimodal import FakeMultimodalDrawingAnalyzer
 from minos_core.drawing_analysis import analyze_drawing_pages, evaluate_drawing_recognition_gate
 from minos_core.drawing_input import load_drawing_source, render_drawing_pages
-from minos_core.edit_patch import EDIT_PATCH_VERSION, apply_edit_patch, evaluate_edit_export_gate, export_edited_three_tables
+from minos_core.edit_patch import (
+    EDIT_PATCH_VERSION,
+    apply_edit_patch,
+    evaluate_edit_export_gate,
+    export_edited_three_tables,
+)
 from minos_core.quality_gates import evaluate_export_gate
 
 
@@ -56,7 +62,7 @@ def _review_ready_chain() -> dict:
                 "process_step_id": "P10",
                 "pfmea_id": "PFMEA-P10-001",
                 "product_process_characteristic": "尺寸",
-                "specification": "按图纸",
+                "specification": "50 +/- 0.5 mm",
                 "measurement_method": "卡尺",
                 "sample_size": "1 件",
                 "sample_frequency": "每批",
@@ -76,6 +82,42 @@ def _review_ready_chain() -> dict:
 
 
 class ReviewIssueTests(unittest.TestCase):
+    def test_edit_patch_can_confirm_review_target(self):
+        source = _review_ready_chain()
+        patch = {
+            "edit_patch_version": EDIT_PATCH_VERSION,
+            "items": [
+                {
+                    "action": "confirm_review_target",
+                    "table": "metadata",
+                    "target_id": "evidence:EV-1",
+                    "reason": "证据已人工复核",
+                }
+            ],
+        }
+
+        edited = apply_edit_patch(source, patch)
+
+        self.assertEqual(
+            edited["metadata"]["review_confirmations"][0]["target"],
+            "evidence:EV-1",
+        )
+
+    def test_edit_gate_does_not_block_on_gate_warnings(self):
+        from minos_core.edit_patch import _unresolved_review_issue_items
+
+        gate = SimpleNamespace(
+            review_issues=[
+                {
+                    "issue_id": "RI-WARN",
+                    "severity": "warning",
+                    "status": "待处理",
+                }
+            ]
+        )
+
+        self.assertEqual(_unresolved_review_issue_items({}, gate), [])
+
     def test_drawing_analysis_normalizes_evidence_regions_and_review_issues(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             image_path = Path(tmpdir) / "drawing.png"
@@ -177,7 +219,12 @@ class ReviewIssueTests(unittest.TestCase):
                 "edited_by": "qe",
                 "reason": "确认闭环",
                 "items": [
-                    {"action": "ignore_recommendation", "table": "metadata", "target_id": "KR-1", "reason": "V1.10: 当前不适用，已评估无需采纳"},
+                    {
+                        "action": "ignore_recommendation",
+                        "table": "metadata",
+                        "target_id": "KR-1",
+                        "reason": "V1.10: 当前不适用，已评估无需采纳",
+                    },
                     {"action": "resolve_change_impact", "table": "metadata", "target_id": "CI-1"},
                 ],
             },

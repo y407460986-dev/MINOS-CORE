@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from .aiag_vda_pfmea import normalize_pfmea_row
 from minos_core._text_utils import row_text, string_list
+
+from .aiag_vda_pfmea import normalize_pfmea_row
 
 
 def infer_pfmea_from_process_flow(process_flow_bundle: dict[str, Any]) -> dict[str, Any]:
@@ -452,9 +453,7 @@ def _needs_confirmation(
         return True
     if has_special_characteristic:
         return True
-    if confidence < 0.75:
-        return True
-    return False
+    return confidence < 0.75
 
 
 def _recommended_action(
@@ -529,7 +528,7 @@ def normalize_pfmea_rows(
             if sid:
                 step_map[sid] = step
 
-    for index, row in enumerate(rows):
+    for _index, row in enumerate(rows):
         sid = row.get("process_step_id", "")
         normalized = normalize_pfmea_row(row, step_map.get(sid))
         normalized.setdefault("action_priority_was", "")

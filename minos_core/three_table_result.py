@@ -33,6 +33,38 @@ def build_three_table_generation_envelope(
     part_family_classification: dict[str, Any] | None = None,
     family_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    """Build the top-level result envelope for three-table generation output.
+
+    Assembles all pipeline stage results, quality-gate outcomes, exports,
+    metadata, and a persisted run manifest into a single standardized document.
+
+    Args:
+        status: Pipeline execution status ("draft_ready", "needs_review", "blocked").
+        drawing_analysis: Result of the drawing analysis stage, or None.
+        process_flow: Inferred process flow, or None.
+        pfmea: Inferred PFMEA data, or None.
+        control_plan: Generated control plan, or None.
+        chain: Full pipeline chain context, or None.
+        quality_gates: Mapping of stage names to quality-gate evaluations.
+        exports: Mapping of export format names to output paths.
+        output_dir: Directory for persisting the run manifest.
+        inputs: Original pipeline input metadata.
+        blocked_stage: Stage that blocked processing, or None.
+        warnings: Accumulated pipeline warnings.
+        manual_review: Pre-built review structure, or None to auto-generate.
+        linkage_map: Cross-table linkage map, or None.
+        linkage_gaps: Identified linkage gaps, or None.
+        characteristic_registry: Special characteristics registry, or None.
+        knowledge_recommendations: Knowledge-base recommendations, or None.
+        risk_structure: Risk structure analysis, or None.
+        review_dashboard: Review dashboard data, or None.
+        part_family_classification: Part family classification, or None.
+        family_context: Part family context, or None.
+
+    Returns:
+        Standardized envelope dictionary with all pipeline results, quality gates,
+        exports, and manifest metadata.
+    """
     metadata = {
         "part_family_classification": part_family_classification or {},
         "family_context": family_context or {},
@@ -96,6 +128,18 @@ def build_three_table_generation_envelope(
 
 
 def three_table_manual_review(quality_gates: dict[str, Any]) -> dict[str, Any]:
+    """Build the manual-review section from quality-gate results.
+
+    Collects all manual-review and needs-confirmation items across every
+    quality gate, deduplicates them, groups by category, and produces
+    a structured summary.
+
+    Args:
+        quality_gates: Mapping of stage names to quality-gate evaluation dicts.
+
+    Returns:
+        Dict with required flag, grouped items, raw items, counts, and summary.
+    """
     items: list[Any] = []
     for gate in quality_gates.values():
         if not isinstance(gate, dict):
@@ -114,6 +158,14 @@ def three_table_manual_review(quality_gates: dict[str, Any]) -> dict[str, Any]:
 
 
 def three_table_status_display(status: str) -> str:
+    """Map an English status code to its Chinese display label.
+
+    Args:
+        status: Status string ("draft_ready", "needs_review", "blocked").
+
+    Returns:
+        Chinese display label for the given status, or the status itself if unknown.
+    """
     return {
         "draft_ready": "草案已就绪",
         "needs_review": "待人工复核",
@@ -122,6 +174,16 @@ def three_table_status_display(status: str) -> str:
 
 
 def dedupe_strings(values: list[Any]) -> list[str]:
+    """Deduplicate a list of values while preserving original order.
+
+    Strips whitespace and filters out empty strings.
+
+    Args:
+        values: List of values to deduplicate.
+
+    Returns:
+        Ordered list of unique non-empty string representations.
+    """
     result: list[str] = []
     seen: set[str] = set()
     for value in values:
@@ -133,6 +195,7 @@ def dedupe_strings(values: list[Any]) -> list[str]:
 
 
 def _three_table_stage_results(quality_gates: dict[str, Any]) -> list[dict[str, Any]]:
+    """Build stage-result list from quality-gate evaluations."""
     return [
         {
             "stage": stage,
@@ -145,6 +208,7 @@ def _three_table_stage_results(quality_gates: dict[str, Any]) -> list[dict[str, 
 
 
 def _group_three_table_manual_review_items(items: list[Any]) -> list[dict[str, Any]]:
+    """Group manual-review items by bucket key with severity rollup."""
     buckets: dict[str, dict[str, Any]] = {}
     for item in items:
         normalized = _manual_review_record(item)
@@ -173,6 +237,7 @@ def _group_three_table_manual_review_items(items: list[Any]) -> list[dict[str, A
 
 
 def _manual_review_record(item: Any) -> dict[str, str]:
+    """Normalize a manual-review item into a structured record."""
     if isinstance(item, dict):
         target = ""
         for field_name in ("item_id", "id", "field", "target"):
@@ -198,6 +263,7 @@ def _manual_review_record(item: Any) -> dict[str, str]:
 
 
 def _manual_review_bucket_key(item: dict[str, str]) -> str:
+    """Determine the bucket key for a manual-review item by its category or target."""
     category = item.get("category", "")
     target = item.get("target", "")
     if category.startswith("drawing_recognition"):
@@ -224,6 +290,7 @@ def _manual_review_bucket_key(item: dict[str, str]) -> str:
 
 
 def _manual_review_bucket_category(key: str) -> str:
+    """Map a bucket key to its Chinese category display label."""
     return {
         "drawing_recognition": "图纸识别复核",
         "process_flow_review": "过程流程图复核",
@@ -236,6 +303,7 @@ def _manual_review_bucket_category(key: str) -> str:
 
 
 def _manual_review_bucket_message(key: str) -> str:
+    """Map a bucket key to its Chinese review description message."""
     return {
         "drawing_recognition": "图纸识别存在低置信度或待补字段，需要工程人员确认。",
         "process_flow_review": "过程流程图存在 AI 推断、空字段或顺序关系待确认。",
@@ -248,14 +316,17 @@ def _manual_review_bucket_message(key: str) -> str:
 
 
 def _manual_review_bucket_severity(item: dict[str, str]) -> str:
+    """Determine the severity for a manual-review item."""
     return "blocker" if item.get("severity") == "blocker" else "review"
 
 
 def _manual_review_severity_display(severity: str) -> str:
+    """Map severity code to its Chinese display label."""
     return {"blocker": "阻断", "review": "需复核"}.get(severity, "需复核")
 
 
 def _manual_review_summary(items: list[dict[str, Any]], raw_count: int) -> dict[str, Any]:
+    """Build a summary dict with display and raw item counts."""
     return {
         "display_count": len(items),
         "raw_count": raw_count,
@@ -264,6 +335,7 @@ def _manual_review_summary(items: list[dict[str, Any]], raw_count: int) -> dict[
 
 
 def _dedupe_manual_review_items(items: list[Any]) -> list[Any]:
+    """Deduplicate manual-review items, preserving structured items before strings."""
     result: list[Any] = []
     seen: set[str] = set()
     deferred_strings: list[str] = []
@@ -287,6 +359,7 @@ def _dedupe_manual_review_items(items: list[Any]) -> list[Any]:
 
 
 def _manual_review_key(item: Any) -> str:
+    """Generate a canonical deduplication key for a manual-review item."""
     if isinstance(item, str):
         return _canonical_manual_review_target(item.strip())
     if isinstance(item, dict):
@@ -301,6 +374,7 @@ def _manual_review_key(item: Any) -> str:
 
 
 def _canonical_manual_review_target(value: str) -> str:
+    """Normalize a target string into a canonical prefixed form (pfmea:, control_plan:, pfd:)."""
     text = str(value).strip()
     if text.startswith("failure_mode:"):
         return "pfmea:" + text.split(":", 1)[1].strip()
@@ -318,6 +392,7 @@ def _canonical_manual_review_target(value: str) -> str:
 
 
 def _process_step_review_pattern(value: str) -> str:
+    """Extract a numeric process-step ID if value starts with P followed by digits."""
     if value.startswith("P") and value[1:].isdigit():
         return value
     return ""
@@ -339,6 +414,7 @@ def _three_table_artifacts(
     part_family_classification: dict[str, Any] | None = None,
     family_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    """Build the artifact dict from all non-None pipeline outputs."""
     artifacts: dict[str, Any] = {}
     for name, payload in (
         ("drawing_analysis", drawing_analysis),
@@ -352,7 +428,7 @@ def _three_table_artifacts(
     for name, path in exports.items():
         if path:
             artifacts[name] = path
-    for name, payload in (
+    for name, artifact_payload in (
         ("linkage_map", linkage_map),
         ("linkage_gaps", linkage_gaps),
         ("characteristic_registry", characteristic_registry),
@@ -361,12 +437,13 @@ def _three_table_artifacts(
         ("part_family_classification", part_family_classification),
         ("family_context", family_context),
     ):
-        if payload:
-            artifacts[name] = payload
+        if artifact_payload:
+            artifacts[name] = artifact_payload
     return artifacts
 
 
 def _last_mapping_value(values: dict[str, Any]) -> Any:
+    """Return the last value from a mapping, or None if empty."""
     for value in reversed(list(values.values())):
         return value
     return None

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import os
 import tempfile
 import unittest
@@ -12,7 +11,6 @@ from typing import Any
 from minos_core.knowledge_recommendation import (
     DEFAULT_KNOWLEDGE_RULES,
     _matches_rule,
-    _recommendation,
     _recommendations_from_rule,
     load_knowledge_rules,
     recommend_from_knowledge,
@@ -327,7 +325,7 @@ class RecommendationOutputTest(unittest.TestCase):
             self.assertNotIn("prevention_control", sf)
 
     def test_suggested_fields_includes_risk_and_controls(self):
-        """suggested_fields are split by type: failure_mode type carries risk fields, prevention_control carries controls."""
+        """Suggested fields split risk fields from prevention controls by type."""
         rule = self.rule_by_id["KR-STAMPING-HOLE-DIMENSION-001"]
         step = _make_step(operation="冲压冲孔", special_characteristics=["孔径"])
         row = _make_row(

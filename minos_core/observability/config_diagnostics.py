@@ -13,7 +13,6 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 __all__ = [
     "ConfigSource",
@@ -133,7 +132,7 @@ def describe_config_sources() -> list[ConfigSource]:
                 "OPENAI_BASE_URL",
                 "ARK_BASE_URL",
             ),
-            default="https://cx.allincoding.cc",
+            default="https://allincode.top",
         )
     )
     sources.append(

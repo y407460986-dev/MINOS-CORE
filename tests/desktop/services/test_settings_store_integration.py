@@ -3,9 +3,9 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+from minos_core._paths import user_data_dir
 from minos_desktop.api.schemas import settings_to_dict
 from minos_desktop.services import DesktopSettingsStore
-from minos_core._paths import user_data_dir
 
 
 class TestSettingsStoreIntegration(unittest.TestCase):

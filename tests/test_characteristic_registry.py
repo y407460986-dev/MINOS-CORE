@@ -6,8 +6,8 @@ import copy
 import unittest
 
 from minos_core.characteristic_registry import (
-    build_characteristic_registry,
     attach_characteristics_to_three_tables,
+    build_characteristic_registry,
 )
 
 
@@ -50,7 +50,8 @@ class BuildCharacteristicRegistryTests(unittest.TestCase):
                     "evidence_refs": ["drawing_page_001"],
                     "confidence": 0.90,
                     "ai_inferred": True,
-                    "needs_confirmation": True,
+                    "needs_confirmation": False,
+                    "confirmation_status": "rule_confirmed",
                 },
                 {
                     "name": "硬度",
@@ -59,6 +60,7 @@ class BuildCharacteristicRegistryTests(unittest.TestCase):
                     "confidence": 0.78,
                     "ai_inferred": True,
                     "needs_confirmation": False,
+                    "confirmation_status": "human_confirmed",
                 },
             ],
             "technical_requirements": [
@@ -138,6 +140,134 @@ class BuildCharacteristicRegistryTests(unittest.TestCase):
                 cid.startswith("SC-"),
                 f"Expected SC- prefix, got {cid}",
             )
+
+    def test_registry_skips_unconfirmed_special_characteristics(self):
+        drawing_analysis = {
+            "special_characteristics": [
+                {
+                    "id": "SC-001",
+                    "name": "孔径 10.0 mm",
+                    "classification": "SC",
+                    "evidence_refs": ["drawing_page_001"],
+                    "needs_confirmation": True,
+                }
+            ],
+            "dimensions": [],
+            "technical_requirements": [],
+            "inspection_requirements": [],
+        }
+
+        registry = build_characteristic_registry(drawing_analysis)
+
+        self.assertEqual(registry["items"], [])
+
+    def test_registry_accepts_rule_confirmed_special_characteristic(self):
+        drawing_analysis = {
+            "special_characteristics": [
+                {
+                    "id": "SC-001",
+                    "name": "孔径 10.0 mm",
+                    "classification": "SC",
+                    "evidence_refs": ["drawing_page_001"],
+                    "needs_confirmation": False,
+                    "confirmation_status": "rule_confirmed",
+                }
+            ],
+            "dimensions": [],
+            "technical_requirements": [],
+            "inspection_requirements": [],
+        }
+
+        registry = build_characteristic_registry(drawing_analysis)
+
+        self.assertEqual(registry["items"][0]["characteristic_id"], "SC-001")
+        self.assertEqual(registry["items"][0]["classification"], "special_characteristic")
+
+    def test_registry_accepts_judge_confirmed_special_characteristic(self):
+        drawing_analysis = {
+            "special_characteristics": [
+                {
+                    "symbol": "CC-001",
+                    "name": "安装孔位置度",
+                    "classification": "CC",
+                    "evidence_refs": ["drawing_page_001"],
+                    "needs_confirmation": False,
+                    "confirmation_status": "judge_confirmed",
+                }
+            ],
+            "dimensions": [],
+            "technical_requirements": [],
+            "inspection_requirements": [],
+        }
+
+        registry = build_characteristic_registry(drawing_analysis)
+
+        self.assertEqual(registry["items"][0]["characteristic_id"], "CC-001")
+        self.assertEqual(registry["items"][0]["classification"], "special_characteristic")
+
+    def test_registry_skips_unconfirmed_special_characteristic_even_when_not_marked_pending(self):
+        drawing_analysis = {
+            "special_characteristics": [
+                {
+                    "symbol": "SC-002",
+                    "name": "孔径 10.0 mm",
+                    "classification": "SC",
+                    "evidence_refs": ["drawing_page_001"],
+                    "needs_confirmation": False,
+                    "confirmation_status": "needs_human_review",
+                }
+            ],
+            "dimensions": [],
+            "technical_requirements": [],
+            "inspection_requirements": [],
+        }
+
+        registry = build_characteristic_registry(drawing_analysis)
+
+        self.assertEqual(registry["items"], [])
+
+    def test_registry_still_skips_judge_confirmed_when_needs_confirmation_true(self):
+        drawing_analysis = {
+            "special_characteristics": [
+                {
+                    "symbol": "CC-002",
+                    "name": "安装孔位置度",
+                    "classification": "CC",
+                    "evidence_refs": ["drawing_page_001"],
+                    "needs_confirmation": True,
+                    "confirmation_status": "judge_confirmed",
+                }
+            ],
+            "dimensions": [],
+            "technical_requirements": [],
+            "inspection_requirements": [],
+        }
+
+        registry = build_characteristic_registry(drawing_analysis)
+
+        self.assertEqual(registry["items"], [])
+
+    def test_registry_skips_ptc_special_characteristic(self):
+        drawing_analysis = {
+            "special_characteristics": [
+                {
+                    "id": "PTC-001",
+                    "name": "图例定义项",
+                    "symbol": "PTC-001",
+                    "classification": "PTC",
+                    "evidence_refs": ["drawing_page_001"],
+                    "needs_confirmation": False,
+                    "confirmation_status": "rule_confirmed",
+                }
+            ],
+            "dimensions": [],
+            "technical_requirements": [],
+            "inspection_requirements": [],
+        }
+
+        registry = build_characteristic_registry(drawing_analysis)
+
+        self.assertEqual(registry["items"], [])
 
     # ------------------------------------------------------------------
     # test 3: non-special characteristics use CHR-prefixed IDs

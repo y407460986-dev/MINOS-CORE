@@ -1,6 +1,7 @@
 """Tests for SecretStr."""
 
 import pytest
+from pydantic import BaseModel
 
 from minos_desktop.security import SecretStr
 
@@ -56,7 +57,7 @@ class TestSecretStr:
         secret = SecretStr("my-secret")
         assert secret != "my-secret"
         assert secret != 123
-        assert secret != None
+        assert secret is not None
 
     def test_hash(self):
         """Test hashing SecretStr."""
@@ -177,3 +178,17 @@ class TestSecretStr:
         assert secret.get_secret_value() == multiline
         assert "line1" not in str(secret)
         assert "line2" not in repr(secret)
+
+    def test_pydantic_model_dump_masks_secret_but_get_secret_value_still_works(self):
+        class Config(BaseModel):
+            api_key: SecretStr
+
+        config = Config(api_key="secret-from-ui")
+
+        dumped = config.model_dump()
+        dumped_json = config.model_dump_json()
+
+        assert config.api_key.get_secret_value() == "secret-from-ui"
+        assert dumped["api_key"] == "**********"
+        assert "secret-from-ui" not in dumped_json
+        assert "**********" in dumped_json

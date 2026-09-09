@@ -97,3 +97,15 @@ MINOS-CORE v2 在安全方面存在以下问题：
 - ADR 002: AI Service Resilience
 - ADR 004: Observability
 - ADR 005: Extensibility (本 ADR 中 `MinosError` 由 ADR 004 提供)
+
+### Status Update (2026-06-26)
+
+Phase 3 of the MINOS-CORE remediation plan reviewed this ADR:
+
+| Item | Status | Notes |
+|------|--------|-------|
+| `SecretStr` / `SecureAPIKeyStore` / `AuthMiddleware` | ✅ Done | `minos_desktop/security/` package exists with 4 modules (`secret_str.py`, `api_key_store.py`, `auth_middleware.py`, `token_manager.py`) |
+| `require_api_token` for protected routes | ✅ Done | Defined in `minos_desktop/api/auth.py` line 34 |
+| CLI auto-generates token on startup | ✅ Done | Implemented in `minos_desktop/api/cli.py` |
+| Schema-level input validation | 🔄 Partially done | `minos_core/validation.py` (607 lines) provides `InputValidator` (path traversal, file type/size, filename) and `validate_chain` for APQP chain structure; but no unified `minos_core.security` package exists -- validation is scattered across `minos_core.validation`, `minos_core.schemas`, and desktop API Pydantic schemas |
+| Frontend token display and one-click copy | ⏳ Still pending | Not found in frontend SettingsPage or API client code |

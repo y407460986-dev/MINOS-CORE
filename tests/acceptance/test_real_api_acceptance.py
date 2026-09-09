@@ -15,7 +15,6 @@ from minos_core.drawing_input import load_drawing_source, render_drawing_pages
 from minos_core.exporters.three_table_workbooks import export_three_table_workbook
 from minos_core.pipeline import generate_three_tables_from_drawing
 
-
 RUN_REAL_ENV = "MINOS_RUN_REAL_ACCEPTANCE"
 REAL_DRAWING_ENV = "MINOS_REAL_DRAWING_PATH"
 OUTPUT_DIR_ENV = "MINOS_REAL_ACCEPTANCE_OUTPUT_DIR"

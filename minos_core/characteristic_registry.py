@@ -8,6 +8,8 @@ from typing import Any
 
 from minos_core._text_utils import string_list, text
 
+CONFIRMED_SPECIAL_STATUSES = {"rule_confirmed", "judge_confirmed", "human_confirmed"}
+
 
 # ---------------------------------------------------------------------------
 # Public API
@@ -41,13 +43,15 @@ def build_characteristic_registry(drawing_analysis: dict[str, Any]) -> dict[str,
             name = _extract_name(raw, block_key)
             if not name:
                 continue
+            if block_key == "special_characteristics" and not _confirmed_special_characteristic(raw):
+                continue
 
             spec = _extract_specification(raw, block_key)
 
             # --- ID generation ---
             if block_key == "special_characteristics":
                 symbol = text(raw.get("symbol"))
-                if symbol:
+                if _stable_special_symbol_id(symbol):
                     characteristic_id = symbol
                 else:
                     sc_counter += 1
@@ -355,6 +359,24 @@ def _confidence(item: dict[str, Any]) -> float:
         return float(item.get("confidence", 0.0))
     except (TypeError, ValueError):
         return 0.0
+
+
+def _confirmed_special_characteristic(raw: dict[str, Any]) -> bool:
+    status = text(raw.get("confirmation_status"))
+    classification = text(raw.get("classification"), raw.get("category")).upper()
+    symbol = text(raw.get("symbol"), raw.get("id"), raw.get("characteristic_id")).upper()
+    if classification == "PTC" or symbol == "PTC" or symbol.startswith("PTC-"):
+        return False
+    if bool(raw.get("needs_confirmation", False)):
+        return False
+    return status in CONFIRMED_SPECIAL_STATUSES
+
+
+def _stable_special_symbol_id(symbol: str) -> bool:
+    normalized = text(symbol).upper()
+    if not normalized or normalized in {"SC", "CC"}:
+        return False
+    return normalized.startswith(("SC-", "CC-"))
 
 
 def _ensure_list(parent: dict[str, Any], key: str) -> list[Any]:

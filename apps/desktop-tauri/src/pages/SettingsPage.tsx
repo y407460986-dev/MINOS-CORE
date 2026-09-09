@@ -173,7 +173,7 @@ export default function SettingsPage({ apiState, bootstrap }: SettingsPageProps)
     ["AI 服务地址", ai?.base_url ?? "-"],
     ["模型", ai?.model_configured ? ai.model : "未配置"],
     ["模型密钥", ai?.api_key_configured ? `已配置：${ai.api_key_env_name || ai.api_key_source}` : "未配置"],
-    ["桌面版本", bootstrap?.version ?? "1.14.0"],
+    ["桌面版本", bootstrap?.version ?? "3.8.6"],
   ];
 
   return (
@@ -238,7 +238,7 @@ export default function SettingsPage({ apiState, bootstrap }: SettingsPageProps)
             <Input
               value={aiBaseUrl}
               onChange={(event) => setAiBaseUrl(event.target.value)}
-              placeholder="https://cx.allincoding.cc"
+              placeholder="https://allincode.top"
               disabled={ai?.base_url_locked_by_env}
             />
           </label>

@@ -9,7 +9,6 @@ from .._text_utils import string_list
 from ..three_table_result import dedupe_strings as _dedupe_strings
 from .utilities import _as_dict, _clean_text, _float_value
 
-
 # OCR-based family lock confidence threshold
 OCR_FAMILY_LOCK_CONFIDENCE = 0.78
 
@@ -40,6 +39,21 @@ def _part_family_context_from_drawing(
 
     if isinstance(knowledge, dict):
         family_context = _merge_family_context(classification, knowledge)
+
+    # Check knowledge source plugins (can supplement or override built-in knowledge)
+    from ..plugins import iter_knowledge_sources
+
+    for ks in iter_knowledge_sources():
+        if ks.family_key == family_key:
+            try:
+                plugin_knowledge = ks.load()
+            except Exception as exc:
+                family_context["plugin_knowledge_load_error"] = str(exc)
+                continue
+            if isinstance(plugin_knowledge, dict):
+                family_context = _merge_family_context(classification, plugin_knowledge)
+                family_context["knowledge_source"] = f"plugin:{ks.family_key}"
+            break
     return classification, family_context
 
 

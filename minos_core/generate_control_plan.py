@@ -4,8 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from minos_core._text_utils import row_text, string_list, integer, dedupe
-
+from minos_core._text_utils import dedupe, integer, row_text, string_list
 
 LOW_CONFIDENCE_THRESHOLD = 0.75
 
@@ -13,11 +12,19 @@ LOW_CONFIDENCE_THRESHOLD = 0.75
 def generate_control_plan_from_pfmea(
     pfmea_bundle: dict[str, Any],
 ) -> dict[str, Any]:
-    """Generate a thin, rules-based control plan from PFMEA rows.
+    """Generate a control plan from a PFMEA bundle using rules-based logic.
 
-    The generator is intentionally deterministic: it copies direct PFMEA fields
-    when present and uses small risk-based defaults for sampling and reaction
-    planning when the PFMEA does not already provide control-plan fields.
+    Copies direct PFMEA fields when present and applies risk-based defaults
+    for sampling and reaction planning when the PFMEA does not already provide
+    control-plan fields.
+
+    Args:
+        pfmea_bundle: PFMEA output dictionary containing rows, process steps,
+            evidence, and metadata.
+
+    Returns:
+        A control plan dictionary with document_type, rows, metadata, and
+        inferred items populated.
     """
 
     rows = _pfmea_rows(pfmea_bundle)
@@ -54,12 +61,13 @@ def generate_control_plan_from_pfmea(
 
 
 def _pfmea_rows(pfmea_bundle: dict[str, Any]) -> list[Any]:
+    """Extract PFMEA row list from a bundle dictionary, trying multiple keys."""
     if isinstance(pfmea_bundle.get("rows"), list):
-        return pfmea_bundle["rows"]
+        return list(pfmea_bundle["rows"])
     if isinstance(pfmea_bundle.get("failure_modes"), list):
-        return pfmea_bundle["failure_modes"]
+        return list(pfmea_bundle["failure_modes"])
     if isinstance(pfmea_bundle.get("pfmea_items"), list):
-        return pfmea_bundle["pfmea_items"]
+        return list(pfmea_bundle["pfmea_items"])
     pfmea = pfmea_bundle.get("pfmea")
     if isinstance(pfmea, dict):
         return _pfmea_rows(pfmea)
@@ -67,6 +75,7 @@ def _pfmea_rows(pfmea_bundle: dict[str, Any]) -> list[Any]:
 
 
 def _control_row(row: dict[str, Any], index: int) -> dict[str, Any]:
+    """Convert a single PFMEA row into a control plan row with defaults."""
     pfmea_id = row_text(row, "pfmea_id", "id", default=f"PFMEA-{index:03d}")
     process_step_id = row_text(row, "process_step_id", "step_no", "step", default="")
     classification = row_text(
@@ -230,7 +239,8 @@ def _control_plan_id(
     process_step_id: str,
     index: int,
 ) -> str:
-    linked_id = row_text(row, "linked_control_plan_id", "control_plan_id", default="")
+    """Derive a control plan ID from linked ID, PFMEA ID, or index."""
+    linked_id = row_text(row, "linked_control_plan_id", default="")
     if linked_id:
         return linked_id
     if pfmea_id:
@@ -241,6 +251,7 @@ def _control_plan_id(
 
 
 def _characteristic(row: dict[str, Any]) -> str:
+    """Extract the product/process characteristic description from a PFMEA row."""
     explicit = row_text(
         row,
         "product_characteristic",
@@ -260,6 +271,7 @@ def _characteristic(row: dict[str, Any]) -> str:
 
 
 def _source_special_characteristics(row: dict[str, Any], classification: str) -> list[str]:
+    """Collect all special characteristic identifiers from multiple source fields."""
     values: list[str] = []
     for source in (
         row.get("characteristic_refs", []),
@@ -275,6 +287,7 @@ def _source_special_characteristics(row: dict[str, Any], classification: str) ->
 
 
 def _source_gauges(row: dict[str, Any]) -> list[str]:
+    """Collect gauge and measurement device identifiers from multiple source fields."""
     values: list[str] = []
     for source in (
         row.get("gauges", []),
@@ -289,6 +302,7 @@ def _source_gauges(row: dict[str, Any]) -> list[str]:
 
 
 def _inspection_equipment(row: dict[str, Any]) -> str:
+    """Derive the inspection equipment description, falling back to gauges."""
     explicit = row_text(
         row,
         "inspection_equipment",
@@ -306,6 +320,7 @@ def _inspection_equipment(row: dict[str, Any]) -> str:
 
 
 def _derived_specification(row: dict[str, Any]) -> str:
+    """Derive a draft specification from drawing requirements or failure mode."""
     requirement = row_text(
         row,
         "drawing_specification",
@@ -326,6 +341,7 @@ def _derived_specification(row: dict[str, Any]) -> str:
 
 
 def _default_measurement_method(row: dict[str, Any]) -> str:
+    """Derive a default measurement method from detection control text or D rating."""
     detection_control = row_text(row, "detection_control", "current_detection_control", default="")
     if detection_control:
         return detection_control
@@ -338,6 +354,7 @@ def _default_measurement_method(row: dict[str, Any]) -> str:
 
 
 def _control_method(row: dict[str, Any]) -> str:
+    """Derive a control method from prevention/detection controls or AP rating."""
     prevention_control = row_text(row, "prevention_control", default="")
     detection_control = row_text(row, "detection_control", default="")
     if prevention_control and detection_control:
@@ -353,6 +370,7 @@ def _control_method(row: dict[str, Any]) -> str:
 
 
 def _process_parameter(row: dict[str, Any]) -> str:
+    """Extract or derive the process parameter from a PFMEA row."""
     explicit = row_text(
         row,
         "process_parameter",
@@ -378,6 +396,7 @@ def _process_parameter(row: dict[str, Any]) -> str:
 
 
 def _parameter_specification(row: dict[str, Any]) -> str:
+    """Derive a parameter specification from direct field or failure cause."""
     direct = row_text(
         row,
         "parameter_specification",
@@ -395,6 +414,7 @@ def _parameter_specification(row: dict[str, Any]) -> str:
 
 
 def _process_control_method(row: dict[str, Any]) -> str:
+    """Derive a process control method from direct field or prevention control."""
     direct = row_text(row, "process_control_method", "parameter_control_method", default="")
     if direct:
         return direct
@@ -406,6 +426,7 @@ def _process_control_method(row: dict[str, Any]) -> str:
 
 
 def _setup_verification(row: dict[str, Any]) -> str:
+    """Derive a setup verification description from the process parameter."""
     direct = row_text(row, "setup_verification", default="")
     if direct:
         return direct
@@ -414,6 +435,7 @@ def _setup_verification(row: dict[str, Any]) -> str:
 
 
 def _poka_yoke_device(row: dict[str, Any]) -> str:
+    """Derive a poka-yoke device description from the process parameter."""
     direct = row_text(row, "poka_yoke_device", default="")
     if direct:
         return direct
@@ -422,6 +444,7 @@ def _poka_yoke_device(row: dict[str, Any]) -> str:
 
 
 def _poka_yoke_verification(row: dict[str, Any]) -> str:
+    """Derive a poka-yoke verification plan from the poka-yoke device."""
     direct = row_text(row, "poka_yoke_verification", default="")
     if direct:
         return direct
@@ -430,6 +453,7 @@ def _poka_yoke_verification(row: dict[str, Any]) -> str:
 
 
 def _process_record(row: dict[str, Any]) -> str:
+    """Derive a process record description from the process parameter."""
     direct = row_text(row, "process_record", "record_form", default="")
     if direct:
         return direct
@@ -438,6 +462,7 @@ def _process_record(row: dict[str, Any]) -> str:
 
 
 def _risk_level(row: dict[str, Any], classification: str) -> str:
+    """Determine risk level from action priority, severity, and classification."""
     action_priority = row_text(row, "action_priority", default="").upper()
     severity = integer(row.get("severity"))
     occurrence = integer(row.get("occurrence"))
@@ -449,6 +474,7 @@ def _risk_level(row: dict[str, Any], classification: str) -> str:
 
 
 def _default_sample_size(risk_level: str) -> str:
+    """Return a default sample size based on risk level."""
     if risk_level == "high":
         return "100%"
     if risk_level == "medium":
@@ -457,6 +483,7 @@ def _default_sample_size(risk_level: str) -> str:
 
 
 def _default_sample_frequency(risk_level: str) -> str:
+    """Return a default sample frequency based on risk level."""
     if risk_level == "high":
         return "每件或每循环检查，直到风险降低"
     if risk_level == "medium":
@@ -465,6 +492,7 @@ def _default_sample_frequency(risk_level: str) -> str:
 
 
 def _reaction_plan(risk_level: str) -> str:
+    """Return a default reaction plan based on risk level."""
     if risk_level == "high":
         return "停机，隔离可疑产品，通知质量人员，并在重启前验证纠正措施"
     if risk_level == "medium":
@@ -480,6 +508,7 @@ def _needs_confirmation(
     confidence: float,
     evidence_refs: list[str],
 ) -> bool:
+    """Determine whether a control plan row requires human confirmation."""
     if bool(row.get("needs_confirmation", False)):
         return True
     if risk_level == "high" or classification:
@@ -492,6 +521,7 @@ def _needs_confirmation(
 
 
 def _inferred_control_fields(direct_fields: dict[str, str]) -> list[str]:
+    """Return field names that have no direct value and were inferred."""
     return [field for field, value in direct_fields.items() if not value]
 
 
@@ -501,6 +531,7 @@ def _control_reasoning(
     risk_level: str,
     inferred_fields: list[str],
 ) -> str:
+    """Build a human-readable reasoning string for a control plan row."""
     existing = row_text(row, "ai_reasoning", default="")
     source = f"控制计划行来源于 PFMEA {pfmea_id}，风险等级：{_risk_level_text(risk_level)}"
     if inferred_fields:
@@ -512,10 +543,12 @@ def _control_reasoning(
 
 
 def _risk_level_text(risk_level: str) -> str:
+    """Map a risk level key to its Chinese label."""
     return {"high": "高", "medium": "中", "low": "低"}.get(risk_level, risk_level)
 
 
 def _field_text(field_name: str) -> str:
+    """Map a control plan field key to its Chinese label."""
     return {
         "specification": "规格要求",
         "measurement_method": "测量方法",
@@ -534,6 +567,7 @@ def _field_text(field_name: str) -> str:
 
 
 def _ai_is_uncertain(row: dict[str, Any]) -> bool:
+    """Check whether the AI expressed uncertainty in any reasoning field."""
     uncertainty_text = " ".join(
         row_text(row, key, default="")
         for key in (
@@ -562,6 +596,7 @@ def _ai_is_uncertain(row: dict[str, Any]) -> bool:
 
 
 def _confidence(row: dict[str, Any]) -> float:
+    """Extract a confidence score from a row, defaulting to 0.0 on failure."""
     try:
         return float(row.get("confidence", 0.0))
     except (TypeError, ValueError):
@@ -569,7 +604,14 @@ def _confidence(row: dict[str, Any]) -> float:
 
 
 def normalize_control_plan_rows(rows: list[dict[str, Any]]) -> None:
-    """Ensure every control plan row carries the standard CP-2024 field set."""
+    """Ensure every control plan row carries the standard CP-2024 field set.
+
+    Mutates each row in-place to set default values for all expected fields
+    where they are missing.
+
+    Args:
+        rows: A list of control plan row dictionaries to normalize.
+    """
     for row in rows:
         row.setdefault("control_plan_id", "")
         row.setdefault("process_step_id", "")

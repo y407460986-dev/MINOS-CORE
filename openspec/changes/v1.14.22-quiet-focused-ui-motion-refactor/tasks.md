@@ -15,6 +15,11 @@
 - [ ] /// 8. 前端保持三表编辑画布和浮动上下文工具条为主操作面。
 - [ ] /// 9. 前端继续删除右侧 `InspectorPanel`，保留 `PreviewRail`。
 - [ ] /// 10. 前端保持图纸导入页 mounted，导航时不丢失链式生成状态。
+
+> **⚠️ Postponed (2026-05-30):** Tasks #6–#10 are deferred to the next release cycle.
+> v3.2.1 ships with stability/security fixes only. These UI motion refactor items
+> remain scoped to v1.14.22 and will be picked up in the next feature window.
+
 - [x] /// 11. 文档侧更新 `task_plan.md`、`progress.md`、`findings.md`、`project_flow.mmd`。
 - [x] /// 12. 新增并跑通 Tauri 静态测试契约。
 

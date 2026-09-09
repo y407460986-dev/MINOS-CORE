@@ -52,3 +52,11 @@ async def test_draft_run_blocked_from_wrong_state(test_client, demo_sha256):
     resp = await test_client.post(f"/api/projects/{project_id}/draft-runs")
     assert resp.status_code == 409
     assert resp.json()["code"] == "INVALID_STATE_TRANSITION"
+
+
+async def test_draft_run_on_nonexistent_project(test_client):
+    """POST /api/projects/{id}/draft-runs for non-existent project returns 404."""
+    resp = await test_client.post(
+        "/api/projects/00000000-0000-0000-0000-000000000000/draft-runs"
+    )
+    assert resp.status_code == 404

@@ -33,7 +33,7 @@ python -m minos_core.cli generate-three-tables --input path\to\drawing.png --out
 
 ## 架构
 
-v3.0 采用 4 层结构：Tauri 前端 → FastAPI 桌面 sidecar → Desktop Services（SQLite）→ Core Library（Pipeline）。详见 [架构总览](docs/architecture/README.md)、[模块地图](docs/architecture/modules.md)、[数据流](docs/architecture/data-flow.md) 与各 ADR。
+v3.8 采用 4 层结构：Tauri 前端 → FastAPI 桌面 sidecar → Desktop Services（SQLite）→ Core Library（Pipeline）。详见 [架构总览](docs/architecture/README.md)、[模块地图](docs/architecture/modules.md)、[数据流](docs/architecture/data-flow.md) 与各 ADR。
 
 ## 插件扩展
 
@@ -56,6 +56,7 @@ v3.0 采用 4 层结构：Tauri 前端 → FastAPI 桌面 sidecar → Desktop Se
 - `validate`：执行阶段质量门，判断链路是否满足继续流转或需要人工复核。
 - `audit`：输出证据覆盖、链路完整性、人工复核点等审计信息。
 - `export`：将核心结构导出为交付格式。
+- Phase 3（代码手术）已完成，涵盖代码重构、AI 弹性集成、可观测性加固与插件扩展。
 
 ## 当前交付状态
 
@@ -68,6 +69,24 @@ v3.0 采用 4 层结构：Tauri 前端 → FastAPI 桌面 sidecar → Desktop Se
 - 项目提供最小 `pyproject.toml`，可被 Python 打包工具识别为 `minos-core` 包，并注册 `minos-core` CLI 入口。
 - 运行时第三方依赖保持为空；真实 LLM/OCR SDK 不进入 core。
 - `.gitignore` 已覆盖 Python 缓存、本地虚拟环境、测试缓存、常见构建/输出目录以及 `.claude/settings.local.json`，避免提交本地 Claude 配置。
+
+### Python 依赖与工作区清理
+
+`pyproject.toml` 是抽象依赖的唯一来源。Python 3.11 的可复现安装使用平台 lock：Linux/CI 使用 `requirements/locks/linux-py311.txt`，Windows sidecar 构建使用 `requirements/locks/windows-py311.txt`。更新依赖后运行对应命令并提交 lock；CI 会在两个平台检查漂移。
+
+```powershell
+uv pip compile pyproject.toml --python-version 3.11 --python-platform windows --extra dev --extra test --extra desktop-api --extra platform --extra ocr --extra build --output-file requirements/locks/windows-py311.txt
+uv pip compile pyproject.toml --python-version 3.11 --python-platform linux --extra dev --extra test --extra desktop-api --extra platform --extra ocr --output-file requirements/locks/linux-py311.txt
+python -m pip install -r requirements/locks/windows-py311.txt
+python -m pip install -e . --no-deps
+```
+
+工作区清理默认仅预演，且只接受脚本内列出的仓库构建目录。确认输出后显式执行：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/clean_workspace.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/clean_workspace.ps1 -Apply
+```
 
 ## 明确非目标
 
@@ -118,7 +137,7 @@ MINOS-CORE 当前不承诺、也不内置以下能力：
 - AI 线索不能单独满足下游质量门，必须经过规则证据、质量门和人工复核。
 - 图纸识别已接入 OpenAI Responses 兼容 adapter：`OpenAIResponsesMultimodalDrawingAnalyzer`。
 - 配置读取顺序为：显式 `MINOS_OPENAI_*`、`OPENAI_*` 优先，其次是桌面设置页保存的 AI 服务配置；当 Codex provider 标记 `requires_openai_auth = true` 时，MINOS 会优先复用 Codex `auth.json` 的 OpenAI key，再考虑 `ARK_API_KEY`。
-- 当前按项目要求将 MINOS 运行模型固定为 `gpt-5.5`，默认 Responses 地址为 `https://cx.allincoding.cc/responses`。Codex 配置只复用 auth、wire API、store、reasoning 和 user-agent，不再把 Codex `base_url` 作为 MINOS 默认地址；显式环境变量仍可覆盖。API key 只在运行时读取，不写入仓库、不打印到诊断输出。
+- 当前按项目要求将 MINOS 运行模型固定为 `gpt-5.5`，默认 Responses 地址为 `https://allincode.top/responses`。Codex 配置只复用 auth、wire API、store、reasoning 和 user-agent，不再把 Codex `base_url` 作为 MINOS 默认地址；显式环境变量仍可覆盖。API key 只在运行时读取，不写入仓库、不打印到诊断输出。
 - `python -m minos_core.cli ai-config` 只显示模型、中转地址、key 是否已配置和来源，不显示 key 值。
 - 可用 `python -m minos_core.cli analyze-drawing --input path\to\drawing.png --output out\drawing_analysis.json` 调用真实多模态 AI 生成 `drawing_analysis_bundle`。
 - 可用 `python -m minos_core.cli generate-three-tables --input path\to\drawing.png --output-dir out\case001` 从图纸一键生成 PFD/PFMEA/CP 草案和 Excel。
@@ -132,6 +151,16 @@ python -m minos_core.cli validate --input tests\fixtures\apqp_chain
 python -m minos_core.cli audit --input tests\fixtures\apqp_chain
 python -m minos_core.cli export --input tests\fixtures\apqp_chain --output out.xlsx
 ```
+
+### CLI 命令参考
+
+| 命令 | 说明 |
+|------|------|
+| `compare-ocr-engines` | 对比不同 OCR 引擎在同一图纸上的识别结果 |
+| `accept-three-tables` | 验收三表生成结果 JSON 与工作簿导出文件的结构完整性 |
+| `write-demo-drawing` | 生成合成演示图纸 PNG，用于本地冒烟测试 |
+| `doctor` | 环境诊断（Python 版本、OCR 引擎、依赖、AI 配置） |
+| `apply-review` | 将人工复核补丁应用到 APQP 链路草案 |
 
 ## Tauri 桌面工作台
 
@@ -166,6 +195,20 @@ Tauri UI 通过服务层刷新 AI/PFD/PFMEA/CP/复核/导出页面。链式生�
 
 ```powershell
 python -m pytest tests/test_llm_text_responses.py tests/desktop/test_services.py tests/test_desktop_tauri_app_state.py -q
+```
+
+### Frontend 构建
+
+```bash
+cd apps/desktop-tauri
+npm install
+npm run build
+```
+
+Rust 后端通过 Cargo 管理：
+```bash
+cd apps/desktop-tauri/src-tauri
+cargo check
 ```
 
 ## 下一阶段：真实桌面试跑与交付验收
@@ -293,7 +336,22 @@ pip install -e ".[platform]"
 python -m minos_platform
 ```
 
-启动后访问 `http://localhost:8000/docs`（自动生成的 Swagger 文档）。
+默认情况下 Platform API 要求 Bearer token，未设置 token 的请求会返回 `401`。启动前设置：
+
+```powershell
+$env:MINOS_PLATFORM_AUTH_REQUIRED = "1"
+$env:MINOS_PLATFORM_API_TOKEN = "replace-with-a-long-random-token"
+python -m minos_platform
+```
+
+仅限绑定 loopback（`127.0.0.1`）的本机开发进程，可以显式关闭鉴权：
+
+```powershell
+$env:MINOS_PLATFORM_AUTH_REQUIRED = "0"
+python -m minos_platform --host 127.0.0.1
+```
+
+启动后访问 `http://localhost:8000/docs`（自动生成的 Swagger 文档）；启用鉴权时请在请求中发送 `Authorization: Bearer <token>`。
 
 ### 平台 API 端点
 

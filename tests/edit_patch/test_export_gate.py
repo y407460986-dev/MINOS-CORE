@@ -1,37 +1,97 @@
 from __future__ import annotations
 
-import copy
 import tempfile
 import unittest
 from pathlib import Path
-from zipfile import ZipFile
 from xml.etree import ElementTree
+from zipfile import ZipFile
 
-from minos_core.adapters.fixture_json import load_fixture_payload
+from minos_core.automation_review import build_automation_review, build_batch_confirm_patch
 from minos_core.edit_patch import (
     EDIT_PATCH_VERSION,
-    EditPatchError,
     apply_edit_patch,
     evaluate_edit_export_gate,
     export_edited_three_tables,
 )
-from minos_core.automation_review import build_automation_review, build_batch_confirm_patch
-from minos_core.change_management import _changed_any
 from minos_core.knowledge_recommendation import recommend_from_knowledge
-from minos_core.quality_gates import evaluate_export_gate
-
+from minos_core.quality_gates import ExportGateError, evaluate_export_gate
+from tests.edit_patch.conftest import NS, _three_table_result
 
 ROOT_FIXTURE = "D:/MINOS-CORE/tests/fixtures/apqp_chain"
 
-from tests.edit_patch.conftest import _fixture, _three_table_result, ROOT_FIXTURE, NS
-
 
 class ExportGateTests(unittest.TestCase):
+    def test_export_gate_blocks_structural_audit_blockers(self):
+        payload = {
+            "product": {},
+            "process_steps": [
+                {
+                    "process_step_id": "P10",
+                    "operation": "Inspection",
+                    "process_function": "Inspect critical feature",
+                }
+            ],
+            "failure_modes": [
+                {
+                    "pfmea_id": "PFMEA-P10-GENERIC",
+                    "process_step_id": "P10",
+                    "process_function": "Inspect critical feature",
+                    "failure_mode": "Critical feature out of tolerance",
+                    "failure_effect": "Customer fit issue",
+                    "failure_cause": "Gauge setup drift",
+                    "severity": 8,
+                    "occurrence": 3,
+                    "detection": 4,
+                    "action_priority": "M",
+                    "evidence_refs": [],
+                }
+            ],
+            "controls": [
+                {
+                    "control_plan_id": "CP-P10-GENERIC",
+                    "process_step_id": "P10",
+                    "pfmea_id": "PFMEA-P10-GENERIC",
+                    "product_process_characteristic": "Critical feature",
+                    "specification": "按图纸",
+                    "measurement_method": "按作业指导书",
+                    "sample_size": "1",
+                    "sample_frequency": "每批",
+                    "control_method": "按规范",
+                    "reaction_plan": "按工艺卡",
+                    "evidence_refs": [],
+                }
+            ],
+            "evidence": [],
+            "links": [],
+        }
+
+        gate = evaluate_export_gate(payload)
+        manual_items = [
+            item if isinstance(item, dict) else item.__dict__
+            for item in gate.manual_review_items
+        ]
+
+        self.assertFalse(gate.allow_user_export)
+        self.assertTrue(
+            any(item.get("category") == "generic_control_text" for item in manual_items)
+        )
+        self.assertTrue(
+            any(
+                item.get("category") == "generic_control_text"
+                for item in gate.review_issues
+            )
+        )
+
     def test_final_export_raises_when_unconfirmed_and_succeeds_after_confirmed(self):
         source = _three_table_result()
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = export_edited_three_tables(source, Path(tmpdir), export_mode="final")
-            self.assertFalse(result["final_export_allowed"])
+            output_dir = Path(tmpdir)
+            with self.assertRaises(ExportGateError):
+                export_edited_three_tables(source, output_dir, export_mode="final")
+            self.assertFalse(
+                any(path.is_file() for path in output_dir.rglob("*")),
+                "blocked final export must not leave formal files behind",
+            )
 
         confirmed = apply_edit_patch(source, _confirm_all_patch(source))
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -46,6 +106,13 @@ class ExportGateTests(unittest.TestCase):
             self.assertIn("soft_deleted_items", workbook_text)
 
         self.assertTrue(result["final_export_allowed"])
+
+    def test_draft_export_allows_unconfirmed_chain(self):
+        source = _three_table_result()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            result = export_edited_three_tables(source, Path(tmpdir), export_mode="draft")
+            self.assertFalse(result["final_export_allowed"])
+            self.assertTrue(Path(result["exports"]["unified_workbook"]).exists())
 
 
     def test_ai_batch_confirm_history_and_core_export_blockers(self):

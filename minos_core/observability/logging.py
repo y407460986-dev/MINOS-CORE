@@ -12,7 +12,8 @@ from __future__ import annotations
 import logging
 import os
 import sys
-from typing import Any
+from types import FrameType
+from typing import Any, cast
 
 import structlog
 from structlog.contextvars import (
@@ -63,7 +64,7 @@ def _resolve_json(json_format: bool | None) -> bool:
 def _add_caller_info(_: Any, __: str, event_dict: EventDict) -> EventDict:
     """Populate caller filename, function, and line number when available."""
 
-    frame = sys._getframe(1)
+    frame: FrameType | None = sys._getframe(1)
     # Walk past structlog and logging frames to reach the actual caller.
     skip_modules = ("structlog", "logging")
     while frame is not None:
@@ -155,7 +156,8 @@ def get_logger(name: str | None = None) -> structlog.stdlib.BoundLogger:
 
     if not _CONFIGURED:
         configure_logging()
-    return structlog.get_logger(name) if name else structlog.get_logger()
+    logger = structlog.get_logger(name) if name else structlog.get_logger()
+    return cast(structlog.stdlib.BoundLogger, logger)
 
 
 def bind_request_context(

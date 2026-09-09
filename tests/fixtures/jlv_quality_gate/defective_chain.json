@@ -1,0 +1,150 @@
+{
+  "document_type": "apqp_chain",
+  "schema_version": "minos-core.fixture.v1",
+  "product": {
+    "sample_id": "jlv_quality_gate_defective_chain",
+    "part_number": "JLV03000500-001-AC-RR",
+    "part_name": "D00R HIMGE 尾门铰链",
+    "revision": "AC",
+    "phase": "Pre-Launch"
+  },
+  "process_steps": [
+    {
+      "process_step_id": "P01",
+      "sequence": 10,
+      "operation": "来料检验",
+      "process_function": "确认 BACK DOOR HINGE 来料满足图纸和防腐要求",
+      "special_characteristics": [],
+      "evidence_refs": [
+        "EV-JLV-DRAWING-001"
+      ]
+    },
+    {
+      "process_step_id": "P02",
+      "sequence": 20,
+      "operation": "表面处理",
+      "process_function": "对尾门铰链进行表面处理以满足白锈和红锈盐雾要求",
+      "special_characteristics": [],
+      "evidence_refs": [
+        "EV-JLV-DRAWING-001"
+      ]
+    }
+  ],
+  "failure_modes": [
+    {
+      "pfmea_id": "PFMEA-P01-01",
+      "process_step_id": "P01",
+      "process_function": "确认 BACK DOOR HINGE 来料满足图纸和防腐要求",
+      "failure_mode": "来料状态与图纸身份不一致",
+      "failure_effect": "错误零件进入后续表面处理",
+      "severity": 8,
+      "failure_cause": "图纸 OCR 身份疑似错误未复核",
+      "occurrence": 3,
+      "prevention_control": "图纸编号和零件名称复核",
+      "detection_control": "来料文件审核",
+      "detection": 5,
+      "action_priority": "M",
+      "classification": "",
+      "evidence_refs": [
+        "EV-JLV-DRAWING-001"
+      ]
+    },
+    {
+      "pfmea_id": "PFMEA-P02-01",
+      "process_step_id": "P02",
+      "process_function": "对尾门铰链进行表面处理以满足白锈和红锈盐雾要求",
+      "failure_mode": "白锈耐蚀性能不足",
+      "failure_effect": "客户外观和耐久性投诉",
+      "severity": 8,
+      "failure_cause": "表面处理膜层不足",
+      "occurrence": 4,
+      "prevention_control": "表面处理参数控制",
+      "detection_control": "盐雾试验验证",
+      "detection": 5,
+      "action_priority": "M",
+      "classification": "",
+      "evidence_refs": [
+        "EV-JLV-DRAWING-001"
+      ]
+    },
+    {
+      "pfmea_id": "PFMEA-P02-02",
+      "process_step_id": "P02",
+      "process_function": "对尾门铰链进行表面处理以满足白锈和红锈盐雾要求",
+      "failure_mode": "红锈耐蚀性能不足",
+      "failure_effect": "尾门铰链寿命降低并产生售后风险",
+      "severity": 9,
+      "failure_cause": "红锈 240h 要求未进入控制计划",
+      "occurrence": 4,
+      "prevention_control": "表面处理参数控制",
+      "detection_control": "盐雾试验验证",
+      "detection": 5,
+      "action_priority": "H",
+      "classification": "",
+      "evidence_refs": [
+        "EV-JLV-DRAWING-001"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "control_plan_id": "CP-P01-01",
+      "process_step_id": "P01",
+      "pfmea_id": "PFMEA-P01-01",
+      "product_process_characteristic": "图纸与来料一致性",
+      "specification": "按图纸",
+      "measurement_method": "目视检查",
+      "sample_size": "1 件",
+      "sample_frequency": "每批",
+      "control_method": "检查",
+      "reaction_plan": "隔离并通知质量",
+      "evidence_refs": [
+        "EV-JLV-DRAWING-001"
+      ]
+    },
+    {
+      "control_plan_id": "CP-P01-01",
+      "process_step_id": "P02",
+      "pfmea_id": "PFMEA-P02-01",
+      "product_process_characteristic": "白锈耐蚀性能",
+      "specification": "按图纸",
+      "measurement_method": "目视检查",
+      "sample_size": "1 件",
+      "sample_frequency": "每批",
+      "control_method": "检查",
+      "reaction_plan": "隔离并通知质量",
+      "evidence_refs": [
+        "EV-JLV-DRAWING-001"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "EV-JLV-DRAWING-001",
+      "source": "drawing_ocr",
+      "content": "BACK DOOR HINGE drawing text references JLV03000500-001-AC-RR and D00R HIMGE. Technical requirement mentions white rust 白锈 72h/120h and red rust 红锈 240h salt spray requirements.",
+      "confidence": 0.72,
+      "ai_inferred": false,
+      "needs_confirmation": false
+    }
+  ],
+  "links": [],
+  "pending_fields": [],
+  "ai_inferred_items": [],
+  "metadata": {
+    "generation_mode": "ai_drawing_three_table_generation",
+    "strict_aiag_vda_pfmea_gate": true,
+    "drawing_analysis_risks": [
+      {
+        "risk_id": "DRAWING-IDENTITY-SUSPECT-OCR",
+        "severity": "blocker",
+        "message": "图纸身份 OCR 疑似错误，正式输出前必须人工复核。"
+      },
+      {
+        "risk_id": "TECHREQ-SALT-SPRAY-RED-RUST-MISSING",
+        "severity": "blocker",
+        "message": "红锈 240h 盐雾要求未进入正式控制链。"
+      }
+    ]
+  }
+}

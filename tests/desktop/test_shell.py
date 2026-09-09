@@ -3,6 +3,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+from minos_desktop.api.schemas import settings_to_dict
 from minos_desktop.app_state import (
     ChainStageStates,
     DesktopProjectState,
@@ -11,18 +12,11 @@ from minos_desktop.app_state import (
     desktop_run_state_from_result,
     summarize_generation_result,
 )
-from minos_desktop.api.schemas import settings_to_dict
 from minos_desktop.services import (
-    DesktopKnowledgeStore,
     DesktopProjectStore,
     DesktopRunService,
     DesktopSettingsStore,
     format_desktop_failure,
-)
-from minos_desktop.table_editor import (
-    ROW_STATUS_COLUMN,
-    build_edit_patch,
-    three_table_to_table_model,
 )
 
 
@@ -304,6 +298,17 @@ class TestDesktopShell(unittest.TestCase):
         self.assertIn("原始错误：LLM Responses HTTP 504 Gateway Time-out", message)
         self.assertIn("原因判断：AI 上游模型或中转服务响应超时。", message)
         self.assertIn("稍后重试", message)
+
+    def test_failure_formatter_identifies_mineru_local_connection_failure(self):
+        message = format_desktop_failure(
+            "MinerU OCR failed: Started local mineru-api at http://127.0.0.1:2280\n"
+            "Error: 1 task(s) failed while processing documents:\n"
+            "- task#1: All connection attempts failed"
+        )
+
+        self.assertIn("原因判断：MinerU 本地解析服务连接失败", message)
+        self.assertNotIn("AI 配置可能缺失或不可用", message)
+        self.assertIn("重试图纸识别", message)
 
 
 

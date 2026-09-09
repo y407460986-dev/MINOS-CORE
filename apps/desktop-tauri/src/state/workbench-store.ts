@@ -94,7 +94,7 @@ function rowsFromDocument(result: Record<string, unknown>, table: TableKind, inc
       linkedRows: [text(row.process_step_id), text(row.pfmea_id), text(row.linked_control_plan_id)].filter(Boolean),
       rowId: id,
       rowIdField: idKey,
-      raw: row
+      raw: { ...row }
     };
   });
 }

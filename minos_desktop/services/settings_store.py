@@ -6,14 +6,13 @@ import os
 from pathlib import Path
 from urllib.parse import urlparse
 
+from minos_core._paths import user_data_dir
 from minos_core.ai_config import load_openai_responses_config
 
 from ..app_state import DesktopAIConfigState
 from ..security.api_key_store import SecureAPIKeyStore
 from ..security.secret_str import SecretStr
-from .sqlite_store import DesktopSQLiteStore, DEFAULT_DESKTOP_DB_PATH, _utc_now
-
-from minos_core._paths import user_data_dir
+from .sqlite_store import DEFAULT_DESKTOP_DB_PATH, DesktopSQLiteStore, _utc_now
 
 DEFAULT_DESKTOP_OUTPUT_DIR = user_data_dir() / "out"
 
@@ -100,9 +99,9 @@ class DesktopSettingsStore:
             api_key_env_name=config.api_key_env_name,
             wire_api=config.wire_api,
             responses_path=config.responses_path,
-            base_url_override=ai_overrides["base_url"],
+            base_url_override=ai_overrides["base_url"] or "",
             api_key_override_set=bool(ai_overrides["api_key"]),
-            model_override=ai_overrides["model"],
+            model_override=ai_overrides["model"] or "",
             base_url_locked_by_env=bool(base_url_env),
             api_key_locked_by_env=bool(api_key_env),
             model_locked_by_env=bool(model_env),

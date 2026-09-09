@@ -29,3 +29,18 @@ async def test_get_project_not_found(test_client):
     """GET /api/projects/{id} returns 404 for unknown id."""
     resp = await test_client.get("/api/projects/does-not-exist")
     assert resp.status_code == 404
+
+
+async def test_create_project_empty_name(test_client):
+    """POST /api/projects with empty name returns 422."""
+    resp = await test_client.post(
+        "/api/projects",
+        json={"name": "", "project_code": "TPA-002", "part_number": "PN-456"},
+    )
+    assert resp.status_code == 422
+
+
+async def test_get_project_rejects_invalid_id(test_client):
+    """GET /api/projects/{id} with a valid UUID format but non-existent returns 404."""
+    resp = await test_client.get("/api/projects/00000000-0000-0000-0000-000000000000")
+    assert resp.status_code == 404

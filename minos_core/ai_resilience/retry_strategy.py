@@ -5,13 +5,15 @@ Implements configurable retry logic with exponential backoff to handle
 transient failures gracefully.
 """
 
-import time
 import random
-import logging
+import time
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, TypeVar, Any
+from typing import TypeVar
 
-logger = logging.getLogger(__name__)
+from minos_core.observability.logging import get_logger
+
+logger = get_logger(__name__)
 
 T = TypeVar("T")
 
@@ -100,7 +102,7 @@ class ExponentialBackoffRetry:
             try:
                 result = operation()
                 if attempt > 0:
-                    logger.info(f"Operation succeeded after {attempt} retries")
+                    logger.info("operation_succeeded_after_retries", attempt=attempt)
                 return result
 
             except Exception as e:
@@ -108,21 +110,28 @@ class ExponentialBackoffRetry:
 
                 # Check if we should retry this exception
                 if should_retry and not should_retry(e):
-                    logger.info(f"Exception {type(e).__name__} is not retryable")
+                    logger.info(
+                        "exception_not_retryable",
+                        exception_type=type(e).__name__,
+                    )
                     raise
 
                 # Check if we have retries left
                 if attempt >= self.config.max_retries:
                     logger.error(
-                        f"Operation failed after {self.config.max_retries} retries"
+                        "operation_failed_after_retries",
+                        max_retries=self.config.max_retries,
                     )
                     raise
 
                 # Calculate delay and wait
                 delay = self.calculate_delay(attempt)
                 logger.warning(
-                    f"Retry {attempt + 1}/{self.config.max_retries} "
-                    f"after {delay:.2f}s due to: {e}"
+                    "retrying_operation",
+                    attempt=attempt + 1,
+                    max_retries=self.config.max_retries,
+                    delay=round(delay, 2),
+                    error=str(e),
                 )
 
                 # Call retry callback if provided
@@ -159,10 +168,8 @@ def is_retryable_error(exception: Exception) -> bool:
     if isinstance(exception, httpx.HTTPStatusError):
         status = exception.response.status_code
         # Retry on server errors (5xx) and rate limiting (429)
-        if status >= 500 or status == 429:
-            return True
         # Don't retry client errors (4xx except 429)
-        return False
+        return status >= 500 or status == 429
 
     # By default, retry unknown errors
     return True

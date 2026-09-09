@@ -10,7 +10,7 @@ class TokenManager:
 
     TOKEN_PROVIDER = "minos-desktop-api-token"
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.keystore = SecureAPIKeyStore()
 
     def get_or_create_token(self) -> str:

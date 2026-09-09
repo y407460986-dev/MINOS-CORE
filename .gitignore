@@ -40,10 +40,16 @@ auth.json
 # Claude Code local-only configuration
 .claude/settings.local.json
 .claude/*.local.json
+.claude/worktrees/
+
+# Editor local configuration
+.obsidian/
 
 # Packaging and build outputs
 build/
 dist/
+release/*
+!release/.gitkeep
 *.egg-info/
 .eggs/
 node_modules/
@@ -60,6 +66,7 @@ apps/**/src-tauri/binaries/*/_internal/
 .tmp-ui-split-backup/
 
 # Test and tool caches
+test-results/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/

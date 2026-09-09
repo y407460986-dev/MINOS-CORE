@@ -11,4 +11,4 @@ router = APIRouter()
 
 @router.get("/health")
 def health() -> dict[str, Any]:
-    return {"ok": True, "status": "ok", "service": "minos-desktop-api", "version": "1.14.0"}
+    return {"ok": True, "status": "ok", "service": "minos-desktop-api", "version": "3.8.6"}

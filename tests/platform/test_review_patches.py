@@ -36,7 +36,12 @@ async def test_review_patch_copied_to_artifact_area(test_client, demo_package_pa
 
     _, template_data = await _run_full_chain(test_client, project_id, demo_package_path, demo_sha256)
 
-    patch_data = {**template_data, "confirmed_by": "qa.engineer", "confirmed_at": "2026-04-25T10:00:00Z", "reason": "test approval"}
+    patch_data = {
+        **template_data,
+        "confirmed_by": "qa.engineer",
+        "confirmed_at": "2026-04-25T10:00:00Z",
+        "reason": "test approval",
+    }
     patch_data.pop("template_status", None)
     for item in patch_data.get("items", []):
         item["confirmed_by"] = "qa.engineer"
@@ -73,7 +78,12 @@ async def test_review_patch_sha256_validated(test_client, demo_package_path, dem
 
     _, template_data = await _run_full_chain(test_client, project_id, demo_package_path, demo_sha256)
 
-    patch_data = {**template_data, "confirmed_by": "qa.engineer", "confirmed_at": "2026-04-25T10:00:00Z", "reason": "test approval"}
+    patch_data = {
+        **template_data,
+        "confirmed_by": "qa.engineer",
+        "confirmed_at": "2026-04-25T10:00:00Z",
+        "reason": "test approval",
+    }
     patch_data.pop("template_status", None)
     for item in patch_data.get("items", []):
         item["confirmed_by"] = "qa.engineer"

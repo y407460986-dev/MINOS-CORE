@@ -16,9 +16,10 @@ import subprocess
 import sys
 import tempfile
 import time
-from contextlib import contextmanager
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager, suppress
 from pathlib import Path
-from typing import IO, Any, Iterator, Sequence
+from typing import IO, Any
 
 from .errors import ResourceError
 from .logging import get_logger
@@ -203,10 +204,8 @@ def managed_subprocess(
         # Make sure pipes are released even if the caller never consumed them.
         for stream in (proc.stdin, proc.stdout, proc.stderr):
             if stream is not None and not stream.closed:
-                try:
+                with suppress(OSError):
                     stream.close()
-                except OSError:  # pragma: no cover - defensive
-                    pass
 
         exit_code = proc.poll()
         _logger.info(

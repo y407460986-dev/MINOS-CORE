@@ -2,13 +2,12 @@
 
 import unittest
 
+from minos_core.edit_patch import EDIT_PATCH_VERSION
 from minos_core.live_linkage import (
     build_live_edit_events,
-    preview_live_linkage_impacts,
     build_live_sync_patch,
+    preview_live_linkage_impacts,
 )
-from minos_core.edit_patch import EDIT_PATCH_VERSION
-
 
 # ---------------------------------------------------------------------------
 # Helper
@@ -181,7 +180,12 @@ class LiveLinkagePreviewTests(unittest.TestCase):
     def test_pfd_add_previews_pfmea_regeneration_review(self):
         """新增 PFD 预览提示重新生成 PFMEA，不自动造占位行"""
         before = _make_payload(steps=[P10])
-        new_step = {"process_step_id": "P30", "operation": "检验", "process_function": "终检", "special_characteristics": []}
+        new_step = {
+            "process_step_id": "P30",
+            "operation": "检验",
+            "process_function": "终检",
+            "special_characteristics": [],
+        }
         patch = {
             "edit_patch_version": EDIT_PATCH_VERSION,
             "items": [{"action": "add", "table": "process_flow", "target_id": "P30", "row": new_step}],
@@ -254,13 +258,22 @@ class LiveSyncPatchTests(unittest.TestCase):
     def test_build_sync_patch_does_not_create_pfmea_stub(self):
         """PFD 新增后的联动同步不生成 PFMEA 占位 add item"""
         before = _make_payload(steps=[P10])
-        new_step = {"process_step_id": "P30", "operation": "检验", "process_function": "终检", "special_characteristics": []}
+        new_step = {
+            "process_step_id": "P30",
+            "operation": "检验",
+            "process_function": "终检",
+            "special_characteristics": [],
+        }
         patch = {
             "edit_patch_version": EDIT_PATCH_VERSION,
             "items": [{"action": "add", "table": "process_flow", "target_id": "P30", "row": new_step}],
         }
         preview = preview_live_linkage_impacts(before, patch)
-        impact_ids = [i["impact_id"] for i in preview["impacts"] if i["recommended_action"] == "regenerate_pfmea_from_confirmed_pfd"]
+        impact_ids = [
+            i["impact_id"]
+            for i in preview["impacts"]
+            if i["recommended_action"] == "regenerate_pfmea_from_confirmed_pfd"
+        ]
         self.assertGreater(len(impact_ids), 0)
 
         sync_patch = build_live_sync_patch(before, patch, impact_ids)

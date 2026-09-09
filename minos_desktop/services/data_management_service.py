@@ -5,20 +5,20 @@ from __future__ import annotations
 import shutil
 import sqlite3
 import zipfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from .sqlite_store import (
-    DesktopSQLiteStore,
-    DEFAULT_DESKTOP_DB_PATH,
-    _utc_now,
-    _to_json,
-    _seed_knowledge_rules,
-)
-
 from minos_core._paths import user_data_dir
 from minos_core.validation import InputValidator
+
+from .sqlite_store import (
+    DEFAULT_DESKTOP_DB_PATH,
+    DesktopSQLiteStore,
+    _seed_knowledge_rules,
+    _to_json,
+    _utc_now,
+)
 
 DEFAULT_DESKTOP_OUTPUT_DIR = user_data_dir() / "out"
 
@@ -57,12 +57,16 @@ class DesktopDataManagementService:
     def create_backup(self) -> dict[str, Any]:
         self.backup_dir.mkdir(parents=True, exist_ok=True)
         created_at = _utc_now()
-        stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+        stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
         backup_path = self.backup_dir / f"MINOS-CORE-backup-{stamp}.zip"
         temp_db_path = self.backup_dir / f".{backup_path.stem}.sqlite3.tmp"
         source = sqlite3.connect(self.db_path)
         target = sqlite3.connect(temp_db_path)
         try:
+            source.execute("PRAGMA foreign_keys = ON")
+            source.execute("PRAGMA busy_timeout = 5000")
+            target.execute("PRAGMA foreign_keys = ON")
+            target.execute("PRAGMA busy_timeout = 5000")
             source.backup(target)
         finally:
             target.close()
@@ -118,22 +122,25 @@ class DesktopDataManagementService:
 
         return self.get_status()
 
+    # Table name allowlist map — validated lookup prevents SQL injection
+    TABLE_MAP = {
+        "projects": "projects",
+        "runs": "runs",
+        "knowledge_rules": "knowledge_rules",
+        "settings": "settings",
+    }
+
     def _table_count(self, table_name: str) -> int:
-        """Count rows in a table. Only allows whitelisted table names.
-
-        SECURITY FIX v3.1.0: Whitelist validation prevents SQL injection.
-        """
-        # Whitelist of allowed tables
-        ALLOWED_TABLES = {"projects", "runs", "knowledge_rules", "settings"}
-
-        if table_name not in ALLOWED_TABLES:
+        """Count rows in a table. Only allows whitelisted table names."""
+        if table_name not in self.TABLE_MAP:
             raise ValueError(
-                f"Invalid table name: {table_name}. Allowed: {ALLOWED_TABLES}"
+                f"Invalid table name: {table_name}. Allowed: {set(self.TABLE_MAP.keys())}"
             )
 
         with self._store.connect() as connection:
-            # Safe to use f-string now that table_name is validated
-            row = connection.execute(f"SELECT COUNT(*) AS count FROM {table_name}").fetchone()
+            row = connection.execute(
+                f"SELECT COUNT(*) AS count FROM {self.TABLE_MAP[table_name]}"
+            ).fetchone()
         return int(row["count"]) if row else 0
 
     def _last_backup_fields(self) -> dict[str, str]:
@@ -147,7 +154,7 @@ class DesktopDataManagementService:
         if not backups:
             return {"last_backup_path": "", "last_backup_created_at": ""}
         latest = backups[0]
-        created_at = datetime.fromtimestamp(latest.stat().st_mtime, timezone.utc).isoformat(timespec="seconds")
+        created_at = datetime.fromtimestamp(latest.stat().st_mtime, UTC).isoformat(timespec="seconds")
         return {"last_backup_path": str(latest), "last_backup_created_at": created_at}
 
 def _directory_size(path: Path) -> int:

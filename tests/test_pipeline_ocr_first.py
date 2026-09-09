@@ -22,6 +22,628 @@ from minos_core.pipeline import (
 
 
 class PipelineOCRFirstTests(unittest.TestCase):
+    def test_hybrid_applies_fake_special_characteristic_judge_payload(self) -> None:
+        calls: dict[str, object] = {}
+        evidence_module = types.ModuleType("minos_core.special_characteristics_evidence")
+        judge_module = types.ModuleType("minos_core.special_characteristics_judge")
+
+        def build_special_characteristic_evidence_packet(drawing_analysis):
+            calls["drawing_analysis"] = drawing_analysis
+            return {
+                "packet_id": "SC-EVIDENCE-001",
+                "symbol_occurrences": [
+                    {"candidate_id": "MSC-001", "evidence_refs": ["drawing_page_001"]}
+                ],
+                "text_evidence": [
+                    {"text_id": "TXT-001", "evidence_refs": ["drawing_page_001"]}
+                ],
+                "page_evidence_refs": ["drawing_page_001"],
+            }
+
+        def normalize_special_characteristic_judgments(payload):
+            calls["judge_payload"] = payload
+            return list(payload["special_characteristic_judgments"])
+
+        def verify_special_characteristic_judgments(judgments, packet):
+            calls["judgments"] = judgments
+            calls["packet"] = packet
+            return {
+                "confirmed": [
+                    {
+                        **judgments[0],
+                        "confirmation_status": "judge_confirmed",
+                        "needs_confirmation": False,
+                    }
+                ],
+                "risks": [
+                    {
+                        "risk_id": "SC-JUDGE-SCJ-REVIEW",
+                        "item_id": "SC-JUDGE-SCJ-REVIEW",
+                        "category": "special_characteristic_judge",
+                        "severity": "review",
+                        "target": "special_characteristic_judgments.SCJ-REVIEW",
+                        "message": "AI 裁判结果需要人工复核。",
+                    }
+                ],
+            }
+
+        evidence_module.build_special_characteristic_evidence_packet = (
+            build_special_characteristic_evidence_packet
+        )
+        judge_module.normalize_special_characteristic_judgments = (
+            normalize_special_characteristic_judgments
+        )
+        judge_module.verify_special_characteristic_judgments = (
+            verify_special_characteristic_judgments
+        )
+        vision = {
+            "drawing_identity": {"part_name": "BRACKET"},
+            "materials": [],
+            "manufacturing_clues": [],
+            "special_characteristic_candidates": [
+                {
+                    "candidate_id": "MSC-001",
+                    "candidate_type": "unknown",
+                    "source": "visual_symbol",
+                    "symbol_text_or_shape": "菱形",
+                    "linked_feature": "安装孔位置度",
+                    "evidence_refs": ["drawing_page_001"],
+                    "confidence": 0.94,
+                }
+            ],
+            "technical_requirements": [
+                {
+                    "id": "TXT-001",
+                    "text": "图例: 菱形 = CC",
+                    "evidence_refs": ["drawing_page_001"],
+                }
+            ],
+            "evidence": [{"evidence_id": "drawing_page_001", "source": "drawing_page"}],
+            "special_characteristic_judgments": [
+                {
+                    "judgment_id": "SCJ-001",
+                    "candidate_id": "MSC-001",
+                    "classification": "CC",
+                    "verdict": "confirmed",
+                    "linked_feature": "安装孔位置度",
+                    "confidence": 0.91,
+                    "standard_evidence_refs": ["TXT-001"],
+                    "symbol_evidence_refs": ["MSC-001"],
+                    "page_evidence_refs": ["drawing_page_001"],
+                    "reasoning_summary": "图例说明菱形为 CC。",
+                }
+            ],
+            "metadata": {
+                "drawing_analysis_risks": [
+                    {
+                        "risk_id": "DRAWING-IDENTITY-REVIEW",
+                        "severity": "review",
+                        "message": "身份需要复核。",
+                    }
+                ]
+            },
+        }
+
+        with patch.dict(
+            sys.modules,
+            {
+                "minos_core.special_characteristics_evidence": evidence_module,
+                "minos_core.special_characteristics_judge": judge_module,
+            },
+        ):
+            from minos_core.pipeline.hybrid_fusion import _merge_special_characteristic_candidates
+
+            _merge_special_characteristic_candidates(vision, {})
+
+        self.assertEqual(
+            calls["judge_payload"],
+            {
+                "special_characteristic_judgments": vision[
+                    "special_characteristic_judgments"
+                ]
+            },
+        )
+        self.assertEqual(vision["special_characteristics"][0]["classification"], "CC")
+        self.assertEqual(
+            vision["special_characteristics"][0]["confirmation_status"],
+            "judge_confirmed",
+        )
+        self.assertEqual(
+            vision["special_characteristics"][0]["source_judgment_id"],
+            "SCJ-001",
+        )
+        self.assertEqual(
+            vision["special_characteristic_candidates"][0]["candidate_id"],
+            "MSC-001",
+        )
+        risk_ids = {
+            item["risk_id"]
+            for item in vision["metadata"]["drawing_analysis_risks"]
+        }
+        self.assertIn("DRAWING-IDENTITY-REVIEW", risk_ids)
+        self.assertIn("SC-JUDGE-SCJ-REVIEW", risk_ids)
+
+    def test_hybrid_calls_injected_special_characteristic_judge_when_payload_missing(
+        self,
+    ) -> None:
+        class FakeJudge:
+            def __init__(self) -> None:
+                self.packets: list[dict[str, object]] = []
+
+            def judge(self, evidence_packet):
+                self.packets.append(evidence_packet)
+                return {
+                    "special_characteristic_judgments": [
+                        {
+                            "judgment_id": "SCJ-001",
+                            "candidate_id": "MSC-001",
+                            "classification": "CC",
+                            "verdict": "confirmed",
+                            "linked_feature": "安装孔位置度",
+                            "confidence": 0.91,
+                            "standard_evidence_refs": ["TXT-001"],
+                            "symbol_evidence_refs": ["MSC-001"],
+                            "page_evidence_refs": ["drawing_page_001"],
+                            "reasoning_summary": "图例说明菱形为 CC。",
+                        }
+                    ]
+                }
+
+        vision = {
+            "drawing_identity": {"part_name": "BRACKET"},
+            "materials": [],
+            "manufacturing_clues": [],
+            "special_characteristic_candidates": [
+                {
+                    "candidate_id": "MSC-001",
+                    "candidate_type": "unknown",
+                    "source": "visual_symbol",
+                    "symbol_text_or_shape": "菱形",
+                    "linked_feature": "安装孔位置度",
+                    "evidence_refs": ["drawing_page_001"],
+                    "confidence": 0.94,
+                }
+            ],
+            "technical_requirements": [
+                {
+                    "id": "TXT-001",
+                    "text": "图例: 菱形 = CC",
+                    "evidence_refs": ["drawing_page_001"],
+                }
+            ],
+            "evidence": [{"evidence_id": "drawing_page_001", "source": "drawing_page"}],
+        }
+        judge = FakeJudge()
+
+        from minos_core.pipeline.hybrid_fusion import _merge_special_characteristic_candidates
+
+        _merge_special_characteristic_candidates(
+            vision,
+            {},
+            special_characteristic_judge=judge,
+        )
+
+        self.assertEqual(judge.packets[0]["symbol_occurrences"][0]["candidate_id"], "MSC-001")
+        self.assertEqual(vision["special_characteristic_judgments"][0]["classification"], "CC")
+        self.assertEqual(vision["special_characteristics"][0]["confirmation_status"], "judge_confirmed")
+
+    def test_hybrid_merges_gpt55_visual_locator_occurrences_into_evidence_packet(
+        self,
+    ) -> None:
+        class FakeJudge:
+            def __init__(self) -> None:
+                self.packets: list[dict[str, object]] = []
+
+            def judge(self, evidence_packet):
+                self.packets.append(evidence_packet)
+                return {"special_characteristic_judgments": []}
+
+        vision = {
+            "drawing_identity": {"part_name": "JLV DEMO"},
+            "materials": [],
+            "manufacturing_clues": [],
+            "special_characteristic_candidates": [],
+            "special_characteristic_locations": [],
+            "located_occurrences": [
+                {
+                    "candidate_id": "SC-REQ4-TORQUE",
+                    "candidate_type": "SC",
+                    "source": "gpt55_visual_locator",
+                    "symbol_text_or_shape": "水平圆角长框",
+                    "linked_feature": "技术要求第4条第(2)项：转动力矩(0.5~2.5)Nm",
+                    "symbol_bbox": [2050, 906, 2255, 929],
+                    "evidence_refs": ["drawing_page_001", "crop_sc_req4"],
+                    "confidence": 0.96,
+                }
+            ],
+            "visual_evidence": [
+                {
+                    "evidence_id": "crop_sc_req4",
+                    "source": "visual_crop",
+                    "page_evidence_id": "drawing_page_001",
+                    "metadata": {"source": "gpt55_visual_locator"},
+                }
+            ],
+            "metadata": {
+                "visual_locator": {
+                    "source": "gpt55_visual_locator",
+                    "declared_totals": {"CC": 2, "SC": 1},
+                }
+            },
+        }
+        ocr = {
+            "declared_totals": {"CC": 2, "SC": 1},
+            "special_characteristics": [],
+        }
+        judge = FakeJudge()
+
+        from minos_core.pipeline.hybrid_fusion import _merge_special_characteristic_candidates
+
+        _merge_special_characteristic_candidates(
+            vision,
+            ocr,
+            special_characteristic_judge=judge,
+        )
+
+        self.assertEqual(
+            vision["special_characteristic_candidates"][0]["candidate_id"],
+            "SC-REQ4-TORQUE",
+        )
+        self.assertEqual(
+            vision["special_characteristic_candidates"][0]["source"],
+            "gpt55_visual_locator",
+        )
+        packet = judge.packets[0]
+        self.assertEqual(packet["declared_totals"], {"CC": 2, "SC": 1})
+        self.assertEqual(
+            packet["symbol_occurrences"][0]["source"],
+            "gpt55_visual_locator",
+        )
+        self.assertEqual(
+            packet["symbol_occurrences"][0]["candidate_id"],
+            "SC-REQ4-TORQUE",
+        )
+        self.assertEqual(
+            vision["special_characteristic_discovery"]["missing_counts"],
+            {"CC": 2, "SC": 0},
+        )
+
+    def test_hybrid_preserves_explicit_ocr_sc_as_candidate_when_vision_misses_it(self) -> None:
+        vision = {
+            "drawing_identity": {"part_name": "BRACKET"},
+            "materials": [],
+            "manufacturing_clues": [],
+            "special_characteristic_candidates": [
+                {
+                    "candidate_type": "unknown",
+                    "source": "visual_symbol",
+                    "linked_feature": "客户符号",
+                    "evidence_refs": ["drawing_page_001"],
+                    "confidence": 0.6,
+                }
+            ],
+            "metadata": {
+                "drawing_analysis_risks": [
+                    {
+                        "risk_id": "DRAWING-IDENTITY-REVIEW",
+                        "severity": "review",
+                        "message": "身份需要复核。",
+                    }
+                ]
+            },
+        }
+        ocr = {
+            "special_characteristics": [
+                {
+                    "classification": "SC",
+                    "name": "孔径 10.0 +/- 0.1 mm",
+                    "evidence_refs": ["drawing_page_001"],
+                    "confidence": 0.93,
+                }
+            ]
+        }
+
+        from minos_core.pipeline.hybrid_fusion import _merge_special_characteristic_candidates
+
+        _merge_special_characteristic_candidates(vision, ocr)
+
+        self.assertTrue(
+            any(
+                item["candidate_type"] == "SC" and item["source"] == "ocr_text"
+                for item in vision["special_characteristic_candidates"]
+            )
+        )
+        self.assertEqual(vision["special_characteristics"][0]["classification"], "SC")
+        risk_ids = {
+            item["risk_id"]
+            for item in vision["metadata"]["drawing_analysis_risks"]
+        }
+        self.assertIn("DRAWING-IDENTITY-REVIEW", risk_ids)
+        self.assertIn("SC-CANDIDATE-MSC-001", risk_ids)
+
+    def test_ocr_summary_for_context_includes_declared_special_counts(self) -> None:
+        from minos_core.pipeline.hybrid_fusion import _ocr_summary_for_context
+
+        drawing_analysis = {
+            "drawing_identity": {"part_name": "OCR 支架"},
+            "materials": [],
+            "dimensions": [],
+            "special_characteristics": [],
+            "technical_requirements": [],
+            "manufacturing_clues": [],
+            "declared_special_characteristics": [
+                {
+                    "classification": "CC",
+                    "expected_count": 2,
+                    "evidence_refs": ["ocr_page_001"],
+                },
+                {
+                    "classification": "SC",
+                    "expected_count": 1,
+                    "evidence_refs": ["ocr_page_002"],
+                },
+            ],
+            "declared_totals": {"CC": 2, "SC": 1},
+            "metadata": {"ocr_summary": {"raw_text_preview": "声明 CC=2 SC=1"}},
+        }
+
+        summary = _ocr_summary_for_context(drawing_analysis)
+
+        self.assertEqual(summary["raw_text_preview"], "声明 CC=2 SC=1")
+        self.assertEqual(summary["declared_totals"], {"CC": 2, "SC": 1})
+        self.assertEqual(
+            summary["declared_special_characteristics"][0]["classification"],
+            "CC",
+        )
+
+    def test_hybrid_context_includes_special_characteristic_discovery_request_after_ocr(
+        self,
+    ) -> None:
+        from minos_core.pipeline import drawing_analysis as drawing_pipeline
+
+        captured: dict[str, object] = {}
+        ocr_analysis = {
+            "drawing_identity": {"part_name": "JLV DEMO", "drawing_number": "JLV03000500"},
+            "materials": [],
+            "manufacturing_clues": [],
+            "special_characteristics": [],
+            "declared_special_characteristics": [
+                {
+                    "classification": "CC",
+                    "expected_count": 2,
+                    "evidence_refs": ["ocr_page_001"],
+                },
+                {
+                    "classification": "SC",
+                    "expected_count": 1,
+                    "evidence_refs": ["ocr_page_001"],
+                },
+            ],
+            "declared_totals": {"CC": 2, "SC": 1},
+            "evidence": [{"evidence_id": "ocr_page_001", "source": "ocr_page"}],
+            "metadata": {},
+        }
+
+        def fake_vision_analysis(pages, analyzer, context):
+            captured["vision_context"] = dict(context)
+            return {
+                "drawing_identity": {"part_name": "JLV DEMO"},
+                "materials": [],
+                "manufacturing_clues": [],
+                "special_characteristic_candidates": [],
+                "special_characteristic_locations": [],
+                "evidence": [{"evidence_id": "drawing_page_001", "source": "drawing_page"}],
+                "metadata": {},
+            }
+
+        with patch(
+            "minos_core.pipeline.drawing_analysis._run_ocr_drawing_analysis",
+            return_value=ocr_analysis,
+        ):
+            analysis, warnings, source, errors = drawing_pipeline._analyze_drawing_pages_for_mode(
+                source={"path": "drawing.png"},
+                pages=[_page_evidence()],
+                target_dir=Path("out"),
+                context_payload={},
+                analysis_mode="hybrid",
+                ocr_engine="rapidocr",
+                ocr_adapter=None,
+                analyzer=object(),
+                default_analyzer_factory=object,
+                analyze_drawing_pages=fake_vision_analysis,
+            )
+
+        request = captured["vision_context"]["special_characteristic_discovery_request"]
+        self.assertEqual(source, "hybrid_vision")
+        self.assertEqual(warnings, [])
+        self.assertEqual(errors, [])
+        self.assertEqual(request["declared_totals"], {"CC": 2, "SC": 1})
+        self.assertEqual(
+            request["declared_special_characteristics"][1]["classification"],
+            "SC",
+        )
+        self.assertEqual(analysis["declared_totals"], {"CC": 2, "SC": 1})
+
+    def test_hybrid_fallback_keeps_declared_counts_and_missing_risk_when_vision_fails(
+        self,
+    ) -> None:
+        ocr_analysis = {
+            "drawing_identity": {"part_name": "JLV DEMO", "drawing_number": "JLV03000500"},
+            "materials": [{"name": "SPCC", "evidence_refs": ["ocr_page_001"]}],
+            "manufacturing_clues": [{"operation": "装配", "evidence_refs": ["ocr_page_001"]}],
+            "special_characteristics": [],
+            "declared_special_characteristics": [
+                {
+                    "classification": "CC",
+                    "expected_count": 2,
+                    "evidence_refs": ["ocr_page_001"],
+                },
+                {
+                    "classification": "SC",
+                    "expected_count": 1,
+                    "evidence_refs": ["ocr_page_001"],
+                },
+            ],
+            "declared_totals": {"CC": 2, "SC": 1},
+            "special_characteristic_candidates": [],
+            "evidence": [{"evidence_id": "ocr_page_001", "source": "ocr_page"}],
+            "metadata": {},
+        }
+
+        from minos_core.pipeline.hybrid_fusion import _merge_special_characteristic_candidates
+
+        _merge_special_characteristic_candidates(
+            ocr_analysis,
+            ocr_analysis,
+            context={},
+        )
+
+        self.assertEqual(ocr_analysis["declared_totals"], {"CC": 2, "SC": 1})
+        self.assertEqual(
+            ocr_analysis["special_characteristic_discovery"]["missing_counts"],
+            {"CC": 2, "SC": 1},
+        )
+        risk_ids = {
+            item["risk_id"]
+            for item in ocr_analysis["metadata"]["drawing_analysis_risks"]
+        }
+        self.assertIn("SC-DISCOVERY-MISSING-CC", risk_ids)
+        self.assertIn("SC-DISCOVERY-MISSING-SC", risk_ids)
+
+    def test_hybrid_merge_keeps_positive_visual_declared_counts_when_ocr_has_zero_counts(
+        self,
+    ) -> None:
+        from minos_core.pipeline.hybrid_fusion import _merge_special_characteristic_candidates
+
+        vision_analysis = {
+            "drawing_identity": {"part_name": "JLV DEMO"},
+            "materials": [],
+            "manufacturing_clues": [],
+            "special_characteristic_candidates": [],
+            "special_characteristic_locations": [],
+            "declared_special_characteristics": [
+                {
+                    "classification": "CC",
+                    "expected_count": 2,
+                    "source": "gpt55_visual_locator",
+                    "evidence_refs": ["drawing_page_001"],
+                },
+                {
+                    "classification": "SC",
+                    "expected_count": 1,
+                    "source": "gpt55_visual_locator",
+                    "evidence_refs": ["drawing_page_001"],
+                },
+            ],
+            "declared_totals": {"CC": 2, "SC": 1},
+            "metadata": {},
+        }
+        ocr_analysis = {
+            "declared_special_characteristics": [],
+            "declared_totals": {"CC": 0, "SC": 0},
+            "special_characteristics": [],
+        }
+
+        _merge_special_characteristic_candidates(
+            vision_analysis,
+            ocr_analysis,
+            context={},
+        )
+
+        self.assertEqual(vision_analysis["declared_totals"], {"CC": 2, "SC": 1})
+        self.assertEqual(
+            vision_analysis["special_characteristic_discovery"]["missing_counts"],
+            {"CC": 2, "SC": 1},
+        )
+        risk_ids = {
+            item["risk_id"]
+            for item in vision_analysis["metadata"]["drawing_analysis_risks"]
+        }
+        self.assertIn("SC-DISCOVERY-MISSING-CC", risk_ids)
+        self.assertIn("SC-DISCOVERY-MISSING-SC", risk_ids)
+
+    def test_hybrid_vision_failure_fallback_adds_declared_missing_risks(
+        self,
+    ) -> None:
+        from minos_core.pipeline import drawing_analysis as drawing_pipeline
+
+        captured: dict[str, object] = {}
+        ocr_analysis = {
+            "drawing_identity": {"part_name": "JLV DEMO", "drawing_number": "JLV03000500"},
+            "materials": [{"name": "SPCC", "evidence_refs": ["ocr_page_001"]}],
+            "manufacturing_clues": [{"operation": "装配", "evidence_refs": ["ocr_page_001"]}],
+            "special_characteristics": [],
+            "declared_special_characteristics": [
+                {
+                    "classification": "CC",
+                    "expected_count": 2,
+                    "evidence_refs": ["ocr_page_001"],
+                },
+                {
+                    "classification": "SC",
+                    "expected_count": 1,
+                    "evidence_refs": ["ocr_page_001"],
+                },
+            ],
+            "declared_totals": {"CC": 2, "SC": 1},
+            "special_characteristic_candidates": [],
+            "evidence": [{"evidence_id": "ocr_page_001", "source": "ocr_page"}],
+            "metadata": {},
+        }
+
+        with patch(
+            "minos_core.pipeline.drawing_analysis._run_ocr_drawing_analysis",
+            return_value=ocr_analysis,
+        ):
+            analysis, warnings, source, errors = drawing_pipeline._analyze_drawing_pages_for_mode(
+                source={"path": "drawing.png"},
+                pages=[_page_evidence()],
+                target_dir=Path("out"),
+                context_payload={},
+                analysis_mode="hybrid",
+                ocr_engine="rapidocr",
+                ocr_adapter=None,
+                analyzer=_FailingAnalyzer(captured),
+                default_analyzer_factory=lambda: _FailingAnalyzer(captured),
+                analyze_drawing_pages=analyze_drawing_pages,
+            )
+
+        self.assertEqual(source, "hybrid_ocr_fallback")
+        self.assertIn(HYBRID_OCR_FALLBACK_WARNING, warnings)
+        self.assertEqual(errors[-1]["stage"], "vision")
+        self.assertEqual(analysis["declared_totals"], {"CC": 2, "SC": 1})
+        risk_ids = {
+            item["risk_id"]
+            for item in analysis["metadata"]["drawing_analysis_risks"]
+        }
+        self.assertIn("SC-DISCOVERY-MISSING-CC", risk_ids)
+        self.assertIn("SC-DISCOVERY-MISSING-SC", risk_ids)
+
+    def test_hybrid_uses_ocr_manufacturing_clues_when_vision_has_none(self) -> None:
+        vision = {
+            "drawing_identity": {"part_name": "BRACKET"},
+            "manufacturing_clues": [],
+            "metadata": {},
+        }
+        ocr = {
+            "manufacturing_clues": [
+                {
+                    "operation": "deburr",
+                    "process_function": "OCR text mentions no burrs",
+                    "evidence_refs": ["ocr_page_001_block_0026"],
+                    "confidence": 0.89,
+                }
+            ]
+        }
+
+        from minos_core.pipeline.hybrid_fusion import _merge_ocr_manufacturing_clues_if_needed
+
+        _merge_ocr_manufacturing_clues_if_needed(vision, ocr)
+
+        self.assertEqual(vision["manufacturing_clues"][0]["operation"], "deburr")
+        self.assertTrue(vision["manufacturing_clues"][0]["needs_confirmation"])
+        self.assertTrue(vision["metadata"]["ocr_manufacturing_clues_used"])
+
     def test_hybrid_returns_ocr_draft_when_vision_fails(self) -> None:
         captured: dict[str, object] = {}
 
@@ -126,25 +748,34 @@ class PipelineOCRFirstTests(unittest.TestCase):
     def test_effective_ocr_engine_accepts_mineru_and_error_lists_it(self) -> None:
         self.assertEqual(_effective_ocr_engine("mineru", {}), "mineru")
         self.assertEqual(_effective_ocr_engine("auto", {"ocr_engine": "mineru"}), "mineru")
-        self.assertEqual(_effective_ocr_engine("auto", {}), "mineru")
+        with patch(
+            "minos_core.ocr_detection.get_default_ocr_engine",
+            return_value="rapidocr",
+        ):
+            self.assertEqual(_effective_ocr_engine("auto", {"ocr_engine": "auto"}), "rapidocr")
+            self.assertEqual(_effective_ocr_engine("auto", {}), "rapidocr")
 
         with self.assertRaisesRegex(ValueError, "mineru"):
             _effective_ocr_engine("bad_engine", {})
 
-    def test_generate_three_tables_records_auto_as_mineru_default(self) -> None:
+    def test_generate_three_tables_records_detected_auto_ocr_engine(self) -> None:
         captured: dict[str, object] = {}
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = _run_pipeline(
-                tmpdir,
-                analysis_mode="ocr_only",
-                ocr_engine="auto",
-                analyzer=_FailingAnalyzer(captured),
-                captured=captured,
-            )
+            with patch(
+                "minos_core.ocr_detection.get_default_ocr_engine",
+                return_value="rapidocr",
+            ):
+                result = _run_pipeline(
+                    tmpdir,
+                    analysis_mode="ocr_only",
+                    ocr_engine="auto",
+                    analyzer=_FailingAnalyzer(captured),
+                    captured=captured,
+                )
 
-        self.assertEqual(captured["ocr_engine"], "mineru")
-        self.assertEqual(result["drawing_analysis"]["metadata"]["ocr_engine"], "mineru")
+        self.assertEqual(captured["ocr_engine"], "rapidocr")
+        self.assertEqual(result["drawing_analysis"]["metadata"]["ocr_engine"], "rapidocr")
         self.assertEqual(result["drawing_analysis"]["metadata"]["ocr_engine_requested"], "auto")
 
     def test_hybrid_with_mineru_falls_back_to_ocr_and_preserves_metadata(self) -> None:
@@ -359,6 +990,52 @@ class PipelineOCRFirstTests(unittest.TestCase):
         self.assertIn("AI 视觉识别中断，已保留 OCR 识别结果。", error_text)
         self.assertIn("stream_read_error", error_text)
 
+    def test_hybrid_fallback_promotes_ocr_sc_cc_to_review_candidates(self) -> None:
+        from minos_core.pipeline import drawing_analysis as drawing_pipeline
+
+        ocr_analysis = {
+            "drawing_identity": {"part_name": "OCR 支架", "drawing_number": "OCR-001"},
+            "special_characteristics": [
+                {
+                    "classification": "SC",
+                    "name": "孔径 10.0 +/- 0.1 mm",
+                    "evidence_refs": ["drawing_page_001"],
+                    "confidence": 0.91,
+                }
+            ],
+            "evidence": [{"evidence_id": "drawing_page_001", "source": "ocr_text"}],
+            "metadata": {"source_stage": "drawing_ocr_analysis"},
+        }
+
+        with patch(
+            "minos_core.pipeline.drawing_analysis._run_ocr_drawing_analysis",
+            return_value=ocr_analysis,
+        ):
+            analysis, warnings, source, errors = drawing_pipeline._analyze_drawing_pages_for_mode(
+                source={"path": "drawing.png"},
+                pages=[_page_evidence()],
+                target_dir=Path("out"),
+                context_payload={},
+                analysis_mode="hybrid",
+                ocr_engine="rapidocr",
+                ocr_adapter=None,
+                analyzer=_FailingAnalyzer({}),
+                default_analyzer_factory=lambda: _FailingAnalyzer({}),
+                analyze_drawing_pages=lambda *_args, **_kwargs: (_ for _ in ()).throw(
+                    RuntimeError("vision failed")
+                ),
+            )
+
+        self.assertEqual(source, "hybrid_ocr_fallback")
+        self.assertIn(HYBRID_OCR_FALLBACK_WARNING, warnings)
+        self.assertEqual(errors[0]["stage"], "vision")
+        self.assertTrue(
+            any(
+                item["candidate_type"] == "SC" and item["source"] == "ocr_text"
+                for item in analysis["special_characteristic_candidates"]
+            )
+        )
+
     def test_ocr_only_mode_skips_vision_analysis(self) -> None:
         """OCR-only 模式跳过视觉识别，直接使用 OCR 结果。"""
         captured: dict[str, object] = {}
@@ -389,9 +1066,24 @@ class PipelineOCRFirstTests(unittest.TestCase):
             drawing_path.write_bytes(b"fake drawing")
             patches = _pipeline_patches(captured)
             with ExitStack() as stack:
-                stack.enter_context(patch("minos_core.drawing_input.load_drawing_source", return_value={"path": str(drawing_path)}))
-                stack.enter_context(patch("minos_core.drawing_input.render_drawing_pages", return_value=[_page_evidence()]))
-                stack.enter_context(patch("minos_core.drawing_analysis.analyze_drawing_pages", return_value=_vision_only_analysis()))
+                stack.enter_context(
+                    patch(
+                        "minos_core.drawing_input.load_drawing_source",
+                        return_value={"path": str(drawing_path)},
+                    )
+                )
+                stack.enter_context(
+                    patch(
+                        "minos_core.drawing_input.render_drawing_pages",
+                        return_value=[_page_evidence()],
+                    )
+                )
+                stack.enter_context(
+                    patch(
+                        "minos_core.drawing_analysis.analyze_drawing_pages",
+                        return_value=_vision_only_analysis(),
+                    )
+                )
                 for item in patches:
                     stack.enter_context(item)
                 result = generate_three_tables_from_drawing(
@@ -442,9 +1134,24 @@ class PipelineOCRFirstTests(unittest.TestCase):
                 final_gate=_Gate(can_continue=True, allow_user_export=True, needs_human_review=False),
             )
             with ExitStack() as stack:
-                stack.enter_context(patch("minos_core.drawing_input.load_drawing_source", return_value={"path": str(drawing_path)}))
-                stack.enter_context(patch("minos_core.drawing_input.render_drawing_pages", return_value=[_page_evidence()]))
-                stack.enter_context(patch("minos_core.drawing_analysis.analyze_drawing_pages", return_value=_vision_only_analysis()))
+                stack.enter_context(
+                    patch(
+                        "minos_core.drawing_input.load_drawing_source",
+                        return_value={"path": str(drawing_path)},
+                    )
+                )
+                stack.enter_context(
+                    patch(
+                        "minos_core.drawing_input.render_drawing_pages",
+                        return_value=[_page_evidence()],
+                    )
+                )
+                stack.enter_context(
+                    patch(
+                        "minos_core.drawing_analysis.analyze_drawing_pages",
+                        return_value=_vision_only_analysis(),
+                    )
+                )
                 for item in patches:
                     stack.enter_context(item)
                 result = generate_three_tables_from_drawing(
@@ -474,11 +1181,24 @@ class PipelineOCRFirstTests(unittest.TestCase):
             # Replace the default drawing recognition gate with a blocking one.
             patches[0] = patch(
                 "minos_core.drawing_analysis.evaluate_drawing_recognition_gate",
-                return_value=_Gate(can_continue=False, manual_review_items=[{"item_id": "blocker", "severity": "blocker"}]),
+                return_value=_Gate(
+                    can_continue=False,
+                    manual_review_items=[{"item_id": "blocker", "severity": "blocker"}],
+                ),
             )
             with ExitStack() as stack:
-                stack.enter_context(patch("minos_core.drawing_input.load_drawing_source", return_value={"path": str(drawing_path)}))
-                stack.enter_context(patch("minos_core.drawing_input.render_drawing_pages", return_value=[_page_evidence()]))
+                stack.enter_context(
+                    patch(
+                        "minos_core.drawing_input.load_drawing_source",
+                        return_value={"path": str(drawing_path)},
+                    )
+                )
+                stack.enter_context(
+                    patch(
+                        "minos_core.drawing_input.render_drawing_pages",
+                        return_value=[_page_evidence()],
+                    )
+                )
                 for item in patches:
                     stack.enter_context(item)
                 result = generate_three_tables_from_drawing(
@@ -649,7 +1369,12 @@ def _run_pipeline_without_fake_ocr_module(
 ) -> dict[str, object]:
     patches = _pipeline_patches(captured, final_gate=_Gate(can_continue=True, allow_user_export=False))
     with ExitStack() as stack:
-        stack.enter_context(patch("minos_core.drawing_input.load_drawing_source", return_value={"path": str(drawing_path)}))
+        stack.enter_context(
+            patch(
+                "minos_core.drawing_input.load_drawing_source",
+                return_value={"path": str(drawing_path)},
+            )
+        )
         stack.enter_context(patch("minos_core.drawing_input.render_drawing_pages", return_value=[_page_evidence()]))
         for item in patches:
             stack.enter_context(item)
@@ -671,7 +1396,18 @@ def _pipeline_patches(
     final_gate: _Gate | None = None,
 ) -> list[object]:
     return [
-        patch("minos_core.drawing_analysis.evaluate_drawing_recognition_gate", return_value=_Gate(manual_review_items=[{"item_id": "drawing:ocr", "category": "drawing_recognition_ocr", "message": "OCR 待人工复核"}])),
+        patch(
+            "minos_core.drawing_analysis.evaluate_drawing_recognition_gate",
+            return_value=_Gate(
+                manual_review_items=[
+                    {
+                        "item_id": "drawing:ocr",
+                        "category": "drawing_recognition_ocr",
+                        "message": "OCR 待人工复核",
+                    }
+                ]
+            ),
+        ),
         patch("minos_core.part_family_classifier.classify_part_family", return_value={"family_key": "unknown"}),
         patch("minos_core.drawing_to_pfd.infer_process_flow_from_drawing", return_value=_process_flow()),
         patch("minos_core.characteristic_registry.build_characteristic_registry", return_value={}),

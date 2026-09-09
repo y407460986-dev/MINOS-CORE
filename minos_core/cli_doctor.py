@@ -5,13 +5,10 @@ Checks system configuration, dependencies, and provides recommendations
 for optimal setup.
 """
 
-import sys
+import importlib
 import os
 import shutil
-import importlib
-import logging
-from pathlib import Path
-from typing import Any
+import sys
 
 import structlog
 
@@ -67,7 +64,6 @@ def check_ocr_engines() -> list[DiagnosticCheck]:
     """Check available OCR engines."""
     from minos_core.ocr_detection import (
         detect_available_ocr_engines,
-        get_ocr_engine_info,
     )
 
     checks = []
@@ -193,7 +189,7 @@ def check_dependencies() -> list[DiagnosticCheck]:
     checks = []
 
     # SECURITY FIX v3.1.0: Whitelist of allowed packages for diagnostics
-    ALLOWED_PACKAGES = {
+    allowed_packages = {
         "httpx", "pydantic", "pymupdf", "structlog", "fastapi",
         "uvicorn", "sqlalchemy", "aiosqlite", "pillow",
         "rapidocr_onnxruntime", "onnxruntime"
@@ -208,7 +204,7 @@ def check_dependencies() -> list[DiagnosticCheck]:
     for package, description in dependencies:
         package_normalized = package.lower().replace("-", "_")
 
-        if package_normalized not in ALLOWED_PACKAGES:
+        if package_normalized not in allowed_packages:
             checks.append(
                 DiagnosticCheck(
                     package,
@@ -337,7 +333,10 @@ def print_diagnostics(
         if exit_on_complete:
             sys.exit(1)
     elif warning_checks:
-        logger.warning("diagnostics_warnings_found", message="Some warnings found. System should work but may not be optimal.")
+        logger.warning(
+            "diagnostics_warnings_found",
+            message="Some warnings found. System should work but may not be optimal.",
+        )
         if exit_on_complete:
             sys.exit(0)
     else:

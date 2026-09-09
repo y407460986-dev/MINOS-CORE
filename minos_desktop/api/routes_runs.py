@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Request
 
-from minos_desktop.services import DesktopRunService
-
 from . import jobs
+from .dependencies import RunServiceDep
 from .schemas import (
     ChainConfirmRequest,
     DrawingConfirmationsRequest,
@@ -24,23 +24,23 @@ router = APIRouter()
 
 
 @router.get("/runs/recent")
-def recent_runs(request: Request, limit: int = 10) -> list[dict[str, Any]]:
-    records = DesktopRunService(request.app.state.db_path).list_recent_runs(limit)
+def recent_runs(service: RunServiceDep, limit: int = 10) -> list[dict[str, Any]]:
+    records = service.list_recent_runs(limit)
     return [run_to_dict(record) for record in records]
 
 
 @router.get("/runs/{run_id}")
-def get_run(run_id: int, request: Request) -> dict[str, Any]:
+def get_run(run_id: int, service: RunServiceDep) -> dict[str, Any]:
     try:
-        return run_to_dict(DesktopRunService(request.app.state.db_path).get_run(run_id))
+        return run_to_dict(service.get_run(run_id))
     except KeyError as exc:
         raise failure_from_exception(exc) from exc
 
 
 @router.get("/runs/{run_id}/drawing-analysis")
-def drawing_analysis(run_id: int, request: Request) -> dict[str, Any]:
+def drawing_analysis(run_id: int, service: RunServiceDep) -> dict[str, Any]:
     try:
-        record = DesktopRunService(request.app.state.db_path).get_run(run_id)
+        record = service.get_run(run_id)
     except KeyError as exc:
         raise failure_from_exception(exc) from exc
     analysis = record.current_result.get("drawing_analysis", {})
@@ -50,17 +50,17 @@ def drawing_analysis(run_id: int, request: Request) -> dict[str, Any]:
 
 
 @router.post("/runs/{run_id}/restore")
-def restore_run(run_id: int, request: Request) -> dict[str, Any]:
+def restore_run(run_id: int, service: RunServiceDep) -> dict[str, Any]:
     try:
-        return run_to_dict(jobs.restore_run(request.app.state.db_path, run_id))
+        return run_to_dict(service.restore_run(run_id))
     except KeyError as exc:
         raise failure_from_exception(exc) from exc
 
 
 @router.patch("/runs/{run_id}/edit-patch")
-def edit_patch(run_id: int, payload: EditPatchRequest, request: Request) -> dict[str, Any]:
+def edit_patch(run_id: int, payload: EditPatchRequest, service: RunServiceDep) -> dict[str, Any]:
     try:
-        return run_to_dict(jobs.apply_edit_patch(request.app.state.db_path, run_id, payload.patch))
+        return run_to_dict(service.apply_edit_patch_to_run(run_id, payload.patch))
     except (KeyError, ValueError, TypeError, OSError) as exc:
         raise failure_from_exception(exc) from exc
 
@@ -69,12 +69,12 @@ def edit_patch(run_id: int, payload: EditPatchRequest, request: Request) -> dict
 def drawing_confirmations(
     run_id: int,
     payload: DrawingConfirmationsRequest,
-    request: Request,
+    service: RunServiceDep,
 ) -> dict[str, Any]:
     try:
         return run_to_dict(
             jobs.resolve_closure_tasks_by_type(
-                request.app.state.db_path,
+                service,
                 run_id,
                 "drawing_review",
                 payload.model_dump(),
@@ -89,10 +89,10 @@ def drawing_confirmations(
 @router.get("/runs/{run_id}/part-family")
 def part_family(
     run_id: int,
-    request: Request,
+    service: RunServiceDep,
 ) -> dict[str, Any]:
     try:
-        return jobs.part_family_context(request.app.state.db_path, run_id)
+        return jobs.part_family_context(service, run_id)
     except (KeyError, ValueError, TypeError, OSError) as exc:
         raise failure_from_exception(exc) from exc
 
@@ -101,12 +101,12 @@ def part_family(
 def update_part_family(
     run_id: int,
     payload: PartFamilyRequest,
-    request: Request,
+    service: RunServiceDep,
 ) -> dict[str, Any]:
     try:
         family_key = payload.family_key or payload.part_family
         return jobs.update_part_family_context(
-            request.app.state.db_path,
+            service,
             run_id,
             family_key=family_key,
             family_name=payload.family_name,
@@ -121,12 +121,12 @@ def update_part_family(
 def process_flow_confirmations(
     run_id: int,
     payload: ProcessFlowConfirmationsRequest,
-    request: Request,
+    service: RunServiceDep,
 ) -> dict[str, Any]:
     try:
         return run_to_dict(
             jobs.resolve_closure_tasks_by_type(
-                request.app.state.db_path,
+                service,
                 run_id,
                 "process_flow_confirmation",
                 payload.model_dump(),
@@ -143,9 +143,9 @@ def process_flow_confirmations(
 # ---------------------------------------------------------------------------
 
 @router.get("/runs/{run_id}/chain/state")
-def chain_state(run_id: int, request: Request) -> dict[str, Any]:
+def chain_state(run_id: int, service: RunServiceDep) -> dict[str, Any]:
     try:
-        return jobs.chain_state(request.app.state.db_path, run_id)
+        return service.get_chain_state(run_id)
     except KeyError as exc:
         raise failure_from_exception(exc) from exc
 
@@ -156,15 +156,11 @@ async def chain_confirm_pfd(
     payload: ChainConfirmRequest,
     request: Request,
     background_tasks: BackgroundTasks,
+    service: RunServiceDep,
 ) -> dict[str, Any]:
     try:
-        from .sse import create_channel, get_channel
-        record = jobs.confirm_pfd_stage(
-            request.app.state.db_path,
-            run_id,
-            payload.confirmed_by,
-            payload.edit_patch,
-        )
+        from .sse import create_channel, get_channel, remove_channel
+        record = service.confirm_pfd_stage(run_id, payload.confirmed_by, payload.edit_patch)
         channel = get_channel(run_id, "pfmea")
         if channel is None:
             channel = create_channel(run_id, "pfmea")
@@ -176,17 +172,21 @@ async def chain_confirm_pfd(
         )
         return run_to_dict(record)
     except (KeyError, ValueError, TypeError, OSError) as exc:
+        with contextlib.suppress(Exception):
+            remove_channel(run_id, "pfmea")
         raise failure_from_exception(exc) from exc
 
 
 @router.post("/runs/{run_id}/chain/pfmea-regenerate")
 async def chain_regenerate_pfmea(
-    run_id: int, request: Request, background_tasks: BackgroundTasks
+    run_id: int,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    service: RunServiceDep,
 ) -> dict[str, Any]:
     try:
         from .sse import create_channel, get_channel
-        svc = DesktopRunService(request.app.state.db_path)
-        run = svc.get_run(run_id)
+        run = service.get_run(run_id)
         channel = get_channel(run_id, "pfmea")
         if channel is None:
             channel = create_channel(run_id, "pfmea")
@@ -205,15 +205,11 @@ async def chain_confirm_pfmea(
     payload: ChainConfirmRequest,
     request: Request,
     background_tasks: BackgroundTasks,
+    service: RunServiceDep,
 ) -> dict[str, Any]:
     try:
-        from .sse import create_channel, get_channel
-        record = jobs.confirm_pfmea_stage(
-            request.app.state.db_path,
-            run_id,
-            payload.confirmed_by,
-            payload.edit_patch,
-        )
+        from .sse import create_channel, get_channel, remove_channel
+        record = service.confirm_pfmea_stage(run_id, payload.confirmed_by, payload.edit_patch)
         channel = get_channel(run_id, "cp")
         if channel is None:
             channel = create_channel(run_id, "cp")
@@ -225,17 +221,21 @@ async def chain_confirm_pfmea(
         )
         return run_to_dict(record)
     except (KeyError, ValueError, TypeError, OSError) as exc:
+        with contextlib.suppress(Exception):
+            remove_channel(run_id, "cp")
         raise failure_from_exception(exc) from exc
 
 
 @router.post("/runs/{run_id}/chain/cp-regenerate")
 async def chain_regenerate_cp(
-    run_id: int, request: Request, background_tasks: BackgroundTasks
+    run_id: int,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    service: RunServiceDep,
 ) -> dict[str, Any]:
     try:
         from .sse import create_channel, get_channel
-        svc = DesktopRunService(request.app.state.db_path)
-        run = svc.get_run(run_id)
+        run = service.get_run(run_id)
         channel = get_channel(run_id, "cp")
         if channel is None:
             channel = create_channel(run_id, "cp")
@@ -250,16 +250,31 @@ async def chain_regenerate_cp(
 
 @router.post("/runs/{run_id}/chain/cp-confirm")
 def chain_confirm_cp(
-    run_id: int, payload: ChainConfirmRequest, request: Request
+    run_id: int, payload: ChainConfirmRequest, service: RunServiceDep
 ) -> dict[str, Any]:
     try:
-        return run_to_dict(
-            jobs.confirm_cp_stage(
-                request.app.state.db_path,
-                run_id,
-                payload.confirmed_by,
-                payload.edit_patch,
-            )
-        )
+        return run_to_dict(service.confirm_cp_stage(run_id, payload.confirmed_by, payload.edit_patch))
+    except (KeyError, ValueError, TypeError, OSError) as exc:
+        raise failure_from_exception(exc) from exc
+
+
+@router.post("/runs/{run_id}/undo")
+def undo_run(run_id: int, service: RunServiceDep) -> dict[str, Any]:
+    try:
+        record = service.undo_run(run_id)
+        if record is None:
+            raise ValueError("没有可以撤销的操作。")
+        return run_to_dict(record)
+    except (KeyError, ValueError, TypeError, OSError) as exc:
+        raise failure_from_exception(exc) from exc
+
+
+@router.post("/runs/{run_id}/redo")
+def redo_run(run_id: int, service: RunServiceDep) -> dict[str, Any]:
+    try:
+        record = service.redo_run(run_id)
+        if record is None:
+            raise ValueError("没有可以重做的操作。")
+        return run_to_dict(record)
     except (KeyError, ValueError, TypeError, OSError) as exc:
         raise failure_from_exception(exc) from exc

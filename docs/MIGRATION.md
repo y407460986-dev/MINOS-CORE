@@ -16,7 +16,7 @@ v3.0.0 是一次以重构与可观测性为主的发布。主要补全四块基�
 
 ## 1. 模块布局调整
 
-`minos_desktop/services.py` 与 `minos_core/pipeline.py` 已经被拆分为同名 package（`minos_desktop/services/` 与 `minos_core/pipeline/`），并在 `__init__.py` 中 **重新导出原有公共符号**。
+`minos_desktop.services` 与 `minos_core.pipeline` 现在由 package（`minos_desktop/services/` 与 `minos_core/pipeline/`）提供，并在各自 `__init__.py` 中 **重新导出原有公共符号**。旧的同名 `.py` 文件属于不可达重复实现，已删除。
 
 **对调用方的影响**：
 

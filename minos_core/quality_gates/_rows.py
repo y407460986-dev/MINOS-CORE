@@ -24,6 +24,7 @@ def _document_rows_report(
     required_fields: tuple[str, ...],
     review_fields: tuple[str, ...],
 ) -> dict[str, Any]:
+    """Produce a coverage report for a list of document rows (PFMEA or Control Plan)."""
     document_rows = rows if isinstance(rows, list) else []
     evidence_rows = evidence if isinstance(evidence, list) else []
     evidence_by_id = {
@@ -142,6 +143,7 @@ def _check_document_evidence_refs(
     referenced_evidence_ids: set[str],
     referenced_non_ai_evidence_ids: set[str],
 ) -> None:
+    """Validate evidence references for a single document row."""
     evidence_refs = [str(ref).strip() for ref in refs or [] if str(ref).strip()]
     if not evidence_refs:
         pending_fields.append(f"{label}.evidence_refs")
@@ -169,6 +171,7 @@ def _check_document_evidence_refs(
 
 
 def _refers_to_confirmable_requirement(evidence_item: dict[str, Any], label: str) -> bool:
+    """Return True if the evidence item refers to a requirement that needs human confirmation."""
     if not evidence_item.get("needs_confirmation"):
         return False
     content = str(evidence_item.get("content", "")).lower()
@@ -178,6 +181,7 @@ def _refers_to_confirmable_requirement(evidence_item: dict[str, Any], label: str
 
 
 def _label_terms(label: str) -> tuple[str, ...]:
+    """Return domain-specific terms to look for in evidence content based on the row label."""
     if any(term in label for term in ("p20", "rivet", "joint")):
         return ("rivet", "push-out", "push out", "force")
     if any(term in label for term in ("p10", "incoming", "material")):
@@ -188,6 +192,7 @@ def _label_terms(label: str) -> tuple[str, ...]:
 
 
 def _document_row_needs_confirmation(row: dict[str, Any]) -> bool:
+    """Return True if the document row is flagged for human confirmation."""
     if row.get("needs_confirmation"):
         return True
     if not row.get("ai_inferred"):
@@ -206,6 +211,7 @@ def _document_row_needs_confirmation(row: dict[str, Any]) -> bool:
 
 
 def _row_ai_reasoning_is_uncertain(row: dict[str, Any]) -> bool:
+    """Return True if the AI reasoning text contains uncertainty indicators."""
     text = " ".join(
         str(row.get(field_name, "")).strip()
         for field_name in (
@@ -245,6 +251,7 @@ def _document_manual_review_items(
     review_category: str,
     message_prefix: str,
 ) -> list[AuditItem]:
+    """Convert a document rows report into AuditItem objects for manual review."""
     items: list[AuditItem] = []
     for value in report["uncovered_items"]:
         items.append(

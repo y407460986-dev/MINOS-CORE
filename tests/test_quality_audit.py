@@ -7,7 +7,6 @@ from pathlib import Path
 from minos_core.adapters.fixture_json import load_fixture_payload
 from minos_core.domain import APQPChain
 
-
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES_DIR = ROOT / "tests" / "fixtures"
 FIXTURE_NAMES = ("apqp_chain", "door_hinge", "stamping", "limiter")
@@ -86,7 +85,7 @@ def _report_counts(report):
     mapping = _as_mapping(report)
     counts = mapping.get("counts")
     if counts is None and hasattr(report, "counts"):
-        counts = getattr(report, "counts")
+        counts = report.counts
     self_describing = _as_mapping(counts)
     return self_describing
 
@@ -95,7 +94,7 @@ def _manual_review_items(report):
     mapping = _as_mapping(report)
     items = mapping.get("manual_review_items")
     if items is None and hasattr(report, "manual_review_items"):
-        items = getattr(report, "manual_review_items")
+        items = report.manual_review_items
     if items is None:
         raise AssertionError("audit report must expose manual_review_items")
     return list(items)
@@ -145,6 +144,593 @@ def _minimal_weak_link_chain():
 
 
 class QualityAuditContractTests(unittest.TestCase):
+    def test_audit_flags_duplicate_cp_ids_uncovered_pfmea_and_generic_controls(self):
+        audit_chain = _audit_chain()
+        chain = {
+            "product": {},
+            "process_steps": [
+                {
+                    "process_step_id": "P10",
+                    "operation": "Inspection",
+                    "process_function": "Inspect critical feature",
+                }
+            ],
+            "failure_modes": [
+                {
+                    "pfmea_id": "PFMEA-COVERED-001",
+                    "process_step_id": "P10",
+                    "process_function": "Inspect critical feature",
+                    "failure_mode": "Critical feature out of tolerance",
+                    "failure_effect": "Customer fit issue",
+                    "failure_cause": "Gauge setup drift",
+                    "severity": 8,
+                    "occurrence": 3,
+                    "detection": 4,
+                    "action_priority": "M",
+                },
+                {
+                    "pfmea_id": "PFMEA-UNCOVERED-001",
+                    "process_step_id": "P10",
+                    "process_function": "Inspect critical feature",
+                    "failure_mode": "Surface defect escapes",
+                    "failure_effect": "Customer complaint",
+                    "failure_cause": "Inspection miss",
+                    "severity": 7,
+                    "occurrence": 3,
+                    "detection": 4,
+                    "action_priority": "M",
+                },
+            ],
+            "controls": [
+                {
+                    "control_plan_id": "CP-DUP-001",
+                    "process_step_id": "P10",
+                    "pfmea_id": "PFMEA-COVERED-001",
+                    "product_process_characteristic": "",
+                    "specification": "按图纸",
+                    "measurement_method": "按作业指导书",
+                    "sample_size": "1",
+                    "sample_frequency": "每批",
+                    "control_method": "按规范",
+                    "reaction_plan": "按工艺卡",
+                },
+                {
+                    "control_plan_id": "CP-DUP-001",
+                    "process_step_id": "P10",
+                    "pfmea_id": "PFMEA-COVERED-001",
+                    "product_process_characteristic": "Critical feature",
+                    "specification": "10.0 +/- 0.1 mm",
+                    "measurement_method": "Caliper",
+                    "sample_size": "1",
+                    "sample_frequency": "每批",
+                    "control_method": "First-off inspection",
+                    "reaction_plan": "Contain and notify QE",
+                },
+            ],
+            "links": [],
+        }
+
+        report = audit_chain(chain)
+        items = [
+            item if isinstance(item, dict) else item.__dict__
+            for item in _manual_review_items(report)
+        ]
+        by_category = {item["category"]: item for item in items}
+
+        for category in (
+            "duplicate_control_plan_id",
+            "uncovered_pfmea",
+            "missing_cp_characteristic",
+            "generic_control_text",
+        ):
+            self.assertIn(category, by_category)
+            self.assertEqual(by_category[category]["severity"], "blocker")
+
+        self.assertIn("CP-DUP-001", by_category["duplicate_control_plan_id"]["message"])
+        self.assertIn("PFMEA-UNCOVERED-001", by_category["uncovered_pfmea"]["message"])
+        self.assertIn("CP-DUP-001", by_category["missing_cp_characteristic"]["message"])
+        self.assertIn("PFMEA-COVERED-001", by_category["generic_control_text"]["message"])
+        self.assertIn("CP-DUP-001", by_category["generic_control_text"]["message"])
+
+    def test_audit_ignores_deleted_duplicate_cp_ids_and_checks_extended_generic_fields(self):
+        audit_chain = _audit_chain()
+        chain = {
+            "product": {},
+            "process_steps": [
+                {
+                    "process_step_id": "P10",
+                    "operation": "Inspection",
+                    "process_function": "Inspect critical feature",
+                }
+            ],
+            "failure_modes": [
+                {
+                    "pfmea_id": "PFMEA-P10-ACTIVE",
+                    "process_step_id": "P10",
+                    "process_function": "Inspect critical feature",
+                    "failure_mode": "Critical feature out of tolerance",
+                    "failure_effect": "Customer fit issue",
+                    "failure_cause": "Gauge setup drift",
+                    "severity": 8,
+                    "occurrence": 3,
+                    "detection": 4,
+                    "action_priority": "M",
+                }
+            ],
+            "controls": [
+                {
+                    "control_plan_id": "CP-SOFT-DELETE-001",
+                    "process_step_id": "P10",
+                    "pfmea_id": "PFMEA-P10-ACTIVE",
+                    "product_process_characteristic": "Critical feature",
+                    "specification": "10.0 +/- 0.1 mm",
+                    "measurement_method": "Caliper",
+                    "sample_size": "1",
+                    "sample_frequency": "每批",
+                    "control_method": "First-off inspection",
+                    "parameter_specification": "根据作业指导书执行",
+                    "process_control_method": "按批准规范进行过程控制",
+                    "reaction_plan": "Contain and notify QE",
+                },
+                {
+                    "control_plan_id": "CP-SOFT-DELETE-001",
+                    "process_step_id": "P10",
+                    "pfmea_id": "PFMEA-P10-ACTIVE",
+                    "product_process_characteristic": "Deleted duplicate",
+                    "specification": "按图纸",
+                    "measurement_method": "Visual",
+                    "sample_size": "1",
+                    "sample_frequency": "每批",
+                    "control_method": "Check",
+                    "reaction_plan": "Notify QE",
+                    "deleted": True,
+                },
+            ],
+            "links": [],
+        }
+
+        report = audit_chain(chain)
+        items = [
+            item if isinstance(item, dict) else item.__dict__
+            for item in _manual_review_items(report)
+        ]
+        categories = [item["category"] for item in items]
+        generic_items = [
+            item for item in items if item["category"] == "generic_control_text"
+        ]
+
+        self.assertNotIn("duplicate_control_plan_id", categories)
+        self.assertTrue(generic_items)
+        self.assertEqual(generic_items[0]["severity"], "blocker")
+        self.assertIn("CP-SOFT-DELETE-001", generic_items[0]["message"])
+        self.assertIn("PFMEA-P10-ACTIVE", generic_items[0]["message"])
+        self.assertIn("parameter_specification", generic_items[0]["message"])
+        self.assertIn("process_control_method", generic_items[0]["message"])
+
+    def test_audit_allows_control_fields_with_specific_details_and_generic_references(self):
+        audit_chain = _audit_chain()
+        chain = {
+            "product": {},
+            "process_steps": [
+                {
+                    "process_step_id": "P10",
+                    "operation": "孔位检验",
+                    "process_function": "确认孔位尺寸",
+                }
+            ],
+            "failure_modes": [
+                {
+                    "pfmea_id": "PFMEA-P10-SPECIFIC",
+                    "process_step_id": "P10",
+                    "process_function": "确认孔位尺寸",
+                    "failure_mode": "孔距超差",
+                    "failure_effect": "装配干涉",
+                    "failure_cause": "夹具定位漂移",
+                    "severity": 8,
+                    "occurrence": 3,
+                    "detection": 4,
+                    "action_priority": "M",
+                }
+            ],
+            "controls": [
+                {
+                    "control_plan_id": "CP-P10-SPECIFIC",
+                    "process_step_id": "P10",
+                    "pfmea_id": "PFMEA-P10-SPECIFIC",
+                    "product_process_characteristic": "孔径、孔距和位置度",
+                    "specification": (
+                        "安装孔孔径、孔距和位置度按图纸 JLV03000500-001-AC-RR、"
+                        "GB/T1804-m 执行，孔口无可见毛刺。"
+                    ),
+                    "measurement_method": "CMM 或专用孔位检具",
+                    "sample_size": "3件",
+                    "sample_frequency": "首件和每2小时巡检",
+                    "control_method": "按作业指导书执行夹具定位面清洁、定位销点检和首件复测，异常时加严孔位检验。",
+                    "parameter_specification": "夹具基准面无铁屑，定位销磨损量在点检表限值内。",
+                    "process_control_method": "按工艺卡锁定加工程序、主轴转速和进给量，换刀后复测孔位。",
+                    "reaction_plan": "隔离可疑产品，通知质量工程师，调整夹具后100%复检。",
+                }
+            ],
+            "links": [],
+        }
+
+        report = audit_chain(chain)
+        items = [
+            item if isinstance(item, dict) else item.__dict__
+            for item in _manual_review_items(report)
+        ]
+
+        self.assertNotIn("generic_control_text", [item["category"] for item in items])
+
+    def test_audit_treats_mechanical_link_as_covered_review_not_uncovered_blocker(self):
+        audit_chain = _audit_chain()
+        chain = {
+            "product": {},
+            "process_steps": [
+                {
+                    "process_step_id": "P10",
+                    "operation": "Inspection",
+                    "process_function": "Inspect critical feature",
+                }
+            ],
+            "failure_modes": [
+                {
+                    "pfmea_id": "PFMEA-LINKED-001",
+                    "process_step_id": "P10",
+                    "process_function": "Inspect critical feature",
+                    "failure_mode": "Critical feature out of tolerance",
+                    "failure_effect": "Customer fit issue",
+                    "failure_cause": "Gauge setup drift",
+                    "severity": 8,
+                    "occurrence": 3,
+                    "detection": 4,
+                    "action_priority": "M",
+                    "linked_control_plan_id": "CP-LINKED-001",
+                }
+            ],
+            "controls": [
+                {
+                    "control_plan_id": "CP-LINKED-001",
+                    "process_step_id": "P10",
+                    "pfmea_id": "",
+                    "product_process_characteristic": "Critical feature",
+                    "specification": "10.0 +/- 0.1 mm",
+                    "measurement_method": "Caliper",
+                    "sample_size": "1",
+                    "sample_frequency": "每批",
+                    "control_method": "First-off inspection",
+                    "reaction_plan": "Contain and notify QE",
+                }
+            ],
+            "links": [],
+        }
+
+        report = audit_chain(chain)
+        categories = [
+            (item if isinstance(item, dict) else item.__dict__)["category"]
+            for item in _manual_review_items(report)
+        ]
+
+        self.assertIn("mechanical_link", categories)
+        self.assertNotIn("uncovered_pfmea", categories)
+
+    def test_audit_blocks_red_rust_240h_evidence_when_cp_only_covers_120h(self):
+        audit_chain = _audit_chain()
+        chain = {
+            "product": {},
+            "process_steps": [
+                {
+                    "process_step_id": "P20",
+                    "operation": "表面处理",
+                    "process_function": "满足盐雾耐蚀要求",
+                }
+            ],
+            "failure_modes": [
+                {
+                    "pfmea_id": "PFMEA-P20-RED-RUST",
+                    "process_step_id": "P20",
+                    "process_function": "满足盐雾耐蚀要求",
+                    "failure_mode": "红锈盐雾不足",
+                    "failure_effect": "客户耐蚀要求不满足",
+                    "failure_cause": "表面处理参数不足",
+                    "severity": 8,
+                    "occurrence": 3,
+                    "detection": 4,
+                    "action_priority": "M",
+                }
+            ],
+            "controls": [
+                {
+                    "control_plan_id": "CP-P20-RED-RUST",
+                    "process_step_id": "P20",
+                    "pfmea_id": "PFMEA-P20-RED-RUST",
+                    "product_process_characteristic": "红锈耐蚀性能",
+                    "specification": "中性盐雾试验红锈不低于 120h",
+                    "measurement_method": "按盐雾试验作业指导书判定红锈",
+                    "sample_size": "3 件",
+                    "sample_frequency": "每炉次",
+                    "control_method": "监控表面处理参数",
+                    "reaction_plan": "不合格时隔离并重新处理",
+                }
+            ],
+            "evidence": [
+                {
+                    "evidence_id": "EV-RED-RUST-240",
+                    "source": "drawing",
+                    "content": "技术要求：中性盐雾试验红锈不小于 240h。",
+                }
+            ],
+            "links": [],
+        }
+
+        report = audit_chain(chain)
+        items = [
+            item if isinstance(item, dict) else item.__dict__
+            for item in _manual_review_items(report)
+        ]
+        red_rust_items = [
+            item
+            for item in items
+            if "TECHREQ-SALT-SPRAY-RED-RUST-MISSING" in item["item_id"]
+        ]
+
+        self.assertTrue(red_rust_items)
+        self.assertEqual(red_rust_items[0]["severity"], "blocker")
+        self.assertIn(
+            "TECHREQ-SALT-SPRAY-RED-RUST-MISSING", red_rust_items[0]["message"]
+        )
+
+    def test_audit_allows_red_rust_240h_evidence_when_cp_covers_240h(self):
+        audit_chain = _audit_chain()
+        chain = {
+            "product": {},
+            "process_steps": [
+                {
+                    "process_step_id": "P20",
+                    "operation": "表面处理",
+                    "process_function": "满足盐雾耐蚀要求",
+                }
+            ],
+            "failure_modes": [
+                {
+                    "pfmea_id": "PFMEA-P20-RED-RUST",
+                    "process_step_id": "P20",
+                    "process_function": "满足盐雾耐蚀要求",
+                    "failure_mode": "红锈盐雾不足",
+                    "failure_effect": "客户耐蚀要求不满足",
+                    "failure_cause": "表面处理参数不足",
+                    "severity": 8,
+                    "occurrence": 3,
+                    "detection": 4,
+                    "action_priority": "M",
+                }
+            ],
+            "controls": [
+                {
+                    "control_plan_id": "CP-P20-RED-RUST",
+                    "process_step_id": "P20",
+                    "pfmea_id": "PFMEA-P20-RED-RUST",
+                    "product_process_characteristic": "红锈耐蚀性能",
+                    "specification": "中性盐雾试验红锈不小于 240h",
+                    "measurement_method": "按盐雾试验作业指导书进行 240h 红锈判定",
+                    "sample_size": "3 件",
+                    "sample_frequency": "每炉次",
+                    "control_method": "执行红锈 240h 盐雾验证",
+                    "reaction_plan": "红锈 240h 不合格时隔离并重新处理",
+                }
+            ],
+            "evidence": [
+                {
+                    "evidence_id": "EV-RED-RUST-240",
+                    "source": "drawing",
+                    "content": "技术要求：中性盐雾试验红锈不小于 240h。",
+                }
+            ],
+            "links": [],
+        }
+
+        report = audit_chain(chain)
+        items = [
+            item if isinstance(item, dict) else item.__dict__
+            for item in _manual_review_items(report)
+        ]
+
+        self.assertFalse(
+            any(
+                "TECHREQ-SALT-SPRAY-RED-RUST-MISSING" in item["item_id"]
+                for item in items
+            )
+        )
+
+    def test_audit_does_not_bind_red_rust_characteristic_to_white_rust_240h_spec(self):
+        audit_chain = _audit_chain()
+        chain = {
+            "product": {},
+            "process_steps": [
+                {
+                    "process_step_id": "P20",
+                    "operation": "表面处理",
+                    "process_function": "满足盐雾耐蚀要求",
+                }
+            ],
+            "failure_modes": [
+                {
+                    "pfmea_id": "PFMEA-P20-RED-RUST",
+                    "process_step_id": "P20",
+                    "process_function": "满足盐雾耐蚀要求",
+                    "failure_mode": "红锈盐雾不足",
+                    "failure_effect": "客户耐蚀要求不满足",
+                    "failure_cause": "表面处理参数不足",
+                    "severity": 8,
+                    "occurrence": 3,
+                    "detection": 4,
+                    "action_priority": "M",
+                }
+            ],
+            "controls": [
+                {
+                    "control_plan_id": "CP-P20-RED-RUST",
+                    "process_step_id": "P20",
+                    "pfmea_id": "PFMEA-P20-RED-RUST",
+                    "product_process_characteristic": "红锈耐蚀性能",
+                    "specification": "白锈不小于 240h；红锈按外观判定",
+                    "measurement_method": "按盐雾试验作业指导书判定",
+                    "sample_size": "3 件",
+                    "sample_frequency": "每炉次",
+                    "control_method": "监控表面处理参数",
+                    "reaction_plan": "不合格时隔离并重新处理",
+                }
+            ],
+            "evidence": [
+                {
+                    "evidence_id": "EV-RED-RUST-240",
+                    "source": "drawing",
+                    "content": "技术要求：中性盐雾试验红锈不小于 240h。",
+                }
+            ],
+            "links": [],
+        }
+
+        report = audit_chain(chain)
+        items = [
+            item if isinstance(item, dict) else item.__dict__
+            for item in _manual_review_items(report)
+        ]
+        red_rust_items = [
+            item
+            for item in items
+            if "TECHREQ-SALT-SPRAY-RED-RUST-MISSING" in item["item_id"]
+        ]
+
+        self.assertTrue(red_rust_items)
+        self.assertEqual(red_rust_items[0]["severity"], "blocker")
+
+    def test_audit_does_not_bind_red_rust_to_white_rust_240h_across_comma_clause(self):
+        audit_chain = _audit_chain()
+        chain = {
+            "product": {},
+            "process_steps": [
+                {
+                    "process_step_id": "P20",
+                    "operation": "表面处理",
+                    "process_function": "满足盐雾耐蚀要求",
+                }
+            ],
+            "failure_modes": [
+                {
+                    "pfmea_id": "PFMEA-P20-RED-RUST",
+                    "process_step_id": "P20",
+                    "process_function": "满足盐雾耐蚀要求",
+                    "failure_mode": "红锈盐雾不足",
+                    "failure_effect": "客户耐蚀要求不满足",
+                    "failure_cause": "表面处理参数不足",
+                    "severity": 8,
+                    "occurrence": 3,
+                    "detection": 4,
+                    "action_priority": "M",
+                }
+            ],
+            "controls": [
+                {
+                    "control_plan_id": "CP-P20-RED-RUST",
+                    "process_step_id": "P20",
+                    "pfmea_id": "PFMEA-P20-RED-RUST",
+                    "product_process_characteristic": "红锈耐蚀性能",
+                    "specification": "白锈不小于 240h，红锈按外观判定",
+                    "measurement_method": "按盐雾试验作业指导书判定",
+                    "sample_size": "3 件",
+                    "sample_frequency": "每炉次",
+                    "control_method": "监控表面处理参数",
+                    "reaction_plan": "不合格时隔离并重新处理",
+                }
+            ],
+            "evidence": [
+                {
+                    "evidence_id": "EV-RED-RUST-240",
+                    "source": "drawing",
+                    "content": "技术要求：中性盐雾试验红锈不小于 240h。",
+                }
+            ],
+            "links": [],
+        }
+
+        report = audit_chain(chain)
+        items = [
+            item if isinstance(item, dict) else item.__dict__
+            for item in _manual_review_items(report)
+        ]
+        red_rust_items = [
+            item
+            for item in items
+            if "TECHREQ-SALT-SPRAY-RED-RUST-MISSING" in item["item_id"]
+        ]
+
+        self.assertTrue(red_rust_items)
+        self.assertEqual(red_rust_items[0]["severity"], "blocker")
+
+    def test_audit_does_not_bind_red_rust_to_white_rust_240h_across_slash_clause(self):
+        audit_chain = _audit_chain()
+        chain = {
+            "product": {},
+            "process_steps": [
+                {
+                    "process_step_id": "P20",
+                    "operation": "表面处理",
+                    "process_function": "满足盐雾耐蚀要求",
+                }
+            ],
+            "failure_modes": [
+                {
+                    "pfmea_id": "PFMEA-P20-RED-RUST",
+                    "process_step_id": "P20",
+                    "process_function": "满足盐雾耐蚀要求",
+                    "failure_mode": "红锈盐雾不足",
+                    "failure_effect": "客户耐蚀要求不满足",
+                    "failure_cause": "表面处理参数不足",
+                    "severity": 8,
+                    "occurrence": 3,
+                    "detection": 4,
+                    "action_priority": "M",
+                }
+            ],
+            "controls": [
+                {
+                    "control_plan_id": "CP-P20-RED-RUST",
+                    "process_step_id": "P20",
+                    "pfmea_id": "PFMEA-P20-RED-RUST",
+                    "product_process_characteristic": "红锈耐蚀性能",
+                    "specification": "白锈不小于 240h/红锈按外观判定",
+                    "measurement_method": "按盐雾试验作业指导书判定",
+                    "sample_size": "3 件",
+                    "sample_frequency": "每炉次",
+                    "control_method": "监控表面处理参数",
+                    "reaction_plan": "不合格时隔离并重新处理",
+                }
+            ],
+            "evidence": [
+                {
+                    "evidence_id": "EV-RED-RUST-240",
+                    "source": "drawing",
+                    "content": "技术要求：中性盐雾试验红锈不小于 240h。",
+                }
+            ],
+            "links": [],
+        }
+
+        report = audit_chain(chain)
+        items = [
+            item if isinstance(item, dict) else item.__dict__
+            for item in _manual_review_items(report)
+        ]
+        red_rust_items = [
+            item
+            for item in items
+            if "TECHREQ-SALT-SPRAY-RED-RUST-MISSING" in item["item_id"]
+        ]
+
+        self.assertTrue(red_rust_items)
+        self.assertEqual(red_rust_items[0]["severity"], "blocker")
+
     def test_audit_chain_runs_for_all_standard_fixtures(self):
         audit_chain = _audit_chain()
 

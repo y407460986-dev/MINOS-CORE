@@ -4,7 +4,6 @@ import copy
 
 from minos_core.adapters.fixture_json import load_fixture_payload
 
-
 ROOT_FIXTURE = "D:/MINOS-CORE/tests/fixtures/apqp_chain"
 NS = {"main": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
 

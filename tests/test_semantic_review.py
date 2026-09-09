@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import unittest
+from typing import Any
 
 from minos_core.semantic_review import (
     check_cause_effect_logic,

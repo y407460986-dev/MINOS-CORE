@@ -1,11 +1,12 @@
 """API authentication middleware for FastAPI."""
 
 import secrets
+from collections.abc import Awaitable, Callable
 from functools import wraps
-from typing import Callable, Optional
+from typing import Any
 
 from fastapi import HTTPException, Request, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 
 class AuthMiddleware:
@@ -15,7 +16,7 @@ class AuthMiddleware:
     Supports Bearer token authentication.
     """
 
-    def __init__(self, token: Optional[str] = None):
+    def __init__(self, token: str | None = None):
         """
         Initialize authentication middleware.
 
@@ -105,7 +106,10 @@ class AuthMiddleware:
             )
 
 
-def require_auth(auth: AuthMiddleware) -> Callable:
+RouteHandler = Callable[..., Awaitable[Any]]
+
+
+def require_auth(auth: AuthMiddleware) -> Callable[[RouteHandler], RouteHandler]:
     """
     Decorator to require authentication for a route.
 
@@ -126,9 +130,9 @@ def require_auth(auth: AuthMiddleware) -> Callable:
         ```
     """
 
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: RouteHandler) -> RouteHandler:
         @wraps(func)
-        async def wrapper(*args, **kwargs):
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
             # Extract request from kwargs
             request = kwargs.get("request")
             if not request:

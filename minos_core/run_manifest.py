@@ -4,16 +4,16 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Union
+from typing import Any
 from uuid import uuid4
 
 RUN_MANIFEST_SCHEMA_VERSION = "minos-core.run_manifest.v1"
 
 
 JsonObject = dict[str, Any]
-ArtifactLike = Union[str, Path, bytes, bytearray, memoryview, JsonObject, list[Any]]
+ArtifactLike = str | Path | bytes | bytearray | memoryview | JsonObject | list[Any]
 
 
 def sha256_bytes(data: bytes | bytearray | memoryview) -> str:
@@ -108,7 +108,7 @@ def _new_run_id() -> str:
 
 def _utc_now_iso() -> str:
     return (
-        datetime.now(timezone.utc)
+        datetime.now(UTC)
         .replace(microsecond=0)
         .isoformat()
         .replace("+00:00", "Z")

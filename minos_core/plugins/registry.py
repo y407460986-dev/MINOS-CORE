@@ -17,7 +17,8 @@ startup; that function delegates to :func:`register_ocr_engine` and
 
 from __future__ import annotations
 
-from typing import Any, Iterable, Iterator, Mapping, Protocol, runtime_checkable
+from collections.abc import Iterable, Iterator, Mapping
+from typing import Any, Protocol, runtime_checkable
 
 from ..observability.errors import MinosError
 
@@ -100,7 +101,7 @@ _knowledge_sources: dict[str, KnowledgeSourcePlugin] = {}
 def _ensure_ocr_engine(plugin: object) -> OCREnginePlugin:
     """Raise :class:`PluginError` if ``plugin`` does not satisfy the protocol."""
 
-    if not hasattr(plugin, "name") or not isinstance(getattr(plugin, "name"), str):
+    if not hasattr(plugin, "name") or not isinstance(plugin.name, str):
         raise PluginError(
             "OCR engine plugin must expose a string 'name' attribute",
             context={"plugin_repr": repr(plugin)},

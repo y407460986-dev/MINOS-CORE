@@ -5,8 +5,9 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import Any
 
-from .aiag_vda_pfmea import calculate_rpn, normalize_pfmea_row
 from minos_core._text_utils import integer, string_list, text
+
+from .aiag_vda_pfmea import calculate_rpn, normalize_pfmea_row
 
 
 def generate_pfmea_from_candidates(

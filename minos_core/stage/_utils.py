@@ -1,13 +1,16 @@
 """Collection utilities: deduplication, text/list value extraction."""
 from __future__ import annotations
+
 from typing import Any
 
 
 def _dedupe_mappings(values: list[Any]) -> list[Any]:
+    """Deduplicate a list preserving order (delegates to _dedupe_values)."""
     return _dedupe_values(values)
 
 
 def _dedupe_values(values: list[Any]) -> list[Any]:
+    """Deduplicate a list preserving order, using _dedupe_key for comparison."""
     deduped: list[Any] = []
     seen: set[str] = set()
     for value in values:
@@ -20,6 +23,7 @@ def _dedupe_values(values: list[Any]) -> list[Any]:
 
 
 def _dedupe_key(value: Any) -> str:
+    """Generate a stable deduplication key for a dict or scalar value."""
     if isinstance(value, dict):
         for key in (
             "evidence_id",
@@ -41,6 +45,7 @@ def _dedupe_key(value: Any) -> str:
 
 
 def _text_value(row: dict[str, Any], *field_names: str) -> str:
+    """Return the first non-empty text value from the given field names."""
     for field_name in field_names:
         value = row.get(field_name)
         if value is None:
@@ -52,6 +57,7 @@ def _text_value(row: dict[str, Any], *field_names: str) -> str:
 
 
 def _list_value(row: dict[str, Any], field_name: str) -> list[Any]:
+    """Return the field value as a list, normalizing scalars and None."""
     value = row.get(field_name, [])
     if value is None:
         return []

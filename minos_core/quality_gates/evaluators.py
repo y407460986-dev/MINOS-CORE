@@ -1,13 +1,15 @@
 """Bundle gate evaluators — thin wrappers over report functions."""
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from . import StageQualityGate
 
 from ..audit import audit_chain
 from ..domain import APQPChain
 from ..schemas import validate_bundle_schema
 from ..validation import ChainValidationResult
-
 from ._report_analysis import (
     _analysis_bundle_report,
     _analysis_manual_review_items,
@@ -29,6 +31,7 @@ from ._report_pfmea_cp import (
 def _validate_versioned_bundle_schema(
     payload: dict[str, Any], document_type: str
 ) -> None:
+    """Validate bundle schema if a schema version is present."""
     if isinstance(payload, dict) and "schema_version" not in payload:
         return
     validate_bundle_schema(payload, document_type)
@@ -37,7 +40,17 @@ def _validate_versioned_bundle_schema(
 def evaluate_analysis_bundle_gate(
     analysis_bundle: dict[str, Any],
     stage: str = "analyze",
-) -> "StageQualityGate":
+) -> StageQualityGate:
+    """Evaluate the quality gate for an analysis bundle.
+
+    Args:
+        analysis_bundle: The analysis bundle payload to validate.
+        stage: The pipeline stage name (default "analyze").
+
+    Returns:
+        StageQualityGate with evidence coverage, pending fields, and
+        manual review items extracted from the bundle report.
+    """
     from . import StageQualityGate  # late import to avoid circular dependency
 
     _validate_versioned_bundle_schema(analysis_bundle, "analysis_bundle")
@@ -66,7 +79,17 @@ def evaluate_analysis_bundle_gate(
 def evaluate_pfd_bundle_gate(
     pfd_bundle: dict[str, Any],
     stage: str = "generate_pfd",
-) -> "StageQualityGate":
+) -> StageQualityGate:
+    """Evaluate the quality gate for a PFD (Process Flow Diagram) bundle.
+
+    Args:
+        pfd_bundle: The PFD bundle payload to validate.
+        stage: The pipeline stage name (default "generate_pfd").
+
+    Returns:
+        StageQualityGate with evidence coverage and manual review items
+        extracted from the PFD bundle report.
+    """
     from . import StageQualityGate  # late import to avoid circular dependency
 
     _validate_versioned_bundle_schema(pfd_bundle, "process_flow")
@@ -97,7 +120,17 @@ def evaluate_pfd_bundle_gate(
 def evaluate_brainstorm_failure_modes_input_gate(
     process_flow: dict[str, Any],
     stage: str = "brainstorm_failure_modes",
-) -> "StageQualityGate":
+) -> StageQualityGate:
+    """Evaluate the pre-flight gate before brainstorming failure modes.
+
+    Args:
+        process_flow: The process flow payload used as input to brainstorming.
+        stage: The pipeline stage name (default "brainstorm_failure_modes").
+
+    Returns:
+        StageQualityGate indicating whether the process flow is complete
+        enough to proceed with failure mode brainstorming.
+    """
     from . import StageQualityGate  # late import to avoid circular dependency
 
     _validate_versioned_bundle_schema(process_flow, "process_flow")
@@ -129,7 +162,17 @@ def evaluate_brainstorm_failure_modes_input_gate(
 def evaluate_failure_mode_candidates_gate(
     candidates_bundle: dict[str, Any],
     stage: str = "brainstorm_failure_modes",
-) -> "StageQualityGate":
+) -> StageQualityGate:
+    """Evaluate the quality gate for failure mode candidates.
+
+    Args:
+        candidates_bundle: The failure mode candidates bundle to validate.
+        stage: The pipeline stage name (default "brainstorm_failure_modes").
+
+    Returns:
+        StageQualityGate with evidence coverage and manual review items
+        extracted from the candidates report.
+    """
     from . import StageQualityGate  # late import to avoid circular dependency
 
     _validate_versioned_bundle_schema(candidates_bundle, "failure_mode_candidates")
@@ -156,7 +199,17 @@ def evaluate_failure_mode_candidates_gate(
 def evaluate_pfmea_bundle_gate(
     pfmea_bundle: dict[str, Any],
     stage: str = "generate_pfmea",
-) -> "StageQualityGate":
+) -> StageQualityGate:
+    """Evaluate the quality gate for a PFMEA bundle.
+
+    Args:
+        pfmea_bundle: The PFMEA bundle payload to validate.
+        stage: The pipeline stage name (default "generate_pfmea").
+
+    Returns:
+        StageQualityGate with evidence coverage and manual review items
+        extracted from the PFMEA bundle report.
+    """
     from . import StageQualityGate  # late import to avoid circular dependency
 
     _validate_versioned_bundle_schema(pfmea_bundle, "pfmea")
@@ -183,7 +236,17 @@ def evaluate_pfmea_bundle_gate(
 def evaluate_control_plan_bundle_gate(
     control_plan_bundle: dict[str, Any],
     stage: str = "generate_control_plan",
-) -> "StageQualityGate":
+) -> StageQualityGate:
+    """Evaluate the quality gate for a Control Plan bundle.
+
+    Args:
+        control_plan_bundle: The Control Plan bundle payload to validate.
+        stage: The pipeline stage name (default "generate_control_plan").
+
+    Returns:
+        StageQualityGate with evidence coverage and manual review items
+        extracted from the Control Plan bundle report.
+    """
     from . import StageQualityGate  # late import to avoid circular dependency
 
     _validate_versioned_bundle_schema(control_plan_bundle, "control_plan")

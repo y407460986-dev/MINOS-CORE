@@ -137,9 +137,9 @@ class BuildThreeTableLinkageMapTests(unittest.TestCase):
 
         # Links: 2 pfd_to_pfmea + 2 pfmea_to_control_plan + characteristic_to_step
         links = result["links"]
-        pfd_pfmea_links = [l for l in links if l["link_type"] == "pfd_to_pfmea"]
-        pfmea_cp_links = [l for l in links if l["link_type"] == "pfmea_to_control_plan"]
-        char_step_links = [l for l in links if l["link_type"] == "characteristic_to_step"]
+        pfd_pfmea_links = [link for link in links if link["link_type"] == "pfd_to_pfmea"]
+        pfmea_cp_links = [link for link in links if link["link_type"] == "pfmea_to_control_plan"]
+        char_step_links = [link for link in links if link["link_type"] == "characteristic_to_step"]
 
         self.assertEqual(len(pfd_pfmea_links), 2)
         self.assertEqual(len(pfmea_cp_links), 2)
@@ -191,7 +191,7 @@ class BuildThreeTableLinkageMapTests(unittest.TestCase):
         result = build_three_table_linkage_map(fixture)
 
         gaps = result["gaps"]
-        pfmea_cp_gaps = [
+        [
             g for g in gaps
             if g.get("category_key", "") == "pfmea_cp_coverage"
         ]

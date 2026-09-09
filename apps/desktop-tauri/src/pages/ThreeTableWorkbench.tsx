@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, Search, SlidersHorizontal } from "lucide-react";
-import { applyEditPatch, confirmPfdStage, confirmPfmeaStage, confirmCpStage, getRun, regeneratePfmeaStage, regenerateCpStage } from "../api/client";
+import { CheckCircle2, Redo2, Search, SlidersHorizontal, Undo2 } from "lucide-react";
+import { applyEditPatch, confirmPfdStage, confirmPfmeaStage, confirmCpStage, getRun, redoRun, regeneratePfmeaStage, regenerateCpStage, undoRun } from "../api/client";
 import { subscribeToChainStream } from "../api/sse-client";
 import type { ChainState, DesktopRun, TableKind, WorkbenchRow } from "../api/types";
 import { PreviewRail } from "../components/PreviewRail";
@@ -18,6 +18,7 @@ type ThreeTableWorkbenchProps = {
   selectedRow: WorkbenchRow | null;
   onSelectRow: (row: WorkbenchRow) => void;
   onRunUpdated?: (run: DesktopRun) => void;
+  onRunRefresh?: () => Promise<void>;
 };
 
 function stepIdsFrom(value: unknown): string[] {
@@ -26,7 +27,7 @@ function stepIdsFrom(value: unknown): string[] {
   return [String(value).trim()].filter(Boolean);
 }
 
-export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onRunUpdated }: ThreeTableWorkbenchProps) {
+export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onRunUpdated, onRunRefresh }: ThreeTableWorkbenchProps) {
   const [filters, setFilters] = useState<WorkbenchFilters>(initialFilters);
   const [saveState, setSaveState] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -203,6 +204,33 @@ export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onR
     return () => { sseCleanupRef.current?.(); };
   }, []);
 
+  function refreshRunSnapshot() {
+    if (!onRunRefresh) return;
+    onRunRefresh().catch((caught) => {
+      setSaveState(caught instanceof Error ? caught.message : String(caught));
+    });
+  }
+
+  useEffect(() => {
+    if (!run || !onRunRefresh) return;
+    refreshRunSnapshot();
+
+    function handleFocus() {
+      refreshRunSnapshot();
+    }
+
+    function handleVisibility() {
+      if (document.visibilityState === "visible") refreshRunSnapshot();
+    }
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [run?.id, onRunRefresh]);
+
   function startStreamingProgress(runId: number, stage: "pfmea" | "cp", runningMessage: string) {
     sseCleanupRef.current?.();
     setSaveState(runningMessage);
@@ -221,8 +249,14 @@ export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onR
       },
       onDone: async (event) => {
         sseCleanupRef.current = null;
-        const latest = await getRun(runId);
-        onRunUpdated?.(latest);
+        try {
+          const latest = await getRun(runId);
+          onRunUpdated?.(latest);
+        } catch {
+          sseCleanupRef.current = null;
+          setSaveState("生成完成，获取状态失败，请手动刷新。");
+          return;
+        }
         setSaveState(event.status === "failed"
           ? `生成失败：${event.failure_message || "未知错误"}`
           : `已完成，共生成 ${event.total_rows} 行。`
@@ -450,6 +484,36 @@ export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onR
     }
   }
 
+  async function handleUndo() {
+    if (!run) return;
+    setSaveState("正在撤销...");
+    setIsSaving(true);
+    try {
+      const updated = await undoRun(run.id);
+      onRunUpdated?.(updated);
+      setSaveState("已撤销。");
+    } catch (caught) {
+      setSaveState(caught instanceof Error ? caught.message : String(caught));
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleRedo() {
+    if (!run) return;
+    setSaveState("正在重做...");
+    setIsSaving(true);
+    try {
+      const updated = await redoRun(run.id);
+      onRunUpdated?.(updated);
+      setSaveState("已重做。");
+    } catch (caught) {
+      setSaveState(caught instanceof Error ? caught.message : String(caught));
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   async function confirmAllCpRows() {
     if (!run || visibleCpRows.length === 0) return;
     setSaveState("正在确认全部控制计划...");
@@ -596,10 +660,20 @@ export default function ThreeTableWorkbench({ run, selectedRow, onSelectRow, onR
               </>
             )}
             {filters.table === "cp" && (
+              <>
               <Button size="sm" disabled={!hasRun || isSaving || visibleCpRows.length === 0} onClick={confirmAllCpRows}>
                 <CheckCircle2 size={14} aria-hidden="true" />
                 {isSaving ? "确认中" : "确认全部控制计划"}
               </Button>
+              <Button size="sm" variant="outline" disabled={!hasRun || isSaving} onClick={handleUndo}>
+                <Undo2 size={14} aria-hidden="true" />
+                撤销
+              </Button>
+              <Button size="sm" variant="outline" disabled={!hasRun || isSaving} onClick={handleRedo}>
+                <Redo2 size={14} aria-hidden="true" />
+                重做
+              </Button>
+              </>
             )}
           </div>
         </div>

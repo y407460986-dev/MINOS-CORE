@@ -1,17 +1,17 @@
 import copy
 import importlib
 import json
+import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
 import zipfile
-import shutil
 from pathlib import Path
+from types import SimpleNamespace
 from xml.etree import ElementTree
 
 from minos_core.adapters.fixture_json import load_fixture_payload
-
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE_DIR = ROOT / "tests" / "fixtures" / "apqp_chain"
@@ -111,6 +111,47 @@ def _assert_basic_xlsx_structure(testcase, xlsx_path):
     )
 
 
+def _worksheet_xml(xlsx_path, index):
+    with zipfile.ZipFile(xlsx_path) as archive:
+        return archive.read(f"xl/worksheets/sheet{index}.xml").decode("utf-8")
+
+
+def _passing_export_gate(**overrides):
+    values = {
+        "stage": "export",
+        "can_continue": True,
+        "allow_user_export": True,
+        "evidence_sufficient": True,
+        "evidence_coverage": {
+            "coverage_ratio": 1,
+            "covered_items": 1,
+            "required_items": 1,
+            "ai_inferred_refs": [],
+        },
+        "uncovered_evidence_items": [],
+        "missing_evidence_refs": [],
+        "needs_confirmation_items": [],
+        "pending_fields": [],
+        "ai_inferred_items": [],
+        "manual_review_items": [],
+        "review_issues": [],
+        "sync_issues": [],
+        "linkage_gaps": [],
+        "validation": SimpleNamespace(messages=[]),
+        "audit": SimpleNamespace(
+            counts={
+                "process_steps": 0,
+                "failure_modes": 0,
+                "controls": 0,
+                "mechanical_links": 0,
+                "weak_links": 0,
+            }
+        ),
+    }
+    values.update(overrides)
+    return SimpleNamespace(**values)
+
+
 class DomainAndValidationContractTests(unittest.TestCase):
     def test_domain_core_exposes_business_objects_without_file_io(self):
         domain_module = _import_first("minos_core.domain")
@@ -203,7 +244,7 @@ class DomainAndValidationContractTests(unittest.TestCase):
 
     def test_domain_objects_preserve_evidence_references(self):
         domain_module = _import_first("minos_core.domain")
-        APQPChain = _get_first(domain_module, "APQPChain")
+        apqp_chain_type = _get_first(domain_module, "APQPChain")
         payload = {
             "process_flow": {
                 "document_type": "process_flow",
@@ -269,7 +310,7 @@ class DomainAndValidationContractTests(unittest.TestCase):
             ],
         }
 
-        chain = APQPChain(**payload)
+        chain = apqp_chain_type(**payload)
         dumped = chain.model_dump()
 
         self.assertEqual(chain.process_steps[0].evidence_refs, ["EV-PFD-001"])
@@ -398,6 +439,305 @@ class XlsxExportContractTests(unittest.TestCase):
         self.assertIn("对象ID", review_sheet)
         self.assertIn("复核说明", review_sheet)
 
+    def test_apqp_workbook_synthesizes_traceability_rows_from_pfmea_and_controls(self):
+        exporter_module = _import_first("minos_core.exporters.apqp_workbook")
+        export_workbook = _get_first(exporter_module, "export_apqp_workbook")
+        chain = {
+            "failure_modes": [
+                {
+                    "pfmea_id": "PFMEA-P10-001",
+                    "process_step_id": "P10",
+                    "failure_mode": "Burr",
+                }
+            ],
+            "controls": [
+                {
+                    "control_plan_id": "CP-P10-001",
+                    "pfmea_id": "PFMEA-P10-001",
+                    "process_name": "Cut",
+                }
+            ],
+        }
+
+        with tempfile.TemporaryDirectory() as tmp:
+            xlsx_path = Path(tmp) / "apqp.xlsx"
+            export_workbook(
+                chain,
+                xlsx_path,
+                require_gate=False,
+                quality_gate=_passing_export_gate(),
+            )
+            trace_sheet = _worksheet_xml(xlsx_path, 8)
+
+        self.assertIn("PFMEA-P10-001", trace_sheet)
+        self.assertIn("CP-P10-001", trace_sheet)
+        self.assertIn('r="A2"', trace_sheet)
+
+    def test_apqp_workbook_synthesizes_traceability_rows_from_nested_tables(self):
+        exporter_module = _import_first("minos_core.exporters.apqp_workbook")
+        export_workbook = _get_first(exporter_module, "export_apqp_workbook")
+        chain = {
+            "pfmea": {
+                "document_type": "pfmea",
+                "rows": [
+                    {
+                        "pfmea_id": "PFMEA-P20-002",
+                        "process_step_id": "P20",
+                        "failure_mode": "Crack",
+                    }
+                ],
+            },
+            "control_plan": {
+                "document_type": "control_plan",
+                "rows": [
+                    {
+                        "control_plan_id": "CP-P20-002",
+                        "pfmea_id": "PFMEA-P20-002",
+                        "process_name": "Form",
+                    }
+                ],
+            },
+        }
+
+        with tempfile.TemporaryDirectory() as tmp:
+            xlsx_path = Path(tmp) / "apqp.xlsx"
+            export_workbook(
+                chain,
+                xlsx_path,
+                require_gate=False,
+                quality_gate=_passing_export_gate(),
+            )
+            trace_sheet = _worksheet_xml(xlsx_path, 8)
+
+        self.assertIn("PFMEA-P20-002", trace_sheet)
+        self.assertIn("CP-P20-002", trace_sheet)
+        self.assertIn('r="A2"', trace_sheet)
+
+    def test_apqp_workbook_prefers_explicit_traceability_matrix(self):
+        exporter_module = _import_first("minos_core.exporters.apqp_workbook")
+        export_workbook = _get_first(exporter_module, "export_apqp_workbook")
+        chain = {
+            "traceability_matrix": [
+                {
+                    "step_no": "P30",
+                    "characteristic": "explicit characteristic",
+                    "process_flow_ref": "PFD-P30",
+                    "pfmea_ref": "PFMEA-EXPLICIT",
+                    "control_plan_ref": "CP-EXPLICIT",
+                }
+            ],
+            "failure_modes": [
+                {
+                    "pfmea_id": "PFMEA-SYNTH-NOT-USED",
+                    "process_step_id": "P40",
+                    "failure_mode": "Warp",
+                }
+            ],
+            "controls": [
+                {
+                    "control_plan_id": "CP-SYNTH-NOT-USED",
+                    "pfmea_id": "PFMEA-SYNTH-NOT-USED",
+                }
+            ],
+        }
+
+        with tempfile.TemporaryDirectory() as tmp:
+            xlsx_path = Path(tmp) / "apqp.xlsx"
+            export_workbook(
+                chain,
+                xlsx_path,
+                require_gate=False,
+                quality_gate=_passing_export_gate(),
+            )
+            trace_sheet = _worksheet_xml(xlsx_path, 8)
+
+        self.assertIn("PFMEA-EXPLICIT", trace_sheet)
+        self.assertIn("CP-EXPLICIT", trace_sheet)
+        self.assertNotIn("PFMEA-SYNTH-NOT-USED", trace_sheet)
+        self.assertNotIn("CP-SYNTH-NOT-USED", trace_sheet)
+
+    def test_apqp_workbook_prefers_nested_explicit_traceability_matrix(self):
+        exporter_module = _import_first("minos_core.exporters.apqp_workbook")
+        export_workbook = _get_first(exporter_module, "export_apqp_workbook")
+        chain = {
+            "traceability_matrix": {
+                "document_type": "traceability_matrix",
+                "rows": [
+                    {
+                        "step_no": "P50",
+                        "characteristic": "nested explicit characteristic",
+                        "process_flow_ref": "PFD-P50",
+                        "pfmea_ref": "PFMEA-NESTED-EXPLICIT",
+                        "control_plan_ref": "CP-NESTED-EXPLICIT",
+                    }
+                ],
+            },
+            "failure_modes": [
+                {
+                    "pfmea_id": "PFMEA-NESTED-SYNTH-NOT-USED",
+                    "process_step_id": "P60",
+                    "failure_mode": "Scratch",
+                }
+            ],
+            "controls": [
+                {
+                    "control_plan_id": "CP-NESTED-SYNTH-NOT-USED",
+                    "pfmea_id": "PFMEA-NESTED-SYNTH-NOT-USED",
+                }
+            ],
+        }
+
+        with tempfile.TemporaryDirectory() as tmp:
+            xlsx_path = Path(tmp) / "apqp.xlsx"
+            export_workbook(
+                chain,
+                xlsx_path,
+                require_gate=False,
+                quality_gate=_passing_export_gate(),
+            )
+            trace_sheet = _worksheet_xml(xlsx_path, 8)
+
+        self.assertIn("P50", trace_sheet)
+        self.assertIn("nested explicit characteristic", trace_sheet)
+        self.assertIn("PFD-P50", trace_sheet)
+        self.assertIn("PFMEA-NESTED-EXPLICIT", trace_sheet)
+        self.assertIn("CP-NESTED-EXPLICIT", trace_sheet)
+        self.assertNotIn("PFMEA-NESTED-SYNTH-NOT-USED", trace_sheet)
+        self.assertNotIn("CP-NESTED-SYNTH-NOT-USED", trace_sheet)
+
+    def test_apqp_workbook_synthesizes_when_nested_traceability_matrix_rows_are_empty(self):
+        exporter_module = _import_first("minos_core.exporters.apqp_workbook")
+        export_workbook = _get_first(exporter_module, "export_apqp_workbook")
+        chain = {
+            "traceability_matrix": {
+                "document_type": "traceability_matrix",
+                "rows": [],
+            },
+            "failure_modes": [
+                {
+                    "pfmea_id": "PFMEA-P70-001",
+                    "process_step_id": "P70",
+                    "failure_mode": "Dent",
+                }
+            ],
+            "controls": [
+                {
+                    "control_plan_id": "CP-P70-001",
+                    "pfmea_id": "PFMEA-P70-001",
+                    "process_name": "Inspect",
+                }
+            ],
+        }
+
+        with tempfile.TemporaryDirectory() as tmp:
+            xlsx_path = Path(tmp) / "apqp.xlsx"
+            export_workbook(
+                chain,
+                xlsx_path,
+                require_gate=False,
+                quality_gate=_passing_export_gate(),
+            )
+            trace_sheet = _worksheet_xml(xlsx_path, 8)
+
+        self.assertIn("PFMEA-P70-001", trace_sheet)
+        self.assertIn("CP-P70-001", trace_sheet)
+        self.assertIn('r="A2"', trace_sheet)
+        self.assertNotIn('r="A3"', trace_sheet)
+
+    def test_apqp_workbook_writes_review_issues_when_manual_review_items_are_empty(self):
+        exporter_module = _import_first("minos_core.exporters.apqp_workbook")
+        export_workbook = _get_first(exporter_module, "export_apqp_workbook")
+        gate = _passing_export_gate(
+            manual_review_items=[],
+            review_issues=[
+                {
+                    "issue_id": "DRAWING-RISK-OCR-001",
+                    "category": "drawing_risk",
+                    "severity": "risk",
+                    "message": "图纸 OCR 风险需要人工复核。",
+                    "resolved": False,
+                }
+            ],
+        )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            xlsx_path = Path(tmp) / "apqp.xlsx"
+            export_workbook(
+                {},
+                xlsx_path,
+                require_gate=False,
+                quality_gate=gate,
+            )
+            review_sheet = _worksheet_xml(xlsx_path, 9)
+
+        self.assertIn("DRAWING-RISK-OCR-001", review_sheet)
+        self.assertIn("drawing_risk", review_sheet)
+        self.assertIn("图纸 OCR 风险需要人工复核。", review_sheet)
+        self.assertIn('r="A2"', review_sheet)
+
+    def test_apqp_workbook_review_issue_fallback_only_writes_unresolved_issues(self):
+        exporter_module = _import_first("minos_core.exporters.apqp_workbook")
+        export_workbook = _get_first(exporter_module, "export_apqp_workbook")
+        gate = _passing_export_gate(
+            manual_review_items=[],
+            review_issues=[
+                {
+                    "issue_id": "RI-HANDLED",
+                    "category": "drawing_risk",
+                    "status": "已处理",
+                    "message": "handled",
+                },
+                {
+                    "issue_id": "RI-CONFIRMED",
+                    "category": "drawing_risk",
+                    "status": "已确认",
+                    "message": "confirmed",
+                },
+                {
+                    "issue_id": "RI-ACCEPTED",
+                    "category": "drawing_risk",
+                    "status": "已采纳",
+                    "message": "accepted",
+                },
+                {
+                    "issue_id": "RI-NO-IMPACT",
+                    "category": "drawing_risk",
+                    "status": "无影响",
+                    "message": "no impact",
+                },
+                {
+                    "issue_id": "RI-IGNORED",
+                    "category": "drawing_risk",
+                    "status": "已忽略",
+                    "ignore_reason": "人工判断不影响导出",
+                    "message": "ignored",
+                },
+                {
+                    "issue_id": "RI-OPEN",
+                    "category": "drawing_risk",
+                    "status": "待处理",
+                    "message": "open",
+                },
+            ],
+        )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            xlsx_path = Path(tmp) / "apqp.xlsx"
+            export_workbook(
+                {},
+                xlsx_path,
+                require_gate=False,
+                quality_gate=gate,
+            )
+            review_sheet = _worksheet_xml(xlsx_path, 9)
+
+        self.assertIn("RI-OPEN", review_sheet)
+        self.assertNotIn("RI-HANDLED", review_sheet)
+        self.assertNotIn("RI-CONFIRMED", review_sheet)
+        self.assertNotIn("RI-ACCEPTED", review_sheet)
+        self.assertNotIn("RI-NO-IMPACT", review_sheet)
+        self.assertNotIn("RI-IGNORED", review_sheet)
+
 
 class CliContractTests(unittest.TestCase):
     def _run_cli(self, *args):
@@ -412,9 +752,9 @@ class CliContractTests(unittest.TestCase):
     def test_cli_list_validate_export(self):
         list_result = self._run_cli("list", "--samples-dir", str(SAMPLES_DIR))
         self.assertEqual(list_result.returncode, 0, list_result.stderr)
-        self.assertIn("door_hinge", list_result.stdout)
-        self.assertIn("limiter", list_result.stdout)
-        self.assertIn("stamping", list_result.stdout)
+        self.assertIn("door_hinge", list_result.stderr)
+        self.assertIn("limiter", list_result.stderr)
+        self.assertIn("stamping", list_result.stderr)
 
         validate_result = self._run_cli("validate", "--input", str(FIXTURE_DIR))
         self.assertEqual(validate_result.returncode, 0, validate_result.stderr)

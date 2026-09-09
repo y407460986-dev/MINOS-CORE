@@ -91,7 +91,7 @@ class DescribeConfigSourcesTests(unittest.TestCase):
     def test_secret_env_value_is_redacted(self) -> None:
         with mock.patch.dict(
             os.environ,
-            {"MINOS_OPENAI_API_KEY": "sk-supersecretkey1234567890"},
+            {"MINOS_OPENAI_API_KEY": "redaction-test-value-1234567890"},
         ):
             sources = describe_config_sources()
 

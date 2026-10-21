@@ -31,6 +31,8 @@ python -m minos_core.cli generate-three-tables --input path\to\drawing.png --out
 
 旧的 evidence/input_package APQP 链路仍保留，用于兼容已有测试、样本和后续服务层，但主产品路线以 AI 图纸识别三表生成为准。
 
+后续将继续更新。
+
 ## 架构
 
 v3.0 采用 4 层结构：Tauri 前端 → FastAPI 桌面 sidecar → Desktop Services（SQLite）→ Core Library（Pipeline）。详见 [架构总览](docs/architecture/README.md)、[模块地图](docs/architecture/modules.md)、[数据流](docs/architecture/data-flow.md) 与各 ADR。
